@@ -154,7 +154,7 @@ namespace larlitecv {
 
     std::cout << "Max flavor set has " << numevents_per_flavorset.find(maxset)->second << " entries. "
 	      << "Consists of " << maxset.size() << " different tree flavors." << std::endl;
-      
+    
       
   }//end of user_build_index
 

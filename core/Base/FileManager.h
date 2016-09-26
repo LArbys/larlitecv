@@ -93,7 +93,8 @@ namespace larlitecv {
     void parse_filelist( std::vector<std::string>& flist);         ///< parses the filelist
     std::string get_filelisthash(); ///< create md5 hash from filelist contents
     bool cacheExists( std::string hash ) { return false; };
-    void load_from_cache( std::string hash ) {};
+    void load_from_cache( std::string hash );
+    void cache_index( std::string hash, std::map< RSE, int >& rse2entry, std::map< int, RSE >& fentry2rse );
 
     bool fUseCache;
     bool isParsed;
