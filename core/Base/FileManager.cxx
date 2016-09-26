@@ -15,7 +15,6 @@ namespace larlitecv {
 
     fFilelistHash = get_filelisthash();
     std::cout << "Hash: " << fFilelistHash << std::endl;
-    return;
 
     if ( fUseCache && cacheExists(fFilelistHash) ) {
       load_from_cache(fFilelistHash);
@@ -26,6 +25,7 @@ namespace larlitecv {
       parse_filelist(files);   ///< get a vector of string with the filelist
       user_build_index(files,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
     }
+
   }
 
   void FileManager::parse_filelist( std::vector<std::string>& flist ) {
@@ -42,6 +42,7 @@ namespace larlitecv {
 
     hashwrapper *myWrapper = new md5wrapper();
     std::string hash = myWrapper->getHashFromFile( fFilelist.c_str() );
+    delete myWrapper;
     return hash;
   }
   
