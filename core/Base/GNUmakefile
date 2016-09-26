@@ -12,7 +12,7 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 USE_OPENCV=$(LARLITECV_OPENCV)
 
 # include options for this package
-INCFLAGS  = -I.                       #Include itself
+INCFLAGS  = -I. $(shell larlitecv-config --includes)  #Include itself
 
 # platform-specific options
 OSNAME          = $(shell uname -s)

@@ -10,6 +10,8 @@
 #pragma link off all functions;
 
 // Classes
+#pragma link C++ namespace larlitecv;
+#pragma link C++ class larlitecv::LarliteFileManager+;
 //ADD_NEW_CLASS ... do not change this line
 
 #endif
