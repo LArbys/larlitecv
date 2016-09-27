@@ -251,4 +251,8 @@ namespace larlitecv {
     // writing down implicitly when event changes for larlite storage_manager
   }
 
+  void DataCoordinator::set_id( int run, int subrun, int event ) {
+    larcv_io.set_id( run, subrun, event );
+    larlite_io.set_id( run, subrun, event );    
+  }
 }
