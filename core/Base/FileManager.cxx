@@ -26,13 +26,19 @@ namespace larlitecv {
       // we need to build this instance up
       std::vector<std::string> files;
       parse_filelist(files);   ///< get a vector of string with the filelist
-      user_build_index(files,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
-      cache_index( fFilelistHash, frse2entry, fentry2rse );
+      if ( files.size()>0 ) {
+	user_build_index(files,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
+	cache_index( fFilelistHash, frse2entry, fentry2rse );
+      }
     }
 
   }
 
   void FileManager::parse_filelist( std::vector<std::string>& flist ) {
+
+    if ( fFilelist=="" )
+      return; // no files
+
     std::ifstream infile( fFilelist.c_str() );
     std::string line;
     while (std::getline(infile, line)) {
@@ -67,8 +73,8 @@ namespace larlitecv {
       tcache.Fill();
       entry++;
     }
-    tcache.Write();
-    rcache.Close();
+    //tcache.Write();
+    rcache.Write();
   }
 
   void FileManager::load_from_cache( std::string hash ) {
@@ -89,6 +95,14 @@ namespace larlitecv {
     }
     tcache->Write();
     rcache.Close();
+  }
+
+  std::string FileManager::printset( const std::set< std::string >& myset ) {
+    std::string yo = "";
+    for ( auto &s : myset ) {
+      yo += " " + s;
+    }
+    return yo;
   }
   
 }

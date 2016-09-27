@@ -1,4 +1,4 @@
-#include "LarliteFileManager.h"
+#include "LarcvFileManager.h"
 #include "Hashlib2plus/hashlibpp.h"
 #include "TFile.h"
 #include "TTree.h"
@@ -9,17 +9,17 @@
 
 namespace larlitecv {
 
-  LarliteFileManager::LarliteFileManager( std::string filelist, bool use_cache) 
+  LarcvFileManager::LarcvFileManager( std::string filelist, bool use_cache) 
     : FileManager( filelist, use_cache )
   {
     // ok
   }
 
-  std::string LarliteFileManager::filetype() {
-    return "larlite";
+  std::string LarcvFileManager::filetype() {
+    return "larcv";
   }
 
-  void LarliteFileManager::user_build_index( const std::vector<std::string>& input, std::map< RSE, int >& rse2entry, std::map< int, RSE >& entry2rse ) {
+  void LarcvFileManager::user_build_index( const std::vector<std::string>& input, std::map< RSE, int >& rse2entry, std::map< int, RSE >& entry2rse ) {
     
     std::set<std::string> producers;
     std::set<std::string> datatypes;
@@ -42,16 +42,25 @@ namespace larlitecv {
       TFile rfile( fpath.c_str(), "OPEN" );
       int nkeys = rfile.GetListOfKeys()->GetEntries();
       bool found_id_tree = false;
+      std::string idtreename = "";
       std::set<std::string> trees;
-
+      
       for (int ikey=0; ikey<nkeys; ikey++) {
 	
 	std::string keyname = rfile.GetListOfKeys()->At(ikey)->GetName();
-	if ( keyname=="larlite_id_tree" ) found_id_tree = true;
+	size_t foundlast = keyname.find_last_of("_");
+	std::string tail = keyname.substr(foundlast+1,std::string::npos);
+	if ( tail!="tree") 
+	  continue;
 	size_t found1 = keyname.find("_");
 	size_t found2 = keyname.find("_",found1+1);
 	std::string dtype    = keyname.substr(0,found1);
 	std::string producer = keyname.substr(found1+1,found2-found1-1 );
+	if ( (!found_id_tree) or (found_id_tree && dtype=="partroi" )) {
+	  found_id_tree = true;
+	  idtreename = keyname;
+	}
+	  
 	producers.insert( producer );
 	datatypes.insert( dtype );
 	trees.insert( keyname );
@@ -73,14 +82,14 @@ namespace larlitecv {
       }
       treeflavors.insert(treehash);
       flavorfiles.find(treehash)->second.push_back( fpath );
-
+      
       // now we want the RSE for each entry of the tree. we use the id tree to get these
       RSElist fileentry_rse;
-      TTree* idtree = (TTree*)rfile.Get( "larlite_id_tree" );
-      UInt_t run, subrun, event;
-      idtree->SetBranchAddress("_run_id",&run);
-      idtree->SetBranchAddress("_subrun_id",&subrun);
-      idtree->SetBranchAddress("_event_id",&event);
+      TTree* idtree = (TTree*)rfile.Get( idtreename.c_str() );
+      ULong_t run, subrun, event;
+      idtree->SetBranchAddress("_run",&run);
+      idtree->SetBranchAddress("_subrun",&subrun);
+      idtree->SetBranchAddress("_event",&event);
 
       long bytes = idtree->GetEntry(0);
       long idtree_entry = 0;
@@ -105,10 +114,10 @@ namespace larlitecv {
 	rse_flavors.insert( std::pair< RSElist, std::set<std::string> >( fileentry_rse, std::move(firstfile) ) );
       }
 
-//       std::cout << "File flavor: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
-// 		<< fileentry_rse.run() 
-// 		<< " " << fileentry_rse.subrun() 
-// 		<< " "  << fileentry_rse.event() << std::endl;
+      std::cout << "File flavor: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
+		<< fileentry_rse.run() 
+		<< " " << fileentry_rse.subrun() 
+		<< " "  << fileentry_rse.event() << std::endl;
 	
     }//end of file list loop
 

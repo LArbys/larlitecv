@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 
 namespace larlitecv {
 
@@ -83,6 +84,8 @@ namespace larlitecv {
     void setFilelist( std::string flist ) { fFilelist = flist; };
     virtual std::string filetype()=0; //< return name of filetype (e.g. larlite, larcv)
     void initialize();
+    void getRSE( int entry, int& run, int& subrun, int& event );
+    void getEntry( int run, int subrun, int event, int& entry );
 
   protected:
     
@@ -95,6 +98,7 @@ namespace larlitecv {
     bool cacheExists( std::string hash ) { return false; };
     void load_from_cache( std::string hash );
     void cache_index( std::string hash, std::map< RSE, int >& rse2entry, std::map< int, RSE >& fentry2rse );
+    std::string printset( const std::set< std::string >& myset );
 
     bool fUseCache;
     bool isParsed;

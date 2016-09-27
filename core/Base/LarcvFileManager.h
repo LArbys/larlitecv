@@ -1,5 +1,5 @@
-#ifndef __LARLITEFILEMANAGER__
-#define __LARLITEFILEMANAGER__
+#ifndef __LARCVFILEMANAGER__
+#define __LARCVFILEMANAGER__
 
 #include "FileManager.h"
 #include <string>
@@ -8,12 +8,12 @@
 
 namespace larlitecv {
   
-  class LarliteFileManager : public FileManager {
+  class LarcvFileManager : public FileManager {
 
   public:
 
-    LarliteFileManager( std::string fman, bool use_cache=true );
-    virtual ~LarliteFileManager() {};
+    LarcvFileManager( std::string fman, bool use_cache=true );
+    virtual ~LarcvFileManager() {};
     
     virtual std::string filetype();
     std::vector<std::string> const& getfilelist() { return ffinallist; };
@@ -24,6 +24,7 @@ namespace larlitecv {
 				   std::map< int, RSE >& entry2fse );
 
     std::vector<std::string> ffinallist;
+
   };
 }
 

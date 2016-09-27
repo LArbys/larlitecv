@@ -12,6 +12,8 @@
 // Classes
 #pragma link C++ namespace larlitecv;
 #pragma link C++ class larlitecv::LarliteFileManager+;
+#pragma link C++ class larlitecv::LarcvFileManager+;
+#pragma link C++ class larlitecv::DataCoordinator+;
 //ADD_NEW_CLASS ... do not change this line
 
 #endif
