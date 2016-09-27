@@ -84,12 +84,15 @@ namespace larlitecv {
     void setFilelist( std::string flist ) { fFilelist = flist; };
     virtual std::string filetype()=0; //< return name of filetype (e.g. larlite, larcv)
     void initialize();
-    void getRSE( int entry, int& run, int& subrun, int& event );
-    void getEntry( int run, int subrun, int event, int& entry );
+    void getRSE( int entry, int& run, int& subrun, int& event ) const;
+    void getEntry( int run, int subrun, int event, int& entry ) const;
+    const std::vector<std::string>& get_final_filelist() const { return ffinallist; };
+    int nentries() const { return frse2entry.size(); };
 
   protected:
     
     virtual void user_build_index( const std::vector<std::string>& input,
+				   std::vector<std::string>& finalfilelist,
 				   std::map< RSE, int >& rse2entry,
 				   std::map< int, RSE >& entry2fse ) = 0; ///< pure virtual function that exists frse2entry and fentry2fse are built
     //virtual void user_build_index( const std::vector<std::string>& input ) = 0;
@@ -104,7 +107,8 @@ namespace larlitecv {
     bool isParsed;
     std::string fFilelist;
     std::string fFilelistHash;
-
+    
+    std::vector< std::string > ffinallist;
     std::map< RSE, int > frse2entry;
     std::map< int, RSE > fentry2rse;
 

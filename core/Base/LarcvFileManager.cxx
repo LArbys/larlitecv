@@ -19,7 +19,9 @@ namespace larlitecv {
     return "larcv";
   }
 
-  void LarcvFileManager::user_build_index( const std::vector<std::string>& input, std::map< RSE, int >& rse2entry, std::map< int, RSE >& entry2rse ) {
+  void LarcvFileManager::user_build_index( const std::vector<std::string>& input, 
+					   std::vector<std::string>& finallist,
+					   std::map< RSE, int >& rse2entry, std::map< int, RSE >& entry2rse ) {
     
     std::set<std::string> producers;
     std::set<std::string> datatypes;
@@ -146,7 +148,7 @@ namespace larlitecv {
     }
 
     // now we finally fill what we've been asked to fill
-    ffinallist.clear();
+    finallist.clear();
     rse2entry.clear();
     entry2rse.clear();
 
@@ -155,7 +157,7 @@ namespace larlitecv {
     for ( auto &flavorset : maxset ) {
       std::vector<std::string>& files = flavorfiles.find( flavorset )->second;
       for ( auto &file : files ) {
-	ffinallist.push_back( file );
+	finallist.push_back( file );
 	RSElist& rselist = file_rselist.find( file )->second;
 	finalrseset.insert( rselist );
       }

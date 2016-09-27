@@ -27,7 +27,7 @@ namespace larlitecv {
       std::vector<std::string> files;
       parse_filelist(files);   ///< get a vector of string with the filelist
       if ( files.size()>0 ) {
-	user_build_index(files,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
+	user_build_index(files,ffinallist,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
 	cache_index( fFilelistHash, frse2entry, fentry2rse );
       }
     }

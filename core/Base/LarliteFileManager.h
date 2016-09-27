@@ -20,6 +20,7 @@ namespace larlitecv {
 
   protected:
     virtual void user_build_index( const std::vector<std::string>& input,
+				   std::vector<std::string>& finalfilelist,
 				   std::map< RSE, int >& rse2entry,
 				   std::map< int, RSE >& entry2fse );
 
