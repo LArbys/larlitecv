@@ -10,6 +10,7 @@
 #pragma link off all functions;
 
 // Classes
+#pragma link C++ class std::map<string, std::vector<string> >+;
 #pragma link C++ namespace larlitecv;
 #pragma link C++ class larlitecv::LarliteFileManager+;
 #pragma link C++ class larlitecv::LarcvFileManager+;
@@ -17,6 +18,7 @@
 //ADD_NEW_CLASS ... do not change this line
 
 #endif
+
 
 
 

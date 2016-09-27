@@ -9,9 +9,15 @@
 
 namespace larlitecv {
 
-  DataCoordinator::DataCoordinator() {
+  DataCoordinator::DataCoordinator() 
+    : larlite_pset("larlite_pset","")
+    , larcv_pset("larcv_pset","")
+  {
     fManagerList.clear();
     fManagers.clear();
+    user_filepaths.clear();
+    user_filelists.clear();
+    user_outpath.clear();
     fInit = false;
     fManagerList.push_back("larlite");
     fManagerList.push_back("larcv");
@@ -25,10 +31,12 @@ namespace larlitecv {
   }
 
   void DataCoordinator::add_inputfile( std::string file, std::string ftype ) {
+    //if ( user_filepaths.empty() || user_filepaths.find( ftype )==user_filepaths.end() ) {
     if ( user_filepaths.find( ftype )==user_filepaths.end() ) {
-      user_filepaths.insert( std::pair<std::string,std::vector<std::string> >( ftype, std::vector<std::string>() ) );
+      user_filepaths.emplace(ftype, std::vector<std::string>());
     }
-    user_filepaths[ftype].push_back( file );
+    auto iter = user_filepaths.find(ftype);
+    iter->second.push_back(file);
   }
 
   void DataCoordinator::set_filelist( std::string flist, std::string ftype ) {
@@ -133,10 +141,16 @@ namespace larlitecv {
 				   std::string larlite_cfgname, 
 				   std::string larcv_cfgname, std::string coord_cfgname ) {
     // we parse the cfgfile twice. once for larlite, the other for larcv
-    larcv::PSet pset_coord = larcv::CreatePSetFromFile( cfgfile, coord_cfgname );
-    // get the 
+    std::cout << "Loading pset=" << coord_cfgname << std::endl;
+    larcv::PSet pset_head = larcv::CreatePSetFromFile( cfgfile, "cfg" );
+    larcv::PSet pset_coord = pset_head.get<larcv::PSet>( coord_cfgname );
+    
 
+    // get the 
+    std::cout << "Loading larlite pset=" << larlite_cfgname << std::endl;
     larlite_pset = pset_coord.get<larcv::PSet>( larlite_cfgname );
+    //larlite_pset = pset_coord.get_pset( larlite_cfgname );
+    std::cout << "Loading larcv pset=" << larcv_cfgname << std::endl;
     larcv_pset   = pset_coord.get<larcv::PSet>( larcv_cfgname );
     
   }
@@ -154,11 +168,20 @@ namespace larlitecv {
     int iomode = pset.get<int>("IOMode");
     ioman.set_io_mode( (larlite::storage_manager::IOMode_t)iomode );
 
+    std::string outfilename = pset.get<std::string>( "OutFileName", "" );
+    if ( iomode==1 || iomode==2 ) {
+      if ( outfilename=="" ) {
+	std::cout << "Larlite file is set to write mode, but does not have an output file name." << std::endl;
+	assert(false);
+      }
+      ioman.set_out_filename( outfilename );
+    }
+
     // specified read/write datatypes
-    std::vector<std::string> readonlyvars  = pset.get<std::vector<std::string> >( "ReadOnlyDataTypes" );
-    std::vector<std::string> readonlyname  = pset.get<std::vector<std::string> >( "ReadOnlyProducers" );
-    std::vector<std::string> writeonlyvars = pset.get<std::vector<std::string> >( "WriteOnlyDataTypes" );
-    std::vector<std::string> writeonlyname  = pset.get<std::vector<std::string> >( "WriteOnlyProducers" );
+    std::vector<std::string> readonlyvars  = pset.get<std::vector<std::string> >( "ReadOnlyDataTypes", std::vector<std::string>() );
+    std::vector<std::string> readonlyname  = pset.get<std::vector<std::string> >( "ReadOnlyProducers", std::vector<std::string>() );
+    std::vector<std::string> writeonlyvars = pset.get<std::vector<std::string> >( "WriteOnlyDataTypes", std::vector<std::string>() );
+    std::vector<std::string> writeonlyname  = pset.get<std::vector<std::string> >( "WriteOnlyProducers", std::vector<std::string>() );
 
     if ( readonlyvars.size()!=readonlyname.size() ) {
       std::cout << "ERROR: number of read-only data types and names are not the same." << std::endl;
