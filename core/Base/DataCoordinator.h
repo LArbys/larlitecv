@@ -69,9 +69,13 @@ namespace larlitecv {
 
     // larlite get data command
     larlite::event_base* get_data(const larlite::data::DataType_t type, const std::string& name);
-    larcv::EventBase* get_data(const larcv::ProductType_t type, const std::string& producer);
 
     // larcv get data command
+    larcv::EventBase* get_data(const larcv::ProductType_t type, const std::string& producer);
+    
+    // wrapped commands because python can't resolve function
+    larlite::event_base* get_larlite_data( const larlite::data::DataType_t type, const std::string& name) { return get_data( type, name); };
+    larcv::EventBase*    get_larcv_data( const larcv::ProductType_t type, const std::string& producer ) { return get_data( type, producer ); };
   
   protected:
     
