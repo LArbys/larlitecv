@@ -49,6 +49,9 @@ namespace larlitecv {
     void goto_entry( int entry, std::string ftype );
     void goto_event( int run, int subrun, int event );
 
+    // saving output
+    void save_entry();
+
     // load after specifying files
     void initialize();
     void finalize();
