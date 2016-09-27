@@ -16,6 +16,11 @@ namespace larlitecv {
 
   void FileManager::initialize() {
 
+    if ( fFilelist=="" ) {
+      // no filelist, so verything empty
+      return;
+    }
+
     fFilelistHash = get_filelisthash();
     std::cout << "Hash: " << fFilelistHash << std::endl;
 
