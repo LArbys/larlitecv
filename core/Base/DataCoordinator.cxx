@@ -207,6 +207,7 @@ namespace larlitecv {
 
   void DataCoordinator::goto_entry( int entry, std::string ftype_driver ) {
     int run, subrun, event, other_entry;
+    fLastDriver = ftype_driver;
     if ( ftype_driver=="larlite" ) {
       larlite_io.go_to( entry );
       fManagers["larlite"]->getRSE( entry, run, subrun, event );
@@ -255,4 +256,46 @@ namespace larlitecv {
     larcv_io.set_id( run, subrun, event );
     larlite_io.set_id( run, subrun, event );    
   }
+
+  int DataCoordinator::run() {
+    if ( fLastDriver=="larlite" ) return larlite_io.run_id();
+    else if ( fLastDriver=="larcv" ) return larcv_io.event_id().run();
+    assert(false);
+  }
+
+  int DataCoordinator::subrun() {
+    if ( fLastDriver=="larlite" ) return larlite_io.subrun_id();
+    else if ( fLastDriver=="larcv" ) return larcv_io.event_id().subrun();
+    assert(false);
+  }
+
+  int DataCoordinator::event() {
+    if ( fLastDriver=="larlite" ) return larlite_io.event_id();
+    else if ( fLastDriver=="larcv" ) return larcv_io.event_id().event();
+    assert(false);
+  }
+
+  larlite::event_base* DataCoordinator::get_data( const larlite::data::DataType_t type, const std::string& name) {
+    return larlite_io.get_data( type, name );
+  }
+
+  larcv::EventBase* DataCoordinator::get_data( const larcv::ProductType_t type, const std::string& producer) {
+    return larcv_io.get_data( type, producer );
+  }
+
+  void DataCoordinator::get_id( int& run, int& subrun, int& event ) {
+    if ( fLastDriver=="larlite" ) {
+      run = larlite_io.run_id();
+      subrun = larlite_io.subrun_id();
+      event = larlite_io.event_id();
+    }
+    else if ( fLastDriver=="larcv" ) {
+      larcv::EventBase const& ev = larcv_io.event_id();
+      run = ev.run();
+      subrun = ev.subrun();
+      event = ev.event();
+    }
+    assert(false);
+  }
+
 }

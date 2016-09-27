@@ -9,10 +9,13 @@
 // larlite
 #include "DataFormat/DataFormatTypes.h"
 #include "DataFormat/storage_manager.h"
+#include "DataFormat/data_base.h"
 
 // larcv
+#include "DataFormat/EventBase.h"
 #include "DataFormat/IOManager.h"
 #include "Base/PSet.h"
+
 
 namespace larlitecv {
 
@@ -49,8 +52,12 @@ namespace larlitecv {
     void goto_entry( int entry, std::string ftype );
     void goto_event( int run, int subrun, int event );
 
-    // set id
+    // get/set id
     void set_id( int run, int subrun, int event );
+    int run();
+    int subrun();
+    int event();
+    void get_id( int& run, int& subrun, int& event );
 
     // saving output
     void save_entry();
@@ -60,6 +67,11 @@ namespace larlitecv {
     void finalize();
     void close();
 
+    // larlite get data command
+    larlite::event_base* get_data(const larlite::data::DataType_t type, const std::string& name);
+    larcv::EventBase* get_data(const larcv::ProductType_t type, const std::string& producer);
+
+    // larcv get data command
   
   protected:
     
@@ -76,6 +88,7 @@ namespace larlitecv {
     larlite::storage_manager larlite_io;
     larcv::IOManager         larcv_io;
     std::map< std::string, std::string > user_ioconfig;
+    std::string fLastDriver;
 
     // configs
     std::string cfgfile;
@@ -84,7 +97,6 @@ namespace larlitecv {
     void do_larlite_config( larlite::storage_manager& ioman, larcv::PSet& pset );
     larlite::data::DataType_t get_enum_fromstring( std::string name );
   };
-
 
 }
 
