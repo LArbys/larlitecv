@@ -6,6 +6,9 @@
 #include <iostream>
 #include <set>
 #include <vector>
+#include <assert.h>
+#include "DataFormat/EventBase.h"
+#include "DataFormat/EventROI.h"
 
 namespace larlitecv {
 
@@ -45,6 +48,8 @@ namespace larlitecv {
       int nkeys = rfile.GetListOfKeys()->GetEntries();
       bool found_id_tree = false;
       std::string idtreename = "";
+      std::string idtreeproducer = "";
+      std::string idtreetype = "";
       std::set<std::string> trees;
       
       for (int ikey=0; ikey<nkeys; ikey++) {
@@ -61,6 +66,8 @@ namespace larlitecv {
 	if ( (!found_id_tree) or (found_id_tree && dtype=="partroi" )) {
 	  found_id_tree = true;
 	  idtreename = keyname;
+	  idtreetype = dtype;
+	  idtreeproducer = producer;
 	}
 	  
 	producers.insert( producer );
@@ -82,6 +89,7 @@ namespace larlitecv {
       if ( treeflavors.find(treehash)==treeflavors.end() ) {
 	flavorfiles.insert( std::pair< std::string, std::vector<std::string> >( treehash, std::vector<std::string>() ) );
       }
+      delete myWrapper;
       treeflavors.insert(treehash);
       flavorfiles.find(treehash)->second.push_back( fpath );
       
@@ -89,14 +97,27 @@ namespace larlitecv {
       RSElist fileentry_rse;
       TTree* idtree = (TTree*)rfile.Get( idtreename.c_str() );
       ULong_t run, subrun, event;
-      idtree->SetBranchAddress("_run",&run);
-      idtree->SetBranchAddress("_subrun",&subrun);
-      idtree->SetBranchAddress("_event",&event);
+      larcv::EventROI* ev_roi = nullptr;
+      //idtree->SetBranchAddress("_run",&run);
+      //idtree->SetBranchAddress("_subrun",&subrun);
+      //idtree->SetBranchAddress("_event",&event);
+      larcv::EventBase* product_ptr; 
+      if ( idtreetype=="image2d" )
+	product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductImage2D,idtreeproducer));
+      else if ( idtreetype=="partroi" ) 
+	product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductROI,idtreeproducer));
+      else
+	assert(false);
+      std::string brname = idtreetype + "_" + idtreeproducer + "_branch";
+      idtree->SetBranchAddress( brname.c_str(), &(product_ptr) );
 
-      long bytes = idtree->GetEntry(0);
       long idtree_entry = 0;
+      long bytes = idtree->GetEntry(idtree_entry);
       while ( bytes>0 ) {
-	RSE entry( run, subrun, event );
+	run = product_ptr->run();
+	subrun = product_ptr->subrun();
+	event = product_ptr->event();
+	RSE entry( (int)run, (int)subrun, (int)event );
 	fileentry_rse.emplace_back( entry );
 	bytes = idtree->GetEntry( ++idtree_entry );
       }
@@ -120,6 +141,7 @@ namespace larlitecv {
 		<< fileentry_rse.run() 
 		<< " " << fileentry_rse.subrun() 
 		<< " "  << fileentry_rse.event() << std::endl;
+      delete product_ptr;
 	
     }//end of file list loop
 

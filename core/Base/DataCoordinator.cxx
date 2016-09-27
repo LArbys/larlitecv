@@ -212,6 +212,9 @@ namespace larlitecv {
       larlite_io.go_to( entry );
       fManagers["larlite"]->getRSE( entry, run, subrun, event );
       fManagers["larcv"]->getEntry( run, subrun, event, other_entry );
+      std::cout << "given larlite entry=" << entry  << ". "
+		<< ". rse=(" << run << ", " << subrun << ", " << event << ")"
+		<< " larcv entry=" << other_entry << std::endl;
       larcv_io.read_entry( other_entry );
     }
     else if ( ftype_driver=="larcv" ) {
