@@ -104,5 +104,25 @@ namespace larlitecv {
     }
     return yo;
   }
+
+  void FileManager::getRSE( int entry, int& run, int& subrun, int& event ) const {
+    run =  subrun = event = 0;
+    if ( fentry2rse.find( entry )!=fentry2rse.end() ) {
+      auto iter = fentry2rse.find( entry );
+      run    = iter->second.run;
+      subrun = iter->second.subrun;
+      event  = iter->second.event;
+    }
+  }
+
+  void FileManager::getEntry( int run, int subrun, int event, int& entry ) const {
+    entry = 0;
+    RSE rse(run,subrun,event);
+    auto iter = frse2entry.find( rse );
+    if ( iter!=frse2entry.end() ) {
+      entry = iter->second;
+    }
+  }
+    
   
 }

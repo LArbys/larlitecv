@@ -20,6 +20,7 @@ print "from larlitecv: ",time()-s,"secs"
 #s = time()
 #from larlitecv import larlitecv
 #print "data coord: ",time()-s
+from larlitecv import larlitecv
 
 print "make data co."
 dataco = larlitecv.DataCoordinator()
