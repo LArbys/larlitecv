@@ -106,9 +106,8 @@ namespace larlitecv {
   }
   
   void DataCoordinator::finalize() {
-//     for (auto &iter : fManagers ) {
-//       iter.second->finalize();
-//     }
+    larlite_io.close();
+    larcv_io.finalize();
   }
   
   void DataCoordinator::prepfilelists() {
@@ -227,6 +226,8 @@ namespace larlitecv {
       std::cout << "not a filetype: " << ftype_driver << std::endl;
       assert(false);
     }
+    larcv_io.set_id( run, subrun, event );
+    larlite_io.set_id( run, subrun, event );
   }
 
 
@@ -236,11 +237,18 @@ namespace larlitecv {
     larlite_io.go_to( entry );
     fManagers["larcv"]->getEntry( run, subrun, event, entry );
     larcv_io.read_entry( entry );
+    larlite_io.set_id( run, subrun, event );
+    larcv_io.set_id( run, subrun, event );
   }
 
   int DataCoordinator::get_nentries( std::string ftype ) {
     if ( fManagers.find(ftype)==fManagers.end() ) return 0;
     return fManagers[ftype]->nentries();
+  }
+
+  void DataCoordinator::save_entry() {
+    larcv_io.save_entry();
+    // writing down implicitly when event changes for larlite storage_manager
   }
 
 }
