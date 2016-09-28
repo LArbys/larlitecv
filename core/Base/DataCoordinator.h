@@ -92,7 +92,10 @@ namespace larlitecv {
     larlite::storage_manager larlite_io;
     larcv::IOManager         larcv_io;
     std::map< std::string, std::string > user_ioconfig;
+    std::map< std::string, int > fIOmodes;
     std::string fLastDriver;
+    bool larcv_unused;
+    bool larlite_unused;
 
     // configs
     std::string cfgfile;
