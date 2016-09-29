@@ -81,6 +81,7 @@ namespace larlitecv {
     // this builds the indices, allowing us to sync the processing
     for (auto &iter : fManagers ) {
       iter.second->initialize();
+      std::cout << iter.first << " loaded " << iter.second->get_final_filelist().size() << " files." << std::endl;
     }
 
     // now we setup the iomanagers
@@ -97,8 +98,8 @@ namespace larlitecv {
     if ( fIOmodes["larlite"]==-1) larlite_unused = true;
     
     // other way is if iomode is read-only, but there are no events provided
-    if ( fIOmodes["larcv"]==0 && fManagers["larcv"]->nentries()==0 ) larcv_unused = true;
-    if ( fIOmodes["larlite"]==0 && fManagers["larlite"]->nentries()==0 ) larlite_unused = true;
+    if ( fIOmodes["larcv"]==0 && fManagers["larcv"]->get_final_filelist().size()==0 ) larcv_unused = true;
+    if ( fIOmodes["larlite"]==0 && fManagers["larlite"]->get_final_filelist().size()==0 ) larlite_unused = true;
 
     // now load input files
 
@@ -106,13 +107,13 @@ namespace larlitecv {
     if ( !larlite_unused ) {
       for ( auto const &larlitefile : fManagers["larlite"]->get_final_filelist() )
 	larlite_io.add_in_filename( larlitefile );
-      larcv_io.initialize();
+      larlite_io.open();
     }
     // larcv iomanager
     if ( !larcv_unused ) {
       for ( auto const &larcvfile : fManagers["larcv"]->get_final_filelist() )
 	larcv_io.add_in_file( larcvfile );
-      larlite_io.open();      
+      larcv_io.initialize();      
     }
 
     if ( larlite_unused ) std::cout << "[LARLITE unused]" << std::endl;
