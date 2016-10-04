@@ -20,8 +20,9 @@ namespace larlitecv {
 	int plane = meta.plane();
 	
 	float tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
-	if ( fSearchMode==kCathode )
+	if ( fSearchMode==kCathode ) {
 	  tick_target += fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick;
+	}
 
 	// check if we can search for this opflash
 	if ( tick_target<meta.min_y() || tick_target>=meta.max_y() )
@@ -29,10 +30,12 @@ namespace larlitecv {
 	
 	int row_target = meta.row( tick_target );
 
+	std::cout << "============================================================================================" << std::endl;
 	std::cout << "[Opflash search]" << std::endl;
 	std::cout << "  opflash: p= " << plane 
 		  << " tick_target=" << tick_target
 		  << " row_target=" << row_target
+		  << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick << " ticks"
 		  << std::endl;
 	
 	// scan across wires, looking for a hit
@@ -57,7 +60,7 @@ namespace larlitecv {
 	      int hitidx = clout.clusters.at(containing_cluster).at(ichit);
 	      int x_ = (int)winpoints.at(hitidx).at(0)+0.1;
 	      int y_ = (int)winpoints.at(hitidx).at(1)+0.1;
-	      markedimg.set_pixel( y_, x_, 10.0 );
+	      //markedimg.set_pixel( y_, x_, 10.0 );
 	      if ( tmax==-1 || y_>tmax ) { tmax = y_; wmax = x_; };
 	      if ( tmin==-1 || y_<tmin ) { tmin = y_; wmin = x_; };
 	    }
@@ -72,13 +75,26 @@ namespace larlitecv {
 
 	    // is this a marked flash-end?
 	    // if extrema matches the annode flash hypothesis row. mark as interesting (Score 200)
+	    bool success = false;
 	    if ( abs(tmin-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) {
 	      if ( fConfig.verbosity<1 ) std::cout << "MATCHED MIN END" << std::endl;
 	      markedimg.set_pixel( tmin, wmin, 200.0 );
+	      success = true;
 	    }
 	    else if ( abs(tmax-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) { 
 	      if ( fConfig.verbosity<1 ) std::cout << "MATCHED MAX_END" << std::endl;
+	      success =true;
 	      markedimg.set_pixel( tmax, wmax, 200.0 );
+	    }
+	    if ( success ) {
+	      // mark good cluster, so we don't use it again
+	      for ( int ichit=0; ichit<clout.clusters.at(containing_cluster).size(); ichit++ ) {
+		int hitidx = clout.clusters.at(containing_cluster).at(ichit);
+		int x_ = (int)winpoints.at(hitidx).at(0)+0.1;
+		int y_ = (int)winpoints.at(hitidx).at(1)+0.1;
+		if ( markedimg.pixel( y_, x_ )<100 )
+		  markedimg.set_pixel( y_, x_, 10.0 );      
+	      }	      
 	    }
 
 	  }//end of if point is interesting
@@ -121,7 +137,8 @@ namespace larlitecv {
 	}// if valid point
       }//end of time window
     }//end of wire window
-    std::cout << "exploring around: (c,r)=" << query_col << ", " << query_row << " (w,t)=(" << w << "," << t1 << ")  npoints=" << winpoints.size() << std::endl;
+    std::cout << "  exploring around: plane=" << plane
+	      << " (c,r)=" << query_col << ", " << query_row << " (w,t)=(" << w << "," << t1 << ")  npoints=" << winpoints.size() << std::endl;
 
     // clustering
     dbscan::DBSCANAlgo dbalgo;
@@ -141,7 +158,7 @@ namespace larlitecv {
       return false;
 
     if ( fConfig.verbosity<1 )
-      std::cout << "valid connected cluster: " << containing_cluster << " cluster size=" << cluster_info.clusters.at(containing_cluster).size() << std::endl;
+      std::cout << "  valid connected cluster: " << containing_cluster << " cluster size=" << cluster_info.clusters.at(containing_cluster).size() << std::endl;
     
     return true;
     

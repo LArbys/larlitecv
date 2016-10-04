@@ -4,7 +4,7 @@ from pyqtgraph import PlotDataItem
 import numpy as np
 from larcv import larcv
 
-class VisAnnodeHits:
+class VisFlashHits:
 
     COLORS = [ (76,0,153,125), # purple
                (102,255,102),  # green
@@ -17,7 +17,13 @@ class VisAnnodeHits:
                (255,255,0),    # yellow
                ]
     NCOLORS = len(COLORS)
-               
+    PLANE_COLORS = {0:(255,204,204,125),
+                    1:(51,255,51,125),
+                    2:(102,102,255,125)}
+    CH_MARKER = { 0:"t",
+                  1:"o",
+                  2:"s",
+                  3:"d" }
     
     def __init__(self):
         pass
@@ -32,6 +38,7 @@ class VisAnnodeHits:
 
         cluster_vecs = [] # output container
 
+        i = 0
         for iimg in xrange(0,lcv_imgs.size()):
             lcv_img = lcv_imgs.at(iimg)
 
@@ -44,15 +51,15 @@ class VisAnnodeHits:
             x = np.zeros( len(ends) )
             y = np.zeros( len(ends) )
             for ic,end in enumerate(ends):
-                color = VisAnnodeHits.COLORS[ ic%VisAnnodeHits.NCOLORS ]
                 x[ic] = meta.pos_x(end[0])
                 y[ic] = meta.pos_y(end[1])
+            color = VisFlashHits.PLANE_COLORS[ plane ]
             plot = PlotDataItem( x=x, y=y, 
                                  pen=None,
                                  symbolBrush=pg.mkBrush(color=color),
-                                 symbol='o',symbolPen=pg.mkPen(color=color,width=0.0) )
+                                 symbol='+',symbolPen=pg.mkPen(color=color,width=0.0) )
             cluster_vecs.append(plot)
 
-        print "number of cluster plots: ",len(cluster_vecs)
+        print "flash plots: ",len(cluster_vecs)
         return cluster_vecs
             

@@ -12,6 +12,7 @@
 
 // larcv data
 #include "DataFormat/EventImage2D.h"
+#include "DataFormat/EventPixel2D.h"
 #include "ANN/ANNAlgo.h"
 #include "dbscan/DBSCANAlgo.h"
 
@@ -58,8 +59,11 @@ int main( int nargs, char** argv ) {
   // side-tagger
   larlitecv::BoundaryMuonTaggerAlgo sidetagger;
   larlitecv::ConfigBoundaryMuonTaggerAlgo sidetagger_cfg;
-  sidetagger_cfg.neighborhoods = sidetagger_pset.get< std::vector<int> >("Neighborhoods");
-  sidetagger_cfg.thresholds    = sidetagger_pset.get< std::vector<float> >( "Thresholds" );
+  sidetagger_cfg.neighborhoods  = sidetagger_pset.get< std::vector<int> >("Neighborhoods");
+  sidetagger_cfg.thresholds     = sidetagger_pset.get< std::vector<float> >( "Thresholds" );
+  sidetagger_cfg.edge_win_wires = sidetagger_pset.get< std::vector<int> >( "EdgeWinWires" );
+  sidetagger_cfg.edge_win_times = sidetagger_pset.get< std::vector<int> >( "EdgeWinTimes" );
+  sidetagger_cfg.edge_win_hitthresh = sidetagger_pset.get< std::vector<float> >( "EdgeWinHitThreshold" );
   sidetagger.configure(sidetagger_cfg);
 
   // flash-tagger
@@ -98,7 +102,18 @@ int main( int nargs, char** argv ) {
     // first we run the boundary muon tagger algo that matches top/side/upstream/downstream
     std::cout << "search for boundary pixels" << std::endl;
     std::vector< larcv::Image2D > outhits;
+    std::vector< std::vector< larlitecv::BoundaryEndPt > > end_points;
     sidetagger.searchforboundarypixels( event_imgs->Image2DArray(), outhits );
+    sidetagger.clusterBoundaryPixels( event_imgs->Image2DArray(), outhits, end_points );
+    std::cout << "[[ Side Tagger End Points ]]" << std::endl;
+    for (int p=0; p<3; p++) {
+      std::cout << "  [Plane " << p << "]" << std::endl;
+      for (int ch=0; ch<4; ch++) {
+	std::cout << "    channel " << ch << ": " << end_points.at( p*4 + ch ).size() << std::endl; 
+      }
+    }
+
+    // here we take those images and do some clustering.
 
     // ------------------------------------------------------------------------------------------//
     // FLASH TAGGER //
@@ -142,11 +157,28 @@ int main( int nargs, char** argv ) {
     }
     
     // ------------------------------------------------------------------------------------------//
-    // SAVE IMAGES //
+    // SAVE OUTPUT //
     
     // from side tagger
     larcv::EventImage2D* boundary_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, sidetagger_pset.get<std::string>("OutputMatchedPixelImage") );
-    boundary_imgs->Emplace( std::move(outhits) );    
+    boundary_imgs->Emplace( std::move(outhits) );
+    enum { toppt=0, botpt, uppt, dnpt, nchs };
+    larcv::EventPixel2D* endpoints[4];
+    endpoints[toppt] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("TopEndpoints") );
+    endpoints[botpt] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("BottomEndpoints") );
+    endpoints[uppt]  = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("UpstreamEndpoints") );
+    endpoints[dnpt]  = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("DownstreamEndpoints") );
+    for (int p=0; p<3; p++) {
+      for (int ich=0; ich<nchs; ich++) {
+	const std::vector< larlitecv::BoundaryEndPt >& pts = end_points.at( p*nchs + ich );
+	int npts = (int)pts.size();
+	for (int endpt=0; endpt<npts; endpt++) {
+	  larcv::Pixel2D pixel( pts.at(endpt).w, pts.at(endpt).t );
+	  pixel.Intensity( ich );
+	  endpoints[ich]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
+	}
+      }
+    }
     
     // flash tagger
     larcv::EventImage2D* stage1_annode_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stage1_annode" );

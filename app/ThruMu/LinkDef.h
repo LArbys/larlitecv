@@ -13,6 +13,7 @@
 #pragma link C++ class larlitecv::BoundaryMatchArrays+;
 #pragma link C++ class larlitecv::ConfigBoundaryMuonTaggerAlgo+;
 #pragma link C++ class larlitecv::BoundaryMuonTaggerAlgo+;
+#pragma link C++ class larlitecv::BoundaryEndPt+;
 #pragma link C++ class larlitecv::BoundaryMuonTagger+;
 #pragma link C++ class larlitecv::FlashMuonTaggerAlgo+;
 //ADD_NEW_CLASS ... do not change this line

@@ -26,9 +26,22 @@ namespace larlitecv {
     
     std::vector<float> thresholds;    ///< pixel threshold to count as a hit
     std::vector<int>   neighborhoods; ///< columns before and after to check for hits
+    std::vector<int>   edge_win_wires; ///
+    std::vector<int>   edge_win_times;
+    std::vector<float>   edge_win_hitthresh;
     
   };
+
+  class BoundaryEndPt {
+  public:
+    BoundaryEndPt() {};
+    virtual ~BoundaryEndPt() {}; 
     
+    int t;
+    int w;
+
+  };
+
   class BoundaryMuonTaggerAlgo {
     // the algo
 
@@ -46,7 +59,11 @@ namespace larlitecv {
     
     void configure( ConfigBoundaryMuonTaggerAlgo& cfg ) { _config = cfg; };
     void run() {};
-    int searchforboundarypixels( const std::vector< larcv::Image2D >& imgs, std::vector< larcv::Image2D >& boundarypixelimgs );
+    int searchforboundarypixels( const std::vector< larcv::Image2D >& imgs, // original image
+				 std::vector< larcv::Image2D >& boundarypixelimgs ); // pixels consistent with boundary hits
+    int clusterBoundaryPixels( const std::vector< larcv::Image2D >& imgs, // original image
+			       const std::vector< larcv::Image2D >& matchedpixels, // pixels consistent with boundary hits
+			       std::vector< std::vector<BoundaryEndPt> >& end_points ); // clustered end points on each plane
 
   protected:
 
