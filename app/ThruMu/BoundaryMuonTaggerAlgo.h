@@ -6,8 +6,10 @@
 
 #include "DataFormat/Image2D.h"
 #include "DataFormat/ImageMeta.h"
+#include "DataFormat/Pixel2DCluster.h"
 
 #include "BoundaryMatchArrays.h"
+#include "BoundaryEndPt.h"
 
 namespace larlitecv {
 
@@ -32,16 +34,6 @@ namespace larlitecv {
     
   };
 
-  class BoundaryEndPt {
-  public:
-    BoundaryEndPt() {};
-    virtual ~BoundaryEndPt() {}; 
-    
-    int t;
-    int w;
-
-  };
-
   class BoundaryMuonTaggerAlgo {
     // the algo
 
@@ -64,6 +56,14 @@ namespace larlitecv {
     int clusterBoundaryPixels( const std::vector< larcv::Image2D >& imgs, // original image
 			       const std::vector< larcv::Image2D >& matchedpixels, // pixels consistent with boundary hits
 			       std::vector< std::vector<BoundaryEndPt> >& end_points ); // clustered end points on each plane
+    int makePlaneTrackCluster( const larcv::Image2D& img, const larcv::Image2D& badchimg,
+			       const std::vector< BoundaryEndPt >& top, const std::vector< BoundaryEndPt >& bot,
+			       const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
+			       const std::vector< BoundaryEndPt >& anode, const std::vector< BoundaryEndPt >& cathode,
+			       std::vector< larcv::Pixel2DCluster >& trackclusters );
+    int PathSearchAstar( const BoundaryEndPt& start, const BoundaryEndPt& goal, 
+			 const larcv::Image2D& img, const larcv::Image2D& badchimg );
+
 
   protected:
 

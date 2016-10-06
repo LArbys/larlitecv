@@ -12,6 +12,8 @@
 #include "ANN/ANNAlgo.h"
 #include "dbscan/DBSCANAlgo.h"
 
+// larlitecv header
+#include "BoundaryEndPt.h"
 
 namespace larlitecv {
   
@@ -48,7 +50,7 @@ namespace larlitecv {
     
     void configure( const FlashMuonTaggerConfig& config_ ) { fConfig=config_; fconfigured = true; };
     bool findTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const larcv::Image2D& image,
-			std::vector< std::vector<int> >& trackendpts, larcv::Image2D& markedimg );
+			std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg );
     
     
   protected:

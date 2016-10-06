@@ -261,8 +261,8 @@ namespace larlitecv {
       std::cout << "not a filetype: " << ftype_driver << std::endl;
       assert(false);
     }
-    if ( !larcv_unused )  larcv_io.set_id( run, subrun, event );
-    if ( !larlite_unused) larlite_io.set_id( run, subrun, event );
+    //if ( !larcv_unused )  larcv_io.set_id( run, subrun, event );
+    //if ( !larlite_unused) larlite_io.set_id( run, subrun, event );
   }
 
 

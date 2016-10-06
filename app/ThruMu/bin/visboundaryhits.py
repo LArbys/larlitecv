@@ -39,6 +39,9 @@ class VisBoundaryHits:
     def visualize( self, larlite_io, larcv_io, rawdigit_io ):
         endpt_plots = []
         event_imgs = larcv_io.get_data( larcv.kProductImage2D, self.img_producer )
+        if event_imgs.Image2DArray().size()==0:
+            print "no images? stop boundary hit vis."
+            return
         meta = event_imgs.Image2DArray().at(0).meta()
         
         for iproducer,producer in enumerate( self.producers ):
@@ -49,6 +52,8 @@ class VisBoundaryHits:
                 
                 endpts = event_pixels.Pixel2DArray( iplane )
                 nendpts = endpts.size()
+                if nendpts==0:
+                    continue
                 x = np.zeros( nendpts )
                 y = np.zeros( nendpts )
                 for ipt,endpt in enumerate(endpts):

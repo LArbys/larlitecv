@@ -177,5 +177,127 @@ namespace larlitecv {
     return 0;
   }//end of clusterBoundaryPixels
 
+  int BoundaryMuonTaggerAlgo::makePlaneTrackCluster( const larcv::Image2D& img, const larcv::Image2D& badchimg,
+						     const std::vector< BoundaryEndPt >& top, const std::vector< BoundaryEndPt >& bot,
+						     const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
+						     const std::vector< BoundaryEndPt >& anode, const std::vector< BoundaryEndPt >& cathode,
+						     std::vector< larcv::Pixel2DCluster >& trackclusters ) {
+
+    /*
+    // wrap references into a struct so i can treat them more like an array
+    struct endpt_s {
+      const std::vector< BoundaryEndPt >& top;
+      const std::vector< BoundaryEndPt >& bot;
+      const std::vector< BoundaryEndPt >& upstream;
+      const std::vector< BoundaryEndPt >& downstream;
+      const std::vector< BoundaryEndPt >& anode;
+      const std::vector< BoundaryEndPt >& cathode;
+      const std::vector< BoundaryEndPt >& operator[](int i) {
+	if (i==0) return top;
+	else if (i==1) return bot;
+	else if (i==2) return upstream;
+	else if (i==3) return downstream;
+	else if (i==4) return anode;
+	else if (i==5) return cathode;
+      }
+    };
+    endpt_s endpts = { top, bot, upstream, downstream, anode, cathode };
+
+    // pair up containers
+    for (int i=0; i<6; i++) {
+      for (int j=i+1; j<6; j++) {
+	const std::vector< BoundaryEndPt >& pts_a = endpts[i];
+	const std::vector< BoundaryEndPt >& pts_b = endpts[j];
+	// combinations from a and b
+	for (int ia=0; ia<(int)pts_a.size(); ia++) {
+	  const BoundaryEndPt& pta = pts_a.at(ia);
+	  for (int ib=0; ib<(int)pts_b.size(); ib++) {
+	    const BoundaryEndPt& ptb = pts_b.at(ib);
+
+	    //ok, we have two points, we do an A* star path search to between the two points
+
+	  }
+	}
+      }
+    }
+    */
+    return 0;
+  }
+
+  int BoundaryMuonTaggerAlgo::PathSearchAstar( const BoundaryEndPt& start, const BoundaryEndPt& goal, 
+					       const larcv::Image2D& img, const larcv::Image2D& badchimg ) {
+
+    /*
+    const larcv::ImageMeta& meta = img.meta();
+
+    // first we define the limits of the search by making a bounding box
+    int min_t = ( start.t<goal.t ) ? start.t : goal.t;
+    int max_t = ( start.t>goal.t ) ? start.t : goal.t;
+v    int min_w = ( start.w<goal.w ) ? start.w : goal.w;
+    int max_w = ( start.w>goal.w ) ? start.w : goal.w;
+
+    // extend the the bounding box
+    min_t = ( min_t-10>0 ) ? min_t - 10 : 0;
+    max_t = ( max_t+10<meta.rows() ) ? max_t + 10 : meta.rows();
+    min_w = ( min_w-10>0 ) ? min_w - 10 : 0;
+    max_w = ( max_w+10<=meta.cols() ) ? max_w + 10 : meta.cols()-1;
+    int winrow = max_t-min_t;
+    int mincol = max_w-min_y;
+
+    // we now make some definitions
+    // index of a pixel with position (r,c) is: idx=wincol*r + c where r=row index, c=col index
+    
+    std::set<int> openset_idx; // a stack of pixel indices (as defined above)
+    std::set<int> openstack_idx; // a stack of pixel indices (as defined above)
+    std::set<int> closedset_idx;  // a set of pixel indices (as defined above)
+
+    std::map< int, float > gscore;
+    std::map< int, float > fscore;
+
+    // get idx of start and goal (all relative to search window)
+    int idx_start = (start.t-min_t)*wincol + (start.w-min_w);
+    int idx_goal  = (goal.t-min_t)*wincol + (goal.w-min_w);
+    gscore[idx_current] = 0.0; // starting cost
+    fscore[idx_goal]    = (start.t-goal.t)*(start.t-goal.t) + (start.w-goal.w)*(start.w-goal.w); // starting heuristic
+    int idx_current = idx_start;
+    openset_idx.inset( idx_current );
+    openstack_idx.push_back( idx_current );
+
+    while ( openset_idx.size()==0 ) {
+      // get current
+      idx_current = openstack_idx.pop_back();
+      openset_idx.remove( idx_current );
+      int r_current = idx_current/wincol;
+      int c_current = idx_current%wincol;
+
+      // scan through neighors, make open set
+      std::vector< int > neighbors;
+      for (int dr=-1; dr<=1; dr++) {
+	for (int dc=-1; dc<=1; dc++) {
+	  if ( dr==0 && dc==0 ) continue; // skip self
+	  int r_neigh = r_current+dr;
+	  int c_neigh = c_current+dr;
+	  if ( r_neigh+min_t<0 || r_neigh+min_t>=meta.rows() || c_neigh+min_w<0 || c_neigh+min_w>=meta.cols() ) continue; // skip if outside the image of course
+	  if ( img.pixel( r_neigh+min_t, c_neigh+min_w )<_config.astar_threshold.at((int)meta.plane()) ) continue; // skip if below threshold
+	  int idx_neighbor = r_neigh*wincol + c_neigh;
+	  if ( closedset_idx.find(idx_neighbor)!=closedset_idx.end() ) continue; // already searched through here
+	  float tentative_score = gscore[idx_current] + sqrt( fabs( dr ) + fabs( dc ) ); // replace with if statements to avoid sqrt? dr,dc always 1 or 0, so skip squaring.
+
+	  if ( openset_idx.find(idx_neighbor)==openset_idx.end() ) {
+	    openset_idx.insert( idx_neighbor );
+	    openstack_idx.push_back( idx_neighbor );
+	  }
+	  else if ( tentative_score>=gscore[idx_neighbor] ) 
+	    continue; // not a better path
+
+	  gscore[idx_neighbor] = tentative_score;
+	  //fscore[idx_neighbor] = goal.t
+	}
+      }
+
+      // 
+    }
+    */
+  }
 
 }

@@ -9,7 +9,7 @@ namespace larlitecv {
   
   
   bool FlashMuonTaggerAlgo::findTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const larcv::Image2D& tpc_img,
-					   std::vector< std::vector<int> >& trackendpts, larcv::Image2D& markedimg ) {
+					   std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg ) {
     
     markedimg = std::move( larcv::Image2D(tpc_img.meta()) );
     
@@ -30,13 +30,15 @@ namespace larlitecv {
 	
 	int row_target = meta.row( tick_target );
 
-	std::cout << "============================================================================================" << std::endl;
-	std::cout << "[Opflash search]" << std::endl;
-	std::cout << "  opflash: p= " << plane 
-		  << " tick_target=" << tick_target
-		  << " row_target=" << row_target
-		  << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick << " ticks"
-		  << std::endl;
+	if ( fConfig.verbosity<1 ) {
+	  std::cout << "============================================================================================" << std::endl;
+	  std::cout << "[Opflash search]" << std::endl;
+	  std::cout << "  opflash: p= " << plane 
+		    << " tick_target=" << tick_target
+		    << " row_target=" << row_target
+		    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick << " ticks"
+		    << std::endl;
+	}
 	
 	// scan across wires, looking for a hit
 	for (int iwire=0; iwire<meta.cols(); iwire++) {
@@ -80,12 +82,21 @@ namespace larlitecv {
 	      if ( fConfig.verbosity<1 ) std::cout << "MATCHED MIN END" << std::endl;
 	      markedimg.set_pixel( tmin, wmin, 200.0 );
 	      success = true;
+	      BoundaryEndPt endpt;
+	      endpt.t = tmin;
+	      endpt.w = wmin;
+	      trackendpts.emplace_back( std::move(endpt) );
 	    }
 	    else if ( abs(tmax-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) { 
 	      if ( fConfig.verbosity<1 ) std::cout << "MATCHED MAX_END" << std::endl;
 	      success =true;
 	      markedimg.set_pixel( tmax, wmax, 200.0 );
+	      BoundaryEndPt endpt;
+	      endpt.t = tmax;
+	      endpt.w = wmax;
+	      trackendpts.emplace_back( std::move(endpt) );
 	    }
+
 	    if ( success ) {
 	      // mark good cluster, so we don't use it again
 	      for ( int ichit=0; ichit<clout.clusters.at(containing_cluster).size(); ichit++ ) {
@@ -137,8 +148,10 @@ namespace larlitecv {
 	}// if valid point
       }//end of time window
     }//end of wire window
-    std::cout << "  exploring around: plane=" << plane
-	      << " (c,r)=" << query_col << ", " << query_row << " (w,t)=(" << w << "," << t1 << ")  npoints=" << winpoints.size() << std::endl;
+    if ( fConfig.verbosity<1 ) {
+      std::cout << "  exploring around: plane=" << plane
+		<< " (c,r)=" << query_col << ", " << query_row << " (w,t)=(" << w << "," << t1 << ")  npoints=" << winpoints.size() << std::endl;
+    }
 
     // clustering
     dbscan::DBSCANAlgo dbalgo;

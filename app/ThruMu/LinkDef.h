@@ -16,6 +16,13 @@
 #pragma link C++ class larlitecv::BoundaryEndPt+;
 #pragma link C++ class larlitecv::BoundaryMuonTagger+;
 #pragma link C++ class larlitecv::FlashMuonTaggerAlgo+;
+#pragma link C++ class std::vector< larlitecv::BoundaryEndPt >+;
+#pragma link C++ class larlitecv::AStarNode+;
+#pragma link C++ class std::vector< larlitecv::AStarNode >+;
+#pragma link C++ class std::priority_queue< larlitecv::AStarNode >+;
+#pragma link C++ class larlitecv::AStarSet+;
+#pragma link C++ class larlitecv::AStarAlgoConfig+;
+#pragma link C++ class larlitecv::AStarGridAlgo+;
 //ADD_NEW_CLASS ... do not change this line
 #endif
 
