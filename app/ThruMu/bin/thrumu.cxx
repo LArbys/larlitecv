@@ -65,6 +65,7 @@ int main( int nargs, char** argv ) {
   sidetagger_cfg.edge_win_wires = sidetagger_pset.get< std::vector<int> >( "EdgeWinWires" );
   sidetagger_cfg.edge_win_times = sidetagger_pset.get< std::vector<int> >( "EdgeWinTimes" );
   sidetagger_cfg.edge_win_hitthresh = sidetagger_pset.get< std::vector<float> >( "EdgeWinHitThreshold" );
+  sidetagger_cfg.astar_thresholds = sidetagger_pset.get< std::vector<float> >( "AStarThresholds" );
   sidetagger.configure(sidetagger_cfg);
 
   // flash-tagger
@@ -87,8 +88,8 @@ int main( int nargs, char** argv ) {
 
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
-  int nentries = 5;
-  //int nentries = 1;
+  //int nentries = 5;
+  int nentries = 1;
   
   for (int ientry=0; ientry<nentries; ientry++) {
     
@@ -171,6 +172,8 @@ int main( int nargs, char** argv ) {
 
     // ------------------------------------------------------------------------------------------//
     // Make tracks using end points
+
+    
     
     
     // ------------------------------------------------------------------------------------------//
@@ -185,6 +188,7 @@ int main( int nargs, char** argv ) {
     endpoints[botpt] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("BottomEndpoints") );
     endpoints[uppt]  = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("UpstreamEndpoints") );
     endpoints[dnpt]  = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("DownstreamEndpoints") );
+    std::vector< larlitecv::BoundaryEndPt > be_endpoints[nchs][3];
     for (int p=0; p<3; p++) {
       for (int ich=0; ich<nchs; ich++) {
 	const std::vector< larlitecv::BoundaryEndPt >& pts = end_points.at( p*nchs + ich );
@@ -193,6 +197,7 @@ int main( int nargs, char** argv ) {
 	  larcv::Pixel2D pixel( pts.at(endpt).w, pts.at(endpt).t );
 	  pixel.Intensity( ich );
 	  endpoints[ich]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
+	  be_endpoints[ich][p].push_back( pts.at(endpt) );
 	}
       }
     }
@@ -206,22 +211,50 @@ int main( int nargs, char** argv ) {
     flashends[flcathode] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("CathodeEndpointProducer") );
     stage1_annode_imgs->Emplace( std::move(stage1_annode_hits) );
     stage1_cathode_imgs->Emplace( std::move(stage1_cathode_hits) );
+    std::vector< larlitecv::BoundaryEndPt > fbe_endpoints[nflashends][3];
     for (int p=0; p<3; p++) {
       std::vector< larlitecv::BoundaryEndPt >& anode_pts   = trackendpts_anode.at(p);
       int anode_npts = (int)anode_pts.size();
       for (int ich=0; ich<anode_npts; ich++) {
 	larcv::Pixel2D pixel( anode_pts.at(ich).w, anode_pts.at(ich).t );
 	flashends[flanode]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
+	fbe_endpoints[flanode][p].push_back( anode_pts.at(ich) );
       }
       std::vector< larlitecv::BoundaryEndPt >& cathode_pts = trackendpts_cathode.at(p);
       int cathode_npts = (int)cathode_pts.size();
       for (int ich=0; ich<cathode_npts; ich++) {
 	larcv::Pixel2D pixel( cathode_pts.at(ich).w, cathode_pts.at(ich).t );
 	flashends[flcathode]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
+	fbe_endpoints[flcathode][p].push_back( cathode_pts.at(ich) );
       }
     }
 
-    // now 
+    
+    // now track clustering per plane
+    larcv::EventPixel2D* event_tracks = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumu" );
+    for (int p=0; p<3; p++) {
+      std::cout << "PLANE " << p << " TRACKING" << std::endl;
+      const larcv::Image2D& img = event_imgs->Image2DArray().at(p);
+      const larcv::ImageMeta& meta = img.meta();
+      larcv::Image2D badchimg(meta);
+      badchimg.paint(0.0);
+      std::vector< larcv::Pixel2DCluster > trackcluster;
+      sidetagger.makePlaneTrackCluster( img, badchimg, 
+					be_endpoints[toppt][p],
+					be_endpoints[botpt][p],
+					be_endpoints[uppt][p],
+					be_endpoints[dnpt][p],
+					fbe_endpoints[flanode][p],
+					fbe_endpoints[flcathode][p],
+					trackcluster );
+      for ( auto &track : trackcluster ) {
+	std::cout << " plane=" << p << " track. length=" << track.size() << std::endl;
+	event_tracks->Emplace( (larcv::PlaneID_t)p, std::move(track) );
+      }
+    }
+    
+    // save tracking
+    
 
     // go to tree
     dataco.save_entry();

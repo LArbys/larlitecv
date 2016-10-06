@@ -116,19 +116,20 @@ namespace larlitecv {
 
   class AStarGridAlgo {
 
-    AStarGridAlgo() {};    
+    AStarGridAlgo() { verbose=2; };
   public:
 
     AStarGridAlgo( AStarAlgoConfig config ) { _config = config; };
     virtual ~AStarGridAlgo() {};
     
+    void setVerbose( int v ) { verbose = v; };
     std::vector<AStarNode> findpath( const larcv::Image2D& img, int start_row, int start_col, int goal_row, int goal_col, float thresh );
-    std::vector<AStarNode> makeRecoPath( const AStarNode& start, const AStarNode& goal, const std::map< AStarNode, AStarNode, node_pos_compare >& camefrom );
+    std::vector<AStarNode> makeRecoPath( const AStarNode& start, const AStarNode& goal, const std::map< AStarNode, AStarNode, node_pos_compare >& camefrom, int origin_row, int origin_col );
 
   protected:
 
     AStarAlgoConfig _config;
-
+    int verbose;
   };
 
 

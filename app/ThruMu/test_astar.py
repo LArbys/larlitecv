@@ -74,7 +74,7 @@ def test_astart_algo():
     config = larlitecv.AStarAlgoConfig()
     config.astar_threshold.push_back( 5.0 )
     algo = larlitecv.AStarGridAlgo( config )
-
+    algo.setVerbose(2)
     start = larlitecv.AStarNode(5,5)
     end   = larlitecv.AStarNode(495,495)
 

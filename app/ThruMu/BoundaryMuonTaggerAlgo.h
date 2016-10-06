@@ -30,8 +30,8 @@ namespace larlitecv {
     std::vector<int>   neighborhoods; ///< columns before and after to check for hits
     std::vector<int>   edge_win_wires; ///
     std::vector<int>   edge_win_times;
-    std::vector<float>   edge_win_hitthresh;
-    
+    std::vector<float> edge_win_hitthresh;
+    std::vector<float> astar_thresholds; //< passed to astar config
   };
 
   class BoundaryMuonTaggerAlgo {
@@ -61,9 +61,6 @@ namespace larlitecv {
 			       const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
 			       const std::vector< BoundaryEndPt >& anode, const std::vector< BoundaryEndPt >& cathode,
 			       std::vector< larcv::Pixel2DCluster >& trackclusters );
-    int PathSearchAstar( const BoundaryEndPt& start, const BoundaryEndPt& goal, 
-			 const larcv::Image2D& img, const larcv::Image2D& badchimg );
-
 
   protected:
 
