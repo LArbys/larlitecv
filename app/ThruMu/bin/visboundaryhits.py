@@ -34,6 +34,7 @@ class VisBoundaryHits:
         self.bottom_producer = pset.get("bottom")
         self.upstream_producer = pset.get("upstream")
         self.downstream_producer = pset.get("downstream")
+        self.plane_selection = pset.get("plane",-1)
         self.producers = [ self.top_producer, self.bottom_producer, self.upstream_producer, self.downstream_producer ]
 
     def visualize( self, larlite_io, larcv_io, rawdigit_io ):
@@ -49,7 +50,9 @@ class VisBoundaryHits:
             event_pixels = larcv_io.get_data( larcv.kProductPixel2D, producer )
 
             for iplane in range(0,3):
-                
+                if self.plane_selection>=0 and iplane!=self.plane_selection:
+                    continue
+
                 endpts = event_pixels.Pixel2DArray( iplane )
                 nendpts = endpts.size()
                 if nendpts==0:

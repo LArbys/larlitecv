@@ -40,7 +40,7 @@ namespace larlitecv {
 
   public:
     
-    typedef enum { kAnode, kCathode } SearchMode_t;
+    typedef enum { kAnode, kCathode, kOutOfImage } SearchMode_t;
 
     FlashMuonTaggerAlgo( SearchMode_t mode_) {
       fSearchMode = mode_;
@@ -51,7 +51,7 @@ namespace larlitecv {
     void configure( const FlashMuonTaggerConfig& config_ ) { fConfig=config_; fconfigured = true; };
     bool findTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const larcv::Image2D& image,
 			std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg );
-    
+    bool findImageBoundaryEnds( const larcv::Image2D& tpc_img, std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg );    
     
   protected:
     

@@ -111,7 +111,7 @@ namespace larlitecv {
     virtual ~AStarAlgoConfig() {};
 
     std::vector<float> astar_threshold;
-
+    std::vector<int>   astar_neighborhood;
   };
 
   class AStarGridAlgo {

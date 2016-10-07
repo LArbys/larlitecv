@@ -32,6 +32,7 @@ namespace larlitecv {
     std::vector<int>   edge_win_times;
     std::vector<float> edge_win_hitthresh;
     std::vector<float> astar_thresholds; //< passed to astar config
+    std::vector<int>   astar_neighborhood; //< passed to astar config
   };
 
   class BoundaryMuonTaggerAlgo {
@@ -60,6 +61,7 @@ namespace larlitecv {
 			       const std::vector< BoundaryEndPt >& top, const std::vector< BoundaryEndPt >& bot,
 			       const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
 			       const std::vector< BoundaryEndPt >& anode, const std::vector< BoundaryEndPt >& cathode,
+			       const std::vector< BoundaryEndPt >& imgends,
 			       std::vector< larcv::Pixel2DCluster >& trackclusters );
 
   protected:

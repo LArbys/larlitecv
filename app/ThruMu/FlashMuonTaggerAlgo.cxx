@@ -12,16 +12,27 @@ namespace larlitecv {
 					   std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg ) {
     
     markedimg = std::move( larcv::Image2D(tpc_img.meta()) );
-    
+
     for ( auto& ptr_event_flash : opflashsets ) {
       for ( auto& opflash : *ptr_event_flash ) {
 	
 	const larcv::ImageMeta& meta = tpc_img.meta();
 	int plane = meta.plane();
 	
-	float tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
-	if ( fSearchMode==kCathode ) {
+	float tick_target = 0;
+	if ( fSearchMode==kAnode ) {
+	  tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
+	}
+	else if ( fSearchMode==kCathode ) {
+	  tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
 	  tick_target += fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick;
+	}
+	else if ( fSearchMode==kOutOfImage ) {
+	  tick_target = opflash.Time(); // dummy opflash gives first or last tick of image
+	}
+	else {
+	  std::cout << "[ERROR] wrong search mode" << std::endl;
+	  return false;
 	}
 
 	// check if we can search for this opflash
@@ -178,6 +189,27 @@ namespace larlitecv {
       
 
   }
-  
+
+
+  bool FlashMuonTaggerAlgo::findImageBoundaryEnds( const larcv::Image2D& tpc_img, std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg ) {
+						   
+    if ( fSearchMode!=kOutOfImage ) {
+      std::cout << "[ERROR] Invalid search mode for these type of track endpoints" << std::endl;
+      return false;
+    }
+
+    // we build fake flashes to pass into findTrackEnds
+    larlite::event_opflash* faux_flashes = new larlite::event_opflash;
+    std::vector<double> dummy(32,0.);
+    larlite::opflash img_begin( 2400.0+1, 0, 0, 0, dummy ); // make this config pars
+    larlite::opflash img_end( 2400.0+6048-1, 0, 0, 0, dummy ); // make this config pars
+    faux_flashes->emplace_back( img_begin );
+    faux_flashes->emplace_back( img_end );
+    std::vector< larlite::event_opflash* > faux_flashes_v;
+    faux_flashes_v.push_back( faux_flashes );
+    bool result = findTrackEnds( faux_flashes_v, tpc_img, trackendpts, markedimg );
+    delete faux_flashes;
+    return result;
+  }  
 }
 

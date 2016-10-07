@@ -66,11 +66,13 @@ int main( int nargs, char** argv ) {
   sidetagger_cfg.edge_win_times = sidetagger_pset.get< std::vector<int> >( "EdgeWinTimes" );
   sidetagger_cfg.edge_win_hitthresh = sidetagger_pset.get< std::vector<float> >( "EdgeWinHitThreshold" );
   sidetagger_cfg.astar_thresholds = sidetagger_pset.get< std::vector<float> >( "AStarThresholds" );
+  sidetagger_cfg.astar_neighborhood = sidetagger_pset.get< std::vector<int> >( "AStarNeighborhood" );
   sidetagger.configure(sidetagger_cfg);
 
   // flash-tagger
   larlitecv::FlashMuonTaggerAlgo anode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kAnode );
   larlitecv::FlashMuonTaggerAlgo cathode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kCathode );
+  larlitecv::FlashMuonTaggerAlgo imgends_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kOutOfImage );
   larlitecv::FlashMuonTaggerConfig flashtagger_cfg;
   flashtagger_cfg.pixel_value_threshold        = flashtagger_pset.get< std::vector<float> >( "ChargeThreshold" ); // one for each plane
   flashtagger_cfg.clustering_time_neighborhood = flashtagger_pset.get< std::vector<int> >( "ClusteringTimeWindow" );
@@ -85,6 +87,7 @@ int main( int nargs, char** argv ) {
   flashtagger_cfg.drift_velocity               = flashtagger_pset.get< float >( "DriftVelocity", 0.114 );
   anode_flash_tagger.configure( flashtagger_cfg );
   cathode_flash_tagger.configure(flashtagger_cfg);
+  imgends_flash_tagger.configure(flashtagger_cfg);
 
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
@@ -134,17 +137,22 @@ int main( int nargs, char** argv ) {
     // new image for flash hits
     std::vector<larcv::Image2D> stage1_annode_hits;  // all in-time hits (non-clustered, non-edged)
     std::vector<larcv::Image2D> stage1_cathode_hits; // all in-time hits (non-clustered, non-edged)
+    std::vector<larcv::Image2D> stage1_imgends_hits; // all in-time hits (non-clustered, non-edged)
     for ( auto &tpc_img : event_imgs->Image2DArray() ) {
       larcv::Image2D annode_img( tpc_img.meta() );
       larcv::Image2D cathode_img( tpc_img.meta() );
+      larcv::Image2D imgends_img( tpc_img.meta() );
       annode_img.paint(0.0);
       cathode_img.paint(0.0);
+      imgends_img.paint(0.0);
       stage1_annode_hits.emplace_back( annode_img );
       stage1_cathode_hits.emplace_back( cathode_img );
+      stage1_imgends_hits.emplace_back( imgends_img );
     }
 
     std::vector<larcv::Image2D> annode_hits;
     std::vector<larcv::Image2D> cathode_hits;
+    std::vector<larcv::Image2D> imgends_hits;
     
     // loop through flash producers, get event_opflash ptrs
     std::vector< larlite::event_opflash* > opflash_containers;
@@ -156,10 +164,12 @@ int main( int nargs, char** argv ) {
 
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_anode;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_cathode;
+    std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_imgends;
     for ( auto &tpc_img : event_imgs->Image2DArray() ) {
 
       larcv::Image2D& annode_img = stage1_annode_hits.at( (int)tpc_img.meta().plane() );
       larcv::Image2D& cathode_img = stage1_cathode_hits.at( (int)tpc_img.meta().plane() );
+      larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
 
       std::vector< larlitecv::BoundaryEndPt > anode_ends; 
       anode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, anode_ends, annode_img );
@@ -168,6 +178,10 @@ int main( int nargs, char** argv ) {
       std::vector< larlitecv::BoundaryEndPt > cathode_ends;
       cathode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, cathode_ends, cathode_img );      
       trackendpts_cathode.emplace_back( std::move(cathode_ends) );
+
+      std::vector< larlitecv::BoundaryEndPt > imgends_ends;
+      imgends_flash_tagger.findImageBoundaryEnds( tpc_img, imgends_ends, imgends_img );      
+      trackendpts_imgends.emplace_back( std::move(imgends_ends) );
     }
 
     // ------------------------------------------------------------------------------------------//
@@ -205,12 +219,15 @@ int main( int nargs, char** argv ) {
     // flash tagger
     larcv::EventImage2D* stage1_annode_imgs  = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stage1_annode" );
     larcv::EventImage2D* stage1_cathode_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stage1_cathode" );
-    enum { flanode=0, flcathode, nflashends };
-    larcv::EventPixel2D* flashends[2];
+    larcv::EventImage2D* stage1_imgends_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stage1_imgends" );
+    enum { flanode=0, flcathode, flimgends, nflashends };
+    larcv::EventPixel2D* flashends[nflashends];
     flashends[flanode]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("AnodeEndpointProducer") );
     flashends[flcathode] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("CathodeEndpointProducer") );
+    flashends[flimgends] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("ImageEndpointProducer") );
     stage1_annode_imgs->Emplace( std::move(stage1_annode_hits) );
     stage1_cathode_imgs->Emplace( std::move(stage1_cathode_hits) );
+    stage1_imgends_imgs->Emplace( std::move(stage1_imgends_hits) );
     std::vector< larlitecv::BoundaryEndPt > fbe_endpoints[nflashends][3];
     for (int p=0; p<3; p++) {
       std::vector< larlitecv::BoundaryEndPt >& anode_pts   = trackendpts_anode.at(p);
@@ -226,6 +243,13 @@ int main( int nargs, char** argv ) {
 	larcv::Pixel2D pixel( cathode_pts.at(ich).w, cathode_pts.at(ich).t );
 	flashends[flcathode]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
 	fbe_endpoints[flcathode][p].push_back( cathode_pts.at(ich) );
+      }
+      std::vector< larlitecv::BoundaryEndPt >& imgends_pts = trackendpts_imgends.at(p);
+      int imgends_npts = (int)imgends_pts.size();
+      for (int ich=0; ich<imgends_npts; ich++) {
+	larcv::Pixel2D pixel( imgends_pts.at(ich).w, imgends_pts.at(ich).t );
+	flashends[flimgends]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
+	fbe_endpoints[flimgends][p].push_back( imgends_pts.at(ich) );
       }
     }
 
@@ -246,6 +270,7 @@ int main( int nargs, char** argv ) {
 					be_endpoints[dnpt][p],
 					fbe_endpoints[flanode][p],
 					fbe_endpoints[flcathode][p],
+					fbe_endpoints[flimgends][p],
 					trackcluster );
       for ( auto &track : trackcluster ) {
 	std::cout << " plane=" << p << " track. length=" << track.size() << std::endl;

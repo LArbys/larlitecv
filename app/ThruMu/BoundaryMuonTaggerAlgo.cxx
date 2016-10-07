@@ -183,6 +183,7 @@ namespace larlitecv {
 						     const std::vector< BoundaryEndPt >& top, const std::vector< BoundaryEndPt >& bot,
 						     const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
 						     const std::vector< BoundaryEndPt >& anode, const std::vector< BoundaryEndPt >& cathode,
+						     const std::vector< BoundaryEndPt >& imgends,
 						     std::vector< larcv::Pixel2DCluster >& trackclusters ) {
 
     
@@ -194,6 +195,7 @@ namespace larlitecv {
       const std::vector< BoundaryEndPt >& downstream;
       const std::vector< BoundaryEndPt >& anode;
       const std::vector< BoundaryEndPt >& cathode;
+      const std::vector< BoundaryEndPt >& imgends;
       const std::vector< BoundaryEndPt >& operator[](int i) {
 	if (i==0) return top;
 	else if (i==1) return bot;
@@ -201,18 +203,22 @@ namespace larlitecv {
 	else if (i==3) return downstream;
 	else if (i==4) return anode;
 	else if (i==5) return cathode;
-      }
+	else if (i==6) return imgends;
+      };
     };
-    endpt_s endpts = { top, bot, upstream, downstream, anode, cathode };
+    endpt_s endpts = { top, bot, upstream, downstream, anode, cathode, imgends };
+    int nendpts = 7;
 
     // instantiate astar algo
     larlitecv::AStarAlgoConfig astar_config;
-    astar_config.astar_threshold = _config.astar_thresholds;
+    astar_config.astar_threshold    = _config.astar_thresholds;
+    astar_config.astar_neighborhood = _config.astar_neighborhood;
     larlitecv::AStarGridAlgo algo( astar_config );
+    algo.setVerbose(2);
 
     // pair up containers
-    for (int i=0; i<6; i++) {
-      for (int j=i+1; j<6; j++) {
+    for (int i=0; i<nendpts; i++) {
+      for (int j=i+1; j<nendpts; j++) {
 	const std::vector< BoundaryEndPt >& pts_a = endpts[i];
 	const std::vector< BoundaryEndPt >& pts_b = endpts[j];
 	// combinations from a and b
@@ -232,7 +238,7 @@ namespace larlitecv {
 // 	    else
 // 	      algo.setVerbose( 2 );
 	    //std::cout << "track path-finding: start=(" << start.row << "," << start.col << ") end=(" << goal.row << "," << goal.col << ")" << std::endl;
-	    std::vector< larlitecv::AStarNode > path = algo.findpath( img, start.row, start.col, goal.row, goal.col, 10.0 );
+	    std::vector< larlitecv::AStarNode > path = algo.findpath( img, start.row, start.col, goal.row, goal.col, 20.0 );
 // 	    std::cout << "path returned: " << path.size() << " nodes. ";
 // 	    if ( path.size()==0 )
 // 	      std::cout << " FAILED" << std::endl;

@@ -49,7 +49,7 @@ namespace larlitecv {
     std::map< AStarNode, AStarNode, node_pos_compare > camefrom;
 
     //std::cout << "start astar algo." << std::endl;
-
+    int neighborhood_size = _config.astar_neighborhood.at(meta.plane());
     int nsteps = -1;
     while ( openset.nentries()>0 ) {
       // get current
@@ -69,8 +69,8 @@ namespace larlitecv {
       int c_current = current.col;
 
       // scan through neighors, make open set
-      for (int dr=-1; dr<=1; dr++) {
-	for (int dc=-1; dc<=1; dc++) {
+      for (int dr=-neighborhood_size; dr<=neighborhood_size; dr++) {
+	for (int dc=-neighborhood_size; dc<=neighborhood_size; dc++) {
 	  if ( dr==0 && dc==0 ) continue; // skip self
 	  int r_neigh = r_current+dr;
 	  int c_neigh = c_current+dc;

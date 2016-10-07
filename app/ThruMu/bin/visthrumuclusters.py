@@ -31,6 +31,7 @@ class VisThruMuTrackClusters:
     def configure(self,pset):
         self.img_producer = pset.get("ImageProducer")
         self.track_producer = pset.get("TrackPixelProducer")
+        self.plane_selection = pset.get("plane",-1)
 
     def visualize( self, larlite_io, larcv_io, rawdigit_io ):
         track_plots = []
@@ -42,6 +43,9 @@ class VisThruMuTrackClusters:
 
         event_tracks = larcv_io.get_data( larcv.kProductPixel2D, self.track_producer )
         for iplane in range(0,3):
+            if self.plane_selection>=0 and iplane!=self.plane_selection:
+                continue
+
             tracks = event_tracks.Pixel2DClusterArray( iplane )
             ntracks = tracks.size()
             for itrack in range(0,ntracks):
