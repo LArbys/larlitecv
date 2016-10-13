@@ -10,6 +10,8 @@
 
 #include "BoundaryMatchArrays.h"
 #include "BoundaryEndPt.h"
+#include "BMTrackCluster2D.h"
+#include "BMTrackCluster3D.h"
 
 namespace larlitecv {
 
@@ -25,12 +27,15 @@ namespace larlitecv {
     bool checkOK() { return true; }; // dummy for now
 
   public:
-    
+
+    std::vector<float> emptych_thresh; ///< pixel thresholds below which if wire stays, it is marked as empty (value per plane)
     std::vector<float> thresholds;    ///< pixel threshold to count as a hit
     std::vector<int>   neighborhoods; ///< columns before and after to check for hits
     std::vector<int>   edge_win_wires; ///
     std::vector<int>   edge_win_times;
     std::vector<float> edge_win_hitthresh;
+    std::vector<int>   boundary_cluster_minpixels; ///< min number of pixels for dbscan clustering of boundary pixels
+    std::vector<float>   boundary_cluster_radius;    ///< nearest neighbor radius for dbscan clustering of boundary pixels
     std::vector<float> astar_thresholds; //< passed to astar config
     std::vector<int>   astar_neighborhood; //< passed to astar config
   };
@@ -51,7 +56,7 @@ namespace larlitecv {
   public:
     
     void configure( ConfigBoundaryMuonTaggerAlgo& cfg ) { _config = cfg; };
-    void run() {};
+    void run();
     int searchforboundarypixels( const std::vector< larcv::Image2D >& imgs, // original image
 				 std::vector< larcv::Image2D >& boundarypixelimgs ); // pixels consistent with boundary hits
     int clusterBoundaryPixels( const std::vector< larcv::Image2D >& imgs, // original image
@@ -62,7 +67,13 @@ namespace larlitecv {
 			       const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
 			       const std::vector< BoundaryEndPt >& anode, const std::vector< BoundaryEndPt >& cathode,
 			       const std::vector< BoundaryEndPt >& imgends,
-			       std::vector< larcv::Pixel2DCluster >& trackclusters );
+			       std::vector< larlitecv::BMTrackCluster2D >& trackclusters );
+    
+    void matchTracksStage1( const std::vector< larcv::Image2D >& imgs, const std::vector< std::vector< larlitecv::BMTrackCluster2D >* >& plane2dtracks, 
+			    std::vector< larlitecv::BMTrackCluster3D >& output  );
+    bool doTracksMatch( const larlitecv::BMTrackCluster2D& track1, const larlitecv::BMTrackCluster2D& track2, 
+			float& start_t_diff, float& end_t_diff, bool& start2start );
+			
 
   protected:
 

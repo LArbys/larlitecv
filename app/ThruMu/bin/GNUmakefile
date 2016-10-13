@@ -15,6 +15,7 @@ LDFLAGS += $(shell larlite-config --libs)
 LDFLAGS += $(shell larcv-config --libs)
 LDFLAGS += $(shell larlitecv-config --libs)
 LDFLAGS += $(shell root-config --libs) -lPhysics -lMatrix -g
+LDFLAGS += -lprofiler
 
 # platform-specific options
 OSNAME = $(shell uname -s)

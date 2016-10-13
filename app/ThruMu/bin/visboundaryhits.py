@@ -17,9 +17,9 @@ class VisBoundaryHits:
                (255,255,0),    # yellow
                ]
     NCOLORS = len(COLORS)
-    PLANE_COLORS = {0:(125,0,0,125),
-                    1:(0,125,0,125),
-                    2:(0,0,125,125)}
+    PLANE_COLORS = {0:(125,0,0,200),
+                    1:(0,125,0,200),
+                    2:(0,0,125,200)}
     CH_MARKER = { 0:"t",
                   1:"o",
                   2:"s",
@@ -52,7 +52,7 @@ class VisBoundaryHits:
             for iplane in range(0,3):
                 if self.plane_selection>=0 and iplane!=self.plane_selection:
                     continue
-
+                print "get pixel points for plane=",iplane
                 endpts = event_pixels.Pixel2DArray( iplane )
                 nendpts = endpts.size()
                 if nendpts==0:
