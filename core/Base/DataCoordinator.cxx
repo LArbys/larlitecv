@@ -22,6 +22,8 @@ namespace larlitecv {
     fInit = false;
     fManagerList.push_back("larlite");
     fManagerList.push_back("larcv");
+    larcv_unused = false;
+    larlite_unused = false;
   }
 
   DataCoordinator::~DataCoordinator() {
