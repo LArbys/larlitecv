@@ -6,6 +6,7 @@
 #include <fstream>
 #include <assert.h>
 #include "Base/LArCVBaseUtilFunc.h"
+#include "Base/larcv_logger.h"
 
 namespace larlitecv {
 
@@ -57,6 +58,7 @@ namespace larlitecv {
       std::cout << "Already initialized!" << std::endl;
       return;
     }
+    std::cout << "[Data Coodinator] Initializing" << std::endl;
 
     prepfilelists();
 
@@ -80,6 +82,7 @@ namespace larlitecv {
 
     // this builds the indices, allowing us to sync the processing
     for (auto &iter : fManagers ) {
+      std::cout << "[DataCoordinator] initializing filemanager for " << iter.first << std::endl;
       iter.second->initialize();
     }
 
@@ -106,13 +109,13 @@ namespace larlitecv {
     if ( !larlite_unused ) {
       for ( auto const &larlitefile : fManagers["larlite"]->get_final_filelist() )
 	larlite_io.add_in_filename( larlitefile );
-      larcv_io.initialize();
+      larlite_io.open();
     }
     // larcv iomanager
     if ( !larcv_unused ) {
       for ( auto const &larcvfile : fManagers["larcv"]->get_final_filelist() )
 	larcv_io.add_in_file( larcvfile );
-      larlite_io.open();      
+      larcv_io.initialize();
     }
 
     if ( larlite_unused ) std::cout << "[LARLITE unused]" << std::endl;
