@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <cstdlib>
+#include <assert.h>
 #include "TFile.h"
 #include "TTree.h"
 
@@ -24,7 +25,9 @@ namespace larlitecv {
     fFilelistHash = get_filelisthash();
     std::cout << "Hash: " << fFilelistHash << std::endl;
 
-    if ( fUseCache && cacheExists(fFilelistHash) ) {
+    //if ( fUseCache && cacheExists(fFilelistHash) ) {
+    if ( fUseCache && false ) {
+      // not implemented yet
       load_from_cache(fFilelistHash);
     }
     else {
@@ -33,7 +36,7 @@ namespace larlitecv {
       parse_filelist(files);   ///< get a vector of string with the filelist
       if ( files.size()>0 ) {
 	user_build_index(files,ffinallist,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
-	cache_index( fFilelistHash, frse2entry, fentry2rse );
+	cache_index( fFilelistHash );
       }
     }
 
@@ -61,8 +64,12 @@ namespace larlitecv {
     return hash;
   }
   
-  void FileManager::cache_index( std::string hash, std::map< RSE, int >& rse2entry, std::map< int, RSE >& entry2rse ) {
-    system("mkdir -p .pylardcache");
+  void FileManager::cache_index( std::string hash ) {
+    int err = system("mkdir -p .pylardcache");
+    if ( err!=0 ) {
+      std::cout << "Could not make cache folder .pylardcache" << std::endl;
+      assert(false);
+    }
     std::string cachefile = ".pylardcache/"+hash+".root";
     TFile rcache( cachefile.c_str(), "recreate" );
     TTree tcache("entry2rse","RSE to entry map");

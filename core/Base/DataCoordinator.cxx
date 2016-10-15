@@ -22,6 +22,8 @@ namespace larlitecv {
     fInit = false;
     fManagerList.push_back("larlite");
     fManagerList.push_back("larcv");
+    larcv_unused = true;
+    larlite_unused = true;
   }
 
   DataCoordinator::~DataCoordinator() {
@@ -95,6 +97,10 @@ namespace larlitecv {
     // get the iomode for larcv/larlite
     fIOmodes["larcv"] = (int)larcv_pset.get<int>("IOMode");
 
+    // determine if any of the inputs are unused
+    larcv_unused = false;
+    larcv_unused = false;
+
     // most obvious tag that is unused: user sets to -1
     if ( fIOmodes["larcv"]==-1 ) larcv_unused = true;
     if ( fIOmodes["larlite"]==-1) larlite_unused = true;
@@ -118,6 +124,11 @@ namespace larlitecv {
       larcv_io.initialize();
     }
 
+    if ( larlite_unused && larcv_unused ) {
+      std::cout << "Both LARCV and LARLITE unused. Must be an error." << std::endl;
+      assert(false);
+    }
+    
     if ( larlite_unused ) std::cout << "[LARLITE unused]" << std::endl;
     if ( larcv_unused )   std::cout << "[LARCV unused]" << std::endl;
 
@@ -238,8 +249,8 @@ namespace larlitecv {
 	return;
       }
       larlite_io.go_to( entry );
+      fManagers["larlite"]->getRSE( entry, run, subrun, event );
       if ( !larcv_unused ) {
-	fManagers["larlite"]->getRSE( entry, run, subrun, event );
 	fManagers["larcv"]->getEntry( run, subrun, event, other_entry );
 	std::cout << "given larlite entry=" << entry  << ". "
 		  << ". rse=(" << run << ", " << subrun << ", " << event << ")"
@@ -253,8 +264,8 @@ namespace larlitecv {
 	return;
       }
       larcv_io.read_entry( entry );
+      fManagers["larcv"]->getRSE( entry, run, subrun, event );
       if ( !larlite_unused ) {
-	fManagers["larcv"]->getRSE( entry, run, subrun, event );
 	fManagers["larlite"]->getEntry( run, subrun, event, other_entry );
 	larlite_io.go_to( other_entry );
       }
@@ -263,8 +274,9 @@ namespace larlitecv {
       std::cout << "not a filetype: " << ftype_driver << std::endl;
       assert(false);
     }
-    if ( !larcv_unused )  larcv_io.set_id( run, subrun, event );
-    if ( !larlite_unused) larlite_io.set_id( run, subrun, event );
+    _current_run = run;
+    _current_subrun = subrun;
+    _current_event = event;
   }
 
 
@@ -273,13 +285,16 @@ namespace larlitecv {
     if ( !larlite_unused ) {
       fManagers["larlite"]->getEntry( run, subrun, event, entry );
       larlite_io.go_to( entry );
-      larlite_io.set_id( run, subrun, event );
+      //larlite_io.set_id( run, subrun, event );
     }
     if ( !larcv_unused ) {
       fManagers["larcv"]->getEntry( run, subrun, event, entry );
       larcv_io.read_entry( entry );
-      larcv_io.set_id( run, subrun, event );
+      //larcv_io.set_id( run, subrun, event );
     }
+    _current_run = run;
+    _current_subrun = subrun;
+    _current_event = event;
   }
 
   int DataCoordinator::get_nentries( std::string ftype ) {
@@ -288,6 +303,10 @@ namespace larlitecv {
   }
 
   void DataCoordinator::save_entry() {
+
+    if ( !larcv_unused )  larcv_io.set_id( _current_run, _current_subrun, _current_event );
+    if ( !larlite_unused) larlite_io.set_id( _current_run, _current_subrun, _current_event );
+
     if ( !larcv_unused )
       larcv_io.save_entry();
     // writing down implicitly when event changes for larlite storage_manager

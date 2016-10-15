@@ -33,13 +33,13 @@ int main( int nargs, char** argv ) {
   larlitecv::DataCoordinator dataco;
 
   // larlite
-  //dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_mcinfo_0000.root", "larlite" );
+  //dataco.add_inputfile( "data/larlite/larlite_mcinfo_0000.root", "larlite" );
   //dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_wire_0000.root", "larlite" );
   //dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_opdigit_0000.root", "larlite" );
   //dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_opreco_0000.root", "larlite" );
 
   // larcv
-  dataco.add_inputfile( "data/data_samples/v05/spoon/larcv/spoon_larcv_out_0000.root", "larcv" );
+  dataco.add_inputfile( "data/larcv/spoon_larcv_out_0000.root", "larcv" );
 
   // configure
   dataco.configure( "config.cfg", "StorageManager", "IOManager", "ExampleConfigurationFile" );
@@ -50,12 +50,13 @@ int main( int nargs, char** argv ) {
 
   // Start Event Loop
   int nentries = dataco.get_nentries("larcv");
-  nentries = 3; // to shorten the loop
+  nentries = 10; // to shorten the loop
 
   TRandom3 rand(time(NULL));
   
   for (int ientry=0; ientry<nentries; ientry++) {
-    
+    std::cout << "[Entry " << ientry << "]" << std::endl;
+
     dataco.goto_entry(ientry,"larcv");
 
     // get images (from larcv)
@@ -64,13 +65,24 @@ int main( int nargs, char** argv ) {
     
     // make a new image that's the same size as the original ones
     std::vector< larcv::Image2D > output_container;
+
+    // make a pixel2D event container
+    larcv::EventPixel2D* event_pixel2d = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "hits" );
+
     // we iterate through the images
     for ( auto &img : event_imgs->Image2DArray() ) {
       const larcv::ImageMeta& meta = img.meta(); // get a constant reference to the Image's meta data
       larcv::Image2D newimg( meta );
       for (int irow=0; irow<meta.rows(); irow++) {
 	for (int icol=0; icol<meta.cols(); icol++) {
-	  newimg.set_pixel( irow, icol, rand.Uniform() );
+	  float newval = img.pixel(irow,icol)*rand.Uniform();
+	  newimg.set_pixel( irow, icol, newval );
+	  if ( img.pixel(irow,icol)>0 && newval/img.pixel(irow,icol)>0.8 ) {
+	    larcv::Pixel2D hit( icol, irow );
+	    hit.Intensity( newval );
+	    hit.Width( 1.0 );
+	    event_pixel2d->Emplace( (larcv::PlaneID_t)meta.plane(), std::move(hit) );
+	  }
 	}
       }
       output_container.emplace_back( std::move(newimg) ); // we use emplace and move so that we avoid making a copy
