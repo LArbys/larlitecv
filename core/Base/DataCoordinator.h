@@ -96,6 +96,9 @@ namespace larlitecv {
     std::string fLastDriver;
     bool larcv_unused;
     bool larlite_unused;
+    int _current_run;
+    int _current_subrun;
+    int _current_event;
 
     // configs
     std::string cfgfile;

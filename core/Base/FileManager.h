@@ -98,9 +98,9 @@ namespace larlitecv {
     //virtual void user_build_index( const std::vector<std::string>& input ) = 0;
     void parse_filelist( std::vector<std::string>& flist);         ///< parses the filelist
     std::string get_filelisthash(); ///< create md5 hash from filelist contents
-    bool cacheExists( std::string hash ) { return false; };
+    //bool cacheExists( std::string hash ) { return false; };
     void load_from_cache( std::string hash );
-    void cache_index( std::string hash, std::map< RSE, int >& rse2entry, std::map< int, RSE >& fentry2rse );
+    void cache_index( std::string hash );
     std::string printset( const std::set< std::string >& myset );
 
     bool fUseCache;
