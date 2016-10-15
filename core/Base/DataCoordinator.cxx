@@ -140,8 +140,8 @@ namespace larlitecv {
   }
   
   void DataCoordinator::finalize() {
-    larlite_io.close();
-    larcv_io.finalize();
+    if ( !larlite_unused ) larlite_io.close();
+    if ( !larcv_unused )   larcv_io.finalize();
   }
   
   void DataCoordinator::prepfilelists() {

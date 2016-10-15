@@ -77,7 +77,7 @@ int main( int nargs, char** argv ) {
 	for (int icol=0; icol<meta.cols(); icol++) {
 	  float newval = img.pixel(irow,icol)*rand.Uniform();
 	  newimg.set_pixel( irow, icol, newval );
-	  if ( img.pixel(irow,icol)>0 && newval/img.pixel(irow,icol)>0.8 ) {
+	  if ( img.pixel(irow,icol)>0 && newval/img.pixel(irow,icol)>0.5 ) {
 	    larcv::Pixel2D hit( icol, irow );
 	    hit.Intensity( newval );
 	    hit.Width( 1.0 );
