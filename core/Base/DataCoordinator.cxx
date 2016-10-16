@@ -96,19 +96,26 @@ namespace larlitecv {
     do_larlite_config( larlite_io, larlite_pset ); // we have to add one for larlite
 
     // get the iomode for larcv/larlite
-    fIOmodes["larcv"] = (int)larcv_pset.get<int>("IOMode");
+    fIOmodes["larcv"]   = (int)larcv_pset.get<int>("IOMode");
+    fIOmodes["larlite"] = (int)larlite_pset.get<int>("IOMode");
 
     // determine if any of the inputs are unused
     larcv_unused = false;
-    larcv_unused = false;
+    larlite_unused = false;
 
     // most obvious tag that is unused: user sets to -1
     if ( fIOmodes["larcv"]==-1 ) larcv_unused = true;
-    if ( fIOmodes["larlite"]==-1) larlite_unused = true;
+    if ( fIOmodes["larlite"]==-1) {
+      std::cout << "larlite iomode=" << fIOmodes["larlite"] << std::endl;
+      larlite_unused = true;
+    }
     
     // other way is if iomode is read-only, but there are no events provided
     if ( fIOmodes["larcv"]==0 && fManagers["larcv"]->get_final_filelist().size()==0 ) larcv_unused = true;
-    if ( fIOmodes["larlite"]==0 && fManagers["larlite"]->get_final_filelist().size()==0 ) larlite_unused = true;
+    if ( fIOmodes["larlite"]==0 && fManagers["larlite"]->get_final_filelist().size()==0 ) {
+      std::cout << "larlite iomode=" << fIOmodes["larlite"] << " and number of input files=" << fManagers["larlite"]->get_final_filelist().size() << std::endl;
+      larlite_unused = true;
+    }
 
     // now load input files
 

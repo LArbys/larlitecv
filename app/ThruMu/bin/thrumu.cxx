@@ -96,8 +96,8 @@ int main( int nargs, char** argv ) {
 
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
-  int nentries = 10;
-  //int nentries = 1;
+  //int nentries = 10;
+  int nentries = 1;
   
   for (int ientry=0; ientry<nentries; ientry++) {
     
@@ -146,6 +146,7 @@ int main( int nargs, char** argv ) {
 
     // ------------------------------------------------------------------------------------------//
     // FLASH TAGGER //
+    std::cout << "[Run Flash Tagger]" << std::endl;
 
     // create storage for new images
     std::vector< larcv::Image2D > flashtagger_hits;
@@ -202,14 +203,14 @@ int main( int nargs, char** argv ) {
     
     //anode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_anode, stage1_annode_hits );
 
-//     std::cout << "[[ Flash Tagger End Points ]]" << std::endl;
-//     for (int p=0; p<3; p++) {
-//       std::cout << "  [Plane " << p << "]" << std::endl;
-//       std::cout << "    anode: " << trackendpts_anode.at(p).size() << std::endl;
-//       std::cout << "    cathode: " << trackendpts_cathode.at(p).size() << std::endl;
-//       std::cout << "    imgends: " << trackendpts_imgends.at(p).size() << std::endl;
-//     }
-
+    std::cout << "[[ Flash Tagger End Points ]]" << std::endl;
+    for (int p=0; p<3; p++) {
+      std::cout << "  [Plane " << p << "]" << std::endl;
+      std::cout << "    anode: " << trackendpts_anode.at(p).size() << std::endl;
+      std::cout << "    cathode: " << trackendpts_cathode.at(p).size() << std::endl;
+      std::cout << "    imgends: " << trackendpts_imgends.at(p).size() << std::endl;
+    }
+    
     //std::cout << "skipping ahoead" << std::endl;
     //continue;
 

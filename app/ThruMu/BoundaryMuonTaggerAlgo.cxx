@@ -1,7 +1,7 @@
 #include "BoundaryMuonTaggerAlgo.h"
 #include "dbscan/DBSCANAlgo.h"
 #include "AStarGridAlgo.h"
-#include "ThruMu/BoundaryEndPt.h"
+#include "BoundaryEndPt.h"
 #include <vector>
 #include <cmath>
 #include <assert.h>
