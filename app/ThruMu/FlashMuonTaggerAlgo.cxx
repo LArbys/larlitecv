@@ -194,7 +194,7 @@ namespace larlitecv {
 	  z_weighted /= qtot;
 	}
 	std::vector<float> z_range = { (float)(z_weighted-100.0), (float)(z_weighted+100.0) }; // be more intelligent later
-	std::vector<float> y_range = { (float)-120.0, (float)120.0 };
+	std::vector<float> y_range = { -120.0, 120.0 };
 	
 	int row_target = meta.row( tick_target );
 	
@@ -555,11 +555,12 @@ namespace larlitecv {
     insec[1] = (Y1*C2 - Y2*C1)/det;
 
     // check if interesction within line segments
+    // padding needed for y-wire which is vertical
     crosses = 1;
     for (int i=0; i<2; i++) {
-      if ( std::min( ls1[0][i], ls1[1][i] ) > insec[0] || std::max( ls1[0][0], ls1[1][0] )<insec[0] )
+      if ( std::min( ls1[0][i]-0.15, ls1[1][i]-0.15 ) > insec[i] || std::max( ls1[0][i]+0.15, ls1[1][i]+0.15 )<insec[i] )
 	crosses = 0;
-      if ( std::min( ls2[0][i], ls2[1][i] ) > insec[0] || std::max( ls2[0][0], ls2[1][0] )<insec[0] )
+      if ( std::min( ls2[0][i]-0.15, ls2[1][i]-0.15 ) > insec[i] || std::max( ls2[0][i]+0.15, ls2[1][i]+0.15 )<insec[i] )
 	crosses = 0;
       if ( crosses==0 )
 	break;
@@ -663,10 +664,12 @@ namespace larlitecv {
 	    vertex2plane.push_back( intersection01 );
 
 	    // we try for the 3plane intersection
-	    int p2 = p1+1;
+	    int p2 = 2;
 	    if ( p0==0 && p1==1 ) p2 = 2;
 	    else if ( p0==0 && p1==2 ) p2 = 1;
 	    else if ( p0==1 && p1==2 ) p2 = 0;
+	    else
+	      continue;
 
 
 	    for (int idx2=0; idx2<(int)wirelists.at(p2).size(); idx2++) {
@@ -701,17 +704,20 @@ namespace larlitecv {
 	      int crosses12 = 0;
 	      lineSegmentIntersection2D( ls1, ls2, intersection12, crosses12 );
 	      
-	      if ( !crosses02 || !crosses12 ) 
+	      if ( !crosses02 || !crosses12 )  {
+		//std::cout << "  3-plane check: one combination does not cross, crosses02=" << crosses02 << " crosses12=" << crosses12 << std::endl;
 		continue;
-
+	      }
 
 	      bool valid2 = true;
 	      for (int i=0; i<2; i++) {
 		if ( intersection02[i]<valid_range[i][0] || intersection02[i]>valid_range[i][1] ) {
+		  //std::cout << "  3-plane check: intersection02 not valid" << std::endl;
 		  valid = false;
 		  break;
 		}
 		if ( intersection12[i]<valid_range[i][0] || intersection12[i]>valid_range[i][1] ) {
+		  //std::cout << "  3-plane check: intersection12 not valid" << std::endl;
 		  valid = false;
 		  break;
 		}
