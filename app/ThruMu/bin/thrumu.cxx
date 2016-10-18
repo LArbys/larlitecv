@@ -182,27 +182,31 @@ int main( int nargs, char** argv ) {
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_anode;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_cathode;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_imgends;
-    for ( auto &tpc_img : event_imgs->Image2DArray() ) {
-      
-      larcv::Image2D& annode_img  = stage1_annode_hits.at( (int)tpc_img.meta().plane() );
-      larcv::Image2D& cathode_img = stage1_cathode_hits.at( (int)tpc_img.meta().plane() );
-      larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
-
-      std::vector< larlitecv::BoundaryEndPt > anode_ends; 
-      anode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, anode_ends, annode_img );
-      trackendpts_anode.emplace_back( std::move(anode_ends) );
-
-      std::vector< larlitecv::BoundaryEndPt > cathode_ends;
-      cathode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, cathode_ends, cathode_img );      
-      trackendpts_cathode.emplace_back( std::move(cathode_ends) );
-
-      std::vector< larlitecv::BoundaryEndPt > imgends_ends;
-      imgends_flash_tagger.findImageBoundaryEnds( tpc_img, imgends_ends, imgends_img );      
-      trackendpts_imgends.emplace_back( std::move(imgends_ends) );
+    bool use_pos_flash_matching = true;
+    if ( !use_pos_flash_matching ) {
+      for ( auto &tpc_img : event_imgs->Image2DArray() ) {
+	larcv::Image2D& annode_img  = stage1_annode_hits.at( (int)tpc_img.meta().plane() );
+	larcv::Image2D& cathode_img = stage1_cathode_hits.at( (int)tpc_img.meta().plane() );
+	larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
+	
+	std::vector< larlitecv::BoundaryEndPt > anode_ends; 
+	anode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, anode_ends, annode_img );
+	trackendpts_anode.emplace_back( std::move(anode_ends) );
+	
+	std::vector< larlitecv::BoundaryEndPt > cathode_ends;
+	cathode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, cathode_ends, cathode_img );      
+	trackendpts_cathode.emplace_back( std::move(cathode_ends) );
+	
+	std::vector< larlitecv::BoundaryEndPt > imgends_ends;
+	imgends_flash_tagger.findImageBoundaryEnds( tpc_img, imgends_ends, imgends_img );      
+	trackendpts_imgends.emplace_back( std::move(imgends_ends) );
+      }
+    }
+    else {
+      anode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_anode, stage1_annode_hits );
+      //cathode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_cathode, stage1_cathode_hits );
     }
     
-    //anode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_anode, stage1_annode_hits );
-
     std::cout << "[[ Flash Tagger End Points ]]" << std::endl;
     for (int p=0; p<3; p++) {
       std::cout << "  [Plane " << p << "]" << std::endl;
@@ -210,9 +214,11 @@ int main( int nargs, char** argv ) {
       std::cout << "    cathode: " << trackendpts_cathode.at(p).size() << std::endl;
       std::cout << "    imgends: " << trackendpts_imgends.at(p).size() << std::endl;
     }
-    
-    //std::cout << "skipping ahoead" << std::endl;
-    //continue;
+
+    if ( use_pos_flash_matching ) {
+      std::cout << "skipping ahoead" << std::endl;
+      continue;
+    }
 
     // ------------------------------------------------------------------------------------------//
     // MAKE TRACKS USING COLLECTED END POINTS

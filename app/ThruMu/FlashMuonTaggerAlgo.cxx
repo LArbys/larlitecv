@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cmath>
 #include <cstdlib>
+#include <algorithm>
 
 #include "TFile.h"
 #include "TTree.h"
@@ -21,15 +22,19 @@ namespace larlitecv {
 	int plane = meta.plane();
 	
 	float tick_target = 0;
+	std::string modename;
 	if ( fSearchMode==kAnode ) {
 	  tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
+	  modename = "anode";
 	}
 	else if ( fSearchMode==kCathode ) {
 	  tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
 	  tick_target += fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick;
+	  modename = "cathode";
 	}
 	else if ( fSearchMode==kOutOfImage ) {
 	  tick_target = opflash.Time(); // dummy opflash gives first or last tick of image
+	  modename = "image end";
 	}
 	else {
 	  std::cout << "[ERROR] wrong search mode" << std::endl;
@@ -44,7 +49,7 @@ namespace larlitecv {
 
 	if ( fConfig.verbosity<1 ) {
 	  std::cout << "============================================================================================" << std::endl;
-	  std::cout << "[Opflash search]" << std::endl;
+	  std::cout << "[Opflash search] " << modename << " mode" << std::endl;
 	  std::cout << "  opflash: p= " << plane 
 		    << " tick_target=" << tick_target
 		    << " row_target=" << row_target
@@ -125,15 +130,15 @@ namespace larlitecv {
 		  markedimg.set_pixel( y_, x_, 10.0 );      
 	      }	      
 	    }
-
+	    
 	  }//end of if point is interesting
 	}//end of loop over wires
       }//end of loop over flashes
     }//end of loop over flash containers
-    
+    return true;
   }//end of marked output
-
-
+  
+  
   bool FlashMuonTaggerAlgo::flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const std::vector<larcv::Image2D>& tpc_imgs,
 						 std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs ) {
 
@@ -145,29 +150,39 @@ namespace larlitecv {
     // get a meta
     const larcv::ImageMeta& meta = tpc_imgs.at(0).meta();
     
+    // loop over all the flash containers
     for ( auto& ptr_event_flash : opflashsets ) {
+      // loop over flashes
       for ( auto& opflash : *ptr_event_flash ) {
-		
+	
+	// determine time of flash
 	float tick_target = 0;
+	float flash_tick = 0;
+	std::string modename;
 	if ( fSearchMode==kAnode ) {
-	  tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
+	  flash_tick = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
+	  tick_target = flash_tick;
+	  modename = "anode";
 	}
 	else if ( fSearchMode==kCathode ) {
-	  tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
-	  tick_target += fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick;
+	  flash_tick = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
+	  tick_target = flash_tick + fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick;
+	  modename = "cathode";
 	}
 	else if ( fSearchMode==kOutOfImage ) {
-	  tick_target = opflash.Time(); // dummy opflash gives first or last tick of image
+	  flash_tick  = opflash.Time();
+	  tick_target = flash_tick; // dummy opflash gives first or last tick of image
+	  modename = "image end";
 	}
 	else {
 	  std::cout << "[ERROR] wrong search mode" << std::endl;
 	  return false;
 	}
-
-	// check if we ned to search for this opflash
+	
+	// check if the opflash time occurs within the image
 	if ( tick_target<meta.min_y() || tick_target>=meta.max_y() )
 	  continue;
-
+	
 	// get a z-position range
 	float qtot = 0;
 	float z_weighted = 0.;
@@ -178,14 +193,16 @@ namespace larlitecv {
 	if ( qtot>0 ) {
 	  z_weighted /= qtot;
 	}
-	float z_range[2] = { (float)(z_weighted-100.0), (float)(z_weighted+100.0) };
-
+	std::vector<float> z_range = { (float)(z_weighted-100.0), (float)(z_weighted+100.0) }; // be more intelligent later
+	std::vector<float> y_range = { (float)-120.0, (float)120.0 };
+	
 	int row_target = meta.row( tick_target );
-
+	
 	if ( true || fConfig.verbosity<1 ) {
 	  std::cout << "============================================================================================" << std::endl;
-	  std::cout << "[Opflash search]" << std::endl;
+	  std::cout << "[Opflash search] " << modename << " mode" << std::endl;
 	  std::cout << "  opflash: "
+		    << " flash_tick=" << flash_tick
 		    << " tick_target=" << tick_target
 		    << " row_target=" << row_target
 		    << " qtot= " << qtot
@@ -193,7 +210,7 @@ namespace larlitecv {
 		    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick << " ticks"
 		    << std::endl;
 	}
-
+	
 	// we find track ends on all three planes
 	dbscan::dbPoints* hits[nplanes];
 	dbscan::dbscanOutput* cluster_info[nplanes];
@@ -213,8 +230,10 @@ namespace larlitecv {
 	    }
 	  }
 	}
-
+	
 	// we need to find clusters consistent with flashes
+	
+	// we find 'end points'
 	std::vector< BoundaryEndPt >* endpts[3];
 	for (int p=0; p<nplanes; p++) {
 	  dbscan::DBSCANAlgo dbalgo;
@@ -229,62 +248,55 @@ namespace larlitecv {
 	  std::cout << "  flashmuontaggeralgo: plane " << p << " clusters: " << cluster_info[p]->clusters.size() << " endpoints=" << endpts[0]->size() << std::endl;
 	}
 	
-	// now that we have end points for each cluster, we look for charge deposition consistent with the flash
-
-	// so, let's look at plane 2 first as it's dead simple to check for consistency. 
-	// If there are any hits that match in z, we will make endpoint combinations with wires from the other planes that intersect it
-	std::vector<int> idx_p2_flashmatched;
-	for ( int e2=0; e2<endpts[2]->size(); e2++ ) {
-	  float e2_w = (int)endpts[2]->at(e2).w*meta.pixel_width();
-	  float e2_z = e2_w*0.3;
-	  if ( z_range[0]<=e2_z && e2_z<=z_range[1] ) {
-	    idx_p2_flashmatched.push_back(e2_w);
-	    std::cout << "    * flash matched Y-wire: " << e2_w << " z=" << e2_z << std::endl;
+	// now that we have end points for each cluster, we ID position of charge deposition in (Y,Z) and check if consistent with the flash
+	std::vector< std::vector<int> > wirelists(3);
+	std::vector< std::vector<float> > valid_range(2);
+	valid_range[0] = z_range;
+	valid_range[1] = y_range;
+	for (int ip=0; ip<3; ip++) {
+	  for (int ipt=0; ipt<endpts[ip]->size(); ipt++) {
+	    const BoundaryEndPt& endpt = endpts[ip]->at(ipt);
+	    int wid = meta.pixel_width()*endpt.w;
+	    wirelists.at(ip).push_back( wid );
 	  }
 	}
 
-	// check if the U,V wires intersect with any of the y-plane matches
-	std::vector<int> idx_flashmatched[2]; //< container for wires that have matched
-
-	// we go after 3-plane intersections first. we'll do 2-plane later if we must
-	std::vector< std::vector<int> > idx_3plane_intersections; // list of (u,v,y) triples that intersect
-	for (int e2=0; e2<idx_p2_flashmatched.size(); e2++) {
-	  // start with a y-wire and get the z-position
-	  int y_wireid = idx_p2_flashmatched.at(e2);
-	  const std::vector<float>& ystart = m_WireData[2].wireStart.at( y_wireid );
-
-	  // scan for intersections in the other wire planes
-	  for (int p=0; p<2; p++) {
-	    const larcv::pmtweights::WireData& wiredata = m_WireData[p];
-	    for (int e0=0; e0<endpts[p]->size(); e0++) {
-	      float e0_w = endpts[p]->at(e0).w;
-	      int wid = (int)e0_w*meta.pixel_width();
-	      const std::vector<float>& start = wiredata.wireStart.find(wid)->second;
-	      const std::vector<float>& end   = wiredata.wireEnd.find(wid)->second;
-	      const std::vector<float>& dir0  = wiredata.wireDir.find(wid)->second;
-	      
-	      //const std::vector<float>& ydir   = m_WireData[2].wireDir.at( y_wireid );
-	    
-	      // intersection with the y-wire
-	      float dz = (ystart[2]-start[2])/dir0[2];
-	      float dy = dir0[1]*dz;
-	      bool intersectsy = false;
-	      float ypoint = start[1]+dy;
-	      if ( start[1]<start[1]+dy && start[1]+dy < end[1] ) {
-		idx_flashmatched[p].push_back( wid );
-		std::cout << "    * flash matched plane=" << p << ": intersection (z,y)=(" << ystart[2] << ", " << start[1]+dy << ")" << std::endl;
-		intersectsy = true;
-	      }
-
-	      // move 
-	      if ( !intersectsy )
-		continue;
-	    }
-	  }
-	}//end of loop over all planes by the Y-plane
+	// get intersections
+	std::vector< std::vector<int> > intersections3plane;
+	std::vector< std::vector<float> > vertex3plane;
+	std::vector<float> areas3plane;
+	std::vector< std::vector<int> > intersections2plane;
+	std::vector< std::vector<float> > vertex2plane;
 	
+	findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
+
+	std::cout << " 2 plane intersections: " << std::endl;
+	for (int ii=0; ii<(int)intersections2plane.size(); ii++) {
+	  std::cout << "   (" << intersections2plane.at(ii).at(0) << ","
+		    << intersections2plane.at(ii).at(1) << ","
+		    << intersections2plane.at(ii).at(2) << ")"
+		    << " vertex (z,y)=(" << vertex2plane.at(ii).at(0) << ", " << vertex2plane.at(ii).at(1) << ")" << std::endl;
+	}
+	  
+	std::cout << " 3 plane intersections:" << std::endl;
+	for (int ii=0 ; ii<(int)intersections3plane.size(); ii++) {
+	  std::cout << "   (" << intersections3plane.at(ii).at(0) << ","
+		    << intersections3plane.at(ii).at(1) << ","
+		    << intersections3plane.at(ii).at(2) << ") "
+		    << " vertex (z,y)=(" << vertex3plane.at(ii).at(0) << ", " << vertex3plane.at(ii).at(1) << ")"
+		    << "score=" << areas3plane.at(ii) << std::endl;
+	}
+	
+	// now we go through and find our best match(es)
+
+	std::vector<bool> used_3plane( intersections3plane.size(), false );
+	std::set<int> used_wid[3];
+	
+
+
       }//end of opflashes loop
     }//end of opflashsets    
+    return true;
   }
   
   
@@ -411,6 +423,15 @@ namespace larlitecv {
 	// cannot find instance of wire data for plane id. make one.
 	m_WireData[planeID] = larcv::pmtweights::WireData( planeID );
       }
+      // start is always the one with the lowest y-value
+      if ( start[1]>end[1] ) {
+	// swap start end end
+	for (int i=0; i<3; i++) {
+	  float temp = start[i];
+	  start[i] = end[i];
+	  end[i] = temp;
+	}
+      }
       m_WireData[planeID].addWire( wireID, start, end );
     }
     
@@ -492,6 +513,232 @@ namespace larlitecv {
     
     return success;
   }
+
+  float FlashMuonTaggerAlgo::calculateIntersectionTriangle( const std::vector<float>& p0, const std::vector<float>& p1, const std::vector<float>& p2 ) {
+
+    float d01[2] = { p1[0]-p0[0], p1[1]-p0[1] }; // line segment from p0 -> p1
+    float d20[2] = { p0[0]-p2[0], p0[1]-p2[1] }; // line segment from p2 -> p0
+    float base = sqrt( d01[0]*d01[0] + d01[1]*d01[1] ); // length of d01, acting as our base
+    float vp[2] = { d01[1], -d01[0] }; // direction perpendicular to d01 ( d01.vp = 0.0 )
+    float height = 0.0;
+    // project d20 onto vp to get distance from d01 line to p2
+    for (int i=0; i<2; i++) height += d20[i]*vp[i]; 
+    height /= base;
+    
+    return 0.5*std::fabs(height*base); // return area of triangle
+  }
+
+  void FlashMuonTaggerAlgo::lineSegmentIntersection2D( const std::vector< std::vector<float> >& ls1, const std::vector< std::vector<float> >& ls2, 
+						       std::vector<float>& insec, int& crosses ) {
+    
+    //std::cout << "[lineSegmentIntersection2D] begin" << std::endl;
+    //std::cout << "  testing: ls1=(" << ls1[0][0] << "," << ls1[0][1] << ") -> (" << ls1[1][0] << ","<< ls1[1][1] <<")" << std::endl;
+    //std::cout << "  testing: ls2=(" << ls2[0][0] << "," << ls2[0][1] << ") -> (" << ls2[1][0] << ","<< ls2[1][1] <<")" << std::endl;
+    insec.resize(2,0.0);
+    float Y1 = ls1[1][1] - ls1[0][1];
+    float X1 = ls1[0][0] - ls1[1][0];
+    float C1 = Y1*ls1[0][0] + X1*ls1[0][1];
+
+    float Y2 = ls2[1][1] - ls2[0][1];
+    float X2 = ls2[0][0] - ls2[1][0];
+    float C2 = Y2*ls2[0][0] + X2*ls2[0][1];
+
+    float det = Y1*X2 - Y2*X1;
+    if ( det==0 ) { 
+      // parallel
+      crosses = 0;
+      //std::cout << "[lineSegmentIntersection2D] end.  parallel lines" << std::endl;
+      return;
+    }
+
+    insec[0] = (X2*C1 - X1*C2)/det;
+    insec[1] = (Y1*C2 - Y2*C1)/det;
+
+    // check if interesction within line segments
+    crosses = 1;
+    for (int i=0; i<2; i++) {
+      if ( std::min( ls1[0][i], ls1[1][i] ) > insec[0] || std::max( ls1[0][0], ls1[1][0] )<insec[0] )
+	crosses = 0;
+      if ( std::min( ls2[0][i], ls2[1][i] ) > insec[0] || std::max( ls2[0][0], ls2[1][0] )<insec[0] )
+	crosses = 0;
+      if ( crosses==0 )
+	break;
+    }
+    
+    //std::cout << "  crosses=" << crosses << ": intersection=(" << insec[0] << "," << insec[1] << ")" << std::endl;
+    //std::cout << "[lineSegmentIntersection2D] end." << std::endl;
+    return;
+  }
+
+  void FlashMuonTaggerAlgo::findWireIntersections( const std::vector< std::vector<int> >& wirelists, 
+						   const std::vector< std::vector<float> >& valid_range,
+						   std::vector< std::vector<int> >& intersections3plane,
+						   std::vector< std::vector<float> >& vertex3plane,
+						   std::vector<float>& areas3plane,
+						   std::vector< std::vector<int> >& intersections2plane, std::vector< std::vector<float> >& vertex2plane ) {
+    // takes in lists of wire id numbers
+    // returns intersection combinations, the area of the triangle they make (if 3D), 2 plane intersections
+    
+    // we are going to go ahead and assume 3 planes for now. we can modify for generic number of planes later (never)
+    
+    // was hoping that 3 plane matches the most common situation. looks like we get that if we're lucky
+
+    // we're going to loop through all combination of wires. This can get bad fast. N^p problem...
+    // expecting about O(10) endpoints per flash.  worst case, looking at 1000 combinations.
+    // but we use the validity ranges to start removing intersections we don't care about
+
+    const int nplanes = wirelists.size();
+    std::set< std::vector<int> > checked2plane;
+    std::set< std::vector<int> > checked3plane;
+
+    for (int p0=0;p0<nplanes;p0++) {
+      // loop through first wire plane
+      for (int idx0=0; idx0<wirelists.at(p0).size(); idx0++) {
+      
+	// get the first wire
+	int wid0 = wirelists.at(p0).at(idx0);
+	const std::vector<float>& start0 = m_WireData[p0].wireStart.find(wid0)->second;
+	const std::vector<float>& end0   = m_WireData[p0].wireEnd.find(wid0)->second;
+	//const std::vector<float>& dir0   = m_WireData[p0].wireDir.find(wid0)->second;
+	
+	// go to the other planes and check the wires there
+	for (int p1=p0+1; p1<nplanes; p1++) {
+	  // get wire on this plane
+	  for (int idx1=0; idx1<wirelists.at(p1).size(); idx1++) {
+	    int wid1 = wirelists.at(p1).at(idx1);
+
+	    std::vector< int > combo2d(3,-1);
+	    combo2d[p0] = wid0;
+	    combo2d[p1] = wid1;
+	    if ( checked2plane.find( combo2d )==checked2plane.end() )
+	      checked2plane.insert( combo2d );
+	    else {
+	      //std::cout << "  .. already checked: (" << combo2d[0] << "," << combo2d[1] << "," << combo2d[2] << ")" << std::endl;
+	      continue;
+	    }
+
+	    const std::vector<float>& start1 = m_WireData[p1].wireStart.find(wid1)->second;
+	    const std::vector<float>& end1   = m_WireData[p1].wireEnd.find(wid1)->second;
+	    //const std::vector<float>& dir1   = m_WireData[p1].wireDir.find(wid1)->second;
+	    
+	    // change line end points from 3D to 2D (x,y,z) -> (z,y)
+	    std::vector< std::vector<float> > ls0(2); // line segment 1
+	    ls0[0].push_back( start0[2] );
+	    ls0[0].push_back( start0[1] );
+	    ls0[1].push_back( end0[2] );
+	    ls0[1].push_back( end0[1] );
+	    std::vector< std::vector<float> > ls1(2); // line segment 2
+	    ls1[0].push_back( start1[2] );
+	    ls1[0].push_back( start1[1] );
+	    ls1[1].push_back( end1[2] );
+	    ls1[1].push_back( end1[1] );
+	    
+	    // test intersection
+	    std::vector<float> intersection01; 
+	    int crosses01 = 0;
+	    lineSegmentIntersection2D( ls0, ls1, intersection01, crosses01 );
+	    if ( !crosses01 ) {
+	      //std::cout << "  (" << p0 << "," << wid0 << ") and (" << p1 << "," << wid1 << ") does not cross" << std::endl;
+	      continue; // move on if doesn't cross
+	    }
+	    bool valid = true;
+	    for (int i=0; i<2; i++) {
+	      if ( intersection01[i]<valid_range[i][0] || intersection01[i]>valid_range[i][1] ) {
+		valid = false;
+		break;
+	      }
+	    }
+	    if ( !valid ) {
+	      //std::cout << "  (" << p0 << "," << wid0 << ") and (" << p1 << "," << wid1 << ") crosses but not valid. "
+	      //	<< " intersection(z,y)=(" << intersection01[0] << "," << intersection01[1] << ")"
+	      //	<< std::endl;
+	      continue; // not a valid intersection
+	    }
+
+	    // we got a 2plane intersection
+	    std::vector<int> p2intersect(3,-1);
+	    p2intersect[p0] = wid0;
+	    p2intersect[p1] = wid1;
+	    intersections2plane.emplace_back( p2intersect );
+	    vertex2plane.push_back( intersection01 );
+
+	    // we try for the 3plane intersection
+	    int p2 = p1+1;
+	    if ( p0==0 && p1==1 ) p2 = 2;
+	    else if ( p0==0 && p1==2 ) p2 = 1;
+	    else if ( p0==1 && p1==2 ) p2 = 0;
+
+
+	    for (int idx2=0; idx2<(int)wirelists.at(p2).size(); idx2++) {
+	      int wid2 = wirelists.at(p2).at(idx2);
+
+	      std::vector< int > combo3d(3,-1);
+	      combo3d[p0] = wid0;
+	      combo3d[p1] = wid1;
+	      combo3d[p2] = wid2;
+	      if ( checked3plane.find( combo3d )==checked3plane.end() )
+		checked3plane.insert( combo3d );
+	      else {
+		//std::cout << "    ... already checked: (" << combo3d[0] << ", " << combo3d[1] << ", " << combo3d[2] << ")" << std::endl;
+		continue;
+	      }
+
+	      const std::vector<float>& start2 = m_WireData[p2].wireStart.find(wid2)->second;
+	      const std::vector<float>& end2   = m_WireData[p2].wireEnd.find(wid2)->second;
+	      //const std::vector<float>& dir2   = m_WireData[p2].wireDir.find(wid2)->second;
+
+	      std::vector< std::vector<float> > ls2(2); // line segment 2
+	      ls2[0].push_back( start2[2] );
+	      ls2[0].push_back( start2[1] );
+	      ls2[1].push_back( end2[2] );
+	      ls2[1].push_back( end2[1] );
+
+	      std::vector<float> intersection02;
+	      int crosses02 = 0;
+	      lineSegmentIntersection2D( ls0, ls2, intersection02, crosses02 );
+
+	      std::vector<float> intersection12;
+	      int crosses12 = 0;
+	      lineSegmentIntersection2D( ls1, ls2, intersection12, crosses12 );
+	      
+	      if ( !crosses02 || !crosses12 ) 
+		continue;
+
+
+	      bool valid2 = true;
+	      for (int i=0; i<2; i++) {
+		if ( intersection02[i]<valid_range[i][0] || intersection02[i]>valid_range[i][1] ) {
+		  valid = false;
+		  break;
+		}
+		if ( intersection12[i]<valid_range[i][0] || intersection12[i]>valid_range[i][1] ) {
+		  valid = false;
+		  break;
+		}
+	      }
+	      if ( !valid2 )
+		continue; // not a valid intersection
+	      
+	      // got a 3 plane intersection!
+	      std::vector<int> p3intersect(3,-1);
+	      p3intersect[p0] = wid0;
+	      p3intersect[p1] = wid1;
+	      p3intersect[p2] = wid2;
+	      intersections3plane.emplace_back( p3intersect );
+	      // get score for 3 plane intersections
+	      float area = calculateIntersectionTriangle( intersection01, intersection02, intersection12 );
+	      areas3plane.push_back(area);
+	      // get the 3 plane vertex
+	      std::vector<float> vert3(2,0.0);
+	      for (int i=0; i<2; i++) 
+		vert3[i] = (intersection01[i]+intersection02[i]+intersection12[i] )/3.0;
+	      vertex3plane.emplace_back( vert3 );
+	    }//end of loop over p2 wires
+	  }//end of loop over p1 wires
+	}//end of loop over p1 planes
+      }//end of loop over p0 wires
+    }//end of loop over p0 planes
+  }//end of findWireIntersections(...)
 
 }
 

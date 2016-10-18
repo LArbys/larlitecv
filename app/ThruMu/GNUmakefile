@@ -7,6 +7,7 @@ PACKAGE_NAME = ThruMu
 SOURCES = $(wildcard *.cxx)
 FMWK_HEADERS = LinkDef.h
 HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
+
 #HEADERS += IOManager.inl
 
 # include options for this package
@@ -31,3 +32,4 @@ include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE
 
 pkg_build:
 pkg_clean:
+
