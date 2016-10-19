@@ -58,6 +58,99 @@ namespace larlitecv {
     // we need the wire downsampling factor
     int dsfactor = int( meta.pixel_width()+0.1 ); 
     const clock_t begin_time = clock();
+    
+    // now loop over over the time of the images
+    for (int r=0; r<meta.rows(); r++) {
+      // loop through boundary type
+      for (int b=0; b<4; b++) {
+	// loop through combinations (dumb)
+	for (int imatch=0; imatch<m_matches.nmatches( (larlitecv::BoundaryMatchArrays::Boundary_t)b ); imatch++) {
+	  
+	  int triple[3];
+	  m_matches.getMatch( (larlitecv::BoundaryMatchArrays::Boundary_t)b, imatch, triple[0], triple[1], triple[2] );
+	  
+
+	  // now we have a match combo
+	  // look if the image has charge above some threshold, within some neighborhood
+	  
+	  bool hascharge[3] = { false, false, false };
+	  std::vector<int> abovethresh[3]; // we save col number of pixels above threshold in each plane with this
+
+	  for (int p=0; p<3; p++) {
+	    const larcv::Image2D& img = imgs.at(p);
+	    int col = triple[p]/dsfactor;
+	    for (int n=-_config.neighborhoods.at(p); n<=_config.neighborhoods.at(p); n++) {
+	      if (col + n <0 || col + n>=meta.cols() )  continue; // skip out of bound columns
+		   
+	      if ( img.pixel( r, col + n ) > _config.thresholds.at(p) ) {
+		hascharge[p] = true;
+		abovethresh[p].push_back(col+n);
+	      }
+	    }
+	    // small optimization, if we see that one plane does not have charge, the match will fail. move on.
+	    if ( !hascharge[p] ) break;
+	  }
+	  
+	  if ( hascharge[0] & hascharge[1] & hascharge[2] ) {
+	    // match!  we write the match to the output
+	    for (int p=0; p<nplanes; p++) {
+	      for ( int ipixel=0; ipixel<(int)abovethresh[p].size(); ipixel++) {
+		matchedpixels.at( p*ncrossings + b ).set_pixel( r, abovethresh[p].at(ipixel), 256.0 ); // 256 is arbitrary marker
+	      }
+	    }
+	  }
+	  
+	}//end of match loop
+      }//end of boundary loop
+    }//end of row loop
+    float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
+    std::cout << "boundary pixel search took " << elapsed_secs << " secs" << std::endl;
+
+    
+    return kOK;
+  }
+
+  int BoundaryMuonTaggerAlgo::searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, std::vector< larcv::Image2D >& matchedpixels ) {
+    // this checks for pixels consistent with boundary crossings at the top/bottom/upstream/downstream portions of the TPC
+    // returns an image that marks the location of such pixels
+    // the vector returned has N*4 elements from N planes x 4 crossing types
+    // the output images are in a different space:
+    //  top/bottom: wire axis -> z-axis
+    //  upstream/downstream: wire-axis -> y-axis
+
+    int ncrossings = 4;
+    int nplanes = imgs.size();
+    int nresults = ncrossings*nplanes;
+
+    if ( !_config.checkOK() )  {
+      std::cout << "[BOUNDARY MUON TAGGER ALGO ERROR] Not configured." << std::endl;
+      return kErr_NotConfigured;
+    }
+    
+    if ( imgs.size()<3 ) {
+      std::cout << "[BOUNDARY MUON TAGGER ALGO ERROR] Expecting 3 planes currently." << std::endl;
+      return kErr_BadInput;
+    }
+
+    // clear the output container
+    matchedpixels.clear();
+
+    // get meta for input image
+    const larcv::ImageMeta& meta = imgs.at(0).meta();
+
+    // create Image2D objects to store the result of boundary matching
+    // we use meta to make the same sized image as the input
+    enum { top=0, bot, upstream, downstream };
+
+    for (int i=0; i<nresults; i++) { // top, bottom, upstream, downstream x 3 planes
+      larcv::Image2D matchimage( meta );
+      matchimage.paint(0.0);
+      matchedpixels.emplace_back( std::move(matchimage) );
+    }
+
+    // we need the wire downsampling factor
+    int dsfactor = int( meta.pixel_width()+0.1 ); 
+    const clock_t begin_time = clock();
 
     // now loop over over the time of the images
     for (int r=0; r<meta.rows(); r++) {
@@ -91,13 +184,48 @@ namespace larlitecv {
 	  }
 	  
 	  if ( hascharge[0] & hascharge[1] & hascharge[2] ) {
+
 	    // match!  we write the match to the output
 	    for (int p=0; p<nplanes; p++) {
+	      
+	      if ( ( b==upstream || b==downstream) && p==2 )
+		continue; // no useful info here
+
 	      for ( int ipixel=0; ipixel<(int)abovethresh[p].size(); ipixel++) {
-		matchedpixels.at( p*ncrossings + b ).set_pixel( r, abovethresh[p].at(ipixel), 256.0 ); // 256 is arbitrary marker
-	      }
-	    }
-	  }
+		int pixcol = abovethresh[p].at(ipixel);
+		int wid = (int)pixcol*meta.pixel_width();
+		const std::vector<float>& start = m_WireData[p].wireStart.find(wid)->second;
+		const std::vector<float>& end   = m_WireData[p].wireEnd.find(wid)->second;
+
+		if ( b==top ) {
+		  // we are filling out the z-position here
+		  float prev_val = matchedpixels.at( b ).pixel( r, (int)end[2] );
+		  matchedpixels.at( b ).set_pixel( r, int(end[2]), prev_val+50.0 );
+		}
+		else if ( b==bot ) {
+		  // fill z
+		  float prev_val = matchedpixels.at( b ).pixel( r, (int)start[2] );
+		  matchedpixels.at( b ).set_pixel( r, int(start[2]), prev_val+50.0 );
+		}
+		else if ( b==upstream && p<2) {
+		  // fill y
+		  float y = start[1];
+		  if ( p==1 )
+		    y = end[1];
+		  float prev_val = matchedpixels.at( b ).pixel( r, (int)(y+116.0) );
+		  matchedpixels.at( b ).set_pixel( r, int(y + 116.0), prev_val+50.0 );
+		}
+		else if ( b==downstream && p<2 ) {
+		  // fill y
+		  float y = end[1];
+		  if ( p==1 )
+		    y = start[1];
+		  float prev_val = matchedpixels.at( b ).pixel( r, (int)(y+116.0) );
+		  matchedpixels.at( b ).set_pixel( r, int(y + 116.0), prev_val+50.0 );
+		}
+	      }//end of pixel loop
+	    }//end number of planes
+	  }//if match
 	}//end of match loop
       }//end of boundary loop
     }//end of row loop
@@ -227,6 +355,106 @@ namespace larlitecv {
     return 0;
   }//end of clusterBoundaryPixels
 
+  int BoundaryMuonTaggerAlgo::clusterBoundaryPixels3D( const std::vector< larcv::Image2D >& matchedpixels, // pixels consistent with boundary hits 
+						       std::vector< std::vector<BoundaryEndPt> >& end_points // list of boundary end point triples
+						       ) {
+    // inputs:
+    //   matchedpixels: result of 'searchforboundarypixels3D' function. 4 crossings long. position of hits in edge position and time
+    // outputs:
+    //   end_points: list of boundary vectors.  inner vector has 3 elements, one for each plane
+    
+    const int ncrossings = 4;
+    int chs = (int)matchedpixels.size(); // for each plane: top/bottom/upstream/downstream
+
+    // loop over crossing types
+    enum { top=0, bot, upstream, downstream };
+    for (int ich=0; ich<chs; ich++) {
+      
+      const larcv::Image2D& hitimg = matchedpixels.at(ich);
+      const larcv::ImageMeta& meta = matchedpixels.at(ich).meta();
+      
+      // we make a hit list
+      dbscan::dbPoints hits;
+      for ( int r=0; r<meta.rows(); r++ ) {
+	for (int c=0; c<meta.cols(); c++ ) {
+	  if ( hitimg.pixel( r, c ) > 50.0 ) {
+	    std::vector<double> pt(2,0.0);
+	    pt.at(0) = c; // x
+	    pt.at(1) = r; // y
+	    hits.emplace_back( pt );
+	  }
+	}
+      }
+      if ( hits.size()==0 )
+	continue;
+      
+      // we cluster our hits
+      dbscan::DBSCANAlgo dbalgo;
+      dbscan::dbscanOutput clout = dbalgo.scan( hits, 5, 6, false, 0.0 );
+      
+      // now we get our points. we find the weighted mean
+      for (int ic=0; ic<clout.clusters.size(); ic++) {
+	float qtot = 0.0;
+	float t_ave = 0.0;
+	float w_ave = 0.0;
+	for (int ichit=0; ichit<clout.clusters.at(ic).size(); ichit++) {
+	  int hitidx = clout.clusters.at(ic).at(ichit);
+	  int c_ = (int)hits.at(hitidx).at(0)+0.1;
+	  int r_ = (int)hits.at(hitidx).at(1)+0.1;
+	  float w_ = hitimg.pixel( r_, c_ );
+	  qtot += w_;
+	  t_ave += r_*w_;
+	  w_ave += c_*w_;
+	}
+	t_ave /= qtot;
+	w_ave /= qtot;
+
+	// now we have to figure out what wire this is!
+	int y_wid = -1;
+	int u_wid = -1;
+	int v_wid = -1;
+	if ( ich==top ) {
+	  // value saved as z-position on top edge of detector
+	  float z = w_ave; 
+	  y_wid = (z - 0.25)/0.3;
+	  u_wid = (z - 0.55)/0.6 + 0;
+	  v_wid = (z - 0.26)/0.6 + 672;
+	}
+	else if ( ich==bot ) {
+	  float z = w_ave;
+	  y_wid = (z - 0.25)/0.3;
+	  u_wid = (z - 0.26)/0.6 + 672;
+	  v_wid = (z - 0.55)/0.6 + 0;
+	}
+	else if ( ich==upstream  ) {
+	  float y = w_ave-116.0;
+	  y_wid = 0;
+	  u_wid = (117.15-y)/0.346413;
+	  v_wid = (y - (-115.29))/0.346413;
+	}
+	else if ( ich==downstream ) {
+	  float y = w_ave-116.0;
+	  y_wid = 3455;
+	  u_wid = (117.23-y)/0.346413 + 1728;
+	  v_wid = (y - (-115.29))/0.346413 + 1728;
+	}
+	
+	// make boundary points
+	std::vector< BoundaryEndPt > endpt_v;
+	BoundaryEndPt endpt_Y( t_ave, (int)(y_wid/meta.pixel_width()), (BoundaryEndPt::BoundaryEnd_t)ich );
+	BoundaryEndPt endpt_U( t_ave, (int)(u_wid/meta.pixel_width()), (BoundaryEndPt::BoundaryEnd_t)ich );
+	BoundaryEndPt endpt_V( t_ave, (int)(v_wid/meta.pixel_width()), (BoundaryEndPt::BoundaryEnd_t)ich );
+	endpt_v.emplace_back( endpt_U );
+	endpt_v.emplace_back( endpt_V );
+	endpt_v.emplace_back( endpt_Y );
+	
+	end_points.emplace_back( endpt_v );
+      }//end of loop over clusters
+    }//end of loop over channel { 4 crossings }
+    
+    return 0;
+  }//end of clusterBoundaryPixels
+
   int BoundaryMuonTaggerAlgo::makePlaneTrackCluster( const larcv::Image2D& img, const larcv::Image2D& badchimg,
 						     const std::vector< BoundaryEndPt >& top, const std::vector< BoundaryEndPt >& bot,
 						     const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
@@ -346,6 +574,43 @@ namespace larlitecv {
     
     return 0;
   }
+
+  int BoundaryMuonTaggerAlgo::markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters,
+							  std::vector<larcv::Image2D>& markedimgs ) {
+    for ( auto &img : imgs ) {
+      const larcv::ImageMeta& meta = img.meta();
+      larcv::Image2D markedimg( meta );
+      markedimg.paint(0.0);
+
+      int plane = (int)meta.plane();
+      
+      const std::vector< larlitecv::BMTrackCluster2D >& planetracks = trackclusters.at(plane);
+
+      for ( auto &track : planetracks ) {
+	for ( auto &pixel : track.pixelpath ) {
+	  int col = pixel.X();
+	  int row = pixel.Y();
+
+	  for ( int dc=-_config.astar_neighborhood.at(plane); dc<=_config.astar_neighborhood.at(plane); dc++ ) {
+	    for ( int dr=-_config.astar_neighborhood.at(plane); dr<=_config.astar_neighborhood.at(plane); dr++ ) {
+	      int r = row+dr;
+	      int c = col+dc;
+	      if ( r<0 || r>=meta.rows() ) continue;
+	      if ( c<0 || c>=meta.cols() ) continue;
+	      float val = img.pixel( row, col );
+	      if ( val>_config.thresholds.at(plane) ) {
+		markedimg.set_pixel( r, c, 100.0 );
+	      }
+	    }
+	  }
+	}//end of pixel list
+      }//end of planetracks
+      markedimgs.emplace_back( markedimg );
+    }
+    
+    return 0;
+  }
+
 
   /*
   void BoundaryMuonTaggerAlgo::filterShortAndKinkedTracks( int mintracklength, std::vector< larlitecv::BMTrackCluster2D >& tracks, 
@@ -526,6 +791,59 @@ namespace larlitecv {
     
     // profit!!!
     return true;
+  }
+
+  void BoundaryMuonTaggerAlgo::loadGeoInfo() {
+
+    TFile fGeoFile( Form("%s/app/PMTWeights/dat/geoinfo.root",getenv("LARCV_BASEDIR")), "OPEN" );
+
+    // Get the PMT Info
+    fNPMTs = 32;
+    TTree* fPMTTree  = (TTree*)fGeoFile.Get( "imagedivider/pmtInfo" );
+    int femch;
+    float pos[3];
+    fPMTTree->SetBranchAddress( "femch", &femch );
+    fPMTTree->SetBranchAddress( "pos", pos );
+    for (int n=0; n<fNPMTs; n++) {
+      fPMTTree->GetEntry(n);
+      for (int i=0; i<3; i++) {
+	pmtpos[femch][i] = pos[i];
+      }
+      //std::cout << "[POS " << femch << "] " << " (" << pmtpos[femch][0] << "," << pmtpos[femch][1] << "," << pmtpos[femch][2] << ")" << std::endl;
+    }
+
+    // Get the Wire Info
+    TTree* fWireTree = (TTree*)fGeoFile.Get( "imagedivider/wireInfo" );
+    int wireID;
+    int planeID;
+    float start[3];
+    float end[3];
+    fWireTree->SetBranchAddress( "wireID", &wireID );
+    fWireTree->SetBranchAddress( "plane",  &planeID );
+    fWireTree->SetBranchAddress( "start", start );
+    fWireTree->SetBranchAddress( "end", end );
+      
+    int nentries = fWireTree->GetEntries();
+    for ( int ientry=0; ientry<nentries; ientry++ ) {
+      fWireTree->GetEntry(ientry);
+      if ( m_WireData.find( planeID )==m_WireData.end() ) {
+	// cannot find instance of wire data for plane id. make one.
+	m_WireData[planeID] = larcv::pmtweights::WireData( planeID );
+      }
+      // start is always the one with the lowest y-value
+      if ( start[1]>end[1] ) {
+	// swap start end end
+	for (int i=0; i<3; i++) {
+	  float temp = start[i];
+	  start[i] = end[i];
+	  end[i] = temp;
+	}
+      }
+      m_WireData[planeID].addWire( wireID, start, end );
+    }
+    
+    fGeoFile.Close();
+
   }
   
 }

@@ -96,7 +96,7 @@ int main( int nargs, char** argv ) {
 
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
-  //int nentries = 10;
+  //int nentries = 20;
   int nentries = 1;
   
   for (int ientry=0; ientry<nentries; ientry++) {
@@ -125,17 +125,30 @@ int main( int nargs, char** argv ) {
     // first we run the boundary muon tagger algo that matches top/side/upstream/downstream
     std::cout << "search for boundary pixels" << std::endl;
     std::vector< larcv::Image2D > outhits;
+    std::vector< larcv::Image2D > realspacehits;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > end_points;
+    std::vector< std::vector< larlitecv::BoundaryEndPt > > space_points;
     sidetagger.searchforboundarypixels( event_imgs->Image2DArray(), outhits );
     sidetagger.clusterBoundaryPixels( event_imgs->Image2DArray(), outhits, end_points );
+    sidetagger.searchforboundarypixels3D( event_imgs->Image2DArray(), realspacehits );
+    sidetagger.clusterBoundaryPixels3D( realspacehits, space_points );
     if ( end_points.size()>0 ) {
-      std::cout << "[[ Side Tagger End Points ]]" << std::endl;
+      std::cout << "[[ Side Tagger End Points 2D ]]" << std::endl;
       for (int p=0; p<3; p++) {
 	std::cout << "  [Plane " << p << "]" << std::endl;
 	for (int ch=0; ch<4; ch++) {
 	  std::cout << "    channel " << ch << ": " << end_points.at( p*4 + ch ).size() << std::endl; 
 	}
       }
+      std::cout << "[[ Side Tagger End Points 3D=" << space_points.size() << " ]]" << std::endl;
+      int ncrossings[4] = {0};
+      for (int i=0; i<space_points.size(); i++) {
+	ncrossings[ space_points.at(i).at(0).type ]++;
+      }
+      std::cout << "  top=" << ncrossings[0] << std::endl;
+      std::cout << "  bottom=" << ncrossings[1] << std::endl;
+      std::cout << "  upstream=" << ncrossings[2] << std::endl;
+      std::cout << "  downstream=" << ncrossings[3] << std::endl;
     }
     else {
       end_points.resize(12);
@@ -184,27 +197,33 @@ int main( int nargs, char** argv ) {
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_imgends;
     bool use_pos_flash_matching = true;
     if ( !use_pos_flash_matching ) {
-      for ( auto &tpc_img : event_imgs->Image2DArray() ) {
-	larcv::Image2D& annode_img  = stage1_annode_hits.at( (int)tpc_img.meta().plane() );
-	larcv::Image2D& cathode_img = stage1_cathode_hits.at( (int)tpc_img.meta().plane() );
-	larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
+//       for ( auto &tpc_img : event_imgs->Image2DArray() ) {
+// 	larcv::Image2D& annode_img  = stage1_annode_hits.at( (int)tpc_img.meta().plane() );
+// 	larcv::Image2D& cathode_img = stage1_cathode_hits.at( (int)tpc_img.meta().plane() );
+// 	larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
 	
-	std::vector< larlitecv::BoundaryEndPt > anode_ends; 
-	anode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, anode_ends, annode_img );
-	trackendpts_anode.emplace_back( std::move(anode_ends) );
+// 	std::vector< larlitecv::BoundaryEndPt > anode_ends; 
+// 	anode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, anode_ends, annode_img );
+// 	trackendpts_anode.emplace_back( std::move(anode_ends) );
 	
-	std::vector< larlitecv::BoundaryEndPt > cathode_ends;
-	cathode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, cathode_ends, cathode_img );      
-	trackendpts_cathode.emplace_back( std::move(cathode_ends) );
+// 	std::vector< larlitecv::BoundaryEndPt > cathode_ends;
+// 	cathode_flash_tagger.findTrackEnds( opflash_containers, tpc_img, cathode_ends, cathode_img );      
+// 	trackendpts_cathode.emplace_back( std::move(cathode_ends) );
 	
-	std::vector< larlitecv::BoundaryEndPt > imgends_ends;
-	imgends_flash_tagger.findImageBoundaryEnds( tpc_img, imgends_ends, imgends_img );      
-	trackendpts_imgends.emplace_back( std::move(imgends_ends) );
-      }
+// 	std::vector< larlitecv::BoundaryEndPt > imgends_ends;
+// 	imgends_flash_tagger.findImageBoundaryEnds( tpc_img, imgends_ends, imgends_img );      
+// 	trackendpts_imgends.emplace_back( std::move(imgends_ends) );
+//       }
     }
     else {
       anode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_anode, stage1_annode_hits );
-      //cathode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_cathode, stage1_cathode_hits );
+      cathode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_cathode, stage1_cathode_hits );
+      for (auto &tpc_img : event_imgs->Image2DArray() ) {
+	larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
+	std::vector< larlitecv::BoundaryEndPt > imgends_ends;
+        imgends_flash_tagger.findImageBoundaryEnds( tpc_img, imgends_ends, imgends_img );
+        trackendpts_imgends.emplace_back( std::move(imgends_ends) );
+      }
     }
     
     std::cout << "[[ Flash Tagger End Points ]]" << std::endl;
@@ -215,10 +234,10 @@ int main( int nargs, char** argv ) {
       std::cout << "    imgends: " << trackendpts_imgends.at(p).size() << std::endl;
     }
 
-    if ( use_pos_flash_matching ) {
-      std::cout << "skipping ahoead" << std::endl;
-      continue;
-    }
+//     if ( use_pos_flash_matching ) {
+//       std::cout << "skipping ahead" << std::endl;
+//       continue;
+//     }
 
     // ------------------------------------------------------------------------------------------//
     // MAKE TRACKS USING COLLECTED END POINTS
@@ -249,6 +268,7 @@ int main( int nargs, char** argv ) {
       }
       std::vector< larlitecv::BoundaryEndPt >& cathode_pts = trackendpts_cathode.at(p);
       int cathode_npts = (int)cathode_pts.size();
+      std::cout << "plane " << p << " cathod end points: " << cathode_npts << std::endl;
       for (int ich=0; ich<cathode_npts; ich++) {
 	larcv::Pixel2D pixel( cathode_pts.at(ich).w, cathode_pts.at(ich).t );
 	fbe_endpoints[flcathode][p].push_back( cathode_pts.at(ich) );
@@ -277,6 +297,10 @@ int main( int nargs, char** argv ) {
 					trackcluster );
       plane_trackclusters.emplace_back( std::move(trackcluster) );
     }
+
+    // mark image with pixels around the track
+    std::vector< larcv::Image2D > track_marked_imgs;
+    sidetagger.markImageWithTrackClusters( event_imgs->Image2DArray(), plane_trackclusters, track_marked_imgs );
     
     // ------------------------------------------------------------------------------------------//
     // STAGE ONE MATCHING
@@ -334,6 +358,25 @@ int main( int nargs, char** argv ) {
       }
     }
 
+    // side tagger -- real space hits
+    larcv::EventImage2D* realspace_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "realspacehits" );
+    realspace_imgs->Emplace( std::move(realspacehits) );
+    larcv::EventPixel2D* realspace_endpts[4];
+    realspace_endpts[toppt] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("TopSpacePts") );
+    realspace_endpts[botpt] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("BottomSpacePts") );
+    realspace_endpts[uppt]  = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("UpstreamSpacePts") );
+    realspace_endpts[dnpt]  = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("DownstreamSpacePts") );
+    for (int i=0; i<space_points.size(); i++) {
+      const std::vector< larlitecv::BoundaryEndPt >& sp_v = space_points.at(i);
+      int sptype = (int)sp_v.at(0).type;
+      for (int p=0; p<3; p++) {
+	const larlitecv::BoundaryEndPt& sp = sp_v.at(p);
+	larcv::Pixel2D pixel( sp.w, sp.t );
+	pixel.Intensity( sptype );
+	realspace_endpts[sptype]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
+      }
+    }
+
     // flash tagger
     larcv::EventImage2D* stage1_annode_imgs  = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stage1_annode" );
     larcv::EventImage2D* stage1_cathode_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stage1_cathode" );
@@ -381,6 +424,9 @@ int main( int nargs, char** argv ) {
       }
     }
     
+    // track cluster img
+    larcv::EventImage2D* ev_trackcluster_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "trackcluster" );
+    ev_trackcluster_imgs->Emplace( std::move( track_marked_imgs ) );
 
     // go to tree
     dataco.save_entry();

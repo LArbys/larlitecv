@@ -124,7 +124,8 @@ namespace larlitecv {
     
     void setVerbose( int v ) { verbose = v; };
     std::vector<AStarNode> findpath( const larcv::Image2D& img, int start_row, int start_col, int goal_row, int goal_col, float thresh, bool use_bad_chs=false );
-    std::vector<AStarNode> makeRecoPath( const AStarNode& start, const AStarNode& goal, const std::map< AStarNode, AStarNode, node_pos_compare >& camefrom, int origin_row, int origin_col, bool& path_completed );
+    std::vector<AStarNode> makeRecoPath( const AStarNode& start, const AStarNode& goal, const std::map< AStarNode,AStarNode, node_pos_compare >& camefrom, 
+					 int origin_row, int origin_col, bool& path_completed );
 
   protected:
 

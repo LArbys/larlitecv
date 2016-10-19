@@ -8,6 +8,8 @@
 #include "DataFormat/ImageMeta.h"
 #include "DataFormat/Pixel2DCluster.h"
 
+#include "PMTWeights/WireData.h"
+
 #include "BoundaryMatchArrays.h"
 #include "BoundaryEndPt.h"
 #include "BMTrackCluster2D.h"
@@ -45,9 +47,10 @@ namespace larlitecv {
 
   public:
 
-    BoundaryMuonTaggerAlgo() {};
+    BoundaryMuonTaggerAlgo() { loadGeoInfo(); };
     BoundaryMuonTaggerAlgo( ConfigBoundaryMuonTaggerAlgo& config ) {
       _config = config; //copy
+      loadGeoInfo();
     };
     virtual ~BoundaryMuonTaggerAlgo() {};
 
@@ -62,20 +65,32 @@ namespace larlitecv {
     int clusterBoundaryPixels( const std::vector< larcv::Image2D >& imgs, // original image
 			       const std::vector< larcv::Image2D >& matchedpixels, // pixels consistent with boundary hits
 			       std::vector< std::vector<BoundaryEndPt> >& end_points ); // clustered end points on each plane
+    int searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, // original image
+				   std::vector< larcv::Image2D >& boundarypixelimgs ); // pixels consistent with boundary hits
+    int clusterBoundaryPixels3D( const std::vector< larcv::Image2D >& matchedpixels, // pixels consistent with boundary hits
+				 std::vector< std::vector<BoundaryEndPt> >& end_points ); // list of end point triples
     int makePlaneTrackCluster( const larcv::Image2D& img, const larcv::Image2D& badchimg,
 			       const std::vector< BoundaryEndPt >& top, const std::vector< BoundaryEndPt >& bot,
 			       const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
 			       const std::vector< BoundaryEndPt >& anode, const std::vector< BoundaryEndPt >& cathode,
 			       const std::vector< BoundaryEndPt >& imgends,
 			       std::vector< larlitecv::BMTrackCluster2D >& trackclusters );
-    
+    int markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters,
+				    std::vector<larcv::Image2D>& markedimgs );
     void matchTracksStage1( const std::vector< larcv::Image2D >& imgs, const std::vector< std::vector< larlitecv::BMTrackCluster2D >* >& plane2dtracks, 
 			    std::vector< larlitecv::BMTrackCluster3D >& output  );
     bool doTracksMatch( const larlitecv::BMTrackCluster2D& track1, const larlitecv::BMTrackCluster2D& track2, 
 			float& start_t_diff, float& end_t_diff, bool& start2start );
 			
 
+    // Wire Geometry info
+    void loadGeoInfo();
+    std::map<int,larcv::pmtweights::WireData> m_WireData; // key is plane ID, value is class with wire info    
+    int fNPMTs;
+    float pmtpos[32][3];
+
   protected:
+
 
     larlitecv::BoundaryMatchArrays m_matches;
     ConfigBoundaryMuonTaggerAlgo _config;

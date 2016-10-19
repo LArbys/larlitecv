@@ -143,6 +143,8 @@ namespace larlitecv {
 						 std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs ) {
 
     const int nplanes = tpc_imgs.size();
+    trackendpts.clear();
+    trackendpts.resize(nplanes);
     
     if ( nplanes==0 )
       return false;
@@ -207,6 +209,7 @@ namespace larlitecv {
 		    << " row_target=" << row_target
 		    << " qtot= " << qtot
 		    << " z_range=[" << z_range[0] << "," << z_range[1] << "] "
+		    << " w_range=[" << int(z_range[0]/0.3/meta.pixel_width()) << "," << int(z_range[1]/0.3/meta.pixel_width()) << "] "
 		    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick << " ticks"
 		    << std::endl;
 	}
@@ -250,6 +253,7 @@ namespace larlitecv {
 	
 	// now that we have end points for each cluster, we ID position of charge deposition in (Y,Z) and check if consistent with the flash
 	std::vector< std::vector<int> > wirelists(3);
+	std::vector< std::map<int,int> > wirelist_endpt_idx(3); // map from wid to endpt index
 	std::vector< std::vector<float> > valid_range(2);
 	valid_range[0] = z_range;
 	valid_range[1] = y_range;
@@ -258,9 +262,10 @@ namespace larlitecv {
 	    const BoundaryEndPt& endpt = endpts[ip]->at(ipt);
 	    int wid = meta.pixel_width()*endpt.w;
 	    wirelists.at(ip).push_back( wid );
+	    wirelist_endpt_idx.at(ip).insert( std::pair<int,int>(wid,ipt) );
 	  }
 	}
-
+	
 	// get intersections
 	std::vector< std::vector<int> > intersections3plane;
 	std::vector< std::vector<float> > vertex3plane;
@@ -288,11 +293,92 @@ namespace larlitecv {
 	}
 	
 	// now we go through and find our best match(es)
+	int max_flash_combos = 3;
+	int ncombos = 0;
+	std::vector< int > final_combos_idx;
 
-	std::vector<bool> used_3plane( intersections3plane.size(), false );
-	std::set<int> used_wid[3];
+	// go through 3 plane data
+	// sort indices by area
+	struct p3matches_t {
+	  int idx;
+	  float score;
+	};
+	struct mycompare_t {
+	  bool operator() (p3matches_t l, p3matches_t r) {
+	    if ( l.score<r.score ) return true;
+	    return false;
+	  };
+	} mycompare;
+
+	std::vector< p3matches_t > sortable3plane;
+	for (int ii=0; ii<(int)intersections3plane.size(); ii++) {
+	  p3matches_t combo;
+	  combo.idx = ii;
+	  combo.score = areas3plane.at(ii);
+	  sortable3plane.emplace_back( combo );
+	}
+	std::sort( sortable3plane.begin(), sortable3plane.end(), mycompare );
+
+	// go through combos and pick out matches
+	std::set<int> used_wid[3]; // used to mark wid's that are used up
+	for (int ii=0; ii<(int)sortable3plane.size(); ii++) {
+	  const p3matches_t& combo = sortable3plane.at(ii);
+	  const std::vector<int>& wire_combo = intersections3plane.at( combo.idx );
+	  bool valid_combo = true;
+	  for (int iw=0; iw<wire_combo.size(); iw++) {
+	    int wid = wire_combo.at(iw);
+	    if ( used_wid[iw].find( wid )!=used_wid[iw].end() ) {
+	      // wire already used
+	      valid_combo = false;
+	      break;
+	    }
+	  }
+	  if ( !valid_combo || combo.score>100.0 )
+	    continue; // do not accept
+	  
+	  // valid combo. now invalid these wires
+	  for (int iw=0; iw<wire_combo.size(); iw++) {
+	    int wid = wire_combo.at(iw);
+	    used_wid[iw].insert( wid );
+	  }
+	  
+	  final_combos_idx.push_back( combo.idx ); // copy combo
+	  ncombos++;
+	  if ( ncombos>=max_flash_combos )
+	    break; // we're done
+	}
 	
-
+	// final 3-plane combos. fill the trackendpts container
+	std::cout << "Final 3-plane combos" << std::endl;
+	for (int ii=0 ; ii<(int)final_combos_idx.size(); ii++) {
+	  int idx = final_combos_idx.at(ii);
+	  std::vector<int> endptidx(3,-1);
+	  for (int ip=0; ip<nplanes; ip++) {
+	    int wid = intersections3plane.at(idx).at(ip);
+	    auto it_endpt = wirelist_endpt_idx.at(ip).find( wid );
+	    if ( it_endpt!=wirelist_endpt_idx.at(ip).end() ) {
+	      endptidx[ip] = it_endpt->second;
+	    }
+	  }
+	  std::cout << "   (" << intersections3plane.at(idx).at(0) << ","
+		    << intersections3plane.at(idx).at(1) << ","
+		    << intersections3plane.at(idx).at(2) << ") "
+		    << " endpt=(" << endptidx[0] << "," << endptidx[1] << "," << endptidx[2] << ") "
+		    << " vertex (z,y)=(" << vertex3plane.at(idx).at(0) << ", " << vertex3plane.at(idx).at(1) << ")"
+		    << "score=" << areas3plane.at(idx) << std::endl;
+	  for (int ip=0; ip<nplanes; ip++) {
+	    int wid = intersections3plane.at(idx).at(ip);
+	    int eidx = endptidx.at(ip);
+	    larlitecv::BoundaryEndPt endpt = endpts[ip]->at(eidx);
+	    if ( fSearchMode==kAnode )
+	      endpt.type = larlitecv::BoundaryEndPt::kAnode;
+	    else if ( fSearchMode==kCathode )
+	      endpt.type = larlitecv::BoundaryEndPt::kCathode;
+	    else if ( fSearchMode==kOutOfImage ) // makes no sense here
+	      endpt.type = larlitecv::BoundaryEndPt::kImageEnd;
+	    trackendpts.at( ip ).emplace_back( endpt );
+	  }
+	}
 
       }//end of opflashes loop
     }//end of opflashsets    

@@ -29,30 +29,32 @@ class VisFlashHits:
         pass
 
     def configure(self,pset):
-        self.producer = pset.get("stage1_annode_producer")
+        self.imgproducer = pset.get("ImgProducer")
+        self.producer    = pset.get("FlashHitProducer")
 
     def visualize( self, larlite_io, larcv_io, rawdigit_io ):
-        event_imgs = larcv_io.get_data( larcv.kProductImage2D, self.producer )
+        event_imgs   = larcv_io.get_data( larcv.kProductImage2D, self.imgproducer )
+        event_pixels = larcv_io.get_data( larcv.kProductPixel2D, self.producer )
 
         lcv_imgs = event_imgs.Image2DArray()
 
         cluster_vecs = [] # output container
 
         i = 0
+        npts = 0
         for iimg in xrange(0,lcv_imgs.size()):
             lcv_img = lcv_imgs.at(iimg)
-
             meta = lcv_img.meta()
             plane = meta.plane()
-        
-            img = larcv.as_ndarray(lcv_img)
-
-            ends = np.argwhere( img>150 )
-            x = np.zeros( len(ends) )
-            y = np.zeros( len(ends) )
-            for ic,end in enumerate(ends):
-                x[ic] = meta.pos_x(end[0])
-                y[ic] = meta.pos_y(end[1])
+            pixel_v  = event_pixels.Pixel2DArray(plane)
+            nends = pixel_v.size()
+            x = np.zeros( nends )
+            y = np.zeros( nends )
+            for ihit in range(0,nends):
+                pixel = pixel_v.at( ihit )
+                x[ihit] = meta.pos_x(pixel.X())
+                y[ihit] = meta.pos_y(pixel.Y())
+                npts+=1
             color = VisFlashHits.PLANE_COLORS[ plane ]
             plot = PlotDataItem( x=x, y=y, 
                                  pen=None,
@@ -60,6 +62,6 @@ class VisFlashHits:
                                  symbol='+',symbolPen=pg.mkPen(color=color,width=0.0) )
             cluster_vecs.append(plot)
 
-        print "flash plots: ",len(cluster_vecs)
+        print "flash plots: ",len(cluster_vecs)," number of points: ",npts
         return cluster_vecs
             
