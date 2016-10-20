@@ -23,11 +23,11 @@ include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 # Add your program below with a space after the previous one.
 # This makefile compiles all binaries specified below.
-PROGRAMS = thrumu
+PROGRAMS = thrumu analyze
 
-all:		$(PROGRAMS)
+all: $(PROGRAMS)
 
-$(PROGRAMS): $(PROGRAMS).cxx
+%: %.cxx
 	@echo '<<compiling' $@'>>'
 	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS)
 	@rm -rf *.dSYM
