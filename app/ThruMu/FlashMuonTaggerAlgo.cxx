@@ -197,6 +197,11 @@ namespace larlitecv {
 	}
 	std::vector<float> z_range = { (float)(z_weighted-100.0), (float)(z_weighted+100.0) }; // be more intelligent later
 	std::vector<float> y_range = { -120.0, 120.0 };
+	if ( fSearchMode==kOutOfImage ) {
+	  // accept all
+	  z_range[0] = 0;
+	  z_range[1] = 1100;
+	}
 	
 	int row_target = meta.row( tick_target );
 	
@@ -325,16 +330,19 @@ namespace larlitecv {
 	  const p3matches_t& combo = sortable3plane.at(ii);
 	  const std::vector<int>& wire_combo = intersections3plane.at( combo.idx );
 	  bool valid_combo = true;
-	  for (int iw=0; iw<wire_combo.size(); iw++) {
-	    int wid = wire_combo.at(iw);
-	    if ( used_wid[iw].find( wid )!=used_wid[iw].end() ) {
-	      // wire already used
-	      valid_combo = false;
-	      break;
-	    }
-	  }
-	  if ( !valid_combo || combo.score>100.0 )
+// 	  for (int iw=0; iw<wire_combo.size(); iw++) {
+// 	    int wid = wire_combo.at(iw);
+// 	    if ( used_wid[iw].find( wid )!=used_wid[iw].end() ) {
+// 	      // wire already used
+// 	      valid_combo = false;
+// 	      break;
+// 	    }
+// 	  }
+	  if ( !valid_combo || combo.score>20.0 )
 	    continue; // do not accept
+	  
+	  if ( ncombos>=max_flash_combos && combo.score>10 )
+	    continue; // only accept more than the max unless its a really good match
 	  
 	  // valid combo. now invalid these wires
 	  for (int iw=0; iw<wire_combo.size(); iw++) {
@@ -344,8 +352,6 @@ namespace larlitecv {
 	  
 	  final_combos_idx.push_back( combo.idx ); // copy combo
 	  ncombos++;
-	  if ( ncombos>=max_flash_combos )
-	    break; // we're done
 	}
 	
 	// final 3-plane combos. fill the trackendpts container
@@ -472,6 +478,28 @@ namespace larlitecv {
     return result;
   }  
 
+  bool FlashMuonTaggerAlgo::findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs ) {
+						   
+    if ( fSearchMode!=kOutOfImage ) {
+      std::cout << "[ERROR] Invalid search mode for these type of track endpoints" << std::endl;
+      return false;
+    }
+    
+    // we build fake flashes to pass into findTrackEnds
+    larlite::event_opflash* faux_flashes = new larlite::event_opflash;
+    std::vector<double> dummy(32,0.);
+    larlite::opflash img_begin( 2400.0+1, 0, 0, 0, dummy ); // make this config pars
+    larlite::opflash img_end( 2400.0+6048-1, 0, 0, 0, dummy ); // make this config pars
+    faux_flashes->emplace_back( img_begin );
+    faux_flashes->emplace_back( img_end );
+    std::vector< larlite::event_opflash* > faux_flashes_v;
+    faux_flashes_v.push_back( faux_flashes );
+    //bool result = findTrackEnds( faux_flashes_v, tpc_img, trackendpts, markedimg );
+    bool results = flashMatchTrackEnds( faux_flashes_v, tpc_imgs, trackendpts, markedimgs );
+    delete faux_flashes;
+    return results;
+  }  
+
   void FlashMuonTaggerAlgo::loadGeoInfo() {
 
     TFile fGeoFile( Form("%s/app/PMTWeights/dat/geoinfo.root",getenv("LARCV_BASEDIR")), "OPEN" );
@@ -565,9 +593,8 @@ namespace larlitecv {
     }
     if ( abs(tmax-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) { 
       if ( fConfig.verbosity<1 ) std::cout << "MATCHED MAX_END" << std::endl;
-      success =true;
       markedimg.set_pixel( tmax, wmax, 200.0 );
-      tmin_isend = true;
+      tmax_isend = true;
     }
 
     if ( (tmin_isend && !tmax_isend) || (tmin_isend && tmax_isend && abs(tmin-row_target)<abs(tmax-row_target)) ) {
@@ -579,6 +606,7 @@ namespace larlitecv {
       else if ( fSearchMode==kOutOfImage ) endpt.type = BoundaryEndPt::kImageEnd;
     }
     else if ( (tmax_isend && !tmin_isend) || (tmax_isend && tmin_isend && abs(tmax-row_target)<abs(tmin-row_target)) ) {
+      success = true;
       endpt.t = tmax;
       endpt.w = wmax;
       if ( fSearchMode==kAnode ) endpt.type = BoundaryEndPt::kAnode;

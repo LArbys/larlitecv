@@ -95,9 +95,9 @@ int main( int nargs, char** argv ) {
   imgends_flash_tagger.configure(flashtagger_cfg);
 
   // Start Event Loop
-  //int nentries = dataco.get_nentries("larcv");
+  int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  int nentries = 1;
+  //int nentries = 1;
   
   for (int ientry=0; ientry<nentries; ientry++) {
     
@@ -218,12 +218,13 @@ int main( int nargs, char** argv ) {
     else {
       anode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_anode, stage1_annode_hits );
       cathode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_cathode, stage1_cathode_hits );
-      for (auto &tpc_img : event_imgs->Image2DArray() ) {
-	larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
-	std::vector< larlitecv::BoundaryEndPt > imgends_ends;
-        imgends_flash_tagger.findImageBoundaryEnds( tpc_img, imgends_ends, imgends_img );
-        trackendpts_imgends.emplace_back( std::move(imgends_ends) );
-      }
+      imgends_flash_tagger.findImageTrackEnds( event_imgs->Image2DArray(), trackendpts_imgends, stage1_imgends_hits );
+//       for (auto &tpc_img : event_imgs->Image2DArray() ) {
+// 	larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
+// 	std::vector< larlitecv::BoundaryEndPt > imgends_ends;
+//         imgends_flash_tagger.findImageBoundaryEnds( tpc_img, imgends_ends, imgends_img );
+//         trackendpts_imgends.emplace_back( std::move(imgends_ends) );
+//       }
     }
     
     std::cout << "[[ Flash Tagger End Points ]]" << std::endl;
