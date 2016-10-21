@@ -455,6 +455,9 @@ namespace larlitecv {
     return 0;
   }//end of clusterBoundaryPixels
 
+
+  
+  
   int BoundaryMuonTaggerAlgo::makePlaneTrackCluster( const larcv::Image2D& img, const larcv::Image2D& badchimg,
 						     const std::vector< BoundaryEndPt >& top, const std::vector< BoundaryEndPt >& bot,
 						     const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
@@ -610,7 +613,31 @@ namespace larlitecv {
     
     return 0;
   }
+  /*
+  int BoundaryMonTaggerAlgo::runAstar( const BoundaryEndPt& start, const BoudaryEndPt& end, const larcv::Image2D& img, int start_pad, int end_pad ) {
+    // This wraps/interfaces with the AStar algorithm on our image. runs one start to end check.
+    // inputs
+    // ------
+    //  start: starting boundary point
+    //  end: ending boundary point
+    //  img: image with charge deposition we will follow
+    //  start_pad: radius around starting point where we will include all hits in case not start point directly on track
+    //  end_pad:   radius around ending point where we will include all hits in case end point not directly on track
 
+    
+    larlitecv::AStarAlgoConfig astar_config;
+    astar_config.astar_threshold    = _config.astar_thresholds;
+    astar_config.astar_neighborhood = _config.astar_neighborhood;
+    larlitecv::AStarGridAlgo algo( astar_config );
+    algo.setVerbose(2);
+
+    larlitecv::AStarNode start( start.w, start.t );
+    larlitecv::AStarNode goal( end.w, end.t );
+    
+    
+    
+  }
+  */
 
   /*
   void BoundaryMuonTaggerAlgo::filterShortAndKinkedTracks( int mintracklength, std::vector< larlitecv::BMTrackCluster2D >& tracks, 
@@ -845,5 +872,7 @@ namespace larlitecv {
     fGeoFile.Close();
 
   }
+
+
   
 }

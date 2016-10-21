@@ -29,7 +29,7 @@ namespace larlitecv {
 	}
 	else if ( fSearchMode==kCathode ) {
 	  tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
-	  tick_target += fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick;
+	  tick_target += fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick + 240.0;
 	  modename = "cathode";
 	}
 	else if ( fSearchMode==kOutOfImage ) {
@@ -168,7 +168,7 @@ namespace larlitecv {
 	}
 	else if ( fSearchMode==kCathode ) {
 	  flash_tick = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
-	  tick_target = flash_tick + fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick;
+	  tick_target = flash_tick + fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+240.0;
 	  modename = "cathode";
 	}
 	else if ( fSearchMode==kOutOfImage ) {
@@ -184,8 +184,8 @@ namespace larlitecv {
 	// check if the opflash time occurs within the image
 	if ( tick_target<meta.min_y() || tick_target>=meta.max_y() )
 	  continue;
-	
-	// get a z-position range
+
+	// first find the weighted mean and total q	
 	float qtot = 0;
 	float z_weighted = 0.;
 	for (int ipmt=0; ipmt<32; ipmt++) {
@@ -195,7 +195,20 @@ namespace larlitecv {
 	if ( qtot>0 ) {
 	  z_weighted /= qtot;
 	}
-	std::vector<float> z_range = { (float)(z_weighted-100.0), (float)(z_weighted+100.0) }; // be more intelligent later
+
+	// to set the range, we find the first hit above threshold from the mean
+	float min_dist_z = 1e9;
+	float max_dist_z = 0;
+	for (int ipmt=0; ipmt<32; ipmt++) {
+	  float pe = opflash.PE(ipmt);
+	  float dist = pmtpos[ipmt][2]-z_weighted;
+	  if ( pe>5.0 ) {
+	    if ( dist<0 && min_dist_z>dist ) min_dist_z = dist;
+	    else if ( dist>0 && max_dist_z<dist ) max_dist_z = dist;
+	  }
+	}
+
+	std::vector<float> z_range = { z_weighted+min_dist_z, z_weighted+max_dist_z }; // be more intelligent later
 	std::vector<float> y_range = { -120.0, 120.0 };
 	if ( fSearchMode==kOutOfImage ) {
 	  // accept all
@@ -215,7 +228,7 @@ namespace larlitecv {
 		    << " qtot= " << qtot
 		    << " z_range=[" << z_range[0] << "," << z_range[1] << "] "
 		    << " w_range=[" << int(z_range[0]/0.3/meta.pixel_width()) << "," << int(z_range[1]/0.3/meta.pixel_width()) << "] "
-		    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick << " ticks"
+		    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+240.0 << " ticks"
 		    << std::endl;
 	}
 	

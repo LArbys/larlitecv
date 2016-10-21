@@ -42,6 +42,9 @@ int main( int nargs, char** argv ) {
   // Configure Data coordinator
   larlitecv::DataCoordinator dataco;
 
+  /*
+  // ----------------------------------------------------------------------------------------------------
+  // SPOON (MC)
   // larlite
   dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_mcinfo_0000.root", "larlite" );
   dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_wire_0000.root", "larlite" );
@@ -50,6 +53,21 @@ int main( int nargs, char** argv ) {
 
   // larcv
   dataco.add_inputfile( "data/data_samples/v05/spoon/larcv/spoon_larcv_out_0000.root", "larcv" );
+  // ----------------------------------------------------------------------------------------------------
+  */
+
+  // ----------------------------------------------------------------------------------------------------
+  // Example EXTBNB
+  // larlite
+  dataco.add_inputfile( "data/data_samples/v05/extbnb/larlite_opdigit_20161020_192212_034523.root", "larlite" );
+  dataco.add_inputfile( "data/data_samples/v05/extbnb/larlite_opreco_20161020_192212_037150.root", "larlite" );
+  dataco.add_inputfile( "data/data_samples/v05/extbnb/larlite_wire_20161020_192212_031437.root", "larlite" );
+  // larcv
+  dataco.add_inputfile( "data/data_samples/v05/extbnb/supera_extbnb.root", "larcv" );
+  // ----------------------------------------------------------------------------------------------------
+
+  // larcv
+  
 
   // configure
   dataco.configure( "bmt.cfg", "StorageManager", "IOManager", "BoundaryMuonTagger" );
@@ -95,9 +113,9 @@ int main( int nargs, char** argv ) {
   imgends_flash_tagger.configure(flashtagger_cfg);
 
   // Start Event Loop
-  int nentries = dataco.get_nentries("larcv");
+  //int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  //int nentries = 1;
+  int nentries = 1;
   
   for (int ientry=0; ientry<nentries; ientry++) {
     
@@ -108,6 +126,26 @@ int main( int nargs, char** argv ) {
     std::cout << "get data: number of images=" << event_imgs->Image2DArray().size() << std::endl;
     if ( event_imgs->Image2DArray().size()==0 )
       continue;
+
+    // ------------------------------------------------------------------------------------------//
+    // CORRECT JEB WIRES
+    std::vector< larcv::Image2D > imgs;
+    for ( auto const &img : event_imgs->Image2DArray() ) {
+      const larcv::ImageMeta& meta = img.meta();
+      larcv::Image2D dejebbed(meta);
+      for ( int col=0; col<meta.cols(); col++) {
+	for (int row=0; row<meta.rows(); row++) {
+	  float val = img.pixel( row, col );
+	  if (meta.plane()==0 ) { 
+	    if ( (col>=2016 && col<=2111) || (col>=2176 && 2212) ) {
+	      val *= 5.0;
+	    }
+	  }
+	  dejebbed.set_pixel(row,col,val);
+	}
+      }
+      imgs.emplace_back( dejebbed );
+    }
 
     // ------------------------------------------------------------------------------------------//
     // LABEL EMPTY CHANNELS
@@ -128,9 +166,9 @@ int main( int nargs, char** argv ) {
     std::vector< larcv::Image2D > realspacehits;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > end_points;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > space_points;
-    sidetagger.searchforboundarypixels( event_imgs->Image2DArray(), outhits );
-    sidetagger.clusterBoundaryPixels( event_imgs->Image2DArray(), outhits, end_points );
-    sidetagger.searchforboundarypixels3D( event_imgs->Image2DArray(), realspacehits );
+    sidetagger.searchforboundarypixels( imgs, outhits );
+    sidetagger.clusterBoundaryPixels( imgs, outhits, end_points );
+    sidetagger.searchforboundarypixels3D( imgs, realspacehits );
     sidetagger.clusterBoundaryPixels3D( realspacehits, space_points );
     if ( end_points.size()>0 ) {
       std::cout << "[[ Side Tagger End Points 2D ]]" << std::endl;
@@ -168,7 +206,7 @@ int main( int nargs, char** argv ) {
     std::vector<larcv::Image2D> stage1_annode_hits;  // all in-time hits (non-clustered, non-edged)
     std::vector<larcv::Image2D> stage1_cathode_hits; // all in-time hits (non-clustered, non-edged)
     std::vector<larcv::Image2D> stage1_imgends_hits; // all in-time hits (non-clustered, non-edged)
-    for ( auto &tpc_img : event_imgs->Image2DArray() ) {
+    for ( auto &tpc_img : imgs ) {
       larcv::Image2D annode_img( tpc_img.meta() );
       larcv::Image2D cathode_img( tpc_img.meta() );
       larcv::Image2D imgends_img( tpc_img.meta() );
@@ -197,7 +235,7 @@ int main( int nargs, char** argv ) {
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_imgends;
     bool use_pos_flash_matching = true;
     if ( !use_pos_flash_matching ) {
-//       for ( auto &tpc_img : event_imgs->Image2DArray() ) {
+//       for ( auto &tpc_img : imgs ) {
 // 	larcv::Image2D& annode_img  = stage1_annode_hits.at( (int)tpc_img.meta().plane() );
 // 	larcv::Image2D& cathode_img = stage1_cathode_hits.at( (int)tpc_img.meta().plane() );
 // 	larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
@@ -216,10 +254,10 @@ int main( int nargs, char** argv ) {
 //       }
     }
     else {
-      anode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_anode, stage1_annode_hits );
-      cathode_flash_tagger.flashMatchTrackEnds( opflash_containers, event_imgs->Image2DArray(), trackendpts_cathode, stage1_cathode_hits );
-      imgends_flash_tagger.findImageTrackEnds( event_imgs->Image2DArray(), trackendpts_imgends, stage1_imgends_hits );
-//       for (auto &tpc_img : event_imgs->Image2DArray() ) {
+      anode_flash_tagger.flashMatchTrackEnds( opflash_containers, imgs, trackendpts_anode, stage1_annode_hits );
+      cathode_flash_tagger.flashMatchTrackEnds( opflash_containers, imgs, trackendpts_cathode, stage1_cathode_hits );
+      imgends_flash_tagger.findImageTrackEnds( imgs, trackendpts_imgends, stage1_imgends_hits );
+//       for (auto &tpc_img : imgs ) {
 // 	larcv::Image2D& imgends_img = stage1_imgends_hits.at( (int)tpc_img.meta().plane() );
 // 	std::vector< larlitecv::BoundaryEndPt > imgends_ends;
 //         imgends_flash_tagger.findImageBoundaryEnds( tpc_img, imgends_ends, imgends_img );
@@ -284,7 +322,7 @@ int main( int nargs, char** argv ) {
     // do track building
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > plane_trackclusters;
     for (int p=0; p<3; p++) {
-      const larcv::Image2D& img = event_imgs->Image2DArray().at(p);
+      const larcv::Image2D& img = imgs.at(p);
       const larcv::Image2D& badchimg = emptyimgs.at(p);
       std::vector< larlitecv::BMTrackCluster2D > trackcluster;
       sidetagger.makePlaneTrackCluster( img, badchimg, 
@@ -301,7 +339,7 @@ int main( int nargs, char** argv ) {
 
     // mark image with pixels around the track
     std::vector< larcv::Image2D > track_marked_imgs;
-    sidetagger.markImageWithTrackClusters( event_imgs->Image2DArray(), plane_trackclusters, track_marked_imgs );
+    sidetagger.markImageWithTrackClusters( imgs, plane_trackclusters, track_marked_imgs );
     
     // ------------------------------------------------------------------------------------------//
     // STAGE ONE MATCHING
@@ -311,7 +349,7 @@ int main( int nargs, char** argv ) {
     input_tracks2d.push_back( &(plane_trackclusters.at(0)) );
     input_tracks2d.push_back( &(plane_trackclusters.at(1)) );
     input_tracks2d.push_back( &(plane_trackclusters.at(2)) );
-    sidetagger.matchTracksStage1( event_imgs->Image2DArray(), input_tracks2d, tracks3d );
+    sidetagger.matchTracksStage1( imgs, input_tracks2d, tracks3d );
     std::cout << "Number of matched tracks returned: " << tracks3d.size() << std::endl;
     for (int i=0; i<tracks3d.size(); i++) {
       const larlitecv::BMTrackCluster3D& track3d = tracks3d.at(i);
