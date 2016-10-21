@@ -116,7 +116,7 @@ int main( int nargs, char** argv ) {
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  int nentries = 1;
+  int nentries = 3;
   
   for (int ientry=0; ientry<nentries; ientry++) {
     
@@ -175,9 +175,9 @@ int main( int nargs, char** argv ) {
     std::vector< larcv::Image2D > realspacehits;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > end_points;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > space_points;
-    sidetagger.searchforboundarypixels( imgs, outhits );
+    sidetagger.searchforboundarypixels( imgs, badchimgs, outhits );
     sidetagger.clusterBoundaryPixels( imgs, outhits, end_points );
-    sidetagger.searchforboundarypixels3D( imgs, realspacehits );
+    sidetagger.searchforboundarypixels3D( imgs, badchimgs, realspacehits );
     sidetagger.clusterBoundaryPixels3D( realspacehits, space_points );
     if ( end_points.size()>0 ) {
       std::cout << "[[ Side Tagger End Points 2D ]]" << std::endl;

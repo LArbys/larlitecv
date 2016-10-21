@@ -21,7 +21,8 @@ namespace larlitecv {
     // clusterBoundaryPixels
   }
 
-  int BoundaryMuonTaggerAlgo::searchforboundarypixels( const std::vector< larcv::Image2D >& imgs, std::vector< larcv::Image2D >& matchedpixels ) {
+  int BoundaryMuonTaggerAlgo::searchforboundarypixels( const std::vector< larcv::Image2D >& imgs, const std::vector< larcv::Image2D >& badchs, 
+						       std::vector< larcv::Image2D >& matchedpixels ) {
     // this checks for pixels consistent with boundary crossings at the top/bottom/upstream/downstream portions of the TPC
     // returns an image that marks the location of such pixels
     // the vector returned has N*4 elements from N planes x 4 crossing types
@@ -74,16 +75,25 @@ namespace larlitecv {
 	  // look if the image has charge above some threshold, within some neighborhood
 	  
 	  bool hascharge[3] = { false, false, false };
+	  bool has_badch[3] = { false, false, false };
+	  int nbadch_regions = 0;
 	  std::vector<int> abovethresh[3]; // we save col number of pixels above threshold in each plane with this
 
 	  for (int p=0; p<3; p++) {
+
 	    const larcv::Image2D& img = imgs.at(p);
+	    const larcv::Image2D& badchimg = badchs.at(p);
+	    
 	    int col = triple[p]/dsfactor;
 	    for (int n=-_config.neighborhoods.at(p); n<=_config.neighborhoods.at(p); n++) {
 	      if (col + n <0 || col + n>=meta.cols() )  continue; // skip out of bound columns
-		   
+	      
 	      if ( img.pixel( r, col + n ) > _config.thresholds.at(p) ) {
 		hascharge[p] = true;
+		abovethresh[p].push_back(col+n);
+	      }
+	      if ( badchimg.pixel( r, col+n )>0 ) {
+		has_badch[p] = true;
 		abovethresh[p].push_back(col+n);
 	      }
 	    }
@@ -91,7 +101,17 @@ namespace larlitecv {
 	    if ( !hascharge[p] ) break;
 	  }
 	  
-	  if ( hascharge[0] & hascharge[1] & hascharge[2] ) {
+	  
+	  for (int p=0; p<3; p++) {
+	    if ( has_badch[p] )
+	      nbadch_regions++;
+	  }
+
+
+	  if ( ( hascharge[0] || has_badch[0] )
+	       && ( hascharge[1] || has_badch[1] ) 
+	       && ( hascharge[2] || has_badch[2] ) 
+	       && nbadch_regions<2 ) {
 	    // match!  we write the match to the output
 	    for (int p=0; p<nplanes; p++) {
 	      for ( int ipixel=0; ipixel<(int)abovethresh[p].size(); ipixel++) {
@@ -110,7 +130,9 @@ namespace larlitecv {
     return kOK;
   }
 
-  int BoundaryMuonTaggerAlgo::searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, std::vector< larcv::Image2D >& matchedpixels ) {
+  int BoundaryMuonTaggerAlgo::searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, 
+							 const std::vector< larcv::Image2D >& badchs,
+							 std::vector< larcv::Image2D >& matchedpixels ) {
     // this checks for pixels consistent with boundary crossings at the top/bottom/upstream/downstream portions of the TPC
     // returns an image that marks the location of such pixels
     // the vector returned has N*4 elements from N planes x 4 crossing types
@@ -166,10 +188,13 @@ namespace larlitecv {
 	  // look if the image has charge above some threshold, within some neighborhood
 	  
 	  bool hascharge[3] = { false, false, false };
+	  bool has_badch[3] = { false, false, false };
+	  int nbadch_regions = 0;
 	  std::vector<int> abovethresh[3]; // we save col number of pixels above threshold in each plane with this
 
 	  for (int p=0; p<3; p++) {
 	    const larcv::Image2D& img = imgs.at(p);
+	    const larcv::Image2D& badchimg = badchs.at(p);
 	    int col = triple[p]/dsfactor;
 	    for (int n=-_config.neighborhoods.at(p); n<=_config.neighborhoods.at(p); n++) {
 	      if (col + n <0 || col + n>=meta.cols() )  continue; // skip out of bound columns
@@ -178,12 +203,24 @@ namespace larlitecv {
 		hascharge[p] = true;
 		abovethresh[p].push_back(col+n);
 	      }
+	      if ( badchimg.pixel( r, col+n )>0 ) {
+		has_badch[p] = true;
+		abovethresh[p].push_back(col+n);
+	      }
 	    }
 	    // small optimization, if we see that one plane does not have charge, the match will fail. move on.
 	    if ( !hascharge[p] ) break;
 	  }
+
+	  for (int p=0; p<3; p++) {
+	    if ( has_badch[p] )
+	      nbadch_regions++;
+	  }
 	  
-	  if ( hascharge[0] & hascharge[1] & hascharge[2] ) {
+	  if ( ( hascharge[0] || has_badch[0] )
+	       && ( hascharge[1] || has_badch[1] ) 
+	       && ( hascharge[2] || has_badch[2] ) 
+	       && nbadch_regions<2 ) {
 
 	    // match!  we write the match to the output
 	    for (int p=0; p<nplanes; p++) {

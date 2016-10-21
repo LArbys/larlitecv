@@ -61,11 +61,13 @@ namespace larlitecv {
     void configure( ConfigBoundaryMuonTaggerAlgo& cfg ) { _config = cfg; };
     void run();
     int searchforboundarypixels( const std::vector< larcv::Image2D >& imgs, // original image
+				 const std::vector< larcv::Image2D >& badchs, // image with bad channels marked
 				 std::vector< larcv::Image2D >& boundarypixelimgs ); // pixels consistent with boundary hits
     int clusterBoundaryPixels( const std::vector< larcv::Image2D >& imgs, // original image
 			       const std::vector< larcv::Image2D >& matchedpixels, // pixels consistent with boundary hits
 			       std::vector< std::vector<BoundaryEndPt> >& end_points ); // clustered end points on each plane
     int searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, // original image
+				   const std::vector< larcv::Image2D >& badchs, // image with bad channels marked
 				   std::vector< larcv::Image2D >& boundarypixelimgs ); // pixels consistent with boundary hits
     int clusterBoundaryPixels3D( const std::vector< larcv::Image2D >& matchedpixels, // pixels consistent with boundary hits
 				 std::vector< std::vector<BoundaryEndPt> >& end_points ); // list of end point triples
