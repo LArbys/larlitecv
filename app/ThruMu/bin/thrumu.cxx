@@ -10,6 +10,7 @@
 // larlite data
 #include "Base/DataFormatConstants.h"
 #include "DataFormat/opflash.h"
+#include "../../larlite/core/DataFormat/chstatus.h"
 
 // larcv data
 #include "DataFormat/EventImage2D.h"
@@ -157,6 +158,14 @@ int main( int nargs, char** argv ) {
       larcv::Image2D emptyimg = emptyalgo.labelEmptyChannels( sidetagger_cfg.emptych_thresh.at(p), img );
       emptyimgs.emplace_back( emptyimg );
     }
+
+    // ------------------------------------------------------------------------------------------//
+    // LABEL BAD CHANNELS
+    
+    larlite::event_chstatus* ev_status = (larlite::event_chstatus*)dataco.get_larlite_data( larlite::data::kChStatus, "chstatus" );
+    std::cout << "ch status planes: " << ev_status->size() << std::endl;
+    std::vector< larcv::Image2D > badchimgs = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+    std::cout << "number of bad ch imgs: " << badchimgs.size() << std::endl;
 
     // ------------------------------------------------------------------------------------------//
     // SIDE TAGGER //
@@ -376,6 +385,10 @@ int main( int nargs, char** argv ) {
     // from empty channel imgs
     larcv::EventImage2D* ev_empty_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "emptychs" );
     ev_empty_imgs->Emplace( std::move( emptyimgs ) );
+
+    // from empty channel imgs
+    larcv::EventImage2D* ev_badch_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "badchs" );
+    ev_badch_imgs->Emplace( std::move( badchimgs ) );
     
     // from side tagger
     larcv::EventImage2D* boundary_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, sidetagger_pset.get<std::string>("OutputMatchedPixelImage") );
