@@ -119,10 +119,11 @@ namespace larlitecv {
     AStarGridAlgo() { verbose=2; };
   public:
 
-    AStarGridAlgo( AStarAlgoConfig config ) { _config = config; };
+    AStarGridAlgo( AStarAlgoConfig config ) { _config = config; m_badchimg = NULL; };
     virtual ~AStarGridAlgo() {};
     
     void setVerbose( int v ) { verbose = v; };
+    void setBadChImage( const larcv::Image2D& badchimg ) { m_badchimg = &badchimg; };
     std::vector<AStarNode> findpath( const larcv::Image2D& img, int start_row, int start_col, int goal_row, int goal_col, float thresh, bool use_bad_chs=false );
     std::vector<AStarNode> makeRecoPath( const AStarNode& start, const AStarNode& goal, const std::map< AStarNode,AStarNode, node_pos_compare >& camefrom, 
 					 int origin_row, int origin_col, bool& path_completed );
@@ -131,6 +132,8 @@ namespace larlitecv {
 
     AStarAlgoConfig _config;
     int verbose;
+
+    const larcv::Image2D* m_badchimg;
   };
 
 

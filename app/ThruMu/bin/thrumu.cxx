@@ -116,7 +116,7 @@ int main( int nargs, char** argv ) {
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  int nentries = 3;
+  int nentries = 1;
   
   for (int ientry=0; ientry<nentries; ientry++) {
     
@@ -332,7 +332,7 @@ int main( int nargs, char** argv ) {
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > plane_trackclusters;
     for (int p=0; p<3; p++) {
       const larcv::Image2D& img = imgs.at(p);
-      const larcv::Image2D& badchimg = emptyimgs.at(p);
+      const larcv::Image2D& badchimg = badchimgs.at(p);
       std::vector< larlitecv::BMTrackCluster2D > trackcluster;
       sidetagger.makePlaneTrackCluster( img, badchimg, 
 					be_endpoints[toppt][p],

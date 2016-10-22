@@ -97,10 +97,68 @@ def test_astart_algo():
     c.Update()
     raw_input()
 
+def test_astart_algo_wgap():
+    # make a grid system
+
+    grid = rt.TH2D( "grid","",500,0,500,500,0,500 )
+
+    # define random circlular obstruction
+    #r = 200.0
+    r = 100.0
+    x = np.random.random()*80 + 210.0
+    y = np.random.random()*80 + 210.0
+
+    print "fill all bins"
+
+    meta = larcv.ImageMeta( 500, 500, 500, 500, 0, 500, 0 )
+    img  = larcv.Image2D( meta )
+    img.paint(0.0);
+    badch = larcv.Image2D( meta )
+    badch.paint(0.0)
+    s = time.time()
+    for xbin in range(0,grid.GetXaxis().GetNbins()):
+        for ybin in range(0,grid.GetYaxis().GetNbins()):
+            if np.sqrt((xbin-x)*(xbin-x) + (ybin-y)*(ybin-y))>r and (xbin<50 or xbin>100):
+                grid.SetBinContent( xbin+1, ybin+1, 10.0 )
+                img.set_pixel( ybin, xbin, 10.0 )
+            if xbin>=50 and xbin<=100:
+                badch.set_pixel( ybin, xbin, 10.0 )
+
+    print "filled: ",time.time()-s,"secs"
+
+    # algo
+    config = larlitecv.AStarAlgoConfig()
+    config.astar_threshold.push_back( 5.0 )
+    config.astar_neighborhood.push_back( 2 )
+    algo = larlitecv.AStarGridAlgo( config )
+    algo.setVerbose(2)
+    start = larlitecv.AStarNode(5,5)
+    end   = larlitecv.AStarNode(495,495)
+    algo.setBadChImage( badch )
+
+    grid.SetBinContent( start.col+1, start.row+1, 100.0 )
+    grid.SetBinContent( end.col+1, end.row+1, 100.0 )
+
+    print "find path ... "
+    s = time.time()
+    path = algo.findpath( img, 5, 5, 495, 495, 5.0, True )
+    print " done. ",time.time()-s,"secs"
+    print "path points: ",path.size()
+    for i in range(0,path.size()):
+        node = path.at(i)
+        grid.SetBinContent( node.col+1, node.row+1, 50.0 )
+
+    c = rt.TCanvas("c","",800,600)
+    c.Draw()
+    grid.Draw("COLZ")
+    c.Update()
+    raw_input()
+
     
 
 # test the AStarNode and AStarSet objects behave
 #test_priority_queue()
 
 # test astart algorithm
-test_astart_algo()
+#test_astart_algo()
+test_astart_algo_wgap()

@@ -142,7 +142,6 @@ namespace larlitecv {
 
     int ncrossings = 4;
     int nplanes = imgs.size();
-    int nresults = ncrossings*nplanes;
 
     if ( !_config.checkOK() )  {
       std::cout << "[BOUNDARY MUON TAGGER ALGO ERROR] Not configured." << std::endl;
@@ -164,7 +163,7 @@ namespace larlitecv {
     // we use meta to make the same sized image as the input
     enum { top=0, bot, upstream, downstream };
 
-    for (int i=0; i<nresults; i++) { // top, bottom, upstream, downstream x 3 planes
+    for (int i=0; i<ncrossings; i++) { // top, bottom, upstream, downstream x 3 planes
       larcv::Image2D matchimage( meta );
       matchimage.paint(0.0);
       matchedpixels.emplace_back( std::move(matchimage) );
@@ -203,7 +202,7 @@ namespace larlitecv {
 		hascharge[p] = true;
 		abovethresh[p].push_back(col+n);
 	      }
-	      if ( badchimg.pixel( r, col+n )>0 ) {
+	      if ( badchimg.pixel( r, col )>0 ) {
 		has_badch[p] = true;
 		abovethresh[p].push_back(col+n);
 	      }
@@ -540,6 +539,7 @@ namespace larlitecv {
     astar_config.astar_neighborhood = _config.astar_neighborhood;
     larlitecv::AStarGridAlgo algo( astar_config );
     algo.setVerbose(2);
+    algo.setBadChImage(badchimg);
 
     // pair up containers
     int ntotsearched = 0;
@@ -567,13 +567,21 @@ namespace larlitecv {
 //  	    else
 //  	      algo.setVerbose( 2 );
 	    
-	    if ( abs(start.row-goal.row)>785 ) // make this a parameter
+	    if ( abs(start.row-goal.row)>820 ) // make this a parameter
 	      continue; // physically impossible to connect
 
 	    ntotsearched++;
 
-	    //std::cout << "track path-finding: start=(" << start.row << "," << start.col << ") end=(" << goal.row << "," << goal.col << ")" << std::endl;
-	    std::vector< larlitecv::AStarNode > path = algo.findpath( img, start.row, start.col, goal.row, goal.col, 20.0, false );
+	    if ( i==4 && j==5 && start.col==1820 && goal.col==2911 ) {
+	      std::cout << "inspect this one" << std::endl;
+	      algo.setVerbose(0);
+	    }
+	    else
+	      algo.setVerbose(2);
+
+	    std::cout << "track path-finding  (" << i << ")->(" << j << "). "
+		      << "(c,r): start=(" << start.col << "," << start.row << ") end=(" << goal.col << "," << goal.row << ")" << std::endl;
+	    std::vector< larlitecv::AStarNode > path = algo.findpath( img, start.row, start.col, goal.row, goal.col, 20.0, true );
 // 	    std::cout << "path returned: " << path.size() << " nodes. ";
 // 	    if ( path.size()==0 )
 // 	      std::cout << " FAILED" << std::endl;
