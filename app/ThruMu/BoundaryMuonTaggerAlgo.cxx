@@ -195,7 +195,15 @@ namespace larlitecv {
       abovethresh[p].resize( 2*_config.neighborhoods.at(p)+1, 0 );
     }
 
-    // now loop over over the time of the images
+    // reserve space for hit vector. marks where hits occur.
+    std::vector< int > hits[3];
+    for (int p=0; p<3; p++ ) {
+      hits[p].resize( meta.cols() );
+    }
+
+    float tot_hit_collecting = 0;
+    
+    // now loop over over the time of the images (560 good test case)
     for (int r=0; r<meta.rows(); r++) {
 
       /*
@@ -307,37 +315,79 @@ namespace larlitecv {
 
       
       // Find boundary combos using search algo
-      std::vector< int > hits[3];
-      for (int p=0; p<3; p++) {                                                                                                                                                
+      //std::vector< int > hits[3];
+      const clock_t begin_hit_collecting = clock();
+      int nhits[3] = {0};
+      for (int p=0; p<3; p++) {
+	memset( hits[p].data(), 0, sizeof(int)*hits[p].size() );
 	const larcv::Image2D& img = imgs.at(p);                                                                                                                                
 	const larcv::Image2D& badchimg = badchs.at(p);
 	for (int c=0; c<meta.cols(); c++) {
 	  int wid = dsfactor*c;
 	  float val = img.pixel( r, c );
-	  if ( val > _config.thresholds.at(p) || badchimg.pixel( r, c )>0 )
-	    hits[p].push_back( wid );
+	  int lastcol = -1;
+	  if ( val > _config.thresholds.at(p) ) {
+	    for (int n=-_config.neighborhoods[p]; n<=_config.neighborhoods[p]; n++) {
+	    //for (int n=0; n<1; n++) {
+	      if ( wid+n>=hits[p].size() ) continue;
+	      if ( wid+n<0 ) continue;
+	      hits[p][wid+n] = 1;
+	      lastcol = wid+n;
+	    }
+	    nhits[p]++;
+	  }
+// 	  if ( badchimg.pixel( r, c )>0 ) {
+// 	    hits[p][wid] = 1;
+// 	  }
+	  if ( lastcol>=0 && lastcol<meta.cols() )
+	    c = lastcol;
 	}
       }
-
+      tot_hit_collecting += float( clock()-begin_hit_collecting )/CLOCKS_PER_SEC;
+      //std::cout << "[row=" << r << ",t=" << meta.pos_y(r) << "] hits=" << nhits[0] << "," << nhits[1] << "," << nhits[2] << std::endl;
+      
       // get boundary combos consistent which charge hits
       std::vector< std::vector<BoundaryCombo> > matched_combos;
-      matchalgo.findCombos( hits[0], hits[1], hits[2], _config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), matched_combos );
+      matchalgo.findCombos( hits[0], hits[1], hits[2], 
+			    _config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
+			    badchs, true,
+			    matched_combos );
       
       // mark up image
       for ( int pt=0; pt<(int)matched_combos.size(); pt++ ) {
 	const std::vector<BoundaryCombo>& combos = matched_combos.at(pt);
-	//std::cout << "combos: type=" << pt << " number=" << combos.size() << std::endl;
+	//std::cout << "  combos: type=" << pt << " number=" << combos.size() << std::endl;
 	for ( auto &combo : combos ) {
-	  int ucol = combo.u/dsfactor;
-	  int vcol = combo.v/dsfactor;
-	  int ycol = combo.y/dsfactor;
-	  //matchedpixels.at(b).
+	  int wirecols[3] = { combo.u/dsfactor, combo.v/dsfactor, combo.y/dsfactor };
+	  int nbadchs = 0;
+	  for ( int p=0; p<3; p++) {
+	    if ( badchs.at(p).pixel(r,wirecols[p])>0 ) 
+	      nbadchs++;
+	  }
+	  if (nbadchs>=2)
+	    continue; // combo due two badchs
+
+	  // otherwise set match
+	  for (int p=0; p<3; p++) {
+	    // get pos
+	    int c = 0;
+	    if ( pt==0 || pt==1 ) {
+	      // top and bottom use the z value
+	      c = (int)combo.pos[2];
+	    }
+	    else {
+	      // up stream and downstream use the y value
+	      c = (int)combo.pos[1]+116.0;
+	    }
+	    float prev_val = matchedpixels.at( pt ).pixel( r, c );
+	    matchedpixels.at(pt).set_pixel( r, c, prev_val+50.0 );
+	  }
 	}
       }
-
     }//end of row loop
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "boundary pixel search took " << elapsed_secs << " secs" << std::endl;
+    std::cout << "  hit collecting time: " << tot_hit_collecting << " secs" << std::endl;
 
     
     return kOK;

@@ -1,5 +1,5 @@
 # Include your header file location
-CXXFLAGS += -O3 -I$(LARLITECV_APPDIR)/ThruMu
+CXXFLAGS += -I$(LARLITECV_APPDIR)/ThruMu
 CXXFLAGS += -I. $(shell root-config --cflags)
 
 CXXFLAGS += $(shell larlite-config --includes)

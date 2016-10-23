@@ -11,18 +11,20 @@
 #include <set>
 #include <map>
 
+#include "DataFormat/Image2D.h"
 #include "BoundaryMatchArrays.h"
 
 namespace larlitecv {
 
   class BoundaryCombo {
   public:
-
-    BoundaryCombo() { u=0; v=0; y=0; };
+    
+    BoundaryCombo() { u=0; v=0; y=0; pos.resize(3,0); };
     BoundaryCombo( unsigned short _uwire, unsigned short _vwire, unsigned short _ywire ) {
       u = _uwire;
       v = _vwire;
       y = _ywire;
+      pos.resize(3,0);
     };
     virtual ~BoundaryCombo() {};
     bool operator<( const BoundaryCombo& rhs ) const {
@@ -35,6 +37,7 @@ namespace larlitecv {
     unsigned short u;
     unsigned short v;
     unsigned short y;
+    std::vector<float> pos;
 
   };
 
@@ -47,7 +50,7 @@ namespace larlitecv {
     virtual ~BoundaryMatchList();
 
     std::vector<BoundaryCombo> findCombos( const std::vector<int>& uwires, const std::vector<int>& vwires, const std::vector<int>& ywires, 
-					   int urange, int vrange, int yrange );
+					   int urange, int vrange, int yrange, const std::vector<larcv::Image2D>& badchs, bool use_badchs );
 
   protected:
 
@@ -76,6 +79,7 @@ namespace larlitecv {
 
     void findCombos( const std::vector<int>& uwires, const std::vector<int>& vwires, const std::vector<int>& ywires,
 		     int urange, int vrange, int yrange,
+		     const std::vector<larcv::Image2D>& badchs, bool use_badchs,
 		     std::vector<  std::vector<BoundaryCombo>  >& boundary_combos );
     
   protected:

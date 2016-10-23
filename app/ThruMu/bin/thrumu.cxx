@@ -176,8 +176,8 @@ int main( int nargs, char** argv ) {
     std::vector< larcv::Image2D > realspacehits;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > end_points;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > space_points;
-    sidetagger.searchforboundarypixels( imgs, badchimgs, outhits );
-    sidetagger.clusterBoundaryPixels( imgs, outhits, end_points );
+    //sidetagger.searchforboundarypixels( imgs, badchimgs, outhits );
+    //sidetagger.clusterBoundaryPixels( imgs, outhits, end_points );
     sidetagger.searchforboundarypixels3D( imgs, badchimgs, realspacehits );
     sidetagger.clusterBoundaryPixels3D( realspacehits, space_points );
     if ( end_points.size()>0 ) {
@@ -204,8 +204,6 @@ int main( int nargs, char** argv ) {
     }
 
     // here we take those images and do some clustering.
-    std::cout << "stop" << std::endl;
-    assert(false);
 
     // ------------------------------------------------------------------------------------------//
     // FLASH TAGGER //
@@ -298,18 +296,16 @@ int main( int nargs, char** argv ) {
     // gather boundary points: top/down/upstream/downstream
     std::vector< larlitecv::BoundaryEndPt > be_endpoints[nchs][3];
     
-    // from end points
-    /*
-    for (int p=0; p<3; p++) {
-      for (int ich=0; ich<nchs; ich++) {
-	const std::vector< larlitecv::BoundaryEndPt >& pts = end_points.at( p*nchs + ich ); // use end points
-	int npts = (int)pts.size();
-	for (int endpt=0; endpt<npts; endpt++) {
-	  be_endpoints[ich][p].push_back( pts.at(endpt) );
-	}
-      }
-    }
-    */
+//     // from end points
+//     for (int p=0; p<3; p++) {
+//       for (int ich=0; ich<nchs; ich++) {
+// 	const std::vector< larlitecv::BoundaryEndPt >& pts = end_points.at( p*nchs + ich ); // use end points
+// 	int npts = (int)pts.size();
+// 	for (int endpt=0; endpt<npts; endpt++) {
+// 	  be_endpoints[ich][p].push_back( pts.at(endpt) );
+// 	}
+//       }
+//     }
 
     // from space points
     for (int isp=0; isp<space_points.size(); isp++) {
@@ -343,22 +339,23 @@ int main( int nargs, char** argv ) {
 	fbe_endpoints[flimgends][p].push_back( imgends_pts.at(ich) );
       }
     }
-    
+
+
     // do track building
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > plane_trackclusters;
     for (int p=0; p<3; p++) {
       const larcv::Image2D& img = imgs.at(p);
       const larcv::Image2D& badchimg = badchimgs.at(p);
       std::vector< larlitecv::BMTrackCluster2D > trackcluster;
-      sidetagger.makePlaneTrackCluster( img, badchimg, 
-					be_endpoints[toppt][p],
-					be_endpoints[botpt][p],
-					be_endpoints[uppt][p],
-					be_endpoints[dnpt][p],
-					fbe_endpoints[flanode][p],
-					fbe_endpoints[flcathode][p],
-					fbe_endpoints[flimgends][p],
-					trackcluster );
+//       sidetagger.makePlaneTrackCluster( img, badchimg, 
+// 					be_endpoints[toppt][p],
+// 					be_endpoints[botpt][p],
+// 					be_endpoints[uppt][p],
+// 					be_endpoints[dnpt][p],
+// 					fbe_endpoints[flanode][p],
+// 					fbe_endpoints[flcathode][p],
+// 					fbe_endpoints[flimgends][p],
+// 					trackcluster );
       plane_trackclusters.emplace_back( std::move(trackcluster) );
     }
 
@@ -374,7 +371,7 @@ int main( int nargs, char** argv ) {
     input_tracks2d.push_back( &(plane_trackclusters.at(0)) );
     input_tracks2d.push_back( &(plane_trackclusters.at(1)) );
     input_tracks2d.push_back( &(plane_trackclusters.at(2)) );
-    sidetagger.matchTracksStage1( imgs, input_tracks2d, tracks3d );
+    //sidetagger.matchTracksStage1( imgs, input_tracks2d, tracks3d );
     std::cout << "Number of matched tracks returned: " << tracks3d.size() << std::endl;
     for (int i=0; i<tracks3d.size(); i++) {
       const larlitecv::BMTrackCluster3D& track3d = tracks3d.at(i);
@@ -394,7 +391,7 @@ int main( int nargs, char** argv ) {
 
     // Stage 5
     //  acceptance
-    
+
     // ------------------------------------------------------------------------------------------//
     // SAVE OUTPUT //
 
