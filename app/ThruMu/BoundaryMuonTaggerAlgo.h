@@ -8,7 +8,7 @@
 #include "DataFormat/ImageMeta.h"
 #include "DataFormat/Pixel2DCluster.h"
 
-#include "PMTWeights/WireData.h"
+#include "UBWireTool/WireData.h"
 
 #include "BoundaryMatchArrays.h"
 #include "BoundaryEndPt.h"
@@ -83,16 +83,19 @@ namespace larlitecv {
 			    std::vector< larlitecv::BMTrackCluster3D >& output  );
     bool doTracksMatch( const larlitecv::BMTrackCluster2D& track1, const larlitecv::BMTrackCluster2D& track2, 
 			float& start_t_diff, float& end_t_diff, bool& start2start );
+    BMTrackCluster2D runAstar( const BoundaryEndPt& start, const BoundaryEndPt& end, const larcv::Image2D& img, const larcv::Image2D& badchimg,
+			       int start_pad, int end_pad, int verbose=2, bool use_badchs=false );
+    std::vector<BMTrackCluster2D> runAstar3planes( const std::vector< BoundaryEndPt >& start_pts, const std::vector< BoundaryEndPt >& end_pts,
+						   const std::vector< larcv::Image2D >& img, int start_pad, int end_pad );
 			
 
     // Wire Geometry info
-    void loadGeoInfo();
-    std::map<int,larcv::pmtweights::WireData> m_WireData; // key is plane ID, value is class with wire info    
     int fNPMTs;
     float pmtpos[32][3];
 
   protected:
 
+    void loadGeoInfo();
 
     larlitecv::BoundaryMatchArrays m_matches;
     ConfigBoundaryMuonTaggerAlgo _config;

@@ -11,7 +11,6 @@
 #include "DataFormat/EventImage2D.h"
 #include "ANN/ANNAlgo.h"
 #include "dbscan/DBSCANAlgo.h"
-#include "PMTWeights/WireData.h"
 
 // larlitecv header
 #include "BoundaryEndPt.h"
@@ -70,20 +69,8 @@ namespace larlitecv {
 			  BoundaryEndPt& endpt, larcv::Image2D& markedimg  );
     bool getClusters( const larcv::Image2D& tpc_img, int query_row, int query_col, dbscan::dbscanOutput& cluster_info, dbscan::dbPoints& windowpts, int& containing_cluster );
     void loadGeoInfo();
-    float calculateIntersectionTriangle( const std::vector<float>& p0, const std::vector<float>& p1, const std::vector<float>& p2 );
-    void findWireIntersections( const std::vector< std::vector<int> >& wirelists, 
-				const std::vector< std::vector<float> >& valid_range,
-				std::vector< std::vector<int> >& intersections3plane,
-				std::vector< std::vector<float> >& vertex3plane,
-				std::vector<float>& areas3plane,
-				std::vector< std::vector<int> >& intersections2plane, std::vector< std::vector<float> >& vertex2plane );
-
-  public:
-    void lineSegmentIntersection2D( const std::vector< std::vector<float> >& ls1, const std::vector< std::vector<float> >& ls2, std::vector<float>& insec, int& crosses );
     
   public:
-    // geometric data
-    std::map<int,larcv::pmtweights::WireData> m_WireData; // key is plane ID, value is class with wire info
     int fNPMTs;
     float pmtpos[32][3];    
     

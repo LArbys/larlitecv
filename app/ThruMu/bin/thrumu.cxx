@@ -294,13 +294,26 @@ int main( int nargs, char** argv ) {
 
     // gather boundary points: top/down/upstream/downstream
     std::vector< larlitecv::BoundaryEndPt > be_endpoints[nchs][3];
+    
+    // from end points
+    /*
     for (int p=0; p<3; p++) {
       for (int ich=0; ich<nchs; ich++) {
-	const std::vector< larlitecv::BoundaryEndPt >& pts = end_points.at( p*nchs + ich );
+	const std::vector< larlitecv::BoundaryEndPt >& pts = end_points.at( p*nchs + ich ); // use end points
 	int npts = (int)pts.size();
 	for (int endpt=0; endpt<npts; endpt++) {
 	  be_endpoints[ich][p].push_back( pts.at(endpt) );
 	}
+      }
+    }
+    */
+
+    // from space points
+    for (int isp=0; isp<space_points.size(); isp++) {
+      const std::vector< larlitecv::BoundaryEndPt >& pts = space_points.at( isp );
+      for (int p=0; p<3; p++) {
+	const larlitecv::BoundaryEndPt& plane_spt = pts.at(p);
+	be_endpoints[ plane_spt.type ][p].push_back( plane_spt );
       }
     }
 

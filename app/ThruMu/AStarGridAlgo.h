@@ -107,11 +107,16 @@ namespace larlitecv {
 
   class AStarAlgoConfig {
   public:
-    AStarAlgoConfig() {};
+    AStarAlgoConfig() {
+      astar_start_padding = 0;
+      astar_end_padding = 0;
+    };
     virtual ~AStarAlgoConfig() {};
 
     std::vector<float> astar_threshold;
     std::vector<int>   astar_neighborhood;
+    int astar_start_padding;
+    int astar_end_padding;
   };
 
   class AStarGridAlgo {

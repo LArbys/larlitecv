@@ -1,12 +1,21 @@
 #include "BoundaryMuonTaggerAlgo.h"
-#include "dbscan/DBSCANAlgo.h"
-#include "AStarGridAlgo.h"
-#include "BoundaryEndPt.h"
+
+// std
 #include <vector>
 #include <cmath>
 #include <assert.h>
 #include <ctime>
+
+// larcv
+#include "dbscan/DBSCANAlgo.h"
+#include "UBWireTool/UBWireTool.h"
+
+#include "AStarGridAlgo.h"
+#include "BoundaryEndPt.h"
 #include "BoundaryIntersectionAlgo.h"
+
+#include "TFile.h"
+#include "TTree.h"
 
 
 namespace larlitecv {
@@ -190,6 +199,8 @@ namespace larlitecv {
 	  bool has_badch[3] = { false, false, false };
 	  int nbadch_regions = 0;
 	  std::vector<int> abovethresh[3]; // we save col number of pixels above threshold in each plane with this
+	  int maxwid[3] = {-1,-1,-1};
+	  float maxamp[3] = {-1.0,-1.0,-1.0};
 
 	  for (int p=0; p<3; p++) {
 	    const larcv::Image2D& img = imgs.at(p);
@@ -197,10 +208,15 @@ namespace larlitecv {
 	    int col = triple[p]/dsfactor;
 	    for (int n=-_config.neighborhoods.at(p); n<=_config.neighborhoods.at(p); n++) {
 	      if (col + n <0 || col + n>=meta.cols() )  continue; // skip out of bound columns
-		   
-	      if ( img.pixel( r, col + n ) > _config.thresholds.at(p) ) {
+	      float val = img.pixel( r, col + n );
+	      if ( val > _config.thresholds.at(p) ) {
 		hascharge[p] = true;
 		abovethresh[p].push_back(col+n);
+		// keep max wire and value inside neighborhood
+		if ( val>maxamp[p] ) {
+		  maxamp[p] = val;
+		  maxwid[p] = col+n;
+		}
 	      }
 	      if ( badchimg.pixel( r, col )>0 ) {
 		has_badch[p] = true;
@@ -211,11 +227,14 @@ namespace larlitecv {
 	    if ( !hascharge[p] ) break;
 	  }
 
+	  // count number of regions with bad regions
 	  for (int p=0; p<3; p++) {
 	    if ( has_badch[p] )
 	      nbadch_regions++;
 	  }
 	  
+	  // our match test: neighborhood has charge or is bad channel region
+	  // we can only have 1 plane that has a bad channel region
 	  if ( ( hascharge[0] || has_badch[0] )
 	       && ( hascharge[1] || has_badch[1] ) 
 	       && ( hascharge[2] || has_badch[2] ) 
@@ -223,15 +242,15 @@ namespace larlitecv {
 
 	    // match!  we write the match to the output
 	    for (int p=0; p<nplanes; p++) {
-	      
+	      const larcv::WireData& data = larcv::UBWireTool::getWireData( p );
 	      if ( ( b==upstream || b==downstream) && p==2 )
 		continue; // no useful info here
 
 	      for ( int ipixel=0; ipixel<(int)abovethresh[p].size(); ipixel++) {
 		int pixcol = abovethresh[p].at(ipixel);
 		int wid = (int)pixcol*meta.pixel_width();
-		const std::vector<float>& start = m_WireData[p].wireStart.find(wid)->second;
-		const std::vector<float>& end   = m_WireData[p].wireEnd.find(wid)->second;
+		const std::vector<float>& start = data.wireStart.find(wid)->second;
+		const std::vector<float>& end   = data.wireEnd.find(wid)->second;
 
 		if ( b==top ) {
 		  // we are filling out the z-position here
@@ -285,7 +304,6 @@ namespace larlitecv {
     
     const int ncrossings = 4;
     int chs = (int)matchedpixels.size(); // for each plane: top/bottom/upstream/downstream
-    int nplanes = chs/ncrossings;
     end_points.resize(chs); // w,t
 
     // loop over planes
@@ -399,8 +417,7 @@ namespace larlitecv {
     // outputs:
     //   end_points: list of boundary vectors.  inner vector has 3 elements, one for each plane
     
-    const int ncrossings = 4;
-    int chs = (int)matchedpixels.size(); // for each plane: top/bottom/upstream/downstream
+    int chs = (int)matchedpixels.size();
 
     // loop over crossing types
     enum { top=0, bot, upstream, downstream };
@@ -528,18 +545,11 @@ namespace larlitecv {
 	else if (i==4) return anode;
 	else if (i==5) return cathode;
 	else if (i==6) return imgends;
+	assert(false);
       };
     };
     endpt_s endpts = { top, bot, upstream, downstream, anode, cathode, imgends };
     int nendpts = 7;
-
-    // instantiate astar algo
-    larlitecv::AStarAlgoConfig astar_config;
-    astar_config.astar_threshold    = _config.astar_thresholds;
-    astar_config.astar_neighborhood = _config.astar_neighborhood;
-    larlitecv::AStarGridAlgo algo( astar_config );
-    algo.setVerbose(2);
-    algo.setBadChImage(badchimg);
 
     // pair up containers
     int ntotsearched = 0;
@@ -558,58 +568,14 @@ namespace larlitecv {
 	  for (int ib=0; ib<(int)pts_b.size(); ib++) {
 	    const BoundaryEndPt& ptb = pts_b.at(ib);
 
-	    //ok, we have two points, we do an A* star path search to between the two points
-	    larlitecv::AStarNode start( pta.w, pta.t );
-	    larlitecv::AStarNode goal( ptb.w, ptb.t );
-	    // for debug
-//  	    if ( j==6 && goal.row>=1006)
-//  	      algo.setVerbose( 0 );
-//  	    else
-//  	      algo.setVerbose( 2 );
-	    
-	    if ( abs(start.row-goal.row)>820 ) // make this a parameter
-	      continue; // physically impossible to connect
-
-	    ntotsearched++;
-
-	    if ( i==4 && j==5 && start.col==1820 && goal.col==2911 ) {
-	      std::cout << "inspect this one" << std::endl;
-	      algo.setVerbose(0);
-	    }
-	    else
-	      algo.setVerbose(2);
-
 	    std::cout << "track path-finding  (" << i << ")->(" << j << "). "
-		      << "(c,r): start=(" << start.col << "," << start.row << ") end=(" << goal.col << "," << goal.row << ")" << std::endl;
-	    std::vector< larlitecv::AStarNode > path = algo.findpath( img, start.row, start.col, goal.row, goal.col, 20.0, true );
-// 	    std::cout << "path returned: " << path.size() << " nodes. ";
-// 	    if ( path.size()==0 )
-// 	      std::cout << " FAILED" << std::endl;
-// 	    else
-// 	      std::cout << " COMPLETED" << std::endl;
-// 	    std::cout << "[enter] to continue." << std::endl;
-// 	    std::cout << "endpoint combination: " << icombo << " of " << ncombinations << std::endl;
-	    //std::cin.get();
-
-	    if ( path.size()>10 ) {
-	      //larcv::Pixel2DCluster pixelpath;
-	      BMTrackCluster2D track2d;
-	      // set image ends
-	      track2d.start.t = pta.t;
-	      track2d.start.w = pta.w;
-	      track2d.start.type = pta.type;
-	      track2d.end.t = ptb.t;
-	      track2d.end.w = ptb.w;
-	      track2d.end.type = ptb.type;
-	      track2d.pixelpath.clear();
-	      for ( auto& node : path ) {
-		larcv::Pixel2D pixel( node.col, node.row );
-		pixel.Intensity( img.pixel( node.row, node.col ) );
-		track2d.pixelpath += pixel; // uniary operator!
-	      }
-	      std::cout << "icombo=" << icombo << ". Storing Track with length=" << path.size() << std::endl;
+		      << "(c,r): start=(" << pta.w << "," << pta.t << ") end=(" << ptb.w << "," << ptb.t << ")";
+	    BMTrackCluster2D track2d = runAstar( pta, ptb, img, badchimg, 5, 5, 2, true );
+	    std::cout << " pathsize=" << track2d.pixelpath.size() << std::endl;
+	    //std::cout << "icombo=" << icombo << ". Storing Track with length=" << track2d.pixelpath.size() << std::endl;
+	    if ( track2d.pixelpath.size()>10 ) {
 	      trackclusters.emplace_back( track2d );
-	    }// if successful path
+	    }
 	    icombo++;
 	  }//loop over pt b
 	}//loop over pt a
@@ -658,8 +624,10 @@ namespace larlitecv {
     
     return 0;
   }
-  /*
-  int BoundaryMonTaggerAlgo::runAstar( const BoundaryEndPt& start, const BoudaryEndPt& end, const larcv::Image2D& img, int start_pad, int end_pad ) {
+
+  BMTrackCluster2D BoundaryMuonTaggerAlgo::runAstar( const BoundaryEndPt& start_pt, const BoundaryEndPt& end_pt, 
+						     const larcv::Image2D& img, const larcv::Image2D& badchimg,
+						     int start_pad, int end_pad, int verbose, bool use_badchs ) {
     // This wraps/interfaces with the AStar algorithm on our image. runs one start to end check.
     // inputs
     // ------
@@ -673,16 +641,39 @@ namespace larlitecv {
     larlitecv::AStarAlgoConfig astar_config;
     astar_config.astar_threshold    = _config.astar_thresholds;
     astar_config.astar_neighborhood = _config.astar_neighborhood;
+    astar_config.astar_start_padding = start_pad;
+    astar_config.astar_end_padding   = end_pad;
     larlitecv::AStarGridAlgo algo( astar_config );
-    algo.setVerbose(2);
+    algo.setVerbose(verbose);
+    algo.setBadChImage(badchimg);
 
-    larlitecv::AStarNode start( start.w, start.t );
-    larlitecv::AStarNode goal( end.w, end.t );
+    larlitecv::AStarNode start( start_pt.w, start_pt.t );
+    larlitecv::AStarNode goal( end_pt.w, end_pt.t );
     
+    BMTrackCluster2D track2d;
+    track2d.start = start_pt;
+    track2d.end   = end_pt;
+    track2d.pixelpath.clear();
+
+    if ( abs(start.row-goal.row)>820 ) { // make this a parameter 
+      return track2d; // empty track
+    }
     
-    
+    std::vector< larlitecv::AStarNode > path = algo.findpath( img, start.row, start.col, goal.row, goal.col, 20.0, use_badchs );
+    for ( auto& node : path ) {
+      larcv::Pixel2D pixel( node.col, node.row );
+      pixel.Intensity( img.pixel( node.row, node.col ) );
+      track2d.pixelpath += pixel; // uniary operator!
+    }
+    return track2d;
   }
-  */
+
+  std::vector<BMTrackCluster2D> BoundaryMuonTaggerAlgo::runAstar3planes( const std::vector< BoundaryEndPt >& start_pts, const std::vector< BoundaryEndPt >& end_pts,
+									 const std::vector< larcv::Image2D >& img, int start_pad, int end_pad ) {
+    std::vector<BMTrackCluster2D> planetracks;
+    return planetracks;
+  }
+
 
   /*
   void BoundaryMuonTaggerAlgo::filterShortAndKinkedTracks( int mintracklength, std::vector< larlitecv::BMTrackCluster2D >& tracks, 
@@ -714,7 +705,6 @@ namespace larlitecv {
 
     std::set< larlitecv::BMTrackCluster3D > track_set;
 
-    int nplanes = (int)plane2dtracks.size();
     for (int p1=0; p1<1; p1++) {
       for (int p2=p1+1; p2<2; p2++) {
 	
@@ -723,7 +713,6 @@ namespace larlitecv {
 
 	for ( int idx1=0; idx1<p1tracks.size(); idx1++) {
 	  const larlitecv::BMTrackCluster2D& track1 = p1tracks.at(idx1);
-	  BoundaryEndPt::BoundaryEnd_t endpt_type = track1.start.type;
 	  std::vector< int > match_indices;
 	  std::vector< float > tot_start_diff;
 	  std::vector< float > tot_end_diff;
@@ -883,39 +872,9 @@ namespace larlitecv {
       }
       //std::cout << "[POS " << femch << "] " << " (" << pmtpos[femch][0] << "," << pmtpos[femch][1] << "," << pmtpos[femch][2] << ")" << std::endl;
     }
-
-    // Get the Wire Info
-    TTree* fWireTree = (TTree*)fGeoFile.Get( "imagedivider/wireInfo" );
-    int wireID;
-    int planeID;
-    float start[3];
-    float end[3];
-    fWireTree->SetBranchAddress( "wireID", &wireID );
-    fWireTree->SetBranchAddress( "plane",  &planeID );
-    fWireTree->SetBranchAddress( "start", start );
-    fWireTree->SetBranchAddress( "end", end );
-      
-    int nentries = fWireTree->GetEntries();
-    for ( int ientry=0; ientry<nentries; ientry++ ) {
-      fWireTree->GetEntry(ientry);
-      if ( m_WireData.find( planeID )==m_WireData.end() ) {
-	// cannot find instance of wire data for plane id. make one.
-	m_WireData[planeID] = larcv::pmtweights::WireData( planeID );
-      }
-      // start is always the one with the lowest y-value
-      if ( start[1]>end[1] ) {
-	// swap start end end
-	for (int i=0; i<3; i++) {
-	  float temp = start[i];
-	  start[i] = end[i];
-	  end[i] = temp;
-	}
-      }
-      m_WireData[planeID].addWire( wireID, start, end );
-    }
     
     fGeoFile.Close();
-
+    
   }
 
 

@@ -97,13 +97,21 @@ namespace larlitecv {
 	  // check if out of the image
 	  if ( r_neigh+min_r<0 || r_neigh+min_r>=meta.rows() || c_neigh+min_c<0 || c_neigh+min_c>=meta.cols() ) continue; 
 
+	  // is the neighbor within the start and end pad? then its forgiven if point is below charge
+	  bool within_pad = false;
+	  if ( abs(r_neigh-start.row)<_config.astar_start_padding 
+	       && abs(c_neigh-start.col)<_config.astar_start_padding ) within_pad = true;
+	  if ( abs(r_neigh-goal.row)<_config.astar_end_padding 
+	       && abs(c_neigh-goal.col)<_config.astar_end_padding ) within_pad = true;
+
+
 	  // is this neighbor a bad ch?
 	  bool a_bad_ch = false;
 	  if ( use_bad_chs && m_badchimg->pixel( r_neigh+min_r, c_neigh+min_c )>0.5 ) a_bad_ch = true;
-
+	  
 	  // we skip this pixel if its below threshold. but we keep it if its a bad channel
-	  if ( !a_bad_ch && img.pixel( r_neigh+min_r, c_neigh+min_c )<_config.astar_threshold.at((int)meta.plane()) ) continue; // skip if below threshold
-
+	  if ( !within_pad && !a_bad_ch && img.pixel( r_neigh+min_r, c_neigh+min_c )<_config.astar_threshold.at((int)meta.plane()) ) continue; // skip if below threshold
+	  
 	  // make the neighbor
 	  AStarNode neighbor( c_neigh, r_neigh );
 
