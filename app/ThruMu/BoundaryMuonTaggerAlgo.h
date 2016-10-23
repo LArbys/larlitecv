@@ -11,6 +11,7 @@
 #include "UBWireTool/WireData.h"
 
 #include "BoundaryMatchArrays.h"
+#include "BoundaryMatchAlgo.h"
 #include "BoundaryEndPt.h"
 #include "BMTrackCluster2D.h"
 #include "BMTrackCluster3D.h"
@@ -99,6 +100,8 @@ namespace larlitecv {
 
     larlitecv::BoundaryMatchArrays m_matches;
     ConfigBoundaryMuonTaggerAlgo _config;
+
+    BoundaryMatchAlgo matchalgo;
 
   };
 

@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cmath>
 #include <utility>
+#include <assert.h>
 
 // config/storage
 #include "Base/PSet.h"
@@ -203,6 +204,8 @@ int main( int nargs, char** argv ) {
     }
 
     // here we take those images and do some clustering.
+    std::cout << "stop" << std::endl;
+    assert(false);
 
     // ------------------------------------------------------------------------------------------//
     // FLASH TAGGER //

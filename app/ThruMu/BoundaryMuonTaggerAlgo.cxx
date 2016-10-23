@@ -68,7 +68,10 @@ namespace larlitecv {
     // we need the wire downsampling factor
     int dsfactor = int( meta.pixel_width()+0.1 ); 
     const clock_t begin_time = clock();
-    
+    std::vector<int> abovethresh[3]; // we save col number of pixels above threshold in each plane with this
+    for (int p=0; p<3; p++) {
+      abovethresh[p].resize( 2*_config.neighborhoods.at(p)+1,-1 );
+    }
     // now loop over over the time of the images
     for (int r=0; r<meta.rows(); r++) {
       // loop through boundary type
@@ -86,7 +89,6 @@ namespace larlitecv {
 	  bool hascharge[3] = { false, false, false };
 	  bool has_badch[3] = { false, false, false };
 	  int nbadch_regions = 0;
-	  std::vector<int> abovethresh[3]; // we save col number of pixels above threshold in each plane with this
 
 	  for (int p=0; p<3; p++) {
 
@@ -95,15 +97,19 @@ namespace larlitecv {
 	    
 	    int col = triple[p]/dsfactor;
 	    for (int n=-_config.neighborhoods.at(p); n<=_config.neighborhoods.at(p); n++) {
+	      abovethresh[p][n+_config.neighborhoods.at(p)] = -1;
 	      if (col + n <0 || col + n>=meta.cols() )  continue; // skip out of bound columns
 	      
 	      if ( img.pixel( r, col + n ) > _config.thresholds.at(p) ) {
 		hascharge[p] = true;
-		abovethresh[p].push_back(col+n);
+		abovethresh[p][n+_config.neighborhoods.at(p)] = col+n;
 	      }
-	      if ( badchimg.pixel( r, col+n )>0 ) {
+	      else if ( badchimg.pixel( r, col+n )>0 ) {
 		has_badch[p] = true;
-		abovethresh[p].push_back(col+n);
+		abovethresh[p][n+_config.neighborhoods.at(p)] = col+n;
+	      }
+	      else {
+		abovethresh[p][n+_config.neighborhoods.at(p)] = -1;
 	      }
 	    }
 	    // small optimization, if we see that one plane does not have charge, the match will fail. move on.
@@ -116,7 +122,6 @@ namespace larlitecv {
 	      nbadch_regions++;
 	  }
 
-
 	  if ( ( hascharge[0] || has_badch[0] )
 	       && ( hascharge[1] || has_badch[1] ) 
 	       && ( hascharge[2] || has_badch[2] ) 
@@ -124,13 +129,15 @@ namespace larlitecv {
 	    // match!  we write the match to the output
 	    for (int p=0; p<nplanes; p++) {
 	      for ( int ipixel=0; ipixel<(int)abovethresh[p].size(); ipixel++) {
-		matchedpixels.at( p*ncrossings + b ).set_pixel( r, abovethresh[p].at(ipixel), 256.0 ); // 256 is arbitrary marker
+		if ( abovethresh[p][ipixel]!=-1 ) 
+		  matchedpixels.at( p*ncrossings + b ).set_pixel( r, abovethresh[p].at(ipixel), 256.0 ); // 256 is arbitrary marker
 	      }
 	    }
 	  }
 	  
 	}//end of match loop
       }//end of boundary loop
+      //break;
     }//end of row loop
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "boundary pixel search took " << elapsed_secs << " secs" << std::endl;
@@ -181,12 +188,20 @@ namespace larlitecv {
     // we need the wire downsampling factor
     int dsfactor = int( meta.pixel_width()+0.1 ); 
     const clock_t begin_time = clock();
+    
+    // we save col number of pixels above threshold in each plane with this
+    std::vector<int> abovethresh[3]; 
+    for (int p=0; p<3; p++) {
+      abovethresh[p].resize( 2*_config.neighborhoods.at(p)+1, 0 );
+    }
 
     // now loop over over the time of the images
     for (int r=0; r<meta.rows(); r++) {
+
+      /*
+      // loop through combinations (dumb)
       // loop through boundary type
       for (int b=0; b<4; b++) {
-	// loop through combinations (dumb)
 	for (int imatch=0; imatch<m_matches.nmatches( (larlitecv::BoundaryMatchArrays::Boundary_t)b ); imatch++) {
 	  
 	  int triple[3];
@@ -198,7 +213,6 @@ namespace larlitecv {
 	  bool hascharge[3] = { false, false, false };
 	  bool has_badch[3] = { false, false, false };
 	  int nbadch_regions = 0;
-	  std::vector<int> abovethresh[3]; // we save col number of pixels above threshold in each plane with this
 	  int maxwid[3] = {-1,-1,-1};
 	  float maxamp[3] = {-1.0,-1.0,-1.0};
 
@@ -211,16 +225,19 @@ namespace larlitecv {
 	      float val = img.pixel( r, col + n );
 	      if ( val > _config.thresholds.at(p) ) {
 		hascharge[p] = true;
-		abovethresh[p].push_back(col+n);
+		abovethresh[p][n+_config.neighborhoods.at(p)] = col+n;
 		// keep max wire and value inside neighborhood
 		if ( val>maxamp[p] ) {
 		  maxamp[p] = val;
 		  maxwid[p] = col+n;
 		}
 	      }
-	      if ( badchimg.pixel( r, col )>0 ) {
+	      else if ( badchimg.pixel( r, col )>0 ) {
 		has_badch[p] = true;
-		abovethresh[p].push_back(col+n);
+		abovethresh[p][n+_config.neighborhoods.at(p)] = col+n;
+	      }
+	      else {
+		abovethresh[p][n+_config.neighborhoods.at(p)] = 0;
 	      }
 	    }
 	    // small optimization, if we see that one plane does not have charge, the match will fail. move on.
@@ -254,6 +271,7 @@ namespace larlitecv {
 
 		if ( b==top ) {
 		  // we are filling out the z-position here
+		  // resolution is now to 1 cm level..., waste of resolution
 		  float prev_val = matchedpixels.at( b ).pixel( r, (int)end[2] );
 		  matchedpixels.at( b ).set_pixel( r, int(end[2]), prev_val+50.0 );
 		}
@@ -282,7 +300,41 @@ namespace larlitecv {
 	    }//end number of planes
 	  }//if match
 	}//end of match loop
+
+		
       }//end of boundary loop
+      */
+
+      
+      // Find boundary combos using search algo
+      std::vector< int > hits[3];
+      for (int p=0; p<3; p++) {                                                                                                                                                
+	const larcv::Image2D& img = imgs.at(p);                                                                                                                                
+	const larcv::Image2D& badchimg = badchs.at(p);
+	for (int c=0; c<meta.cols(); c++) {
+	  int wid = dsfactor*c;
+	  float val = img.pixel( r, c );
+	  if ( val > _config.thresholds.at(p) || badchimg.pixel( r, c )>0 )
+	    hits[p].push_back( wid );
+	}
+      }
+
+      // get boundary combos consistent which charge hits
+      std::vector< std::vector<BoundaryCombo> > matched_combos;
+      matchalgo.findCombos( hits[0], hits[1], hits[2], _config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), matched_combos );
+      
+      // mark up image
+      for ( int pt=0; pt<(int)matched_combos.size(); pt++ ) {
+	const std::vector<BoundaryCombo>& combos = matched_combos.at(pt);
+	//std::cout << "combos: type=" << pt << " number=" << combos.size() << std::endl;
+	for ( auto &combo : combos ) {
+	  int ucol = combo.u/dsfactor;
+	  int vcol = combo.v/dsfactor;
+	  int ycol = combo.y/dsfactor;
+	  //matchedpixels.at(b).
+	}
+      }
+
     }//end of row loop
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "boundary pixel search took " << elapsed_secs << " secs" << std::endl;
@@ -462,6 +514,15 @@ namespace larlitecv {
 	t_ave /= qtot;
 	w_ave /= qtot;
 
+	/*
+	// find the hit closest to this position
+	for (int ichit=0; ichit<clout.clusters.at(ic).size(); ichit++) {
+	  int hitidx = clout.clusters.at(ic).at(ichit);
+	  int c_ = (int)hits.at(hitidx).at(0)+0.1;
+          int r_ = (int)hits.at(hitidx).at(1)+0.1;
+	}
+	*/
+	
 	// now we have to figure out what wire this is!
 	int y_wid = -1;
 	int u_wid = -1;
@@ -491,6 +552,7 @@ namespace larlitecv {
 	  u_wid = (117.23-y)/0.346413 + 1728;
 	  v_wid = (y - (-115.29))/0.346413 + 1728;
 	}
+	
 	
 	// make boundary points
 	std::vector< BoundaryEndPt > endpt_v;
