@@ -53,8 +53,8 @@ namespace larlitecv {
     
     std::map< AStarNode, AStarNode, node_pos_compare > camefrom;
 
-    std::cout << "start astar algo." << std::endl;
-    std::cout << " in window coordinates (c,r): start(" << start.col << "," << start.row << ") -> (" << goal.col << "," << goal.row << ")" << std::endl;
+    //std::cout << "start astar algo." << std::endl;
+    //std::cout << " in window coordinates (c,r): start(" << start.col << "," << start.row << ") -> (" << goal.col << "," << goal.row << ")" << std::endl;
     int neighborhood_size = _config.astar_neighborhood.at(meta.plane());
     int nsteps = -1;
     while ( openset.nentries()>0 ) {
@@ -180,7 +180,7 @@ namespace larlitecv {
 		break;
 	      cnext += stepdir;
 	    }
-	    
+
 	    if ( cnext+min_c<0 || cnext+min_c>=meta.cols() ) {
 	      continue;
 	    }
@@ -195,52 +195,55 @@ namespace larlitecv {
 	    else
 	      already_jumped_gap_backward = true;
 
-	    // we load in neighbors along the jumping col
-	    for (int jrow=0; jrow<win_r; jrow++ ) {
-	      if ( img.pixel( jrow+min_r, cnext+min_c )>_config.astar_threshold.at((int)meta.plane()) ) {
-		AStarNode jneighbor( cnext, jrow );
+	    // we load in neighbors along the jumping col (and one more in case of bad wires)
+	    for (int ic=0; ic<2; ic++) {
+	      cnext += ic*stepdir;
+	      for (int jrow=0; jrow<win_r; jrow++ ) {
+		if ( img.pixel( jrow+min_r, cnext+min_c )>_config.astar_threshold.at((int)meta.plane()) ) {
+		  AStarNode jneighbor( cnext, jrow );
 
-		if ( closedset.contains(jneighbor) ) continue; // already searched through here
+		  if ( closedset.contains(jneighbor) ) continue; // already searched through here
 
-		float dw = (jneighbor.col-current.col)*pixel_w;
-		float dh = (jneighbor.row-current.row)*pixel_h;
-		float tentative_gscore = current.gscore + sqrt( dw*dw + dh*dh );
-		float goaldist = 0.;
-		//goaldist += pixel_h*pixel_h*(jneighbor.row - goal_row)*(jneighbor.row - goal_row);
-		//goaldist += pixel_w*pixel_w*(jneighbor.col - goal_col)*(jneighbor.col - goal_col);
-		goaldist += pixel_h*pixel_h*(jneighbor.row - goal.row)*(jneighbor.row - goal.row);
-		goaldist += pixel_w*pixel_w*(jneighbor.col - goal.col)*(jneighbor.col - goal.col);
-		goaldist = sqrt(goaldist);
-		float fscore = tentative_gscore + goaldist;
-		jneighbor.gscore = tentative_gscore;
-		jneighbor.fscore = fscore;
+		  float dw = (jneighbor.col-current.col)*pixel_w;
+		  float dh = (jneighbor.row-current.row)*pixel_h;
+		  float tentative_gscore = current.gscore + sqrt( dw*dw + dh*dh );
+		  float goaldist = 0.;
+		  //goaldist += pixel_h*pixel_h*(jneighbor.row - goal_row)*(jneighbor.row - goal_row);
+		  //goaldist += pixel_w*pixel_w*(jneighbor.col - goal_col)*(jneighbor.col - goal_col);
+		  goaldist += pixel_h*pixel_h*(jneighbor.row - goal.row)*(jneighbor.row - goal.row);
+		  goaldist += pixel_w*pixel_w*(jneighbor.col - goal.col)*(jneighbor.col - goal.col);
+		  goaldist = sqrt(goaldist);
+		  float fscore = tentative_gscore + goaldist;
+		  jneighbor.gscore = tentative_gscore;
+		  jneighbor.fscore = fscore;
 		
-		if ( !openset.contains(jneighbor) ) {
-		  // not in the openset, add the neighbor
-		  openset.add( jneighbor );
-		  //if ( verbose==0 || (verbose==1 && nsteps%100==0) )
-		  //std::cout << "adding jump-gap neighbor(" << jneighbor.col << "," << jneighbor.row << ") f=" << jneighbor.fscore << " h(n)=" << goaldist << std::endl;
-		}
-		else if ( tentative_gscore>=openset.get_gscore(jneighbor) ) {
-		  // else if exists, we check if move to this neighbor from our position is a good move. it's not.
-		  //if ( verbose==0 || (verbose==1 && nsteps%100==0) )
-		  //std::cout << "   jump-gap neighbor not a better path: tentative_gscore=" << tentative_gscore << " neigh=" << openset.get_gscore(jneighbor) << std::endl;
-		  continue;
-		}
+		  if ( !openset.contains(jneighbor) ) {
+		    // not in the openset, add the neighbor
+		    openset.add( jneighbor );
+		    //if ( verbose==0 || (verbose==1 && nsteps%100==0) )
+		    //std::cout << "adding jump-gap neighbor(" << jneighbor.col << "," << jneighbor.row << ") f=" << jneighbor.fscore << " h(n)=" << goaldist << std::endl;
+		  }
+		  else if ( tentative_gscore>=openset.get_gscore(jneighbor) ) {
+		    // else if exists, we check if move to this neighbor from our position is a good move. it's not.
+		    //if ( verbose==0 || (verbose==1 && nsteps%100==0) )
+		    //std::cout << "   jump-gap neighbor not a better path: tentative_gscore=" << tentative_gscore << " neigh=" << openset.get_gscore(jneighbor) << std::endl;
+		    continue;
+		  }
 		
-		// path to jneighbor is best until now
-		camefrom[jneighbor] = current;
-// 		if ( verbose==0 || (verbose==1 && nsteps%100==0) ) {
-// 		  std::cout << "jumping gap to jneighbor(" << jneighbor.col << "," << jneighbor.row << ") f=" << jneighbor.fscore << " to path: " << std::endl;
-// 		  auto itcurrent = camefrom.find( jneighbor );
-// 		  if ( itcurrent!=camefrom.end() ) {
-// 		    AStarNode prevnode( 0, 0 );
-// 		    prevnode = itcurrent->second;
-// 		    //std::cout << "  from (" << prevnode.col << ", " << prevnode.row << ")" << std::endl;
-// 		  }
-// 		}
-	      }//end of if gap crossing pixel is above threshold
-	    }// end of loop over jumping positions
+		  // path to jneighbor is best until now
+		  camefrom[jneighbor] = current;
+		  // 		if ( verbose==0 || (verbose==1 && nsteps%100==0) ) {
+		  // 		  std::cout << "jumping gap to jneighbor(" << jneighbor.col << "," << jneighbor.row << ") f=" << jneighbor.fscore << " to path: " << std::endl;
+		  // 		  auto itcurrent = camefrom.find( jneighbor );
+		  // 		  if ( itcurrent!=camefrom.end() ) {
+		  // 		    AStarNode prevnode( 0, 0 );
+		  // 		    prevnode = itcurrent->second;
+		  // 		    //std::cout << "  from (" << prevnode.col << ", " << prevnode.row << ")" << std::endl;
+		  // 		  }
+		  // 		}
+		}//end of if gap crossing pixel is above threshold
+	      }// end of loop over jumping rows
+	    }//end of loop over jumping columns
 	    //std::cin.get();
 	  }//end of if a bad channel
 	}//end of dc loop

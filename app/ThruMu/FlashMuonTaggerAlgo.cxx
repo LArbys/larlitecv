@@ -143,10 +143,11 @@ namespace larlitecv {
   
   bool FlashMuonTaggerAlgo::flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const std::vector<larcv::Image2D>& tpc_imgs,
 						 std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs ) {
-
+    // output
+    // ------
+    //  trackendpts: list of vector of end pts. each (inner vector) is point on each plane.
     const int nplanes = tpc_imgs.size();
     trackendpts.clear();
-    trackendpts.resize(nplanes);
     
     if ( nplanes==0 )
       return false;
@@ -387,6 +388,7 @@ namespace larlitecv {
 		    << " endpt=(" << endptidx[0] << "," << endptidx[1] << "," << endptidx[2] << ") "
 		    << " vertex (z,y)=(" << vertex3plane.at(idx).at(0) << ", " << vertex3plane.at(idx).at(1) << ")"
 		    << "score=" << areas3plane.at(idx) << std::endl;
+	  std::vector< BoundaryEndPt > endpt_v;
 	  for (int ip=0; ip<nplanes; ip++) {
 	    int eidx = endptidx.at(ip); // end point index
 	    larlitecv::BoundaryEndPt endpt = endpts[ip]->at(eidx);
@@ -396,10 +398,10 @@ namespace larlitecv {
 	      endpt.type = larlitecv::BoundaryEndPt::kCathode;
 	    else if ( fSearchMode==kOutOfImage ) // makes no sense here
 	      endpt.type = larlitecv::BoundaryEndPt::kImageEnd;
-	    trackendpts.at( ip ).emplace_back( endpt );
-	  }
+	    endpt_v.emplace_back( std::move( endpt ) );
+	  }//end of loop over planes
+	  trackendpts.emplace_back( std::move( endpt_v ) );
 	}
-
       }//end of opflashes loop
     }//end of opflashsets    
     return true;

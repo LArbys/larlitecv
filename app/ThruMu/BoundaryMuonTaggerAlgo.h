@@ -65,13 +65,17 @@ namespace larlitecv {
     int searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, // original image
 				   const std::vector< larcv::Image2D >& badchs, // image with bad channels marked
 				   std::vector< std::vector<BoundaryEndPt> >& end_points, ///list of end point triples
-				   std::vector< larcv::Image2D >& boundarypixelimgs ); // pixels consistent with boundary hits
+				   std::vector< larcv::Image2D >& boundarypixelimgs, // pixels consistent with boundary hits
+				   std::vector< larcv::Image2D >& boundaryspaceptsimgs ); // points in real-space consistent with boundary hits
     int makePlaneTrackCluster( const larcv::Image2D& img, const larcv::Image2D& badchimg,
 			       const std::vector< BoundaryEndPt >& top, const std::vector< BoundaryEndPt >& bot,
 			       const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
 			       const std::vector< BoundaryEndPt >& anode, const std::vector< BoundaryEndPt >& cathode,
 			       const std::vector< BoundaryEndPt >& imgends,
 			       std::vector< larlitecv::BMTrackCluster2D >& trackclusters );
+    int makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
+			     const std::vector< const std::vector< BoundaryEndPt >* >& spacepts,
+			     std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters );
     int markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters,
 				    std::vector<larcv::Image2D>& markedimgs );
     void matchTracksStage1( const std::vector< larcv::Image2D >& imgs, const std::vector< std::vector< larlitecv::BMTrackCluster2D >* >& plane2dtracks, 
@@ -82,6 +86,12 @@ namespace larlitecv {
 			       int start_pad, int end_pad, int verbose=2, bool use_badchs=false );
     std::vector<BMTrackCluster2D> runAstar3planes( const std::vector< BoundaryEndPt >& start_pts, const std::vector< BoundaryEndPt >& end_pts,
 						   const std::vector< larcv::Image2D >& img, int start_pad, int end_pad );
+    bool passTrackTest( const std::vector<BoundaryEndPt>& start_v, const std::vector<BoundaryEndPt>& end_v,
+			const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v );
+    void calcTrackTest( const BoundaryEndPt& start, const BoundaryEndPt& end, 
+			const larcv::Image2D& img,  const larcv::Image2D& badchimg, 
+			float angle, float pix_thresh, int time_win, int wire_win,
+			std::vector<float>& q_in_angle, std::vector<int>& pixels_in_angle, std::vector<int>& badpixs_in_angle );
 			
 
     // Wire Geometry info
@@ -97,7 +107,8 @@ namespace larlitecv {
 
     BoundaryMatchAlgo matchalgo;
     
-    void getClusterEdges( const dbscan::dbPoints& points, const dbscan::dbscanOutput& clout, int idx_cluster,
+    void getClusterEdges( const dbscan::dbPoints& points, const std::vector< std::vector<int> >& combo_cols, const std::vector< larcv::Image2D >& imgs, 
+			  const dbscan::dbscanOutput& clout, int idx_cluster,
 			  int& idxhit_tmin, int& idxhit_tmax, int& idxhit_wmin, int& idxhit_wmax );
 
   };
