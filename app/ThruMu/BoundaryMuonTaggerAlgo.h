@@ -4,10 +4,11 @@
 #include <vector>
 #include <string>
 
+// larcv
 #include "DataFormat/Image2D.h"
 #include "DataFormat/ImageMeta.h"
 #include "DataFormat/Pixel2DCluster.h"
-
+#include "dbscan/DBSCANAlgo.h"
 #include "UBWireTool/WireData.h"
 
 #include "BoundaryMatchArrays.h"
@@ -69,6 +70,7 @@ namespace larlitecv {
 			       std::vector< std::vector<BoundaryEndPt> >& end_points ); // clustered end points on each plane
     int searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, // original image
 				   const std::vector< larcv::Image2D >& badchs, // image with bad channels marked
+				   std::vector< std::vector<BoundaryEndPt> >& end_points, ///list of end point triples
 				   std::vector< larcv::Image2D >& boundarypixelimgs ); // pixels consistent with boundary hits
     int clusterBoundaryPixels3D( const std::vector< larcv::Image2D >& matchedpixels, // pixels consistent with boundary hits
 				 std::vector< std::vector<BoundaryEndPt> >& end_points ); // list of end point triples
@@ -102,6 +104,9 @@ namespace larlitecv {
     ConfigBoundaryMuonTaggerAlgo _config;
 
     BoundaryMatchAlgo matchalgo;
+    
+    void getClusterEdges( const dbscan::dbPoints& points, const dbscan::dbscanOutput& clout, int idx_cluster,
+			  int& idxhit_tmin, int& idxhit_tmax, int& idxhit_wmin, int& idxhit_wmax );
 
   };
 

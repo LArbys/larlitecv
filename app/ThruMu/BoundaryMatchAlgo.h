@@ -19,28 +19,32 @@ namespace larlitecv {
   class BoundaryCombo {
   public:
     
-    BoundaryCombo() { u=0; v=0; y=0; pos.resize(3,0); };
+    BoundaryCombo() { planewire.resize(3,0); pos.resize(3,0); };
     BoundaryCombo( unsigned short _uwire, unsigned short _vwire, unsigned short _ywire ) {
-      u = _uwire;
-      v = _vwire;
-      y = _ywire;
+      planewire.resize(3,0);
+      planewire[0] = _uwire;
+      planewire[1] = _vwire;
+      planewire[2] = _ywire;
       pos.resize(3,0);
     };
     virtual ~BoundaryCombo() {};
+    
+    unsigned short u() const { return planewire[0]; };
+    unsigned short v() const { return planewire[1]; };
+    unsigned short y() const { return planewire[2]; };
+    
     bool operator<( const BoundaryCombo& rhs ) const {
-      if ( u<rhs.u ) return true;
-      if ( u==rhs.u && v<rhs.v ) return true;
-      if ( u==rhs.u && v==rhs.v && y<rhs.y ) return true;
+      if ( u()<rhs.u() ) return true;
+      if ( u()==rhs.u() && v()<rhs.v() ) return true;
+      if ( u()==rhs.u() && v()==rhs.v() && y()<rhs.y() ) return true;
       return false;
     };
     
-    unsigned short u;
-    unsigned short v;
-    unsigned short y;
+    std::vector<unsigned short> planewire;
     std::vector<float> pos;
 
   };
-
+  
   class BoundaryMatchList {
     
   public:

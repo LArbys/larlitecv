@@ -7,7 +7,6 @@
 #include <ctime>
 
 // larcv
-#include "dbscan/DBSCANAlgo.h"
 #include "UBWireTool/UBWireTool.h"
 
 #include "AStarGridAlgo.h"
@@ -32,6 +31,7 @@ namespace larlitecv {
 
   int BoundaryMuonTaggerAlgo::searchforboundarypixels( const std::vector< larcv::Image2D >& imgs, const std::vector< larcv::Image2D >& badchs, 
 						       std::vector< larcv::Image2D >& matchedpixels ) {
+    // [ DEPRECATED ]
     // this checks for pixels consistent with boundary crossings at the top/bottom/upstream/downstream portions of the TPC
     // returns an image that marks the location of such pixels
     // the vector returned has N*4 elements from N planes x 4 crossing types
@@ -148,6 +148,7 @@ namespace larlitecv {
 
   int BoundaryMuonTaggerAlgo::searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, 
 							 const std::vector< larcv::Image2D >& badchs,
+							 std::vector< std::vector<BoundaryEndPt> >& end_points,
 							 std::vector< larcv::Image2D >& matchedpixels ) {
     // this checks for pixels consistent with boundary crossings at the top/bottom/upstream/downstream portions of the TPC
     // returns an image that marks the location of such pixels
@@ -157,7 +158,7 @@ namespace larlitecv {
     //  upstream/downstream: wire-axis -> y-axis
 
     int ncrossings = 4;
-    int nplanes = imgs.size();
+    //int nplanes = imgs.size();
 
     if ( !_config.checkOK() )  {
       std::cout << "[BOUNDARY MUON TAGGER ALGO ERROR] Not configured." << std::endl;
@@ -201,119 +202,17 @@ namespace larlitecv {
       hits[p].resize( meta.cols() );
     }
 
+    // storage for boundary combinations we'll cluster
+    dbscan::dbPoints combo_points[4];
+    std::vector< std::vector<int> > combo_cols[4];
+
+    // misc. trackers
     float tot_hit_collecting = 0;
+    int total_combos = 0;
     
-    // now loop over over the time of the images (560 good test case)
+    // now loop over over the time of the images
     for (int r=0; r<meta.rows(); r++) {
 
-      /*
-      // loop through combinations (dumb)
-      // loop through boundary type
-      for (int b=0; b<4; b++) {
-	for (int imatch=0; imatch<m_matches.nmatches( (larlitecv::BoundaryMatchArrays::Boundary_t)b ); imatch++) {
-	  
-	  int triple[3];
-	  m_matches.getMatch( (larlitecv::BoundaryMatchArrays::Boundary_t)b, imatch, triple[0], triple[1], triple[2] );
-
-	  // now we have a match combo
-	  // look if the image has charge above some threshold, within some neighborhood
-	  
-	  bool hascharge[3] = { false, false, false };
-	  bool has_badch[3] = { false, false, false };
-	  int nbadch_regions = 0;
-	  int maxwid[3] = {-1,-1,-1};
-	  float maxamp[3] = {-1.0,-1.0,-1.0};
-
-	  for (int p=0; p<3; p++) {
-	    const larcv::Image2D& img = imgs.at(p);
-	    const larcv::Image2D& badchimg = badchs.at(p);
-	    int col = triple[p]/dsfactor;
-	    for (int n=-_config.neighborhoods.at(p); n<=_config.neighborhoods.at(p); n++) {
-	      if (col + n <0 || col + n>=meta.cols() )  continue; // skip out of bound columns
-	      float val = img.pixel( r, col + n );
-	      if ( val > _config.thresholds.at(p) ) {
-		hascharge[p] = true;
-		abovethresh[p][n+_config.neighborhoods.at(p)] = col+n;
-		// keep max wire and value inside neighborhood
-		if ( val>maxamp[p] ) {
-		  maxamp[p] = val;
-		  maxwid[p] = col+n;
-		}
-	      }
-	      else if ( badchimg.pixel( r, col )>0 ) {
-		has_badch[p] = true;
-		abovethresh[p][n+_config.neighborhoods.at(p)] = col+n;
-	      }
-	      else {
-		abovethresh[p][n+_config.neighborhoods.at(p)] = 0;
-	      }
-	    }
-	    // small optimization, if we see that one plane does not have charge, the match will fail. move on.
-	    if ( !hascharge[p] ) break;
-	  }
-
-	  // count number of regions with bad regions
-	  for (int p=0; p<3; p++) {
-	    if ( has_badch[p] )
-	      nbadch_regions++;
-	  }
-	  
-	  // our match test: neighborhood has charge or is bad channel region
-	  // we can only have 1 plane that has a bad channel region
-	  if ( ( hascharge[0] || has_badch[0] )
-	       && ( hascharge[1] || has_badch[1] ) 
-	       && ( hascharge[2] || has_badch[2] ) 
-	       && nbadch_regions<2 ) {
-
-	    // match!  we write the match to the output
-	    for (int p=0; p<nplanes; p++) {
-	      const larcv::WireData& data = larcv::UBWireTool::getWireData( p );
-	      if ( ( b==upstream || b==downstream) && p==2 )
-		continue; // no useful info here
-
-	      for ( int ipixel=0; ipixel<(int)abovethresh[p].size(); ipixel++) {
-		int pixcol = abovethresh[p].at(ipixel);
-		int wid = (int)pixcol*meta.pixel_width();
-		const std::vector<float>& start = data.wireStart.find(wid)->second;
-		const std::vector<float>& end   = data.wireEnd.find(wid)->second;
-
-		if ( b==top ) {
-		  // we are filling out the z-position here
-		  // resolution is now to 1 cm level..., waste of resolution
-		  float prev_val = matchedpixels.at( b ).pixel( r, (int)end[2] );
-		  matchedpixels.at( b ).set_pixel( r, int(end[2]), prev_val+50.0 );
-		}
-		else if ( b==bot ) {
-		  // fill z
-		  float prev_val = matchedpixels.at( b ).pixel( r, (int)start[2] );
-		  matchedpixels.at( b ).set_pixel( r, int(start[2]), prev_val+50.0 );
-		}
-		else if ( b==upstream && p<2) {
-		  // fill y
-		  float y = start[1];
-		  if ( p==1 )
-		    y = end[1];
-		  float prev_val = matchedpixels.at( b ).pixel( r, (int)(y+116.0) );
-		  matchedpixels.at( b ).set_pixel( r, int(y + 116.0), prev_val+50.0 );
-		}
-		else if ( b==downstream && p<2 ) {
-		  // fill y
-		  float y = end[1];
-		  if ( p==1 )
-		    y = start[1];
-		  float prev_val = matchedpixels.at( b ).pixel( r, (int)(y+116.0) );
-		  matchedpixels.at( b ).set_pixel( r, int(y + 116.0), prev_val+50.0 );
-		}
-	      }//end of pixel loop
-	    }//end number of planes
-	  }//if match
-	}//end of match loop
-
-		
-      }//end of boundary loop
-      */
-
-      
       // Find boundary combos using search algo
       //std::vector< int > hits[3];
       const clock_t begin_hit_collecting = clock();
@@ -321,14 +220,13 @@ namespace larlitecv {
       for (int p=0; p<3; p++) {
 	memset( hits[p].data(), 0, sizeof(int)*hits[p].size() );
 	const larcv::Image2D& img = imgs.at(p);                                                                                                                                
-	const larcv::Image2D& badchimg = badchs.at(p);
+	//const larcv::Image2D& badchimg = badchs.at(p);
 	for (int c=0; c<meta.cols(); c++) {
 	  int wid = dsfactor*c;
 	  float val = img.pixel( r, c );
 	  int lastcol = -1;
 	  if ( val > _config.thresholds.at(p) ) {
 	    for (int n=-_config.neighborhoods[p]; n<=_config.neighborhoods[p]; n++) {
-	    //for (int n=0; n<1; n++) {
 	      if ( wid+n>=hits[p].size() ) continue;
 	      if ( wid+n<0 ) continue;
 	      hits[p][wid+n] = 1;
@@ -357,37 +255,124 @@ namespace larlitecv {
       for ( int pt=0; pt<(int)matched_combos.size(); pt++ ) {
 	const std::vector<BoundaryCombo>& combos = matched_combos.at(pt);
 	//std::cout << "  combos: type=" << pt << " number=" << combos.size() << std::endl;
+	int idx_combo = -1;
 	for ( auto &combo : combos ) {
-	  int wirecols[3] = { combo.u/dsfactor, combo.v/dsfactor, combo.y/dsfactor };
+	  idx_combo++; // we index the vector combos, so others can refer to it
+	  int wirecols[3] = { combo.u()/dsfactor, combo.v()/dsfactor, combo.y()/dsfactor };
 	  int nbadchs = 0;
 	  for ( int p=0; p<3; p++) {
 	    if ( badchs.at(p).pixel(r,wirecols[p])>0 ) 
 	      nbadchs++;
 	  }
-	  if (nbadchs>=2)
+	  if (nbadchs>=2) {
 	    continue; // combo due two badchs
+	  }
 
 	  // otherwise set match
-	  for (int p=0; p<3; p++) {
-	    // get pos
-	    int c = 0;
-	    if ( pt==0 || pt==1 ) {
-	      // top and bottom use the z value
-	      c = (int)combo.pos[2];
-	    }
-	    else {
-	      // up stream and downstream use the y value
-	      c = (int)combo.pos[1]+116.0;
-	    }
-	    float prev_val = matchedpixels.at( pt ).pixel( r, c );
-	    matchedpixels.at(pt).set_pixel( r, c, prev_val+50.0 );
+
+	  // get pos
+	  float x = 0;
+	  if ( pt==0 || pt==1 ) {
+	    // top and bottom use the z value
+	    x = combo.pos[2];
 	  }
-	}
-      }
+	  else {
+	    // up stream and downstream use the y value
+	    x = combo.pos[1]+116.0;
+	  }
+	  int x_i = (int)x;
+
+	  // get total charge
+	  float charge = 0.0;
+	  for (int p=0; p<3; p++) {
+	    charge += imgs.at(p).pixel( r, wirecols[p] );
+	  }
+	  charge /= float( 3.0-nbadchs );
+	  if ( charge>_config.thresholds.at(0) ) {
+	    float prev_val = matchedpixels.at( pt ).pixel( r, x_i );
+	    matchedpixels.at(pt).set_pixel( r, x_i, prev_val+charge );
+	    // save (x,y) point for clustering
+	    std::vector<double> pt_combo(2,0.0); // this is (z,y)
+	    pt_combo[0] = x;
+	    pt_combo[1] = r;
+	    combo_points[pt].emplace_back( std::move(pt_combo) );
+	    // save (u,v,y) column
+	    std::vector<int> combo_col(3);
+	    for (int p=0; p<3; p++) combo_col[p] = wirecols[p];
+	    combo_cols[pt].emplace_back( combo_col );
+	    total_combos++;
+	  }//if passes charge threshold
+	}//end of loop over combos
+      }//end of end point types
     }//end of row loop
+    
+    // cluster each boundary type
+    clock_t begin_clustering = clock();
+    for (int pt=0; pt<4; pt++) {
+      
+      dbscan::DBSCANAlgo dbalgo;
+      dbscan::dbscanOutput clout = dbalgo.scan( combo_points[pt], _config.boundary_cluster_minpixels.at(0), _config.boundary_cluster_radius.at(0), false, 0.0 );
+      
+      for (int ic=0; ic<clout.clusters.size(); ic++) {
+	if ( clout.clusters.at(ic).size() > 2 ) {
+	  int idxhit_tmin, idxhit_tmax, idxhit_wmin, idxhit_wmax;
+	  getClusterEdges( combo_points[pt], clout, ic, idxhit_tmin, idxhit_tmax, idxhit_wmin, idxhit_wmax );
+
+	  // determine which is the end point by looking which point has the biggest charge asymmetry
+	  float tmin_qwin[2] = {0., 0.};
+	  float tmax_qwin[2] = {0., 0.};
+	  float wmin_qwin[2] = {0., 0.}; // ignore for now
+	  float wmax_qwin[2] = {0., 0.}; // ignore for now
+	  
+	  // tmin
+	  for (int dtime=-_config.edge_win_times.at(pt); dtime<_config.edge_win_times.at(pt); dtime++) {
+	    int tmin_t = (int)combo_points[pt].at(idxhit_tmin)[1] + dtime;
+	    int tmax_t = (int)combo_points[pt].at(idxhit_tmin)[1] + dtime;
+	    for (int dwire=-_config.edge_win_wires.at(pt); dwire<_config.edge_win_wires.at(pt); dwire++) {
+	      for (int p=0; p<3; p++) {
+		int tmin_w = combo_cols[pt].at(idxhit_tmin).at(p);
+		if ( tmin_t>=0 && tmin_t<meta.rows() && tmin_w>=0 && tmin_w<meta.cols() ) {
+		  if ( dtime<0 )
+		    tmin_qwin[0] += imgs.at(p).pixel( tmin_t, tmin_w );
+		  else
+		    tmin_qwin[1] += imgs.at(p).pixel( tmin_t, tmin_w );
+		}
+
+		int tmax_w = combo_cols[pt].at(idxhit_tmax).at(p);
+		if ( tmax_t>=0 && tmax_t<meta.rows() && tmax_w>=0 && tmax_w<meta.cols() ) {
+		  if ( dtime<0 )
+		    tmax_qwin[0] += imgs.at(p).pixel( tmax_t, tmax_w );
+		  else
+		    tmax_qwin[1] += imgs.at(p).pixel( tmax_t, tmax_w );
+		}
+	      }//end of loop over planes
+	    }//end of loop over dwire
+	  }//end of loop for dtime
+	  
+	  int fill_idx = idxhit_tmin;
+	  if ( fabs( tmin_qwin[0]-tmin_qwin[1] ) > fabs( tmax_qwin[0]-tmax_qwin[1] ) )
+	    fill_idx = idxhit_tmax;
+
+	  // now create a vector of BoundaryEndpts, one element for each plane
+	  std::vector< BoundaryEndPt > endpt_v;
+	  int row = (int)combo_points[pt].at(fill_idx)[1];
+	  for (int p=0; p<3; p++) {
+	    BoundaryEndPt endpt( row, combo_cols[pt].at(fill_idx).at(p), (BoundaryEndPt::BoundaryEnd_t)pt );
+	    endpt_v.emplace_back( std::move(endpt) );
+	  }
+	  // store it
+	  end_points.emplace_back( endpt_v );
+	  
+	}//end of if cluster size is large enough
+      }//end of cluster loop
+    }//end of boundary point type
+    float elapsed_clustering = float( clock()-begin_clustering )/CLOCKS_PER_SEC;
+
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "boundary pixel search took " << elapsed_secs << " secs" << std::endl;
     std::cout << "  hit collecting time: " << tot_hit_collecting << " secs" << std::endl;
+    std::cout << "  clustering time: " << elapsed_clustering << " secs" << std::endl;
+    std::cout << "  total number of combos found: " << total_combos << std::endl;
 
     
     return kOK;
@@ -532,7 +517,7 @@ namespace larlitecv {
       dbscan::dbPoints hits;
       for ( int r=0; r<meta.rows(); r++ ) {
 	for (int c=0; c<meta.cols(); c++ ) {
-	  if ( hitimg.pixel( r, c ) > 50.0 ) {
+	  if ( hitimg.pixel( r, c ) > 1.0 ) {
 	    std::vector<double> pt(2,0.0);
 	    pt.at(0) = c; // x
 	    pt.at(1) = r; // y
@@ -545,7 +530,7 @@ namespace larlitecv {
       
       // we cluster our hits
       dbscan::DBSCANAlgo dbalgo;
-      dbscan::dbscanOutput clout = dbalgo.scan( hits, 5, 6, false, 0.0 );
+      dbscan::dbscanOutput clout = dbalgo.scan( hits, _config.boundary_cluster_minpixels.at(0), _config.boundary_cluster_radius.at(0), false, 0.0 );
       
       // now we get our points. we find the weighted mean
       for (int ic=0; ic<clout.clusters.size(); ic++) {
@@ -989,6 +974,45 @@ namespace larlitecv {
     
   }
 
+  void BoundaryMuonTaggerAlgo::getClusterEdges( const dbscan::dbPoints& points, const dbscan::dbscanOutput& clout, int idx_cluster,
+						int& idxhit_tmin, int& idxhit_tmax, int& idxhit_wmin, int& idxhit_wmax ) {
+    idxhit_tmin = -1;
+    idxhit_tmax = -1;
+    idxhit_wmin = -1;
+    idxhit_wmax = -1;
 
+    double hit_tmin[2];
+    double hit_tmax[2];
+    double hit_wmin[2];
+    double hit_wmax[2];
+		      
+    // we find the extrema hits in a cluster
+    for (int ichit=0; ichit<(int)clout.clusters.at(idx_cluster).size(); ichit++) {
+      int hitidx = clout.clusters.at(idx_cluster).at(ichit);
+      const std::vector<double>& hit = points.at(hitidx);
+      // tmin hit
+      if ( idxhit_tmin==-1 || hit[1]<hit_tmin[1] ) {
+	idxhit_tmin = hitidx;
+	hit_tmin[0] = hit[0];
+	hit_tmin[1] = hit[1];
+      }
+      // tmax hit
+      if ( idxhit_tmax==-1 || hit[1]>hit_tmax[1] ) {
+	idxhit_tmax = hitidx;
+	hit_tmax[0] = hit[0];
+	hit_tmax[1] = hit[1];
+      }
+      // wmin hit
+      if ( idxhit_wmin==-1 || hit[0]<hit_wmin[0] ) {
+	hit_wmin[0] = hit[0];
+	hit_wmin[1] = hit[1];
+      }
+      //  wmax hit
+      if ( idxhit_wmax==-1 || hit[0]>hit_wmin[0] ) {
+	hit_wmax[0] = hit[0];
+	hit_wmax[1] = hit[1];
+      }
+    }//end of loop over hit indices of cluster
+  }//end of getClusterEdges
   
 }
