@@ -117,7 +117,7 @@ int main( int nargs, char** argv ) {
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  int nentries = 1;
+  int nentries = 10;
   
   for (int ientry=0; ientry<nentries; ientry++) {
     
@@ -190,6 +190,7 @@ int main( int nargs, char** argv ) {
     }
 
     // here we take those images and do some clustering.
+    ann::ANNAlgo::cleanup();
 
     // ------------------------------------------------------------------------------------------//
     // FLASH TAGGER //

@@ -6,6 +6,9 @@
 #include <assert.h>
 #include <ctime>
 
+// larlite
+#include "LArUtil/Geometry.h"
+
 // larcv
 #include "UBWireTool/UBWireTool.h"
 
@@ -199,7 +202,8 @@ namespace larlitecv {
 	    // save (x,y) point for clustering
 	    std::vector<double> pt_combo(2,0.0); // this is (z,y)
 	    pt_combo[0] = x;
-	    pt_combo[1] = r + 0.1*float(idx_combo%10);
+	    //pt_combo[1] = r + 0.1*float(idx_combo%10);
+	    pt_combo[1] = r + 0.1*rand.Uniform(); // prevents exact sample point from messing up tree
 	    combo_points[pt].emplace_back( std::move(pt_combo) );
 	    // save (u,v,y) column
 	    std::vector<int> combo_col(3);
@@ -406,39 +410,6 @@ namespace larlitecv {
 	std::cout << "[ path-finding for endpoints (" << i << "," << j << ") "
 		  << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
 
-	// we modify the image in order to mitigate against space-charge effects
-	/*
-	const std::vector< BoundaryEndPt >* pts[2] = { &pts_a, &pts_b };
-	int pt_idx[2] = { i, j };
-	for (int ipt=0; ipt<2; ipt++) {
-	  if ( modimg.at( pt_idx[ipt] )==1 ) continue; // don't remod for this point
-	  modimg.at( pt_idx[ipt] ) = 1; // mark that mod made
-	  BoundaryEndPt::BoundaryEnd_t pt_type = (*pts[ipt])[0].type;
-	  if ( pt_type==BoundaryEndPt::kTop ) {
-	    // we add to the right for plane=0, to the left in plane=1
-	    for (int n=-5; n<=50; n++) {
-	      float prev = img_v.at(0).pixel( (*pts[ipt])[0].t, (*pts[ipt])[0].w+n );
-	      img_v.at(0).set_pixel( (*pts[ipt])[0].t, (*pts[ipt])[0].w+n, prev+20.0 );
-	    }
-	    for (int n=5; n>=-50; n-- ) {
-	      float prev = img_v.at(1).pixel( (*pts[ipt])[1].t, (*pts[ipt])[1].w+n );
-	      img_v.at(1).set_pixel( (*pts[ipt])[1].t, (*pts[ipt])[1].w+n, prev+20.0 );
-	    }
-	  }
-	  else if ( pt_type==BoundaryEndPt::kBottom ) {
-	    // we add to the right for plane=0, to the left in plane=1
-	    for (int n=-5; n<=50; n++) {
-	      float prev = img_v.at(1).pixel( (*pts[ipt])[1].t, (*pts[ipt])[1].w+n );
-	      img_v.at(1).set_pixel( (*pts[ipt])[1].t, (*pts[ipt])[1].w+n, prev+20.0 );
-	    }
-	    for (int n=5; n>=-50; n-- ) {
-	      float prev = img_v.at(0).pixel( (*pts[ipt])[0].t, (*pts[ipt])[0].w+n );
-	      img_v.at(0).set_pixel( (*pts[ipt])[0].t, (*pts[ipt])[0].w+n, prev+20.0 );
-	    }
-	  }
-	}//end of loop over pts
-	*/
-
 	for (int p=0; p<3; p++) {
 	  int col_a = pts_a.at(p).w;
 	  int row_a = pts_a.at(p).t;
@@ -567,191 +538,244 @@ namespace larlitecv {
     return track2d;
   }
 
-  std::vector<BMTrackCluster2D> BoundaryMuonTaggerAlgo::runAstar3planes( const std::vector< BoundaryEndPt >& start_pts, const std::vector< BoundaryEndPt >& end_pts,
-									 const std::vector< larcv::Image2D >& img, int start_pad, int end_pad ) {
-    std::vector<BMTrackCluster2D> planetracks;
-    return planetracks;
-  }
+  void BoundaryMuonTaggerAlgo::process2Dtracks( const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
+						const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
+						std::vector< BMTrackCluster3D >& tracks ) {
 
-
-  /*
-  void BoundaryMuonTaggerAlgo::filterShortAndKinkedTracks( int mintracklength, std::vector< larlitecv::BMTrackCluster2D >& tracks, 
-							   std::vector< larlitecv::BMTrackCluster2D >& filtered, bool savefiltered ) {
-    // this removes tracks with large kinks
-    // input:
-    //   mintracklength: filter out tracks shorter than this
-    //   input: a list of bmtrackclusters.  we will remove elements
-    //   output: filtered tracks. will be filled based on 'savefiltered' values
-    //   savefiltered (optional): if true, passes filtered tracks into output container
-
-    std::vector<int> remove_index_list;
-    
-    // loop over input tracks
-    for ( auto &track : tracks ) {
-      continue;
+    std::vector< std::vector<float> > valid_range(3);
+    for (int p=0; p<3; p++) {
+      valid_range[p].resize(2);
+      valid_range[p][0] =   -20.;
+      valid_range[p][1] = 1100.0;
     }
-    
-  }
-  */
-  
-  void BoundaryMuonTaggerAlgo::matchTracksStage1( const std::vector< larcv::Image2D >& imgs,
-						  const std::vector< std::vector< larlitecv::BMTrackCluster2D >* >& plane2dtracks, 
-						  std::vector< larlitecv::BMTrackCluster3D >& output  ) {
-    // we do dumb O(N3) matching search.  
-    // in the future we could structure start and end points into a tree for more efficient search: to make it Nlog(N)
-    // also data products are starting to become heavy, might want to start using storage container and refer to indicices
-    //     we'll see when things start to get bogged down.
 
-    std::set< larlitecv::BMTrackCluster3D > track_set;
+    float trig_tick = 2400;
+    float drift_v   = 0.106865;
 
-    for (int p1=0; p1<1; p1++) {
-      for (int p2=p1+1; p2<2; p2++) {
-	
-	const std::vector< larlitecv::BMTrackCluster2D >& p1tracks = *(plane2dtracks.at(p1));
-	const std::vector< larlitecv::BMTrackCluster2D >& p2tracks = *(plane2dtracks.at(p2));
+    // loop over 
+    for ( auto const& track2d : trackclusters2D ) {
+      
+      // we find path length, number of nodes, path, breakdown for each 2d track
+      // we also look for dumb tracks that have crazy kinks
+      float pathlength[3];
+      std::vector< float > edgelength[3];
+      std::vector< std::vector<float> > edgedir[3];
+      std::vector< std::vector<float> > nodepos[3];
+      bool isgood[3] = { true, true, true };
 
-	for ( int idx1=0; idx1<p1tracks.size(); idx1++) {
-	  const larlitecv::BMTrackCluster2D& track1 = p1tracks.at(idx1);
-	  std::vector< int > match_indices;
-	  std::vector< float > tot_start_diff;
-	  std::vector< float > tot_end_diff;
-	  for ( int idx2=0; idx2<p2tracks.size(); idx2++) {
-	    const larlitecv::BMTrackCluster2D& track2 = p2tracks.at(idx2);
-	    float sdiff,ediff;
-	    bool start2start;
-	    if ( !doTracksMatch( track1, track2, sdiff, ediff, start2start ) ) 
-	      continue; // move on
-	    
-	    // check the third plane. what is it?
-	    int p3 = -1;
-	    if ( p1==0 && p2==1 ) p3 = 2;
-	    else if ( p1==0 && p2==2 ) p3 = 1;
-	    else if ( p1==1 && p2==2 ) p3 = 0;
-	    if ( p3==-1 ) {
-	      std::cout << "[BoundaryMuonTagger::matchTracksStage2] Invalid plane combination." << std::endl;
-	      assert( false );
-	    }
-
-	    // look for third plane match
-	    const std::vector< larlitecv::BMTrackCluster2D >& p3tracks = *(plane2dtracks.at(p3));
-	    for ( int idx3=0; idx3<(int)p3tracks.size(); idx3++ ) {
-	      const larlitecv::BMTrackCluster2D& track3 = p3tracks.at(idx3);
-	      
-	      float p1sdiff, p2sdiff, p1ediff, p2ediff;
-	      bool p1start2start, p2start2start;
-	      
-	      if ( doTracksMatch( track1, track3, p1sdiff, p1ediff, p1start2start ) && doTracksMatch( track2, track3, p2sdiff, p2ediff, p2start2start ) ) {
-		
-		std::cout << " match on planes=(" << p1 << "," << p2 << "," << p3 << ") tracks=(" << idx1 << "," << idx2 << "," << idx3 << ")" << std::endl;
-
-		// wow, made it all this way
-		larlitecv::BMTrackCluster3D track3d;
-		//
-		track3d.trackidx.resize(3);
-		track3d.trackidx.at(0) = idx1;
-		track3d.trackidx.at(1) = idx2;
-		track3d.trackidx.at(2) = idx3;
-
-		// start/end time is average of all three
-		int t_start  = track1.start.t;
-		t_start += ( (start2start) ?   track2.start.t : track2.end.t );
-		t_start += ( (p1start2start) ? track3.start.t : track3.end.t );
-		t_start /= 3;
-
-		int t_end = track1.end.t;
-		t_end += ( (start2start) ?   track2.end.t : track2.start.t );
-		t_end += ( (p1start2start) ? track3.end.t : track3.start.t );
-		t_end /= 3;
-		
-		track3d.row_start = t_start;
-		track3d.row_end   = t_end;
-		track3d.tick_start = imgs.at(0).meta().pos_y( track3d.row_start );
-		track3d.tick_end   = imgs.at(0).meta().pos_y( track3d.row_end );
-		
-		// set type
-		track3d.start_type = track1.start.type;
-		track3d.end_type   = track1.end.type;
-
-		// set start wires
-		track3d.start_wire.resize(3);
-		track3d.start_wire.at(0) = track1.start.w;
-		track3d.start_wire.at(1) = ( (start2start) ?   track2.start.w : track2.end.w );
-		track3d.start_wire.at(2) = ( (p1start2start) ? track3.start.w : track3.end.w );
-
-		// set end wires
-		track3d.end_wire.resize(3);
-		track3d.end_wire.at(0) = track1.end.w;
-		track3d.end_wire.at(1) = ( (start2start) ?   track2.end.w : track2.start.w );
-		track3d.end_wire.at(2) = ( (p1start2start) ? track3.end.w : track3.start.w );
-		
-		// boundary intersection algo
-		larlitecv::BoundaryIntersectionAlgo algo;
-		algo.determine3Dpoint( track3d.start_wire, track3d.start3D, track3d.start_type );
-		algo.determine3Dpoint( track3d.end_wire, track3d.end3D, track3d.end_type );
-		
-		track_set.insert( track3d );
-		output.emplace_back( track3d );
-		
-	      }
-	    }
-	    
-	  }//end of loop over plane 2
+      for (int p=0; p<3; p++) {
+	const BMTrackCluster2D& planetrack = track2d.at(p);
+	pathlength[p] = 0.0;
+	if ( planetrack.pixelpath.size()<2 ) {
+	  isgood[p] = false;
+	  continue; // skip this track
 	}
-      }//end of loop over plane2
-    }//end of loop over plane3
+	for (int i=1; i<(int)planetrack.pixelpath.size(); i++) {
+	  float dx = planetrack.pixelpath.at(i).X()-planetrack.pixelpath.at(i-1).X();
+	  float dy = planetrack.pixelpath.at(i).Y()-planetrack.pixelpath.at(i-1).Y();
+	  float dist = sqrt( dx*dx + dy*dy );
+	  std::vector<float> pos(2,0.0);
+	  pos[0] = planetrack.pixelpath.at(i-1).X();
+	  pos[1] = planetrack.pixelpath.at(i-1).Y();
+	  nodepos[p].emplace_back( std::move(pos) );
+	  std::vector<float> ndir(2,0.0);
+	  ndir[0] = dx/dist;
+	  ndir[1] = dy/dist;
+	  edgedir[p].emplace_back( std::move(ndir) );
+	  edgelength[p].push_back( dist );
+	  pathlength[p] += dist;
+	  if ( i>=2 ) {
+	    float lastcos = edgedir[p].at(i-1)[0]*edgedir[p].at(i-2)[0] + edgedir[p].at(i-1)[1]*edgedir[p].at(i-2)[1];
+	    if ( lastcos<0.70 ) { // around 45 degrees
+	      // kink. probably bad
+	      isgood[p] = false;
+	    }
+	  }
+	}//end of loop over path
+	// add end point
+	std::vector<float> pos(2,0.0);
+	pos[0] = planetrack.pixelpath.back().X();
+	pos[1] = planetrack.pixelpath.back().Y();
+	nodepos[p].emplace_back( std::move(pos) );
+	edgelength[p].push_back(0);
+	edgedir[p].emplace_back( std::vector<float>(2,0.0) );
+      }//end of loop over planes
 
-    std::cout << "Number of tracks in the set: " << track_set.size() << std::endl;
+      int ngood = 0;
+      float longest_pathlength = 0;
+      for (int p=0; p<3; p++) {
+	if ( isgood[p] ) { 
+	  ngood++;
+	  if ( pathlength[p]>longest_pathlength ) {
+	    longest_pathlength = pathlength[p];
+	  }
+	}
+      }
+      
 
+      if ( ngood<2 )
+	continue; // skip this track set
+
+      // make 3d path. we want to take cm steps
+      int nsteps = (int)longest_pathlength;
+      int current_node[3] = { 0, 0, 0 };
+      float node_ds[3] = {0, 0, 0 };
+      BMTrackCluster3D track3d;
+      
+      std::cout << "Track with " << nsteps << " steps" << std::endl;
+      for (int istep=0; istep<nsteps; istep++) {
+	
+	// get wire at this step
+	int imgcol[3] = { -1, -1, -1 };
+	int wireid[3] = { -1, -1, -1 };
+	int pid[3] = { -1, -1, -1 };
+	int ip=0;
+	float avetick = 0.0;
+	for (int p=0; p<3; p++) {
+	  if ( !isgood[p] ) continue;
+	  float imgpos[2] = { 0., 0. };
+	  for (int v=0; v<2; v++) {
+	    imgpos[v] = nodepos[p].at( current_node[p] )[v] + edgedir[p].at( current_node[p] )[v];
+	  }
+	  imgcol[ip] = (int)imgpos[0];
+	  wireid[ip] = (int)imgcol[ip]*img_v.at(p).meta().pixel_width();
+	  pid[ip] = p;
+	  avetick += img_v.at(p).meta().pos_y( (int)imgpos[1] );
+	  ip++;
+	}
+	avetick /= float(ip);
+	
+	// now intersect depending on number of good wires
+	int crosses = 0;
+	std::vector<float> intersection;
+	if ( ngood==2 ) {
+	  crosses = 0;
+	  larcv::UBWireTool::wireIntersection( pid[0], wireid[0], pid[1], wireid[1], intersection, crosses );
+	  if ( pid[0]==0 && pid[1]==1 ) pid[2] = 2;
+	  else if ( pid[0]==0 && pid[1]==2 ) pid[2] = 1;
+	  else if ( pid[0]==1 && pid[1]==2 ) pid[2] = 0;
+	  else if ( pid[0]==1 && pid[1]==0 ) pid[2] = 2;
+	  else if ( pid[0]==2 && pid[1]==0 ) pid[2] = 1;
+	  else if ( pid[0]==2 && pid[1]==1 ) pid[2] = 0;
+	  double worldpos[3] = { 0, (double)intersection[1], (double)intersection[0] };
+	  wireid[2] = larutil::Geometry::GetME()->WireCoordinate( worldpos, pid[2] );
+	  imgcol[2] = wireid[2]/img_v.at(0).meta().pixel_width();
+	}
+	else if ( ngood==3 ) {
+	  std::vector< std::vector<int> > wirelists(3);
+	  for (int p=0; p<3; p++)
+	    wirelists[p].push_back( wireid[p] );
+	  std::vector< std::vector<int> > intersections3plane;
+	  std::vector< std::vector<float> > vertex3plane;
+	  std::vector<float> areas3plane;
+	  std::vector< std::vector<int> > intersections2plane;
+	  std::vector< std::vector<float> > vertex2plane; 
+	  larcv::UBWireTool::findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
+	  if ( vertex3plane.size()>0 ) {
+	    intersection = vertex3plane.at(0);
+	    std::cout << "warning, no intersection for wires (u:";
+	    for (auto wid : wirelists[0] )
+	      std::cout << wid << ",";
+	    std::cout << ") ";
+	    std::cout << " (v:";
+	    for (auto wid : wirelists[1] )
+	      std::cout << wid << ",";
+	    std::cout << ") ";
+	    std::cout << " (y:";
+	    for (auto wid : wirelists[2] )
+	      std::cout << wid << ",";
+	    std::cout << ") ";
+	    std::cout << std::endl;
+	  }
+	}
+
+	std::vector<float> point3d(3,0.0);
+	point3d[0] = (avetick-trig_tick)*0.5*drift_v;
+	if ( intersection.size()>=2 ) {
+	  point3d[1] = intersection[1];
+	  point3d[2] = intersection[0];
+	}
+	
+	// now update path variables
+	for (int p=0; p<3; p++) {
+	  if ( !isgood[p] ) continue;
+	  float stepsize = pathlength[p]/float(nsteps);
+	  float next_ds = node_ds[p]+stepsize;
+	  if ( current_node[p]<edgelength[p].size() ) {
+	    if ( next_ds>edgelength[p].at( current_node[p] ) ) {
+	      node_ds[p] = next_ds-edgelength[p].at( current_node[p] );
+	      current_node[p]++;
+	    }
+	    else {
+	      node_ds[p] = next_ds;
+	    }
+	  }
+	}
+	
+	if ( istep==0 ) {
+	  // if first, log data
+	  track3d.tick_start = avetick;
+	  track3d.row_start  = img_v.at(0).meta().row( track3d.tick_start );
+	  track3d.start_wire.resize(3,0);
+	  track3d.start3D = point3d;
+	  if ( ngood==3 ) {
+	    for (int p=0; p<3; p++) {
+	      track3d.start_wire[p] = wireid[p];
+	    }
+	  }
+	  else if ( ngood==2 ) {
+	    track3d.start_wire[pid[0]] = wireid[0];
+	    track3d.start_wire[pid[1]] = wireid[1];
+	    track3d.start_wire[pid[2]] = wireid[2];
+	  }
+	}
+	else if ( istep+1==nsteps ) {
+	  // set end info
+	  track3d.tick_end = avetick;
+	  track3d.row_end  = img_v.at(0).meta().row( track3d.tick_end );
+	  track3d.end_wire.resize(3,0);
+	  track3d.end3D = point3d;
+	  if ( ngood==3 ) {
+	    for (int p=0; p<3; p++) {
+	      track3d.end_wire[p] = wireid[p];
+	    }
+	  }
+	  else if ( ngood==2 ) {
+	    track3d.end_wire[pid[0]] = wireid[0];
+	    track3d.end_wire[pid[1]] = wireid[1];
+	    track3d.end_wire[pid[2]] = wireid[2];
+	  }
+	}
+	
+	if ( track3d.path3d.size()==0 || track3d.path3d.back()!=point3d ) {
+	  std::cout << "step=" << istep << " node=(" << current_node[0] << "," << current_node[1] << "," << current_node[2] << ") "
+		    << "pos=(" << point3d[0] << "," << point3d[1] << "," << point3d[2] << ") " 
+		    << "(p=" << pid[0] << ", wire=" << wireid[0] << ") + "
+		    << "(p=" << pid[1] << ", wire=" << wireid[1] << ") "
+		    << "(p=" << pid[2] << ", wire=" << wireid[2] << ") "
+		    << "crosses=" << crosses << " (isec=" << intersection.size() << ")" << std::endl;
+	  track3d.path3d.emplace_back( std::move( point3d ) );
+	}
+	
+      }//end of loop over steps
+      
+      
+      // finishing touches:
+      // copy boundaryendpts
+      for (int p=0; p<3; p++) {
+	track3d.start_endpts.push_back( track2d.at(p).start );
+	track3d.end_endpts.push_back( track2d.at(p).end );
+      }
+
+      track3d.start_type = track3d.start_endpts.at(0).type;
+      track3d.end_type = track3d.end_endpts.at(0).type;
+
+      // put away
+      tracks.emplace_back( std::move(track3d) );
+
+    }//end of loop over 2D tracks
   }
-
-
-  bool BoundaryMuonTaggerAlgo::doTracksMatch( const larlitecv::BMTrackCluster2D& track1, const larlitecv::BMTrackCluster2D& track2, 
-					      float& start_t_diff, float& end_t_diff, bool& start2start ) {
-    // inputs:
-    //  track1: a TrackCluster2D
-    //  track2: a TrackCluster2D
-    // outputs:
-    //  start_t_diff: difference in start point times
-    //  end_t_diff: difference in end point times
-    //  start2start: true if start point to start point matches. false if start to end points match.
-
-    // does the first end point match in type?
-    start2start = true; // 0=start; 1=end
-    if ( track1.start.type == track2.start.type )
-      start2start = true;
-    else if ( track1.start.type!=track2.end.type )
-      start2start = false;
-    else
-      return false; // does not match either
-    
-    // check if start_matches in time
-    start_t_diff = 1e9;
-    if ( start2start )
-      start_t_diff = abs( track1.start.t - track2.start.t );	      
-    else if ( start2start==1 )
-      start_t_diff = abs( track1.start.t - track2.end.t );
-    
-    if ( start_t_diff > 10 )
-      return false; // move on to the next one
-    
-    // does the end point match in type and time?
-    end_t_diff = 1e9;
-    bool end_matches_in_type = false;
-    if ( start2start ) {
-      end_t_diff = abs( track1.end.t - track2.end.t );
-      if ( track1.end.type==track2.end.type ) end_matches_in_type = true;
-    }
-    else {
-      end_t_diff = abs( track1.end.t - track2.start.t );
-      if ( track1.end.type==track2.start.type ) end_matches_in_type = true;
-    }
-    
-    if ( end_t_diff > 10 || !end_matches_in_type ) 
-      return false;
-    
-    // profit!!!
-    return true;
-  }
+  
 
   void BoundaryMuonTaggerAlgo::loadGeoInfo() {
 

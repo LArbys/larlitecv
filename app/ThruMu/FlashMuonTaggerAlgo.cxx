@@ -263,13 +263,14 @@ namespace larlitecv {
 	  dbscan::DBSCANAlgo dbalgo;
 	  cluster_info[p] = new dbscan::dbscanOutput;
 	  endpts[p] = new std::vector< BoundaryEndPt >;
+	  endpts[p]->clear();
 	  (*cluster_info[p]) = dbalgo.scan( *(hits[p]), 5, 5.0, false, 0.0 );
 	  for (int ic=0; ic<cluster_info[p]->clusters.size(); ic++) {
 	    BoundaryEndPt endpt;
 	    bool foundend = findClusterEnds( *(cluster_info[p]), *(hits[p]), ic, row_target, p, meta, endpt, markedimgs.at(p) );
 	    if ( foundend ) endpts[p]->emplace_back( endpt );
 	  }
-	  std::cout << "  flashmuontaggeralgo: plane " << p << " clusters: " << cluster_info[p]->clusters.size() << " endpoints=" << endpts[0]->size() << std::endl;
+	  std::cout << "  flashmuontaggeralgo: plane " << p << " clusters: " << cluster_info[p]->clusters.size() << " endpoints=" << endpts[p]->size() << std::endl;
 	}
 
 	// now that we have end points for each cluster, we ID position of charge deposition in (Y,Z) and check if consistent with the flash

@@ -200,12 +200,12 @@ namespace larlitecv {
 	      int cskip = cnext + ic*stepdir;
 	      if ( cskip+min_c<0 || cskip+min_c>=meta.cols() ) continue;
 	      for (int jrow=0; jrow<win_r; jrow++ ) {
-		if ( img.pixel( jrow+min_r, cskip+min_c )>_config.astar_threshold.at((int)meta.plane()) ) {
-		
+		if ( jrow+min_r<meta.rows() && img.pixel( jrow+min_r, cskip+min_c )>_config.astar_threshold.at((int)meta.plane()) ) {
+		  
 		  AStarNode jneighbor( cskip, jrow );
-
+		  
 		  if ( closedset.contains(jneighbor) ) continue; // already searched through here
-
+		  
 		  float dw = (jneighbor.col-current.col)*pixel_w;
 		  float dh = (jneighbor.row-current.row)*pixel_h;
 		  float tentative_gscore = current.gscore + sqrt( dw*dw + dh*dh );
