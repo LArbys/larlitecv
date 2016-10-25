@@ -197,10 +197,12 @@ namespace larlitecv {
 
 	    // we load in neighbors along the jumping col (and one more in case of bad wires)
 	    for (int ic=0; ic<2; ic++) {
-	      cnext += ic*stepdir;
+	      int cskip = cnext + ic*stepdir;
+	      if ( cskip+min_c<0 || cskip+min_c>=meta.cols() ) continue;
 	      for (int jrow=0; jrow<win_r; jrow++ ) {
-		if ( img.pixel( jrow+min_r, cnext+min_c )>_config.astar_threshold.at((int)meta.plane()) ) {
-		  AStarNode jneighbor( cnext, jrow );
+		if ( img.pixel( jrow+min_r, cskip+min_c )>_config.astar_threshold.at((int)meta.plane()) ) {
+		
+		  AStarNode jneighbor( cskip, jrow );
 
 		  if ( closedset.contains(jneighbor) ) continue; // already searched through here
 

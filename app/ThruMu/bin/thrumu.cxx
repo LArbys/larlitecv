@@ -273,40 +273,15 @@ int main( int nargs, char** argv ) {
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > trackclusters;
     std::vector< larlitecv::BMTrackCluster2D > trackcluster;
     sidetagger.makeTrackClusters3D( imgs, badchimgs, all_endpoints, trackclusters );
+    
+    // ------------------------------------------------------------------------------------------//
+    // Filter 2D tracks and form 3D tracks
 
-
+    // ------------------------------------------------------------------------------------------//
     // mark image with pixels around the track
     std::vector< larcv::Image2D > track_marked_imgs;
     //sidetagger.markImageWithTrackClusters( imgs, plane_trackclusters, track_marked_imgs );
-    
-    // ------------------------------------------------------------------------------------------//
-    // STAGE ONE MATCHING
-    //   end point match by type, being fairly conservative, looking across all three planes
-//     std::vector< larlitecv::BMTrackCluster3D > tracks3d;
-//     std::vector< std::vector<larlitecv::BMTrackCluster2D>* > input_tracks2d;
-//     input_tracks2d.push_back( &(plane_trackclusters.at(0)) );
-//     input_tracks2d.push_back( &(plane_trackclusters.at(1)) );
-//     input_tracks2d.push_back( &(plane_trackclusters.at(2)) );
-//     //sidetagger.matchTracksStage1( imgs, input_tracks2d, tracks3d );
-//     std::cout << "Number of matched tracks returned: " << tracks3d.size() << std::endl;
-//     for (int i=0; i<tracks3d.size(); i++) {
-//       const larlitecv::BMTrackCluster3D& track3d = tracks3d.at(i);
-//       std::cout << " [track 3d] (" << track3d.trackidx[0] << "," << track3d.trackidx[1] << "," << track3d.trackidx[2] << ") "
-// 		<< " start=" << track3d.tick_start << " type=" << track3d.start_type << " --> "
-// 		<< " end=" << track3d.tick_end << " type=" << track3d.end_type << std::endl;
-//     }
 
-    // Stage 2 matching
-    //  end point match by type again, but look over two planes, and going into the third to match
-
-    // Stage 3 matching
-    //  maybe it doesn't come to this?  Go into the existing ones and break up tracks at intersections and kinks
-
-    // Stage 4 matching
-    //  despearation
-
-    // Stage 5
-    //  acceptance
 
     // ------------------------------------------------------------------------------------------//
     // SAVE OUTPUT //

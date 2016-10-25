@@ -67,12 +67,6 @@ namespace larlitecv {
 				   std::vector< std::vector<BoundaryEndPt> >& end_points, ///list of end point triples
 				   std::vector< larcv::Image2D >& boundarypixelimgs, // pixels consistent with boundary hits
 				   std::vector< larcv::Image2D >& boundaryspaceptsimgs ); // points in real-space consistent with boundary hits
-    int makePlaneTrackCluster( const larcv::Image2D& img, const larcv::Image2D& badchimg,
-			       const std::vector< BoundaryEndPt >& top, const std::vector< BoundaryEndPt >& bot,
-			       const std::vector< BoundaryEndPt >& upstream, const std::vector< BoundaryEndPt >& downstream,
-			       const std::vector< BoundaryEndPt >& anode, const std::vector< BoundaryEndPt >& cathode,
-			       const std::vector< BoundaryEndPt >& imgends,
-			       std::vector< larlitecv::BMTrackCluster2D >& trackclusters );
     int makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
 			     const std::vector< const std::vector< BoundaryEndPt >* >& spacepts,
 			     std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters );
@@ -107,7 +101,7 @@ namespace larlitecv {
 
     BoundaryMatchAlgo matchalgo;
     
-    void getClusterEdges( const dbscan::dbPoints& points, const std::vector< std::vector<int> >& combo_cols, const std::vector< larcv::Image2D >& imgs, 
+    void getClusterEdges( const dbscan::dbPoints& points, const std::vector< larcv::Image2D >& imgs, 
 			  const dbscan::dbscanOutput& clout, int idx_cluster,
 			  int& idxhit_tmin, int& idxhit_tmax, int& idxhit_wmin, int& idxhit_wmax );
 

@@ -271,7 +271,7 @@ namespace larlitecv {
 	  }
 	  std::cout << "  flashmuontaggeralgo: plane " << p << " clusters: " << cluster_info[p]->clusters.size() << " endpoints=" << endpts[0]->size() << std::endl;
 	}
-	
+
 	// now that we have end points for each cluster, we ID position of charge deposition in (Y,Z) and check if consistent with the flash
 	std::vector< std::vector<int> > wirelists(3);
 	std::vector< std::map<int,int> > wirelist_endpt_idx(3); // map from wid to endpt index
@@ -401,6 +401,14 @@ namespace larlitecv {
 	    endpt_v.emplace_back( std::move( endpt ) );
 	  }//end of loop over planes
 	  trackendpts.emplace_back( std::move( endpt_v ) );
+	}
+	for (int p=0; p<3; p++) {
+	  delete cluster_info[p];
+	  delete endpts[p];
+	  delete hits[p];
+	  cluster_info[p] = NULL;
+	  endpts[p] = NULL;
+	  hits[p] = NULL;
 	}
       }//end of opflashes loop
     }//end of opflashsets    
