@@ -6,20 +6,36 @@ except:
 
 """ this script takes the pickled matches and dumps a C++ header file """
 
+use_sce = True # for space charge effects
+
 matches = {}
 matchtypes = [ "top_matches", "bottom_matches", "upstream_matches", "downstream_matches" ]
 for matchtype in matchtypes:
-    fin = open("%s.pickle"%(matchtype),'r')
-    matches[matchtype] = pickle.load( fin )
-    fin.close()
-    print matchtype,": ",len(matches[matchtype])
+   if use_sce:
+      fin = open("%s_sce.pickle"%(matchtype),'r')
+   else:
+      fin = open("%s.pickle"%(matchtype),'r')
+   matches[matchtype] = pickle.load( fin )
+   fin.close()
+   print matchtype,": ",len(matches[matchtype])
+
+positions = {}
+positiontypes = [ "top_positions", "bottom_positions", "upstream_positions", "downstream_positions" ]
+for postype in positiontypes:
+   if use_sce:
+      fin = open("%s_sce.pickle"%(postype),'r')
+   else:
+      fin = open("%s.pickle"%(postype),'r')
+   positions[postype] = pickle.load( fin )
+   fin.close()
+   print postype,": ",len(positions[postype])
 
 header1 = """
 #ifndef __BOUNDARY_MATCH_ARRAY__
 #define __BOUNDARY_MATCH_ARRAY__
 // This file is generated sing gen_match_array.py
 
-namespace boundaryalgo {
+namespace larlitecv {
 
    static const int numTopMatches        = %d;
    static const int numBottomMatches     = %d;
@@ -35,6 +51,13 @@ for matchtype in matchtypes:
    s  = "    static const int %s[%d][3] =  {\n" % (matchtype,len(matches[matchtype]))
    for match in matches[matchtype]:
       s += "      {%d,%d,%d},\n"%( match[0],match[1],match[2] )
+   s += "    };\n"
+   varstrings.append(s)
+
+for postype in positiontypes:
+   s  = "    static const float %s[%d][3] =  {\n" % (postype,len(positions[postype]))
+   for match in positions[postype]:
+      s += "      {%.2f,%.2f,%.2f},\n"%( match[0],match[1],match[2] )
    s += "    };\n"
    varstrings.append(s)
 

@@ -117,7 +117,7 @@ int main( int nargs, char** argv ) {
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  int nentries = 10;
+  int nentries = 3;
   
   for (int ientry=0; ientry<nentries; ientry++) {
     
@@ -273,7 +273,8 @@ int main( int nargs, char** argv ) {
     // do track building
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > trackclusters;
     std::vector< larlitecv::BMTrackCluster2D > trackcluster;
-    sidetagger.makeTrackClusters3D( imgs, badchimgs, all_endpoints, trackclusters );
+    //sidetagger.makeTrackClusters3D( imgs, badchimgs, all_endpoints, trackclusters );
+    sidetagger.makeTrackClusters3D( imgs, emptyimgs, all_endpoints, trackclusters );
     
     // ------------------------------------------------------------------------------------------//
     // Filter 2D tracks and form 3D tracks

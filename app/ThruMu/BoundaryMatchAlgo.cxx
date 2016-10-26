@@ -31,24 +31,33 @@ namespace larlitecv {
       match_arrays.getMatch( t, imatch, u, v, y );
 
       // define and store the combo
-      BoundaryCombo combo( u, v, y );
+      float pos[3] = { 0., 0., 0.};
       switch ( t ) {
       case BoundaryMatchArrays::kTop:
-	combo.pos = plane2data.wireEnd.find(y)->second;
+	pos[0] = top_positions[imatch][0];
+	pos[1] = top_positions[imatch][1];
+	pos[2] = top_positions[imatch][2];
 	break;
       case BoundaryMatchArrays::kBottom:
-	combo.pos = plane2data.wireStart.find(y)->second;
+	pos[0] = bottom_positions[imatch][0];
+	pos[1] = bottom_positions[imatch][1];
+	pos[2] = bottom_positions[imatch][2];
 	break;
       case BoundaryMatchArrays::kUpstream:
-	combo.pos = plane0data.wireStart.find(u)->second;
+	pos[0] = upstream_positions[imatch][0];
+	pos[1] = upstream_positions[imatch][1];
+	pos[2] = upstream_positions[imatch][2];
 	break;
       case BoundaryMatchArrays::kDownstream:
-	combo.pos = plane1data.wireStart.find(v)->second;
+	pos[0] = downstream_positions[imatch][0];
+	pos[1] = downstream_positions[imatch][1];
+	pos[2] = downstream_positions[imatch][2];
 	break;
       default:
 	assert(false);
 	break;
       }
+      BoundaryCombo combo( u, v, y, pos[0], pos[1], pos[2] );
       m_combos[imatch] = combo;
 
       // build index set trees

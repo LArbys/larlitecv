@@ -15,6 +15,7 @@
 #include "AStarGridAlgo.h"
 #include "BoundaryEndPt.h"
 #include "BoundaryIntersectionAlgo.h"
+#include "LineRegionTest.h"
 
 #include "TFile.h"
 #include "TTree.h"
@@ -310,47 +311,62 @@ namespace larlitecv {
 	      dir[i] /= norm;
 	    int nsteps[2] = { 0, 0 }; // steps before no more charge
 	    int nzeros[2] = { 0, 0 };
-	    for (int j=0; j<2; j++) {
-	      for (int i=0; i<40; i++) {
-		if ( nzeros[j]>3 ) break; // cut it off
-		int r = pos[j][1] + (2*j-1)*dir[1]*i;
-		int c = pos[j][0] + (2*j-1)*dir[0]*i;
-		if ( r<2 || r>=imgs.at(p).meta().rows()-2 || c<2 || c>=imgs.at(p).meta().cols()-2 )
-		  break;
-		int npixs = 0;
-		for ( int dr=-2; dr<=2; dr++) {
-		  for (int dc=-2; dc<=2; dc++) {
-		    if ( imgs.at(p).pixel( r+dr, c+dc )> _config.thresholds.at(p) 
-			 || badchs.at(p).pixel( r+dr, c+dc ) > 0 )
-		      npixs++;
+
+	    if ( pt==0 || pt==1 ) {
+	      // if top and bottom, perform voting system
+	      for (int j=0; j<2; j++) {
+		for (int i=0; i<40; i++) {
+		  if ( nzeros[j]>3 ) break; // cut it off
+		  int r = pos[j][1] + (2*j-1)*dir[1]*i;
+		  int c = pos[j][0] + (2*j-1)*dir[0]*i;
+		  if ( r<2 || r>=imgs.at(p).meta().rows()-2 || c<2 || c>=imgs.at(p).meta().cols()-2 )
+		    break;
+		  int npixs = 0;
+		  for ( int dr=-2; dr<=2; dr++) {
+		    for (int dc=-2; dc<=2; dc++) {
+		      if ( imgs.at(p).pixel( r+dr, c+dc )> _config.thresholds.at(p) 
+			   || badchs.at(p).pixel( r+dr, c+dc ) > 0 )
+			npixs++;
+		    }
 		  }
+		  if (npixs>0) {
+		    nsteps[j]++;
+		    nzeros[j] = 0;
+		  }
+		  else {
+		    nzeros[j]++;
+		  }
+		}//end of loop over steps
+	      }//end of loop over min/max
+	    }
+	    else {
+	      // end points are upsteam, downstream. we rig the votes and pick the end point closest to the edge
+	      if ( pt==2 ) {
+		// upstream
+		if ( p==2 ) {
+		  if ( pos[0][0] < pos[1][0] ) 
+		    nsteps[1] = 40;
+		  else
+		    nsteps[0] = 40;
 		}
-		if (npixs>0) {
-		  nsteps[j]++;
-		  nzeros[j] = 0;
+	      }
+	      if ( pt==3 ) {
+		// downstream
+		if ( p==2 ) {
+		  if ( pos[0][0] > pos[1][0] ) 
+		    nsteps[1] = 40;
+		  else
+		    nsteps[0] = 40;
 		}
-		else {
-		  nzeros[j]++;
-		}
-	      }//end of loop over steps
-	    }//end of loop over min/max
-	    
+	      }
+	    }//end of if point end type = 3 or 4
+
 	    std::cout << "endpt_type=" << pt << " plane=" << p
 		      << " (" << imgs.at(p).meta().pos_x( (int)pos[0][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[0][1] ) << ") "
 		      << "vs (" << imgs.at(p).meta().pos_x( (int)pos[1][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[1][1] ) << "): "
 		      << "nsteps[0]=" << nsteps[0] << " vs. nsteps[1]=" << nsteps[1]
 		      << std::endl;
-
-// 	    if ( nsteps[0]<nsteps[1] ) {
-// 	      BoundaryEndPt endpt( (int)pos[0][1], (int)pos[0][0], (BoundaryEndPt::BoundaryEnd_t)pt );
-// 	      endpt_v.emplace_back( endpt );
-// 	    }
-// 	    else {
-// 	      BoundaryEndPt endpt( (int)pos[1][1], (int)pos[1][0], (BoundaryEndPt::BoundaryEnd_t)pt );
-// 	      endpt_v.emplace_back( endpt );
-// 	    }
-
-
+	    
 	    BoundaryEndPt endpt_min( (int)pos[0][1], (int)pos[0][0], (BoundaryEndPt::BoundaryEnd_t)pt );
 	    endpt_min.dir[0] = -dir[0];
 	    endpt_min.dir[1] = -dir[1];
@@ -375,7 +391,7 @@ namespace larlitecv {
       }//end of cluster loop
     }//end of boundary point type
     float elapsed_clustering = float( clock()-begin_clustering )/CLOCKS_PER_SEC;
-
+    
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "boundary pixel search took " << elapsed_secs << " secs" << std::endl;
     std::cout << "  hit collecting time: " << tot_hit_collecting << " secs" << std::endl;
@@ -400,6 +416,11 @@ namespace larlitecv {
     // poor-man's profiling
     const clock_t begin_time = clock();
     std::vector<int> modimg(nendpts,0);
+
+    // track tests
+    LineRegionTest lrt( 30, 0.9, 5.0 );
+
+
     for (int i=0; i<nendpts; i++) {
       for (int j=i+1; j<nendpts; j++) {
 	const std::vector< BoundaryEndPt >& pts_a = *(spacepts[i]);
@@ -421,14 +442,46 @@ namespace larlitecv {
 		    << std::endl;	    
 	}
 	
+	// don't try to connect points that can't be due to drift time
+	bool within_drift = true;
+	for (int p=0; p<3; p++) {
+	  int row_a = pts_a.at(p).t;
+	  int row_b = pts_b.at(p).t;
+	  if ( fabs( img_v.at(p).meta().pos_y( row_b )-img_v.at(p).meta().pos_y( row_a ) )>4650 ) { // ticks
+	    within_drift = false;
+	  }
+	}
+	if ( !within_drift ) {
+	  std::cout << "time separation longer than drift window" << std::endl;
+	  continue;
+	}
 	//use test heuristic to see if we should run astar
-	bool shallwe = passTrackTest( pts_a, pts_b, img_v, badchimg_v );
-	
+	//bool shallwe = passTrackTest( pts_a, pts_b, img_v, badchimg_v );
+	// for debugging specific tracks
+// 	if ( i==19 && j==30 )
+// 	  lrt.verbose_debug = true;
+// 	else
+// 	  lrt.verbose_debug = false;
+	std::vector< BMTrackCluster2D > test_track(3);
+	bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
+	std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
 	if ( !shallwe ) { 
 	  std::cout << "failed heuristic." << std::endl;
 	  continue; // we shant
 	}
+	//check max deviation from straight line
+	for (int p=0; p<3; p++) {
+	  int maxdev = -1;
+	  const BMTrackCluster2D& ttrack = test_track.at(p);
+	  for (int ipix=0; ipix<ttrack.pixelpath.size(); ipix++) {
+	    if ( maxdev < (int)fabs(ttrack.pixelpath.at(ipix).Intensity()) ) {
+	      maxdev = (int)fabs(ttrack.pixelpath.at(ipix).Intensity());
+	    }
+	  }
+	  std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
+	}
 	
+
 	std::vector< BMTrackCluster2D > planetracks;
 	int ncompleted = 0;
 	for (int p=0; p<3; p++) {

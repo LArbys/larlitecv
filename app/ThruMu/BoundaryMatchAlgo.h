@@ -20,12 +20,15 @@ namespace larlitecv {
   public:
     
     BoundaryCombo() { planewire.resize(3,0); pos.resize(3,0); };
-    BoundaryCombo( unsigned short _uwire, unsigned short _vwire, unsigned short _ywire ) {
+    BoundaryCombo( unsigned short _uwire, unsigned short _vwire, unsigned short _ywire, float x, float y, float z ) {
       planewire.resize(3,0);
       planewire[0] = _uwire;
       planewire[1] = _vwire;
       planewire[2] = _ywire;
       pos.resize(3,0);
+      pos[0] = x;
+      pos[1] = y;
+      pos[2] = z;
     };
     virtual ~BoundaryCombo() {};
     
