@@ -11,9 +11,9 @@ CXXFLAGS += $(shell larlitecv-config --includes)/../app
 CXXFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
 
 # Include your shared object lib location
-LDFLAGS += $(shell larlite-config --libs)
+LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
 LDFLAGS += $(shell larcv-config --libs)
-LDFLAGS += $(shell larlitecv-config --libs)
+LDFLAGS += $(shell larlitecv-config --libs) 
 LDFLAGS += $(shell root-config --libs) -lPhysics -lMatrix -g
 LDFLAGS += -lprofiler
 

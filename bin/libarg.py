@@ -9,6 +9,7 @@ libs=[x for x in commands.getoutput('larlitecv-config --libs').split() if not x.
 libs+= commands.getoutput('root-config --libs').split()
 if 'LARLITE_BASEDIR' in os.environ:
     libs+= commands.getoutput('larlite-config --libs').split()
+    libs+= ["-lBasicTool_GeoAlgo"]
 if 'LARCV_BASEDIR' in os.environ:
     libs+= commands.getoutput('larcv-config --libs').split()
     

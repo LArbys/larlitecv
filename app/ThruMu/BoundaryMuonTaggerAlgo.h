@@ -97,6 +97,12 @@ namespace larlitecv {
 			  const dbscan::dbscanOutput& clout, int idx_cluster,
 			  int& idxhit_tmin, int& idxhit_tmax, int& idxhit_wmin, int& idxhit_wmax );
 
+    BMTrackCluster3D process2Dtrack( const std::vector< larlitecv::BMTrackCluster2D >& track2d, 
+				     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v );
+    bool compare2Dtrack( const std::vector< BMTrackCluster2D >& track2d, const BMTrackCluster3D& track3d, const larcv::ImageMeta& meta,
+			 float path_radius_cm, float endpt_radius_cm );
+
+
   };
 
 

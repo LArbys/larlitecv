@@ -8,6 +8,7 @@
 
 // larlite
 #include "LArUtil/Geometry.h"
+#include "GeoAlgo.h"
 
 // larcv
 #include "UBWireTool/UBWireTool.h"
@@ -531,7 +532,8 @@ namespace larlitecv {
 // 		    << std::endl;
 	  
 	  BMTrackCluster2D track = runAstar( pts_a.at(p), pts_b.at(p), img_v.at(p), badchimg_v.at(p), 5, 5, 2, true );
-	  std::cout << "  p=" << p << ": pathsize=" << track.pixelpath.size() << std::endl;
+	  std::cout << "  p=" << p << " (" << track.start.w << "," << track.start.t << ") "
+		    << " -> (" << track.end.w << "," << track.end.t << "): pathsize=" << track.pixelpath.size() << std::endl;
 	  if ( track.pixelpath.size()>3 ) ncompleted++;
 	  planetracks.emplace_back( std::move( track ) );
 	}
@@ -644,224 +646,39 @@ namespace larlitecv {
     float drift_v   = 0.106865;
 
     // loop over 
+    int itrack = -1;
     for ( auto const& track2d : trackclusters2D ) {
-      
-      // we find path length, number of nodes, path, breakdown for each 2d track
-      // we also look for dumb tracks that have crazy kinks
-      float pathlength[3];
-      std::vector< float > edgelength[3];
-      std::vector< std::vector<float> > edgedir[3];
-      std::vector< std::vector<float> > nodepos[3];
-      bool isgood[3] = { true, true, true };
+      itrack++;
+      std::cout << "=============================================" << std::endl;
+      std::cout << "PROCESSING TRACK 2D #" << itrack << std::endl;
+      for (int p=0; p<3; p++)
+	std::cout << "  plane " << p << " start=(" << track2d.at(p).start.w << "," << track2d.at(p).start.t << ") ";
+      std::cout << std::endl;
+      for (int p=0; p<3; p++)
+	std::cout << "  plane " << p << " end=(" << track2d.at(p).end.w << "," << track2d.at(p).end.t << ") ";
+      std::cout << std::endl;
+	  
 
-      for (int p=0; p<3; p++) {
-	const BMTrackCluster2D& planetrack = track2d.at(p);
-	pathlength[p] = 0.0;
-	if ( planetrack.pixelpath.size()<2 ) {
-	  isgood[p] = false;
-	  continue; // skip this track
-	}
-	for (int i=1; i<(int)planetrack.pixelpath.size(); i++) {
-	  float dx = planetrack.pixelpath.at(i).X()-planetrack.pixelpath.at(i-1).X();
-	  float dy = planetrack.pixelpath.at(i).Y()-planetrack.pixelpath.at(i-1).Y();
-	  float dist = sqrt( dx*dx + dy*dy );
-	  std::vector<float> pos(2,0.0);
-	  pos[0] = planetrack.pixelpath.at(i-1).X();
-	  pos[1] = planetrack.pixelpath.at(i-1).Y();
-	  nodepos[p].emplace_back( std::move(pos) );
-	  std::vector<float> ndir(2,0.0);
-	  ndir[0] = dx/dist;
-	  ndir[1] = dy/dist;
-	  edgedir[p].emplace_back( std::move(ndir) );
-	  edgelength[p].push_back( dist );
-	  pathlength[p] += dist;
-	  if ( i>=2 ) {
-	    float lastcos = edgedir[p].at(i-1)[0]*edgedir[p].at(i-2)[0] + edgedir[p].at(i-1)[1]*edgedir[p].at(i-2)[1];
-	    if ( lastcos<0.70 ) { // around 45 degrees
-	      // kink. probably bad
-	      isgood[p] = false;
-	    }
-	  }
-	}//end of loop over path
-	// add end point
-	std::vector<float> pos(2,0.0);
-	pos[0] = planetrack.pixelpath.back().X();
-	pos[1] = planetrack.pixelpath.back().Y();
-	nodepos[p].emplace_back( std::move(pos) );
-	edgelength[p].push_back(0);
-	edgedir[p].emplace_back( std::vector<float>(2,0.0) );
-      }//end of loop over planes
-
-      int ngood = 0;
-      float longest_pathlength = 0;
-      for (int p=0; p<3; p++) {
-	if ( isgood[p] ) { 
-	  ngood++;
-	  if ( pathlength[p]>longest_pathlength ) {
-	    longest_pathlength = pathlength[p];
+      bool issame = false;
+      if ( tracks.size()>0 ) {
+	// we check to see if the current track is basically on the same path as a previous track
+	for ( auto const& track3d : tracks ) {
+	  issame = compare2Dtrack( track2d, track3d, img_v.at(0).meta(), 5.0, 5.0 );
+	  if ( issame ) {
+	    break;
 	  }
 	}
       }
-      
+      if ( issame ) continue; // to next 2d track
 
-      if ( ngood<2 )
-	continue; // skip this track set
-
-      // make 3d path. we want to take cm steps
-      int nsteps = (int)longest_pathlength;
-      int current_node[3] = { 0, 0, 0 };
-      float node_ds[3] = {0, 0, 0 };
-      BMTrackCluster3D track3d;
-      
-      std::cout << "Track with " << nsteps << " steps" << std::endl;
-      for (int istep=0; istep<nsteps; istep++) {
-	
-	// get wire at this step
-	int imgcol[3] = { -1, -1, -1 };
-	int wireid[3] = { -1, -1, -1 };
-	int pid[3] = { -1, -1, -1 };
-	int ip=0;
-	float avetick = 0.0;
-	for (int p=0; p<3; p++) {
-	  if ( !isgood[p] ) continue;
-	  float imgpos[2] = { 0., 0. };
-	  for (int v=0; v<2; v++) {
-	    imgpos[v] = nodepos[p].at( current_node[p] )[v] + edgedir[p].at( current_node[p] )[v];
-	  }
-	  imgcol[ip] = (int)imgpos[0];
-	  wireid[ip] = (int)imgcol[ip]*img_v.at(p).meta().pixel_width();
-	  pid[ip] = p;
-	  avetick += img_v.at(p).meta().pos_y( (int)imgpos[1] );
-	  ip++;
-	}
-	avetick /= float(ip);
-	
-	// now intersect depending on number of good wires
-	int crosses = 0;
-	std::vector<float> intersection;
-	if ( ngood==2 ) {
-	  crosses = 0;
-	  larcv::UBWireTool::wireIntersection( pid[0], wireid[0], pid[1], wireid[1], intersection, crosses );
-	  if ( pid[0]==0 && pid[1]==1 ) pid[2] = 2;
-	  else if ( pid[0]==0 && pid[1]==2 ) pid[2] = 1;
-	  else if ( pid[0]==1 && pid[1]==2 ) pid[2] = 0;
-	  else if ( pid[0]==1 && pid[1]==0 ) pid[2] = 2;
-	  else if ( pid[0]==2 && pid[1]==0 ) pid[2] = 1;
-	  else if ( pid[0]==2 && pid[1]==1 ) pid[2] = 0;
-	  double worldpos[3] = { 0, (double)intersection[1], (double)intersection[0] };
-	  wireid[2] = larutil::Geometry::GetME()->WireCoordinate( worldpos, pid[2] );
-	  imgcol[2] = wireid[2]/img_v.at(0).meta().pixel_width();
-	}
-	else if ( ngood==3 ) {
-	  std::vector< std::vector<int> > wirelists(3);
-	  for (int p=0; p<3; p++)
-	    wirelists[p].push_back( wireid[p] );
-	  std::vector< std::vector<int> > intersections3plane;
-	  std::vector< std::vector<float> > vertex3plane;
-	  std::vector<float> areas3plane;
-	  std::vector< std::vector<int> > intersections2plane;
-	  std::vector< std::vector<float> > vertex2plane; 
-	  larcv::UBWireTool::findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
-	  if ( vertex3plane.size()>0 ) {
-	    intersection = vertex3plane.at(0);
-	    std::cout << "warning, no intersection for wires (u:";
-	    for (auto wid : wirelists[0] )
-	      std::cout << wid << ",";
-	    std::cout << ") ";
-	    std::cout << " (v:";
-	    for (auto wid : wirelists[1] )
-	      std::cout << wid << ",";
-	    std::cout << ") ";
-	    std::cout << " (y:";
-	    for (auto wid : wirelists[2] )
-	      std::cout << wid << ",";
-	    std::cout << ") ";
-	    std::cout << std::endl;
-	  }
-	}
-
-	std::vector<float> point3d(3,0.0);
-	point3d[0] = (avetick-trig_tick)*0.5*drift_v;
-	if ( intersection.size()>=2 ) {
-	  point3d[1] = intersection[1];
-	  point3d[2] = intersection[0];
-	}
-	
-	// now update path variables
-	for (int p=0; p<3; p++) {
-	  if ( !isgood[p] ) continue;
-	  float stepsize = pathlength[p]/float(nsteps);
-	  float next_ds = node_ds[p]+stepsize;
-	  if ( current_node[p]<edgelength[p].size() ) {
-	    if ( next_ds>edgelength[p].at( current_node[p] ) ) {
-	      node_ds[p] = next_ds-edgelength[p].at( current_node[p] );
-	      current_node[p]++;
-	    }
-	    else {
-	      node_ds[p] = next_ds;
-	    }
-	  }
-	}
-	
-	if ( istep==0 ) {
-	  // if first, log data
-	  track3d.tick_start = avetick;
-	  track3d.row_start  = img_v.at(0).meta().row( track3d.tick_start );
-	  track3d.start_wire.resize(3,0);
-	  track3d.start3D = point3d;
-	  if ( ngood==3 ) {
-	    for (int p=0; p<3; p++) {
-	      track3d.start_wire[p] = wireid[p];
-	    }
-	  }
-	  else if ( ngood==2 ) {
-	    track3d.start_wire[pid[0]] = wireid[0];
-	    track3d.start_wire[pid[1]] = wireid[1];
-	    track3d.start_wire[pid[2]] = wireid[2];
-	  }
-	}
-	else if ( istep+1==nsteps ) {
-	  // set end info
-	  track3d.tick_end = avetick;
-	  track3d.row_end  = img_v.at(0).meta().row( track3d.tick_end );
-	  track3d.end_wire.resize(3,0);
-	  track3d.end3D = point3d;
-	  if ( ngood==3 ) {
-	    for (int p=0; p<3; p++) {
-	      track3d.end_wire[p] = wireid[p];
-	    }
-	  }
-	  else if ( ngood==2 ) {
-	    track3d.end_wire[pid[0]] = wireid[0];
-	    track3d.end_wire[pid[1]] = wireid[1];
-	    track3d.end_wire[pid[2]] = wireid[2];
-	  }
-	}
-	
-	if ( track3d.path3d.size()==0 || track3d.path3d.back()!=point3d ) {
-	  std::cout << "step=" << istep << " node=(" << current_node[0] << "," << current_node[1] << "," << current_node[2] << ") "
-		    << "pos=(" << point3d[0] << "," << point3d[1] << "," << point3d[2] << ") " 
-		    << "(p=" << pid[0] << ", wire=" << wireid[0] << ") + "
-		    << "(p=" << pid[1] << ", wire=" << wireid[1] << ") "
-		    << "(p=" << pid[2] << ", wire=" << wireid[2] << ") "
-		    << "crosses=" << crosses << " (isec=" << intersection.size() << ")" << std::endl;
-	  track3d.path3d.emplace_back( std::move( point3d ) );
-	}
-	
-      }//end of loop over steps
-      
-      
-      // finishing touches:
-      // copy boundaryendpts
-      for (int p=0; p<3; p++) {
-	track3d.start_endpts.push_back( track2d.at(p).start );
-	track3d.end_endpts.push_back( track2d.at(p).end );
+      // if different, we process track into 3D
+      BMTrackCluster3D track3d = process2Dtrack( track2d, img_v, badchimg_v );
+      if ( track3d.path3d.size()==0 ) {
+	std::cout << "error producing this track" << std::endl;
+	continue; // onto next 2d track
       }
 
-      track3d.start_type = track3d.start_endpts.at(0).type;
-      track3d.end_type = track3d.end_endpts.at(0).type;
-
-      // put away
+      // save track
       tracks.emplace_back( std::move(track3d) );
 
     }//end of loop over 2D tracks
@@ -942,5 +759,410 @@ namespace larlitecv {
     }//end of loop over hit indices of cluster
   }//end of getClusterEdges
 
+  BMTrackCluster3D BoundaryMuonTaggerAlgo::process2Dtrack( const std::vector< larlitecv::BMTrackCluster2D >& track2d, 
+							   const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v ) {
+    
+    // parameters to move to config file at some point
+    std::vector< std::vector<float> > valid_range(2);
+    valid_range[0].resize(2);
+    valid_range[1].resize(2);
+    valid_range[0][0] = -100;
+    valid_range[0][1] = 1200;
+    valid_range[1][0] = -150.0;
+    valid_range[1][1] =  150.0;
+    
+    float trig_tick = 2400;
+    float drift_v   = 0.106865;
+    
+    // we find path length, number of nodes, path, breakdown for each 2d track
+    // we also look for dumb tracks that have crazy kinks
+    float pathlength[3];
+    std::vector< float > edgelength[3];
+    std::vector< std::vector<float> > edgedir[3];
+    std::vector< std::vector<float> > nodepos[3];
+    bool isgood[3] = { true, true, true };
+    
+    BMTrackCluster3D track3d;
+
+    for (int p=0; p<3; p++) {
+      const BMTrackCluster2D& planetrack = track2d.at(p);
+      pathlength[p] = 0.0;
+      if ( planetrack.pixelpath.size()<2 ) {
+	isgood[p] = false;
+	std::cout << "p=" << p << " does not have enough pixels" << std::endl;
+	continue; // skip this plane
+      }
+      // follow the 2d track paths and file path info variables above
+      for (int i=1; i<(int)planetrack.pixelpath.size(); i++) {
+
+	std::vector<float> pos1(2,0.0);
+	pos1[0] = planetrack.pixelpath.at(i).X();
+	pos1[1] = planetrack.pixelpath.at(i).Y();
+
+	std::vector<float> pos0(2,0.0);
+	pos0[0] = planetrack.pixelpath.at(i-1).X();
+	pos0[1] = planetrack.pixelpath.at(i-1).Y();
+
+	float dx = pos1[0]-pos0[0];
+	float dy = pos1[1]-pos0[1];
+	float dist = sqrt( dx*dx + dy*dy );
+
+	std::vector<float> ndir(2,0.0);
+	ndir[0] = dx/dist;
+	ndir[1] = dy/dist;
+	
+// 	std::cout << "pix " << i << "(" << pos0[0] << "," << pos0[1] << ") -> (" << pos1[0] << "," << pos1[1] << ")"
+// 		  << ". (dx,dy)=(" << dx << "," << dy << ") dist=" << dist << std::endl;
+	
+	if ( i>=2 ) {
+	  std::vector<float> lastdir  = edgedir[p].at(i-2);
+	  float lastcos = lastdir[0]*ndir[0] + ndir[1]*lastdir[1];
+	  if ( lastcos<0.70 ) { // around 45 degrees
+	    // kink. probably bad
+	    std::cout << "kink found: p=" << p << " lastcos=" << lastcos << " step=" << i << ":"
+		      << "(" << planetrack.pixelpath.at(i-1).X() << "," << planetrack.pixelpath.at(i-1).Y() << ") -> "
+		      << "(" << planetrack.pixelpath.at(i).X() << ","<< planetrack.pixelpath.at(i).Y() << "). "
+		      << " dir: "
+		      << "(" << lastdir[0] << ", " << lastdir[1] << ") -> "
+		      << "(" << ndir[0] << "," << ndir[1] << ")" << std::endl;
+	    //isgood[p] = false;
+	  }
+	}
+	edgelength[p].push_back( dist );
+	pathlength[p] += dist;
+	edgedir[p].emplace_back( std::move(ndir) );
+	nodepos[p].emplace_back( std::move(pos1) );
+      }//end of loop over path
+      // add end point
+      std::vector<float> pos(2,0.0);
+      pos[0] = planetrack.pixelpath.back().X();
+      pos[1] = planetrack.pixelpath.back().Y();
+      nodepos[p].emplace_back( std::move(pos) );
+      edgelength[p].push_back(0);
+      edgedir[p].emplace_back( std::vector<float>(2,0.0) );
+    }//end of loop over planes
+
+    
+    // use path variables to build 3D model
+    int ngood = 0;
+    float longest_pathlength = 0;
+    for (int p=0; p<3; p++) {
+      if ( isgood[p] ) { 
+	ngood++;
+	if ( pathlength[p]>longest_pathlength ) {
+	  longest_pathlength = pathlength[p];
+	}
+      }
+    }
+    
+
+    if ( ngood<2 ) 
+      return track3d; // empty track
+    
+    // make 3d path. we want to take cm steps
+    int nsteps = (int)longest_pathlength;
+    int current_node[3] = { 0, 0, 0 };
+    float node_ds[3] = {0, 0, 0 };
+          
+    //std::cout << "Track with " << nsteps << " steps" << std::endl;
+    for (int istep=0; istep<nsteps; istep++) {
+	
+      // get wire at this step
+      int imgcol[3] = { -1, -1, -1 };
+      int wireid[3] = { -1, -1, -1 };
+      int pid[3] = { -1, -1, -1 };
+      int ip=0;
+      float avetick = 0.0;
+      for (int p=0; p<3; p++) {
+	if ( !isgood[p] ) continue;
+	float imgpos[2] = { 0., 0. };
+	for (int v=0; v<2; v++) {
+	  imgpos[v] = nodepos[p].at( current_node[p] )[v] + edgedir[p].at( current_node[p] )[v];
+	}
+	imgcol[ip] = (int)imgpos[0];
+	wireid[ip] = (int)imgcol[ip]*img_v.at(p).meta().pixel_width();
+	pid[ip] = p;
+	avetick += img_v.at(p).meta().pos_y( (int)imgpos[1] );
+	  ip++;
+      }
+      avetick /= float(ip);
+      
+      // now intersect depending on number of good wires
+      int crosses = 0;
+      std::vector<float> intersection;
+      if ( ngood==2 ) {
+	crosses = 0;
+	larcv::UBWireTool::wireIntersection( pid[0], wireid[0], pid[1], wireid[1], intersection, crosses );
+	if ( pid[0]==0 && pid[1]==1 ) pid[2] = 2;
+	else if ( pid[0]==0 && pid[1]==2 ) pid[2] = 1;
+	else if ( pid[0]==1 && pid[1]==2 ) pid[2] = 0;
+	else if ( pid[0]==1 && pid[1]==0 ) pid[2] = 2;
+	else if ( pid[0]==2 && pid[1]==0 ) pid[2] = 1;
+	else if ( pid[0]==2 && pid[1]==1 ) pid[2] = 0;
+	double worldpos[3] = { 0, (double)intersection[1], (double)intersection[0] };
+	wireid[2] = larutil::Geometry::GetME()->WireCoordinate( worldpos, pid[2] );
+	imgcol[2] = wireid[2]/img_v.at(0).meta().pixel_width();
+      }
+      else if ( ngood==3 ) {
+	crosses = 1;
+// 	std::vector< std::vector<int> > wirelists(3);
+// 	for (int p=0; p<3; p++)
+// 	  wirelists[p].push_back( wireid[p] );
+// 	std::vector< std::vector<int> > intersections3plane;
+// 	std::vector< std::vector<float> > vertex3plane;
+// 	std::vector<float> areas3plane;
+// 	std::vector< std::vector<int> > intersections2plane;
+// 	std::vector< std::vector<float> > vertex2plane; 
+//	larcv::UBWireTool::findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
+	std::vector<int> wirelists(3,0);
+	for (int p=0; p<3; p++) wirelists[p] = wireid[p];
+	std::vector<float> vertex3plane;
+	double tri_area = 0.0;
+	larcv::UBWireTool::wireIntersection( wirelists, intersection, tri_area, crosses );
+	if ( tri_area>3.0 ) {
+	  std::cout << "warning, large intersection area for wires u=" << wireid[0]  << " v=" << wireid[1] << " y=" << wireid[2] << " area=" << tri_area << std::endl;
+	}
+      }
+      
+      std::vector<double> point3d(3,0.0);
+      point3d[0] = (avetick-trig_tick)*0.5*drift_v;
+      if ( intersection.size()>=2 ) {
+	point3d[1] = intersection[1];
+	point3d[2] = intersection[0];
+      }
+      
+      // now update path variables
+      for (int p=0; p<3; p++) {
+	if ( !isgood[p] ) continue;
+	float stepsize = pathlength[p]/float(nsteps);
+	float next_ds = node_ds[p]+stepsize;
+	if ( current_node[p]<edgelength[p].size() ) {
+	  if ( next_ds>edgelength[p].at( current_node[p] ) ) {
+	    node_ds[p] = next_ds-edgelength[p].at( current_node[p] );
+	    current_node[p]++;
+	  }
+	  else {
+	    node_ds[p] = next_ds;
+	  }
+	}
+      }
+      
+      if ( istep==0 ) {
+	// if first, log data
+	track3d.tick_start = avetick;
+	track3d.row_start  = img_v.at(0).meta().row( track3d.tick_start );
+	track3d.start_wire.resize(3,0);
+	track3d.start3D = point3d;
+	if ( ngood==3 ) {
+	  for (int p=0; p<3; p++) {
+	    track3d.start_wire[p] = wireid[p];
+	  }
+	}
+	else if ( ngood==2 ) {
+	  track3d.start_wire[pid[0]] = wireid[0];
+	  track3d.start_wire[pid[1]] = wireid[1];
+	  track3d.start_wire[pid[2]] = wireid[2];
+	}
+      }
+      else if ( istep+1==nsteps ) {
+	// set end info
+	track3d.tick_end = avetick;
+	track3d.row_end  = img_v.at(0).meta().row( track3d.tick_end );
+	track3d.end_wire.resize(3,0);
+	track3d.end3D = point3d;
+	if ( ngood==3 ) {
+	  for (int p=0; p<3; p++) {
+	    track3d.end_wire[p] = wireid[p];
+	  }
+	}
+	else if ( ngood==2 ) {
+	  track3d.end_wire[pid[0]] = wireid[0];
+	  track3d.end_wire[pid[1]] = wireid[1];
+	  track3d.end_wire[pid[2]] = wireid[2];
+	}
+      }
+      
+      if ( track3d.path3d.size()==0 || track3d.path3d.back()!=point3d ) {
+	std::cout << "step=" << istep << " node=(" << current_node[0] << "," << current_node[1] << "," << current_node[2] << ") "
+		  << "tick=" << avetick << " "
+		  << "pos=(" << point3d[0] << "," << point3d[1] << "," << point3d[2] << ") " 
+		  << "(p=" << pid[0] << ", wire=" << wireid[0] << ") + "
+		  << "(p=" << pid[1] << ", wire=" << wireid[1] << ") "
+		  << "(p=" << pid[2] << ", wire=" << wireid[2] << ") "
+		  << "crosses=" << crosses << " (isec=" << intersection.size() << ")" << std::endl;
+	track3d.path3d.emplace_back( std::move( point3d ) );
+      }
+      
+    }//end of loop over steps
+      
+      
+    // finishing touches:
+    // copy boundaryendpts
+    for (int p=0; p<3; p++) {
+      track3d.start_endpts.push_back( track2d.at(p).start );
+      track3d.end_endpts.push_back( track2d.at(p).end );
+    }
+    
+    track3d.start_type = track3d.start_endpts.at(0).type;
+    track3d.end_type = track3d.end_endpts.at(0).type;
+    
+
+    return track3d;
+  }
+					       
+  bool BoundaryMuonTaggerAlgo::compare2Dtrack( const std::vector< BMTrackCluster2D >& track2d, const BMTrackCluster3D& track3d, const larcv::ImageMeta& meta,
+					       float path_radius_cm, float endpt_radius_cm ) {
+    // we get the start and end points of the 2D track
+    // we see if they are both close to the trajectory of the 3D track
+    // either point must be fruther away than the path_radius value
+    // end points must also be further away than the endpt_radius_cm value
+
+    float trig_tick = 2400;
+    float drift_v   = 0.106865; // cm/usec
+    float pix_rows_to_cm = meta.pixel_height()*0.5*drift_v; // cm/row
+    float pix_cols_to_cm = meta.pixel_width()*0.3; // cm
+
+    std::cout << " 3D track start points (w,t): " << std::endl;
+    for (int p=0; p<3; p++ )
+      std::cout << "  p" << p << ":: " << track3d.start_endpts[p].w << ", " << track3d.start_endpts[p].t << std::endl;
+    std::cout << " 3D track end points (w,t): " << std::endl;
+    for (int p=0; p<3; p++ )
+      std::cout << "  p" << p << ":: " << track3d.end_endpts[p].w << ", " << track3d.end_endpts[p].t << std::endl;
+      
+
+    // check end points first
+    float start_dists[2] = { 0.};
+    float end_dists[2]   = { 0.};
+    float distances[3][2];
+    for ( int p=0; p<3; p++) {
+      if ( track2d.at(p).pixelpath.size()==0 ) {
+	distances[p][0] = -1;
+	distances[p][1] = -1;
+	continue;
+      }
+      std::cout << "testing 2d endpoint p=" << p << "(" << track2d[p].start.w << ", " << track2d[p].start.t << ")" << std::endl;
+      float dt = (track2d[p].start.t-track3d.start_endpts[p].t)*pix_rows_to_cm;
+      float dw = (track2d[p].start.w-track3d.start_endpts[p].w)*pix_cols_to_cm;
+      start_dists[0] = sqrt( dt*dt + dw*dw );
+      // in case track reversed
+      dt = (track2d[p].end.t-track3d.start_endpts[p].t)*pix_rows_to_cm;
+      dw = (track2d[p].end.w-track3d.start_endpts[p].w)*pix_cols_to_cm;
+      start_dists[1] = sqrt( dt*dt + dw*dw );
+      
+
+      dt = (track2d[p].end.t-track3d.end_endpts[p].t)*pix_rows_to_cm;
+      dw = (track2d[p].end.w-track3d.end_endpts[p].w)*pix_cols_to_cm;
+      end_dists[0] = sqrt( dt*dt + dw*dw );
+      dt = (track2d[p].start.t-track3d.end_endpts[p].t)*pix_rows_to_cm;
+      dw = (track2d[p].start.w-track3d.end_endpts[p].w)*pix_cols_to_cm;
+      end_dists[1] = sqrt( dt*dt + dw*dw );
+      
+      int use_idx = 0;
+      if ( start_dists[0] > start_dists[1] ) use_idx = 1;
+      distances[p][0] = start_dists[use_idx];
+      distances[p][1] = end_dists[use_idx];
+      
+      std::cout << "distance between 2d endpoints on plane=" << p << " start=" << distances[p][0] << " end=" << distances[p][1] << std::endl;
+    }
+    
+    bool allclose = true;
+    for (int p=0; p<3; p++) {
+      if ( distances[p][0]<0 ) continue;
+      if ( distances[p][0]>endpt_radius_cm || distances[p][1]>endpt_radius_cm )  {
+	allclose = false;
+	break;
+      }
+    }
+    if ( allclose ) {
+      std::cout << "track too similar in end points" << std::endl;
+      return true;
+    }
+
+    
+    // ok now check along 3D path
+    // need 3d position of end points
+    double start_area;
+    double end_area;
+    std::vector< float > start_poszy;
+    std::vector< float > end_poszy;
+    std::vector<int> start_wids;
+    std::vector<int> end_wids;
+    std::vector<int> goodplanes;
+    int crosses[2] = {0};
+    int ngoodplanes = 0;
+    for (int p=0; p<3; p++) {
+      if ( track2d[p].pixelpath.size()==0 ) {
+	continue;
+      }
+      ngoodplanes++;
+      goodplanes.push_back(p);
+      start_wids.push_back( (int)track2d[p].start.w*meta.pixel_width() );
+      end_wids.push_back(   (int)track2d[p].end.w*meta.pixel_width() );
+    }
+    
+    if ( ngoodplanes==3 ) {
+      larcv::UBWireTool::wireIntersection( start_wids, start_poszy, start_area, crosses[0] );
+      larcv::UBWireTool::wireIntersection( end_wids, end_poszy, end_area, crosses[1] );
+    }
+    else {
+      larcv::UBWireTool::wireIntersection( goodplanes[0], start_wids[0], goodplanes[1], start_wids[1], start_poszy, crosses[0] );
+      larcv::UBWireTool::wireIntersection( goodplanes[0], end_wids[0],   goodplanes[1], end_wids[1],   end_poszy,   crosses[1] );
+    }
+
+    if ( crosses[0]==0 ) {
+      std::cout << "Start point doesn't make a valid 3D point! start wid=(" << start_wids[0] << "," << start_wids[1];
+      if ( ngoodplanes==3 )
+	std::cout << "," << start_wids[2];
+      std::cout << ")" << std::endl;
+    }
+    if ( crosses[1]==0 ) {
+      std::cout << "End point doesn't make a valid 3D point! end wid=(" << end_wids[0] << "," << end_wids[1];
+      if ( ngoodplanes==3 )
+	std::cout << "," << end_wids[2];
+      std::cout << ")" << std::endl;
+    }
+    if ( crosses[0]==0 || crosses[1]==0 )
+      return false;
+    
+    std::vector< double > start3d(3,0.0);
+    std::vector< double > end3d(3,0.0);
+
+    for (int p=0; p<3; p++) {
+      start3d[0] += (track2d[p].start.t*meta.pixel_height()-trig_tick)/3.0;
+      end3d[0]   += (track2d[p].end.t*meta.pixel_height()-trig_tick)/3.0;
+    }
+    start3d[0] *= (0.5*drift_v);
+    start3d[1] = start_poszy[1];
+    start3d[2] = start_poszy[0];
+
+    end3d[0] *= (0.5*drift_v);
+    end3d[1] = end_poszy[1];
+    end3d[2] = end_poszy[0];
+
+    std::cout << "track 2d 3D endpoints: "
+	      << " start=(" << start3d[0] << "," << start3d[1] << "," << start3d[2] << ") "
+	      << " end=(" << end3d[0] << "," << end3d[1] << "," << end3d[2] << ") "
+	      << std::endl;
+    std::cout << "track3d 3D endpoints: "
+	      << " start=(" << track3d.path3d.front()[0] << "," << track3d.path3d.front()[1] << "," << track3d.path3d.front()[2] << ") "
+	      << " end=(" << track3d.path3d.back()[0] << "," << track3d.path3d.back()[1] << "," << track3d.path3d.back()[2] << ") "
+	      << std::endl;
+    
+    // ok now that 3d start and end position found, check how close they are to the 3d path
+    // we use the geoalgo tools from larlite
+    // note that vector<double> has been typedefd as geoalgo::Point_t 
+    ::geoalgo::GeoAlgo algo;
+    ::geoalgo::Trajectory_t traj( track3d.path3d );
+    ::geoalgo::Point_t  start_pt( start3d );
+    ::geoalgo::Point_t    end_pt( end3d );
+    double closest_dist_start     = sqrt( algo.SqDist( start_pt, traj ) );
+    double closest_dist_end       = sqrt( algo.SqDist( end_pt, traj ) );
+    std::cout << "closest distance of start/end points to trajectory: start=" << closest_dist_start << " end=" << closest_dist_end << std::endl;
+    if ( closest_dist_start<path_radius_cm && closest_dist_end<closest_dist_end ) {
+      return true;
+    }
+
+    return false;
+  }
   
 }

@@ -41,7 +41,8 @@ int main( int nargs, char** argv ) {
 
   // ----------------------------------------------------------------------------------------------------
   // larcv
-  dataco.add_inputfile( "output_larcv_testextbnb_track2d_10evts.root", "larcv" );
+  //dataco.add_inputfile( "output_larcv_testextbnb_track2d_10evts.root", "larcv" );
+  dataco.add_inputfile( "output_larcv_testextbnb.root", "larcv");
   // ----------------------------------------------------------------------------------------------------
 
 
@@ -71,7 +72,7 @@ int main( int nargs, char** argv ) {
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  int nentries = 10;
+  int nentries = 1;
   
   for (int ientry=0; ientry<nentries; ientry++) {
 
@@ -98,15 +99,25 @@ int main( int nargs, char** argv ) {
 
     larcv::EventPixel2D* event_tracks = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumu" );
     
-    std::cout << "reconstitute BMTrack2DCluster from saved data" << std::endl;
+    std::cout << "reconstitute BMTrack2DClusters (" << event_tracks->Pixel2DClusterArray(0).size() << ") from saved data" << std::endl;
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > track2d_v;
     for ( int itrack=0; itrack<(int)event_tracks->Pixel2DClusterArray(0).size(); itrack++ ) {
+      std::cout << "[track " << itrack << "]" << std::endl;
       std::vector< larlitecv::BMTrackCluster2D > temp_track2d_container;
       for (int p=0; p<3; p++) {
 	const larcv::Pixel2DCluster& cluster = event_tracks->Pixel2DClusterArray(p).at(itrack);
 	larlitecv::BMTrackCluster2D track2d;
 	track2d.plane = p;
-	track2d.pixelpath = cluster; // copy?
+	if ( cluster.size()>0 ) {
+	  track2d.pixelpath = cluster; // copy?
+	  track2d.start.w = (int)cluster.front().X();
+	  track2d.start.t = (int)cluster.front().Y();
+	  track2d.end.w   = (int)cluster.back().X();
+	  track2d.end.t   = (int)cluster.back().Y();
+	}
+	std::cout << " p=" << p
+		  << "(" << track2d.start.w << ","  << track2d.start.t << ")->(" << track2d.end.w << "," << track2d.end.t << ")"
+		  << " pixels=" << track2d.pixelpath.size() << std::endl;
 	temp_track2d_container.emplace_back( std::move(track2d) );
       }
       track2d_v.emplace_back( std::move(temp_track2d_container) );
@@ -116,6 +127,8 @@ int main( int nargs, char** argv ) {
     std::cout << "process 2d tracks" << std::endl;
     std::vector< larlitecv::BMTrackCluster3D > tracks3d;
     sidetagger.process2Dtracks( track2d_v, ev_mod_imgs->Image2DArray(), ev_badch_imgs->Image2DArray(), tracks3d );
+
+    std::cout << "[NUMBER OF POST-PROCESSED 3D TRAJECTORIES: " << tracks3d.size() << "]" << std::endl;
     
     // ------------------------------------------------------------------------------------------//
     // SAVE OUTPUT //
