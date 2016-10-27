@@ -23,6 +23,11 @@
 
 namespace larlitecv {
 
+  BoundaryMuonTaggerAlgo:: ~BoundaryMuonTaggerAlgo() {
+    delete matchalgo_tight;
+    delete matchalgo_loose;
+  }
+
   void BoundaryMuonTaggerAlgo::run() {
     if (true)
       return;
@@ -143,11 +148,16 @@ namespace larlitecv {
       //std::cout << "[row=" << r << ",t=" << meta.pos_y(r) << "] hits=" << nhits[0] << "," << nhits[1] << "," << nhits[2] << std::endl;
       
       // get boundary combos consistent which charge hits
-      std::vector< std::vector<BoundaryCombo> > matched_combos;
-      matchalgo.findCombos( hits[0], hits[1], hits[2], 
-			    _config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
-			    badchs, true,
-			    matched_combos );
+      // two pass
+      std::vector< std::vector<BoundaryCombo> > matched_combos(4);
+      matchalgo_tight->findCombos( hits[0], hits[1], hits[2], 
+				   _config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
+				   badchs, true,
+				   matched_combos );
+      matchalgo_loose->findCombos( hits[0], hits[1], hits[2], 
+				   _config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
+				   badchs, true,
+				   matched_combos );
       
       // mark up image, filter out combinations for clustering
       for ( int pt=0; pt<(int)matched_combos.size(); pt++ ) {
@@ -194,12 +204,12 @@ namespace larlitecv {
 	  }
 	  charge /= float( 3.0-nbadchs );
 	  if ( charge>_config.thresholds.at(0) ) {
-	    float prev_val = matchedspacepts.at( pt ).pixel( r, x_i );
-	    matchedspacepts.at(pt).set_pixel( r, x_i, prev_val+charge );
-	    for (int p=0; p<3; p++) {
-	      prev_val = matchedpixels.at(3*pt+p).pixel( r, wirecols[p] );
-	      matchedpixels.at(3*pt+p).set_pixel( r, wirecols[p], prev_val+charge );
-	    }
+// 	    float prev_val = matchedspacepts.at( pt ).pixel( r, x_i );
+// 	    matchedspacepts.at(pt).set_pixel( r, x_i, prev_val+charge );
+// 	    for (int p=0; p<3; p++) {
+// 	      prev_val = matchedpixels.at(3*pt+p).pixel( r, wirecols[p] );
+// 	      matchedpixels.at(3*pt+p).set_pixel( r, wirecols[p], prev_val+charge );
+// 	    }
 	    // save (x,y) point for clustering
 	    std::vector<double> pt_combo(2,0.0); // this is (z,y)
 	    pt_combo[0] = x;
@@ -219,6 +229,10 @@ namespace larlitecv {
     // cluster each boundary type
     std::cout << "  begin clustering" << std::endl;
     clock_t begin_clustering = clock();
+    std::vector< larcv::Image2D > workspace;
+    for (int p=0; p<3; p++) {
+      workspace.push_back( larcv::Image2D( imgs.at(p).meta() ) );
+    }
     for (int pt=0; pt<4; pt++) {
       
       dbscan::DBSCANAlgo dbalgo;
@@ -235,6 +249,7 @@ namespace larlitecv {
 
       //std::cout << "  number of clusters: " << clout.clusters.size() << std::endl;
       for (int ic=0; ic<clout.clusters.size(); ic++) {
+	// loop over clusters in the real space points
 
 	if ( clout.clusters.at(ic).size() > 2 ) {
 	  //std::cout << "Find the endpoints for cluster pt=" << pt << " id=" << ic << " size=" << clout.clusters.at(ic).size() << std::endl;
@@ -242,7 +257,10 @@ namespace larlitecv {
 	  dbscan::dbPoints chargepts[3]; // charge per plane
 	  int largest_qpt[3] = {0,0,0};
 	  float larget_q[3]  = {0,0,0};
-
+	  // we transfer information from this cluster into image space.  we mark pixels in image space with a hit
+	  for (int p=0; p<3; p++) 
+	    workspace[p].paint(0.0);
+	  
 	  // loop through hit in real space cluster. collect pixels in image space to cluster once more.
 	  for (int ihit=0; ihit<clout.clusters.at(ic).size(); ihit++) {
 	    int idxhit = clout.clusters.at(ic).at(ihit);
@@ -252,18 +270,38 @@ namespace larlitecv {
 		if ( col+n<0 || col+n>=imgs.at(p).meta().cols() ) continue;
 		float q = imgs.at(p).pixel( (int)combo_points[pt][idxhit][1], col+n );
 		if ( q > _config.thresholds.at(p) ) {
+		  workspace[p].set_pixel( (int)combo_points[pt][idxhit][1], col+n, q );
+		  // 		  std::vector<double> qpt(2,0.0);
+		  // 		  qpt[0] = col+n + rand.Uniform();
+// 		  qpt[1] = combo_points[pt][idxhit][1]+rand.Uniform();
+// 		  chargepts[p].emplace_back( std::move( qpt ) );
+// 		  if ( q>larget_q[p] ) {
+// 		    largest_qpt[p] = chargepts[p].size()-1;
+// 		    larget_q[p] = q;
+//		  } 
+		}//if pixel above thresh
+	      }// loop over neighborhood
+	    }//end of loop over plane
+	  }//end of loop over hits in real space
+	  
+	  // collection charge pts
+	  for (int p=0; p<3; p++) {
+	    for (int r=0; r<workspace[p].meta().rows(); r++) {
+	      for (int c=0; c<workspace[p].meta().cols(); c++) {
+		float q = workspace[p].pixel(r,c);
+		if ( q>0.0 ) {
 		  std::vector<double> qpt(2,0.0);
-		  qpt[0] = col+n + 0.1*rand.Uniform();
-		  qpt[1] = combo_points[pt][idxhit][1]+0.1*rand.Uniform();
+		  qpt[0] = c;// + rand.Uniform();
+		  qpt[1] = r;//+rand.Uniform();
 		  chargepts[p].emplace_back( std::move( qpt ) );
 		  if ( q>larget_q[p] ) {
 		    largest_qpt[p] = chargepts[p].size()-1;
 		    larget_q[p] = q;
 		  } 
-		}//if pixel above thresh
-	      }// loop over neighborhood
-	    }//end of loop over plane
-	  }//end of loop over hits in real space
+		}
+	      }
+	    }
+	  }
 	  
 	  // define the endpoint
 	  std::vector< BoundaryEndPt > endpt_v_min; // at min time of cluster
@@ -271,6 +309,7 @@ namespace larlitecv {
 	  int end_vote[3] = { 0, 0, 0 }; // votes by each plane for min or max time
 
 	  for (int p=0; p<3; p++) {
+	    // this block is slow. it's the reclustering of the charge!
 	    // cluster the charge hits on the plane
 	    //std::cout << "  " << chargepts[p].size() << " charge points on plane=" << p << std::endl;
 	    if ( chargepts[p].size()< _config.boundary_cluster_minpixels.at(p)+1 ) {
@@ -361,7 +400,7 @@ namespace larlitecv {
 	      }
 	    }//end of if point end type = 3 or 4
 
-	    std::cout << "endpt_type=" << pt << " plane=" << p
+	    std::cout << "endpt_type=" << pt << " plane=" << p << "chargepts=" << chargepts[p].size()
 		      << " (" << imgs.at(p).meta().pos_x( (int)pos[0][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[0][1] ) << ") "
 		      << "vs (" << imgs.at(p).meta().pos_x( (int)pos[1][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[1][1] ) << "): "
 		      << "nsteps[0]=" << nsteps[0] << " vs. nsteps[1]=" << nsteps[1]
@@ -850,6 +889,9 @@ namespace larlitecv {
     }
     
     fGeoFile.Close();
+    
+    matchalgo_tight = new larlitecv::BoundaryMatchAlgo( larlitecv::BoundaryMatchArrays::kTight );
+    matchalgo_loose = new larlitecv::BoundaryMatchAlgo( larlitecv::BoundaryMatchArrays::kLoose );
     
   }
 

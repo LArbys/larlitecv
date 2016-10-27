@@ -8,7 +8,11 @@
 #include "TFile.h"
 #include "TTree.h"
 
+// larcv
 #include "UBWireTool/UBWireTool.h"
+
+// larlite
+#include "LArUtil/Geometry.h"
 
 namespace larlitecv {
   
@@ -141,7 +145,9 @@ namespace larlitecv {
   }//end of marked output
   
   
-  bool FlashMuonTaggerAlgo::flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const std::vector<larcv::Image2D>& tpc_imgs,
+  bool FlashMuonTaggerAlgo::flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, 
+						 const std::vector<larcv::Image2D>& tpc_imgs,
+						 const std::vector<larcv::Image2D>& badch_imgs,
 						 std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs ) {
     // output
     // ------
@@ -217,6 +223,11 @@ namespace larlitecv {
 	  // accept all
 	  z_range[0] = 0;
 	  z_range[1] = 1100;
+	}
+	else {
+	  // just go to ends in these cases
+	  if ( z_range[0]<55.0 ) z_range[0] = 0; 
+	  if ( z_range[1]>980.0 ) z_range[1] = 1100;
 	}
 	
 	int row_target = meta.row( tick_target );
@@ -319,7 +330,8 @@ namespace larlitecv {
 	int ncombos = 0;
 	std::vector< int > final_combos_idx;
 
-	// go through 3 plane data
+	// ========================================================================
+	// SORT 3 PLANE COMBINATIONS
 	// sort indices by area
 	struct p3matches_t {
 	  int idx;
@@ -370,8 +382,78 @@ namespace larlitecv {
 	  final_combos_idx.push_back( combo.idx ); // copy combo
 	  ncombos++;
 	}
+
+	// =================================================================================================
+	// SORT 2 PLANE COMBINATIONS: add in flash combinations where missing end point is in badch regions
+	for ( int ii=0; ii<(int)intersections2plane.size(); ii++) {
+	  // find the missing one
+	  int missing_plane = -1;
+	  for (int ip=0; ip<3; ip++) {
+	    if ( intersections2plane.at(ii).at(ip)==-1 ) {
+	      missing_plane = ip;
+	      break;
+	    }
+	  }
+	  // get two plane intersection vertex
+	  std::vector<double> vert(3,0.0);
+	  vert[1] = vertex2plane.at(ii).at(1);
+	  vert[2] = vertex2plane.at(ii).at(0);
+	  float wireco = ::larutil::Geometry::GetME()->WireCoordinate( vert, missing_plane );
+	  // is it near a missing wire?
+	  int wirecol = (int)wireco/meta.pixel_width();
+	  bool missing_in_badch = false;
+	  for (int n=-3;n<=3;n++) {
+	    int col_ = wirecol+n;
+	    if ( col_<0 || col_>=meta.cols() ) continue;
+	    if ( badch_imgs.at(missing_plane).pixel(0,col_)>0 ){
+	      missing_in_badch = true;
+	      break;
+	    }
+	  }
+	  if ( missing_in_badch ) {
+	    
+	    // add to 3 plane intersections
+	    std::vector<int> intersect3(3);
+	    for (int ip=0; ip<3; ip++)
+	      intersect3[ip] = intersections2plane.at(ii).at(ip);
+	    intersect3[missing_plane] = (int)wireco;
+	    int min_totdiff = 10000;
+	    for (int jj=0; jj<intersections3plane.size(); jj++) {
+	      int totdiff = 0;
+	      for (int ip=0; ip<3; ip++)
+		totdiff += abs( intersections3plane.at(jj).at(ip)-intersect3.at(ip) );
+	      if (totdiff<min_totdiff)
+		min_totdiff = totdiff;
+	    }
+	    if ( min_totdiff>=5 ) {
+	      std::cout << "  adding 2-plane intersection+badch wire into 3 plane intersections: "
+			<< "(" << intersect3[0] << "," << intersect3[1] << "," << intersect3[2] << ")" << std::endl;
+	      std::vector<float> fvertzy(2,0.0);
+	      fvertzy[0] = vertex2plane.at(ii).at(0);
+	      fvertzy[1] = vertex2plane.at(ii).at(1);
+	      int idx = intersections3plane.size();
+	      intersections3plane.emplace_back( std::move(intersect3) );
+	      vertex3plane.emplace_back( std::move(fvertzy) );
+	      areas3plane.push_back(0.0);
+	      final_combos_idx.push_back(idx);
+
+	      // add wire map entry if needed
+	      int wid = meta.pixel_width()*wirecol;
+	      if ( wirelist_endpt_idx.at(missing_plane).find( wid )==wirelist_endpt_idx.at(missing_plane).end() ) {
+		wirelists.at(missing_plane).push_back( wid );
+		
+		BoundaryEndPt endpt( row_target, (int)wirecol);
+		int idx_endpt = endpts[missing_plane]->size();
+		endpts[missing_plane]->emplace_back( std::move(endpt) );
+		wirelist_endpt_idx.at(missing_plane).insert( std::pair<int,int>(wid,idx_endpt) );
+	      }
+	    }
+	  }
+	}
 	
-	// final 3-plane combos. fill the trackendpts container
+
+	// =================================================================================================
+	// FINAL 3 PLANE COMBOS. FILL TRACK END POINTS CONTAINER WITH RESULTS
 	std::cout << "Final 3-plane combos" << std::endl;
 	for (int ii=0 ; ii<(int)final_combos_idx.size(); ii++) {
 	  int idx = final_combos_idx.at(ii);
@@ -502,8 +584,9 @@ namespace larlitecv {
     delete faux_flashes;
     return result;
   }  
-
-  bool FlashMuonTaggerAlgo::findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs ) {
+  
+  bool FlashMuonTaggerAlgo::findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
+						std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs ) {
 						   
     if ( fSearchMode!=kOutOfImage ) {
       std::cout << "[ERROR] Invalid search mode for these type of track endpoints" << std::endl;
@@ -520,7 +603,7 @@ namespace larlitecv {
     std::vector< larlite::event_opflash* > faux_flashes_v;
     faux_flashes_v.push_back( faux_flashes );
     //bool result = findTrackEnds( faux_flashes_v, tpc_img, trackendpts, markedimg );
-    bool results = flashMatchTrackEnds( faux_flashes_v, tpc_imgs, trackendpts, markedimgs );
+    bool results = flashMatchTrackEnds( faux_flashes_v, tpc_imgs, badch_imgs, trackendpts, markedimgs );
     delete faux_flashes;
     return results;
   }  

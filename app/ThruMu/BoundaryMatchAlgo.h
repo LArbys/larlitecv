@@ -53,7 +53,7 @@ namespace larlitecv {
   public:
 
 
-    BoundaryMatchList( BoundaryMatchArrays::Boundary_t t ) { load(t); };
+    BoundaryMatchList( BoundaryMatchArrays::Boundary_t t, BoundaryMatchArrays::MatchMode_t mode ) { load(t, mode); };
     virtual ~BoundaryMatchList();
 
     std::vector<BoundaryCombo> findCombos( const std::vector<int>& uwires, const std::vector<int>& vwires, const std::vector<int>& ywires, 
@@ -74,14 +74,14 @@ namespace larlitecv {
     int* vvec;
     int* yvec;
 
-    void load( BoundaryMatchArrays::Boundary_t t  );
+    void load( BoundaryMatchArrays::Boundary_t t, BoundaryMatchArrays::MatchMode_t mode  );
 
   };
 
   class BoundaryMatchAlgo {
 
   public:
-    BoundaryMatchAlgo();
+    BoundaryMatchAlgo( BoundaryMatchArrays::MatchMode_t mode );
     virtual ~BoundaryMatchAlgo();
 
     void findCombos( const std::vector<int>& uwires, const std::vector<int>& vwires, const std::vector<int>& ywires,
@@ -91,6 +91,7 @@ namespace larlitecv {
     
   protected:
 
+    BoundaryMatchArrays::MatchMode_t fMode;
     BoundaryMatchList* matchlist[4];
     
   };

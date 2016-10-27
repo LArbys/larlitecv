@@ -117,7 +117,7 @@ int main( int nargs, char** argv ) {
   // Start Event Loop
   //int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  int nentries = 3;
+  int nentries = 10;
   
   for (int ientry=0; ientry<nentries; ientry++) {
     
@@ -230,9 +230,9 @@ int main( int nargs, char** argv ) {
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_anode;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_cathode;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > trackendpts_imgends;
-    anode_flash_tagger.flashMatchTrackEnds( opflash_containers, imgs, trackendpts_anode, stage1_annode_hits );
-    cathode_flash_tagger.flashMatchTrackEnds( opflash_containers, imgs, trackendpts_cathode, stage1_cathode_hits );
-    imgends_flash_tagger.findImageTrackEnds( imgs, trackendpts_imgends, stage1_imgends_hits );
+    anode_flash_tagger.flashMatchTrackEnds( opflash_containers, imgs, badchimgs, trackendpts_anode, stage1_annode_hits );
+    cathode_flash_tagger.flashMatchTrackEnds( opflash_containers, imgs, badchimgs, trackendpts_cathode, stage1_cathode_hits );
+    imgends_flash_tagger.findImageTrackEnds( imgs, badchimgs, trackendpts_imgends, stage1_imgends_hits );
     
     std::cout << "[[ Flash Tagger End Points ]]" << std::endl;
     std::cout << "    anode: " << trackendpts_anode.size() << std::endl;

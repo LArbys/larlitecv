@@ -54,7 +54,7 @@ namespace larlitecv {
       _config = config; //copy
       loadGeoInfo();
     };
-    virtual ~BoundaryMuonTaggerAlgo() {};
+    virtual ~BoundaryMuonTaggerAlgo();
 
     enum { kOK=0, kErr_NotConfigured, kErr_BadInput };
 
@@ -94,10 +94,10 @@ namespace larlitecv {
 
     void loadGeoInfo();
 
-    larlitecv::BoundaryMatchArrays m_matches;
     ConfigBoundaryMuonTaggerAlgo _config;
 
-    BoundaryMatchAlgo matchalgo;
+    BoundaryMatchAlgo* matchalgo_tight;
+    BoundaryMatchAlgo* matchalgo_loose;
     
     void getClusterEdges( const dbscan::dbPoints& points, const std::vector< larcv::Image2D >& imgs, 
 			  const dbscan::dbscanOutput& clout, int idx_cluster,

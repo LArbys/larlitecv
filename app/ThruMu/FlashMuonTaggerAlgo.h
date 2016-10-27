@@ -50,12 +50,15 @@ namespace larlitecv {
     virtual ~FlashMuonTaggerAlgo() {};
     
     void configure( const FlashMuonTaggerConfig& config_ ) { fConfig=config_; fconfigured = true; };
-    bool findTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const larcv::Image2D& image,
+    bool findTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const larcv::Image2D& image, 
 			std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg );
     bool flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const std::vector<larcv::Image2D>& tpc_imgs,
+			      const std::vector<larcv::Image2D>& badch_imgs,
 			      std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimg );
     bool findImageBoundaryEnds( const larcv::Image2D& tpc_img, std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg );    
-    bool findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs );
+    bool findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
+			     std::vector< std::vector< BoundaryEndPt > >& trackendpts, 
+			     std::vector< larcv::Image2D >& markedimgs );
     
   protected:
     

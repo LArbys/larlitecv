@@ -15,10 +15,10 @@ namespace larlitecv {
     delete [] yvec;
   }
 
-  void BoundaryMatchList::load( BoundaryMatchArrays::Boundary_t t ) {
+  void BoundaryMatchList::load( BoundaryMatchArrays::Boundary_t t, BoundaryMatchArrays::MatchMode_t mode ) {
     const clock_t begin_time = clock();
     
-    BoundaryMatchArrays match_arrays;
+    BoundaryMatchArrays match_arrays(mode);
     
     m_combos.resize( match_arrays.nmatches(t) );
 
@@ -32,6 +32,8 @@ namespace larlitecv {
 
       // define and store the combo
       float pos[3] = { 0., 0., 0.};
+      match_arrays.getPosition( t, imatch, pos[0], pos[1], pos[2] );
+      /*
       switch ( t ) {
       case BoundaryMatchArrays::kTop:
 	pos[0] = top_positions[imatch][0];
@@ -57,6 +59,7 @@ namespace larlitecv {
 	assert(false);
 	break;
       }
+      */
       BoundaryCombo combo( u, v, y, pos[0], pos[1], pos[2] );
       m_combos[imatch] = combo;
 
@@ -181,11 +184,12 @@ namespace larlitecv {
     return combo_v;
   }
 
-  BoundaryMatchAlgo::BoundaryMatchAlgo() {
-    matchlist[0] = new BoundaryMatchList( BoundaryMatchArrays::kTop );
-    matchlist[1] = new BoundaryMatchList( BoundaryMatchArrays::kBottom );
-    matchlist[2] = new BoundaryMatchList( BoundaryMatchArrays::kUpstream );
-    matchlist[3] = new BoundaryMatchList( BoundaryMatchArrays::kDownstream );
+  BoundaryMatchAlgo::BoundaryMatchAlgo( BoundaryMatchArrays::MatchMode_t mode ) {
+    fMode = mode;
+    matchlist[0] = new BoundaryMatchList( BoundaryMatchArrays::kTop, mode );
+    matchlist[1] = new BoundaryMatchList( BoundaryMatchArrays::kBottom, mode );
+    matchlist[2] = new BoundaryMatchList( BoundaryMatchArrays::kUpstream, mode );
+    matchlist[3] = new BoundaryMatchList( BoundaryMatchArrays::kDownstream, mode );
   }
 
   BoundaryMatchAlgo::~BoundaryMatchAlgo() {
@@ -199,9 +203,18 @@ namespace larlitecv {
 				      int urange, int vrange, int yrange,
 				      const std::vector<larcv::Image2D>& badchs, bool use_badchs,
 				      std::vector<  std::vector<BoundaryCombo>  >& boundary_combos ) {
+    if ( boundary_combos.size()!=4 ) {
+      std::cout << "wrong size of combo types" << std::endl;
+      assert(false);
+    }
+    
     for (int i=0; i<4; i++) {
       std::vector<BoundaryCombo> combos = matchlist[i]->findCombos( uwires, vwires, ywires, urange, vrange, yrange, badchs, use_badchs );
-      boundary_combos.emplace_back( std::move(combos) );
+      std::vector<BoundaryCombo>& out_combos = boundary_combos.at(i);
+      for (int j=0; j<combos.size(); j++) {
+	//boundary_combos.push_back( std::move(combos) );
+	out_combos.push_back( combos.at(j) );
+      }
     }
   }
   
