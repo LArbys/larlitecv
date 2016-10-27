@@ -188,7 +188,6 @@ namespace larlitecv {
 	    // up stream and downstream use the y value
 	    x = combo.pos[1]+116.0;
 	  }
-	  int x_i = (int)x;
 
 	  // get total charge
 	  float charge = 0.0;
@@ -905,8 +904,8 @@ namespace larlitecv {
 
     double hit_tmin[2];
     double hit_tmax[2];
-    double hit_wmin[2];
-    double hit_wmax[2];
+    //double hit_wmin[2];
+    //double hit_wmax[2];
 		      
     // we find the extrema hits in a cluster
     for (int ichit=0; ichit<(int)clout.clusters.at(idx_cluster).size(); ichit++) {
@@ -943,105 +942,5 @@ namespace larlitecv {
     }//end of loop over hit indices of cluster
   }//end of getClusterEdges
 
-  void BoundaryMuonTaggerAlgo::calcTrackTest( const BoundaryEndPt& start, const BoundaryEndPt& end, 
-					      const larcv::Image2D& img,  const larcv::Image2D& badchimg, 
-					      float angle, float pix_thresh, int time_win, int wire_win,
-					      std::vector<float>& q_in_angle, std::vector<int>& pixels_in_angle, std::vector<int>& badpixs_in_angle ) {
-    // we test the pixels in the neighborhood of the end points
-    // if they have enough pixels going in the direction to the other end point, the test passes
-
-    q_in_angle.resize(2,0.);
-    pixels_in_angle.resize(2,0);
-    badpixs_in_angle.resize(2,0);
-
-
-    float dir[2] = { (float)(end.w-start.w), (float)(end.t-start.t) };
-    float dist = 0.;
-    for (int i=0; i<2; i++)
-      dist  += dir[i]*dir[i];
-    dist = sqrt(dist);
-    if (dist==0) // wtf
-      return;
-    for (int i=0; i<2; i++)
-      dir[i] /= dist;
-      
-    const larcv::ImageMeta& meta = img.meta();
-    
-    const BoundaryEndPt* pts[2] = { &start, &end };
-    
-    float cos_angle = cos(angle*3.14159/180.0);
-
-    for (int pt=0; pt<2; pt++) {
-      const BoundaryEndPt& endpt = *(pts[pt]);
-      for (int dt=-time_win; dt<=time_win; dt++) {
-	if ( endpt.t+dt<0 || endpt.t+dt>=meta.rows() ) continue;
-	for (int dw=-wire_win; dw<=wire_win; dw++) {
-	  if ( endpt.w+dw<0 || endpt.w+dw>=meta.cols() ) continue;
-	  if ( dt==0 && dw==0 ) continue;
-	  int t=endpt.t+dt;
-	  int w=endpt.w+dw;
-	  bool isbad = false;
-	  if ( badchimg.pixel(t,w)>0 ) isbad = true;
-	  if ( img.pixel( t, w )<pix_thresh || isbad ) continue;
-	  // direction to pixel
-	  float pixnorm = sqrt( dw*dw+dt*dt );
-	  float pixdir[2] = { dw/pixnorm, dt/pixnorm };
-	  float pixcos = pixdir[0]*dir[0] + pixdir[1]*dir[1];
-	  if ( pixcos*(1.0-pt*2.0) > 1.0-cos_angle  ) {
-	    if ( !isbad ) {
-	      q_in_angle[pt] += img.pixel( t, w );
-	      pixels_in_angle[pt]++;
-	    }
-	    else {
-	      badpixs_in_angle[pt]++;
-	    }
-	  }//end of within target cos
-	}//end of wire region loop
-      }//end of time region loop
-    }//end of pt loop
-  }
-
-  bool BoundaryMuonTaggerAlgo::passTrackTest( const std::vector<BoundaryEndPt>& start_v, const std::vector<BoundaryEndPt>& end_v,
-                                              const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v ) {
-    
-    // we first get track test results for each plane
-    bool passes_test[3] =   { false, false, false };
-    bool passes_wbadch[3] = { false, false, false };
-    float angle = 10.0;
-    float pix_thresh = 10.0;
-    int time_win = 10;
-    int wire_win = 10;
-    std::cout << "test heuristic: ";
-    for (int p=0; p<3; p++) {
-      const BoundaryEndPt& start = start_v.at(p);
-      const BoundaryEndPt& end   = end_v.at(p);
-      const larcv::Image2D& img  = img_v.at(p);
-      const larcv::Image2D& bad  = badchimg_v.at(p);
-      std::vector<float> q_in_angle;
-      std::vector<int> pixels_in_angle;
-      std::vector<int> badpixs_in_angle;
-      calcTrackTest( start, end, img, bad, angle, pix_thresh, time_win, wire_win, q_in_angle, pixels_in_angle, badpixs_in_angle );
-      std::cout << "  p=" << p 
-		<< "  q=(" << q_in_angle[0] << "," << q_in_angle[1] << ")"
-		<< "  pix=(" << pixels_in_angle[0] << "," << pixels_in_angle[1] << ")"
-		<< "  bad=(" << badpixs_in_angle[0] << "," << badpixs_in_angle[1] << ")"
-		<< std::endl;
-      if ( pixels_in_angle[0]>8 && pixels_in_angle[1]>8 ) {
-	passes_test[p] = true;
-	if ( badpixs_in_angle[0]>0 || badpixs_in_angle[1]>0 ) 
-	  passes_wbadch[p] = true;
-      }
-    }
-    
-    int npasses = 0;
-    for ( int p=0; p<3; p++) {
-      if ( passes_test[p] )
-	npasses++;
-    }
-
-    if ( npasses>=2 )
-      return true;
-    return false;
-  }
   
 }
