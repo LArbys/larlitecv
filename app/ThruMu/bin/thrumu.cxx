@@ -11,6 +11,7 @@
 // larlite data
 #include "Base/DataFormatConstants.h"
 #include "DataFormat/opflash.h"
+#include "DataFormat/track.h"
 #include "../../larlite/core/DataFormat/chstatus.h"
 
 // larcv data
@@ -270,20 +271,26 @@ int main( int nargs, char** argv ) {
     }
     
 
-    // do track building
+    // ------------------------------------------------------------------------------------------//
+    // Form 2D tracks on each plane from boundary points
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > trackclusters;
-    std::vector< larlitecv::BMTrackCluster2D > trackcluster;
     //sidetagger.makeTrackClusters3D( imgs, badchimgs, all_endpoints, trackclusters );
     sidetagger.makeTrackClusters3D( imgs, emptyimgs, all_endpoints, trackclusters );
     
     // ------------------------------------------------------------------------------------------//
     // Filter 2D tracks and form 3D tracks
+    
+    std::vector< larlitecv::BMTrackCluster3D > tracks3d;
+    std::vector<int> goodlist;
+    sidetagger.process2Dtracks( trackclusters, imgs, badchimgs, tracks3d, goodlist );
+
+    std::cout << "[NUMBER OF POST-PROCESSED 3D TRAJECTORIES: " << tracks3d.size() << "]" << std::endl;
 
     // ------------------------------------------------------------------------------------------//
-    // mark image with pixels around the track
-    std::vector< larcv::Image2D > track_marked_imgs;
-    //sidetagger.markImageWithTrackClusters( imgs, plane_trackclusters, track_marked_imgs );
+    // MARK IMAGES
 
+    std::vector< larcv::Image2D > markedimgs;
+    sidetagger.markImageWithTrackClusters( imgs, badchimgs, trackclusters, goodlist, markedimgs );
 
     // ------------------------------------------------------------------------------------------//
     // SAVE OUTPUT //
@@ -357,24 +364,67 @@ int main( int nargs, char** argv ) {
       }
     }
     
-    // clustering
-    std::cout << "SAVE 2D TRACKS as PIXEL2D OBJECTS" << std::endl;
-    larcv::EventPixel2D* event_tracks = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumu" );
-    for (int i=0; i<(int)trackclusters.size(); i++) {
-      std::vector< larlitecv::BMTrackCluster2D >& trackcluster = trackclusters.at(i);
-      std::cout << "save track cluster" << std::endl;
+    // save 2d pixelcluster objects. only save those that are filtered
+//     std::cout << "SAVE 2D TRACKS as PIXEL2D OBJECTS" << std::endl;
+//     larcv::EventPixel2D* event_tracks = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumu" );
+//     for (int i=0; i<(int)trackclusters.size(); i++) {
+//       std::vector< larlitecv::BMTrackCluster2D >& trackcluster = trackclusters.at(i);
+//       std::cout << "save track cluster" << std::endl;
+//       for (int p=0; p<3; p++) {
+// 	larlitecv::BMTrackCluster2D& track = trackcluster.at(p);
+// 	larcv::Pixel2DCluster cluster;
+// 	std::swap( cluster, track.pixelpath );
+// 	std::cout << " plane=" << p << " track. length=" << cluster.size() << std::endl;
+// 	event_tracks->Emplace( (larcv::PlaneID_t)p, std::move(cluster) );
+//       }
+//     }
+
+    // save 2D track objects filtered by good 3d tracks
+    larcv::EventPixel2D* ev_tracks2d = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumu2d" );
+    for (int i3d=0; i3d<(int)tracks3d.size(); i3d++) {
+      const larlitecv::BMTrackCluster3D& track3d = tracks3d.at(i3d);
+      if ( goodlist.at( track3d.track2d_index )==0 ) continue;
+      std::vector< larlitecv::BMTrackCluster2D >& trackcluster2d = trackclusters.at(track3d.track2d_index);
+      std::cout << "Save revised track cluster #" << track3d.track2d_index << std::endl;
       for (int p=0; p<3; p++) {
-	larlitecv::BMTrackCluster2D& track = trackcluster.at(p);
+	larlitecv::BMTrackCluster2D& track = trackcluster2d.at(p);
 	larcv::Pixel2DCluster cluster;
 	std::swap( cluster, track.pixelpath );
 	std::cout << " plane=" << p << " track. length=" << cluster.size() << std::endl;
-	event_tracks->Emplace( (larcv::PlaneID_t)p, std::move(cluster) );
+	ev_tracks2d->Emplace( (larcv::PlaneID_t)p, std::move(cluster) );
       }
     }
+
+    // save 3D track object
+    larlite::event_track* ev_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
     
-    // track cluster img
-    larcv::EventImage2D* ev_trackcluster_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "trackcluster" );
-    ev_trackcluster_imgs->Emplace( std::move( track_marked_imgs ) );
+    // convert BMTrackCluster3D to larlite::track
+    int id = 0;
+    for ( auto const& track3d : tracks3d ) {
+      if ( goodlist.at( track3d.track2d_index )==0 ) continue;
+      larlite::track lltrack;
+      lltrack.set_track_id( id );
+      int istep = 0;
+      for ( auto const& point3d : track3d.path3d ) {
+	TVector3 vec( point3d[0], point3d[1], point3d[2] );
+	lltrack.add_vertex( vec );
+	if ( istep+1<track3d.path3d.size() ) {
+	  TVector3 dir( track3d.path3d.at(istep+1)[0]-point3d[0], track3d.path3d.at(istep+1)[1]-point3d[1], track3d.path3d.at(istep+1)[2]-point3d[2] );
+	  lltrack.add_direction( dir );
+	}
+	else {
+	  TVector3 dir(0,0,0);
+	  lltrack.add_direction( dir );
+	}
+      }
+      std::cout <<  "storing 3D track (track2d_index=" << track3d.track2d_index << ") with " << lltrack.NumberTrajectoryPoints() << " trajectory points" << std::endl;
+      ev_tracks->emplace_back( std::move(lltrack) );
+    }
+
+    // Marked images
+    larcv::EventImage2D* event_markedimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
+    event_markedimgs->Emplace( std::move(markedimgs) );
+
 
     // go to tree
     dataco.save_entry();
