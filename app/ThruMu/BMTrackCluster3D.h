@@ -27,6 +27,7 @@ namespace larlitecv {
     BoundaryEndPt::BoundaryEnd_t end_type;
     std::vector< BMTrackCluster2D > plane_paths;
     std::vector< std::vector<double> > path3d;
+    int track2d_index;
     
     //std::vector< float > node_triangle_area;
 

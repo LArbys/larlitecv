@@ -70,13 +70,14 @@ namespace larlitecv {
     int makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
 			     const std::vector< const std::vector< BoundaryEndPt >* >& spacepts,
 			     std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters );
-    int markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters,
+    int markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+				    const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters, std::vector<int>& goodlist,
 				    std::vector<larcv::Image2D>& markedimgs );
     BMTrackCluster2D runAstar( const BoundaryEndPt& start, const BoundaryEndPt& end, const larcv::Image2D& img, const larcv::Image2D& badchimg,
 			       int start_pad, int end_pad, int verbose=2, bool use_badchs=false );
-    void process2Dtracks( const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
+    void process2Dtracks( std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
 			  const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
-			  std::vector< BMTrackCluster3D >& tracks );
+			  std::vector< BMTrackCluster3D >& tracks, std::vector<int>& goodlist );
 
 			
 
@@ -97,7 +98,7 @@ namespace larlitecv {
 			  const dbscan::dbscanOutput& clout, int idx_cluster,
 			  int& idxhit_tmin, int& idxhit_tmax, int& idxhit_wmin, int& idxhit_wmax );
 
-    BMTrackCluster3D process2Dtrack( const std::vector< larlitecv::BMTrackCluster2D >& track2d, 
+    BMTrackCluster3D process2Dtrack( std::vector< larlitecv::BMTrackCluster2D >& track2d, 
 				     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v );
     bool compare2Dtrack( const std::vector< BMTrackCluster2D >& track2d, const BMTrackCluster3D& track3d, const larcv::ImageMeta& meta,
 			 float path_radius_cm, float endpt_radius_cm );

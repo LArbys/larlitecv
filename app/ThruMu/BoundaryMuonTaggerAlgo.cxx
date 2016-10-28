@@ -551,39 +551,83 @@ namespace larlitecv {
     return 0;
   }
 
-  int BoundaryMuonTaggerAlgo::markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, 
+  int BoundaryMuonTaggerAlgo::markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
 							  const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters,
-							  std::vector<larcv::Image2D>& markedimgs ) {
-    for ( auto &img : imgs ) {
-      const larcv::ImageMeta& meta = img.meta();
-      larcv::Image2D markedimg( meta );
+							  std::vector<int>& goodlist, std::vector<larcv::Image2D>& markedimgs ) {
+    std::vector< larcv::Image2D > workspace;
+    for (auto &img : imgs ) {
+      larcv::Image2D ws( img.meta() );
+      workspace.emplace_back( std::move(ws) );
+      larcv::Image2D markedimg( img.meta() );
       markedimg.paint(0.0);
+      markedimgs.emplace_back( std::move(markedimg) );
+    }
 
-      int plane = (int)meta.plane();
+    for ( int itrack=0; itrack<(int)trackclusters.size(); itrack++ ) {
+    
+      if ( goodlist.at(itrack)==0 ) continue;
       
-      const std::vector< larlitecv::BMTrackCluster2D >& planetracks = trackclusters.at(plane);
+      const std::vector< larlitecv::BMTrackCluster2D >& tracks2d = trackclusters.at(itrack);
+      
+      float frac_marked[imgs.size()];
+      for ( auto &img : imgs ) {
+	const larcv::ImageMeta& meta = img.meta();
+	int plane = (int)meta.plane();
+	workspace.at(img.meta().plane()).paint(0.0);
+	frac_marked[plane] = 0.;
 
-      for ( auto &track : planetracks ) {
+	const larlitecv::BMTrackCluster2D& track = tracks2d.at(plane);
+	int nmarked = 0;
+
 	for ( auto &pixel : track.pixelpath ) {
 	  int col = pixel.X();
 	  int row = pixel.Y();
-
+	  bool foundcharge = false;
 	  for ( int dc=-_config.astar_neighborhood.at(plane); dc<=_config.astar_neighborhood.at(plane); dc++ ) {
 	    for ( int dr=-_config.astar_neighborhood.at(plane); dr<=_config.astar_neighborhood.at(plane); dr++ ) {
 	      int r = row+dr;
 	      int c = col+dc;
 	      if ( r<0 || r>=meta.rows() ) continue;
 	      if ( c<0 || c>=meta.cols() ) continue;
-	      float val = img.pixel( row, col );
-	      if ( val>_config.thresholds.at(plane) ) {
-		markedimg.set_pixel( r, c, 100.0 );
+	      float val = img.pixel( r, c );
+	      if ( val>_config.thresholds.at(plane) || badchimgs.at(plane).pixel(r,c)>0 ) {
+		workspace.at(plane).set_pixel( r, c, 100.0 );
+		foundcharge = true;
 	      }
 	    }
 	  }
+	  if ( foundcharge ) nmarked++;
 	}//end of pixel list
+	
+	frac_marked[plane] = float(nmarked)/float(track.pixelpath.size());
+	
       }//end of planetracks
-      markedimgs.emplace_back( markedimg );
-    }
+
+      bool goodtrack = true;
+      std::cout << "fraction of path has charge (or badch): ";
+      for (int p=0; p<3; p++) {
+	std::cout << "p=" << p << ": " << frac_marked[p] << "    ";
+	if ( frac_marked[p]<0.9 )
+	  goodtrack = false;
+      }
+      std::cout << std::endl;
+
+      if ( goodtrack ) {
+	for (int p=0; p<3; p++) {
+	  for (int row=0; row<imgs.at(p).meta().rows(); row++) {
+	    for (int col=0; col<imgs.at(p).meta().cols(); col++) {
+	      if ( workspace.at(p).pixel(row,col)>0 ) {
+		markedimgs.at(p).set_pixel( row, col, 255 );
+	      }
+	    }
+	  }
+	}
+      }//end of if good track
+      else {
+	// mark as rejected
+	goodlist.at(itrack) = 0; 
+      }
+    } // end of loop over all tracks
     
     return 0;
   }
@@ -630,10 +674,10 @@ namespace larlitecv {
     }
     return track2d;
   }
-
-  void BoundaryMuonTaggerAlgo::process2Dtracks( const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
+  
+  void BoundaryMuonTaggerAlgo::process2Dtracks( std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
 						const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
-						std::vector< BMTrackCluster3D >& tracks ) {
+						std::vector< BMTrackCluster3D >& tracks, std::vector<int>& goodlist ) {
 
     std::vector< std::vector<float> > valid_range(3);
     for (int p=0; p<3; p++) {
@@ -642,12 +686,14 @@ namespace larlitecv {
       valid_range[p][1] = 1100.0;
     }
 
-    float trig_tick = 2400;
-    float drift_v   = 0.106865;
+    goodlist.resize( trackclusters2D.size(), 0 );
+
+    //float trig_tick = 2400;
+    //float drift_v   = 0.106865;
 
     // loop over 
     int itrack = -1;
-    for ( auto const& track2d : trackclusters2D ) {
+    for ( auto &track2d : trackclusters2D ) {
       itrack++;
       std::cout << "=============================================" << std::endl;
       std::cout << "PROCESSING TRACK 2D #" << itrack << std::endl;
@@ -679,7 +725,9 @@ namespace larlitecv {
       }
 
       // save track
+      track3d.track2d_index = itrack;
       tracks.emplace_back( std::move(track3d) );
+      goodlist.at(itrack) = 1; // mark as good
 
     }//end of loop over 2D tracks
   }
@@ -759,7 +807,7 @@ namespace larlitecv {
     }//end of loop over hit indices of cluster
   }//end of getClusterEdges
 
-  BMTrackCluster3D BoundaryMuonTaggerAlgo::process2Dtrack( const std::vector< larlitecv::BMTrackCluster2D >& track2d, 
+  BMTrackCluster3D BoundaryMuonTaggerAlgo::process2Dtrack( std::vector< larlitecv::BMTrackCluster2D >& track2d, 
 							   const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v ) {
     
     // parameters to move to config file at some point
@@ -854,10 +902,24 @@ namespace larlitecv {
 	}
       }
     }
-    
 
     if ( ngood<2 ) 
       return track3d; // empty track
+
+    int badplane = -1;
+    if ( ngood==2 ) {
+      // clear out path of BMTrackCluster2D from bad plane. we are going to remake it
+      for (int p=0; p<3; p++) {
+	if (!isgood[p]) {
+	  BMTrackCluster2D& badtrack = track2d.at(p);
+	  badtrack.pixelpath.clear();
+	  larcv::Pixel2D pixel( badtrack.start.w, badtrack.start.t ); // (X,Y)
+	  //badtrack.pixelpath.emplace_back( std::move(pixel) );
+	  badplane = p;
+	  break;
+	}
+      }
+    }
     
     // make 3d path. we want to take cm steps
     int nsteps = (int)longest_pathlength;
@@ -874,7 +936,9 @@ namespace larlitecv {
       int ip=0;
       float avetick = 0.0;
       for (int p=0; p<3; p++) {
-	if ( !isgood[p] ) continue;
+	if ( !isgood[p] ) {
+	  continue;
+	}
 	float imgpos[2] = { 0., 0. };
 	for (int v=0; v<2; v++) {
 	  imgpos[v] = nodepos[p].at( current_node[p] )[v] + edgedir[p].at( current_node[p] )[v];
@@ -883,7 +947,7 @@ namespace larlitecv {
 	wireid[ip] = (int)imgcol[ip]*img_v.at(p).meta().pixel_width();
 	pid[ip] = p;
 	avetick += img_v.at(p).meta().pos_y( (int)imgpos[1] );
-	  ip++;
+	ip++;
       }
       avetick /= float(ip);
       
@@ -902,6 +966,9 @@ namespace larlitecv {
 	double worldpos[3] = { 0, (double)intersection[1], (double)intersection[0] };
 	wireid[2] = larutil::Geometry::GetME()->WireCoordinate( worldpos, pid[2] );
 	imgcol[2] = wireid[2]/img_v.at(0).meta().pixel_width();
+	// we can backfill the missing bad plane
+	larcv::Pixel2D pix( imgcol[2], (int)img_v.at(pid[2]).meta().row( avetick ) );
+	track2d.at( badplane ).pixelpath.emplace_back( std::move(pix) );
       }
       else if ( ngood==3 ) {
 	crosses = 1;
@@ -994,8 +1061,12 @@ namespace larlitecv {
       }
       
     }//end of loop over steps
-      
-      
+
+    if ( ngood==2 ) {
+      larcv::Pixel2D pix( track2d.at(badplane).end.w, track2d.at(badplane).end.t );
+      //track2d.at(badplane).pixelpath.emplace_back( std::move(pix) );
+    }
+    
     // finishing touches:
     // copy boundaryendpts
     for (int p=0; p<3; p++) {
@@ -1164,5 +1235,7 @@ namespace larlitecv {
 
     return false;
   }
+
+
   
 }

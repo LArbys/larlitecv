@@ -126,12 +126,36 @@ int main( int nargs, char** argv ) {
     // process and make 3d tracks
     std::cout << "process 2d tracks" << std::endl;
     std::vector< larlitecv::BMTrackCluster3D > tracks3d;
-    sidetagger.process2Dtracks( track2d_v, ev_mod_imgs->Image2DArray(), ev_badch_imgs->Image2DArray(), tracks3d );
+    std::vector<int> goodlist;
+    sidetagger.process2Dtracks( track2d_v, ev_mod_imgs->Image2DArray(), ev_badch_imgs->Image2DArray(), tracks3d, goodlist );
 
     std::cout << "[NUMBER OF POST-PROCESSED 3D TRAJECTORIES: " << tracks3d.size() << "]" << std::endl;
+
+    // ------------------------------------------------------------------------------------------//
+    // MARK IMAGES
+
+    std::vector< larcv::Image2D > markedimgs;
+    sidetagger.markImageWithTrackClusters( imgs, badchs, track2d_v, goodlist, markedimgs );
     
     // ------------------------------------------------------------------------------------------//
     // SAVE OUTPUT //
+
+    // save 2D track object, again, because it has filled in track this time.
+    // filter by good 3d tracks
+    larcv::EventPixel2D* ev_tracks2d = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "revisedthrumu2d" );
+    for (int i3d=0; i3d<(int)tracks3d.size(); i3d++) {
+      const larlitecv::BMTrackCluster3D& track3d = tracks3d.at(i3d);
+      if ( goodlist.at( track3d.track2d_index )==0 ) continue;
+      std::vector< larlitecv::BMTrackCluster2D >& trackcluster = track2d_v.at(track3d.track2d_index);
+      std::cout << "Save revised track cluster #" << track3d.track2d_index << std::endl;
+      for (int p=0; p<3; p++) {
+	larlitecv::BMTrackCluster2D& track = trackcluster.at(p);
+	larcv::Pixel2DCluster cluster;
+	std::swap( cluster, track.pixelpath );
+	std::cout << " plane=" << p << " track. length=" << cluster.size() << std::endl;
+	ev_tracks2d->Emplace( (larcv::PlaneID_t)p, std::move(cluster) );
+      }
+    }
 
     // save 3D track object
     larlite::event_track* ev_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
@@ -157,6 +181,10 @@ int main( int nargs, char** argv ) {
       std::cout <<  "storing track with " << lltrack.NumberTrajectoryPoints() << " trajectory points" << std::endl;
       ev_tracks->emplace_back( std::move(lltrack) );
     }
+
+    // Marked images
+    larcv::EventImage2D* event_markedimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
+    event_markedimgs->Emplace( std::move(markedimgs) );
     
     // go to tree
     std::cout << "save entry" << std::endl;
