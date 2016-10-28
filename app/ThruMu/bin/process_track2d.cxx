@@ -70,9 +70,9 @@ int main( int nargs, char** argv ) {
   sidetagger.configure(sidetagger_cfg);
 
   // Start Event Loop
-  //int nentries = dataco.get_nentries("larcv");
+  int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  int nentries = 1;
+  //int nentries = 1;
   
   for (int ientry=0; ientry<nentries; ientry++) {
 
@@ -134,17 +134,27 @@ int main( int nargs, char** argv ) {
     // SAVE OUTPUT //
 
     // save 3D track object
-    larlite::event_track* ev_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "track3d" );
+    larlite::event_track* ev_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
     
     // convert BMTrackCluster3D
     int id = 0;
     for ( auto const& track3d : tracks3d ) {
       larlite::track lltrack;
       lltrack.set_track_id( id );
+      int istep = 0;
       for ( auto const& point3d : track3d.path3d ) {
 	TVector3 vec( point3d[0], point3d[1], point3d[2] );
 	lltrack.add_vertex( vec );
+	if ( istep+1<track3d.path3d.size() ) {
+	  TVector3 dir( track3d.path3d.at(istep+1)[0]-point3d[0], track3d.path3d.at(istep+1)[1]-point3d[1], track3d.path3d.at(istep+1)[2]-point3d[2] );
+	  lltrack.add_direction( dir );
+	}
+	else {
+	  TVector3 dir(0,0,0);
+	  lltrack.add_direction( dir );
+	}
       }
+      std::cout <<  "storing track with " << lltrack.NumberTrajectoryPoints() << " trajectory points" << std::endl;
       ev_tracks->emplace_back( std::move(lltrack) );
     }
     

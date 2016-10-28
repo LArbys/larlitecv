@@ -142,7 +142,10 @@ namespace larlitecv {
   }
   
   void DataCoordinator::finalize() {
-    if ( !larlite_unused ) larlite_io.close();
+    if ( !larlite_unused ) {
+      //larlite_io.next_event();
+      larlite_io.close();
+    }
     if ( !larcv_unused )   larcv_io.finalize();
   }
   
@@ -269,7 +272,7 @@ namespace larlitecv {
       fManagers["larcv"]->getRSE( entry, run, subrun, event );
       if ( !larlite_unused ) {
 	fManagers["larlite"]->getEntry( run, subrun, event, other_entry );
-	larlite_io.go_to( other_entry );
+	larlite_io.go_to( other_entry, false );
       }
     }
     else {
@@ -286,7 +289,7 @@ namespace larlitecv {
     int entry;
     if ( !larlite_unused ) {
       fManagers["larlite"]->getEntry( run, subrun, event, entry );
-      larlite_io.go_to( entry );
+      larlite_io.go_to( entry, false );
       //larlite_io.set_id( run, subrun, event );
     }
     if ( !larcv_unused ) {
@@ -311,7 +314,9 @@ namespace larlitecv {
 
     if ( !larcv_unused )
       larcv_io.save_entry();
-    // writing down implicitly when event changes for larlite storage_manager
+    if ( !larlite_unused ) 
+      larlite_io.next_event(true);
+    // writing done implicitly when event changes for larlite storage_manager
   }
 
   void DataCoordinator::set_id( int run, int subrun, int event ) {
