@@ -15,140 +15,11 @@
 #include "LArUtil/Geometry.h"
 
 namespace larlitecv {
-  
-  bool FlashMuonTaggerAlgo::findTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const larcv::Image2D& tpc_img,
-					   std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg ) {
     
-    markedimg = std::move( larcv::Image2D(tpc_img.meta()) );
-
-    for ( auto& ptr_event_flash : opflashsets ) {
-      for ( auto& opflash : *ptr_event_flash ) {
-	
-	const larcv::ImageMeta& meta = tpc_img.meta();
-	int plane = meta.plane();
-	
-	float tick_target = 0;
-	std::string modename;
-	if ( fSearchMode==kAnode ) {
-	  tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
-	  modename = "anode";
-	}
-	else if ( fSearchMode==kCathode ) {
-	  tick_target = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
-	  tick_target += fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick + 240.0;
-	  modename = "cathode";
-	}
-	else if ( fSearchMode==kOutOfImage ) {
-	  tick_target = opflash.Time(); // dummy opflash gives first or last tick of image
-	  modename = "image end";
-	}
-	else {
-	  std::cout << "[ERROR] wrong search mode" << std::endl;
-	  return false;
-	}
-
-	// check if we can search for this opflash
-	if ( tick_target<meta.min_y() || tick_target>=meta.max_y() )
-	  continue;
-
-	int row_target = meta.row( tick_target );
-
-	if ( fConfig.verbosity<1 ) {
-	  std::cout << "============================================================================================" << std::endl;
-	  std::cout << "[Opflash search] " << modename << " mode" << std::endl;
-	  std::cout << "  opflash: p= " << plane 
-		    << " tick_target=" << tick_target
-		    << " row_target=" << row_target
-		    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick << " ticks"
-		    << std::endl;
-	}
-	
-	// scan across wires, looking for a hit
-	for (int iwire=0; iwire<meta.cols(); iwire++) {
-	  if ( markedimg.pixel( row_target, iwire )<= 1.0 // not visited
-	       && tpc_img.pixel( row_target, iwire )>fConfig.pixel_value_threshold[plane] ) {// above threshold  
-	    
-	    // cluster and return cluster that contains the query point
-	    dbscan::dbscanOutput clout;
-	    dbscan::dbPoints winpoints;
-	    int containing_cluster = -1;
-	    bool ok = getClusters( tpc_img, row_target, iwire, clout, winpoints, containing_cluster );
-	    
-	    if ( !ok ) continue;
-
-	    // find extremities of cluster (in time)
-	    int tmax = -1;
-	    int tmin = -1;
-	    int wmax = -1;
-	    int wmin = -1;
-	    for ( int ichit=0; ichit<clout.clusters.at(containing_cluster).size(); ichit++ ) {
-	      int hitidx = clout.clusters.at(containing_cluster).at(ichit);
-	      int x_ = (int)winpoints.at(hitidx).at(0)+0.1;
-	      int y_ = (int)winpoints.at(hitidx).at(1)+0.1;
-	      //markedimg.set_pixel( y_, x_, 10.0 );
-	      if ( tmax==-1 || y_>tmax ) { tmax = y_; wmax = x_; };
-	      if ( tmin==-1 || y_<tmin ) { tmin = y_; wmin = x_; };
-	    }
-	    if ( fConfig.verbosity<2 ) {
-	      std::cout << "end points: max (r,c)=(" << tmax << ", " << wmax << ")"
-			<< " tw=(" << meta.pos_y(tmax) << "," << meta.pos_x(wmax) << ")"
-			<< "  min (r,c)=(" << tmin << "," << wmin << ")" 
-			<< " tw=(" << meta.pos_y(tmin) << "," << meta.pos_x(wmin) << ")"
-			<< "  versus: query_row=" << row_target
-			<< std::endl;
-	    }
-
-	    // is this a marked flash-end?
-	    // if extrema matches the annode flash hypothesis row. mark as interesting (Score 200)
-	    bool success = false;
-	    if ( abs(tmin-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) {
-	      if ( fConfig.verbosity<1 ) std::cout << "MATCHED MIN END" << std::endl;
-	      markedimg.set_pixel( tmin, wmin, 200.0 );
-	      success = true;
-	      BoundaryEndPt endpt;
-	      endpt.t = tmin;
-	      endpt.w = wmin;
-	      if ( fSearchMode==kAnode ) endpt.type = BoundaryEndPt::kAnode;
-	      else if ( fSearchMode==kCathode ) endpt.type = BoundaryEndPt::kCathode;
-	      else if ( fSearchMode==kOutOfImage ) endpt.type = BoundaryEndPt::kImageEnd;
-	      trackendpts.emplace_back( std::move(endpt) );
-	    }
-	    else if ( abs(tmax-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) { 
-	      if ( fConfig.verbosity<1 ) std::cout << "MATCHED MAX_END" << std::endl;
-	      success =true;
-	      markedimg.set_pixel( tmax, wmax, 200.0 );
-	      BoundaryEndPt endpt;
-	      endpt.t = tmax;
-	      endpt.w = wmax;
-	      if ( fSearchMode==kAnode ) endpt.type = BoundaryEndPt::kAnode;
-	      else if ( fSearchMode==kCathode ) endpt.type = BoundaryEndPt::kCathode;
-	      else if ( fSearchMode==kOutOfImage ) endpt.type = BoundaryEndPt::kImageEnd;
-	      trackendpts.emplace_back( std::move(endpt) );
-	    }
-	    
-	    if ( success ) {
-	      // mark good cluster, so we don't use it again
-	      for ( int ichit=0; ichit<clout.clusters.at(containing_cluster).size(); ichit++ ) {
-		int hitidx = clout.clusters.at(containing_cluster).at(ichit);
-		int x_ = (int)winpoints.at(hitidx).at(0)+0.1;
-		int y_ = (int)winpoints.at(hitidx).at(1)+0.1;
-		if ( markedimg.pixel( y_, x_ )<100 )
-		  markedimg.set_pixel( y_, x_, 10.0 );      
-	      }	      
-	    }
-	    
-	  }//end of if point is interesting
-	}//end of loop over wires
-      }//end of loop over flashes
-    }//end of loop over flash containers
-    return true;
-  }//end of marked output
-  
-  
   bool FlashMuonTaggerAlgo::flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, 
 						 const std::vector<larcv::Image2D>& tpc_imgs,
 						 const std::vector<larcv::Image2D>& badch_imgs,
-						 std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs ) {
+						 std::vector< std::vector< BoundaryEndPt > >& trackendpts ) {
     // output
     // ------
     //  trackendpts: list of vector of end pts. each (inner vector) is point on each plane.
@@ -186,7 +57,7 @@ namespace larlitecv {
 	  modename = "image end";
 	}
 	else {
-	  std::cout << "[ERROR] wrong search mode" << std::endl;
+	  //std::cout << "[ERROR] wrong search mode" << std::endl;
 	  return false;
 	}
 	
@@ -232,19 +103,19 @@ namespace larlitecv {
 	
 	int row_target = meta.row( tick_target );
 	
-	if ( true || fConfig.verbosity<1 ) {
-	  std::cout << "============================================================================================" << std::endl;
-	  std::cout << "[Opflash search] " << modename << " mode" << std::endl;
-	  std::cout << "  opflash: "
-		    << " flash_tick=" << flash_tick
-		    << " tick_target=" << tick_target
-		    << " row_target=" << row_target
-		    << " qtot= " << qtot
-		    << " z_range=[" << z_range[0] << "," << z_range[1] << "] "
-		    << " w_range=[" << int(z_range[0]/0.3/meta.pixel_width()) << "," << int(z_range[1]/0.3/meta.pixel_width()) << "] "
-		    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+240.0 << " ticks"
-		    << std::endl;
-	}
+	// if ( true || fConfig.verbosity<1 ) {
+	//   std::cout << "============================================================================================" << std::endl;
+	//   std::cout << "[Opflash search] " << modename << " mode" << std::endl;
+	//   std::cout << "  opflash: "
+	// 	    << " flash_tick=" << flash_tick
+	// 	    << " tick_target=" << tick_target
+	// 	    << " row_target=" << row_target
+	// 	    << " qtot= " << qtot
+	// 	    << " z_range=[" << z_range[0] << "," << z_range[1] << "] "
+	// 	    << " w_range=[" << int(z_range[0]/0.3/meta.pixel_width()) << "," << int(z_range[1]/0.3/meta.pixel_width()) << "] "
+	// 	    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+240.0 << " ticks"
+	// 	    << std::endl;
+	// }
 	
 	// we find track ends on all three planes
 	dbscan::dbPoints* hits[nplanes];
@@ -254,8 +125,8 @@ namespace larlitecv {
 	  hits[p] = new dbscan::dbPoints;
 	  for (int drow=-10; drow<=10; drow++) {
 	    int r_current = row_target + drow;
-	    if ( r_current<0 || r_current>=meta.rows() )continue;
-	    for (int c=0; c<meta.cols(); c++) {
+	    if ( r_current<0 || r_current>=(int)meta.rows() )continue;
+	    for (int c=0; c<(int)meta.cols(); c++) {
 	      if ( img.pixel( r_current, c )>fConfig.pixel_value_threshold.at(p) ) {
 		std::vector< double > pt(2);
 		pt.at(0) = c;
@@ -276,12 +147,12 @@ namespace larlitecv {
 	  endpts[p] = new std::vector< BoundaryEndPt >;
 	  endpts[p]->clear();
 	  (*cluster_info[p]) = dbalgo.scan( *(hits[p]), 5, 5.0, false, 0.0 );
-	  for (int ic=0; ic<cluster_info[p]->clusters.size(); ic++) {
+	  for (int ic=0; ic<(int)cluster_info[p]->clusters.size(); ic++) {
 	    BoundaryEndPt endpt;
-	    bool foundend = findClusterEnds( *(cluster_info[p]), *(hits[p]), ic, row_target, p, meta, endpt, markedimgs.at(p) );
+	    bool foundend = findClusterEnds( *(cluster_info[p]), *(hits[p]), ic, row_target, p, meta, endpt );
 	    if ( foundend ) endpts[p]->emplace_back( endpt );
 	  }
-	  std::cout << "  flashmuontaggeralgo: plane " << p << " clusters: " << cluster_info[p]->clusters.size() << " endpoints=" << endpts[p]->size() << std::endl;
+	  //std::cout << "  flashmuontaggeralgo: plane " << p << " clusters: " << cluster_info[p]->clusters.size() << " endpoints=" << endpts[p]->size() << std::endl;
 	}
 
 	// now that we have end points for each cluster, we ID position of charge deposition in (Y,Z) and check if consistent with the flash
@@ -291,7 +162,7 @@ namespace larlitecv {
 	valid_range[0] = z_range;
 	valid_range[1] = y_range;
 	for (int ip=0; ip<3; ip++) {
-	  for (int ipt=0; ipt<endpts[ip]->size(); ipt++) {
+	  for (int ipt=0; ipt<(int)endpts[ip]->size(); ipt++) {
 	    const BoundaryEndPt& endpt = endpts[ip]->at(ipt);
 	    int wid = meta.pixel_width()*endpt.w;
 	    wirelists.at(ip).push_back( wid );
@@ -308,22 +179,22 @@ namespace larlitecv {
 	
 	::larcv::UBWireTool::findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
 
-	std::cout << " 2 plane intersections: " << std::endl;
-	for (int ii=0; ii<(int)intersections2plane.size(); ii++) {
-	  std::cout << "   (" << intersections2plane.at(ii).at(0) << ","
-		    << intersections2plane.at(ii).at(1) << ","
-		    << intersections2plane.at(ii).at(2) << ")"
-		    << " vertex (z,y)=(" << vertex2plane.at(ii).at(0) << ", " << vertex2plane.at(ii).at(1) << ")" << std::endl;
-	}
+	// std::cout << " 2 plane intersections: " << std::endl;
+	// for (int ii=0; ii<(int)intersections2plane.size(); ii++) {
+	//   std::cout << "   (" << intersections2plane.at(ii).at(0) << ","
+	// 	    << intersections2plane.at(ii).at(1) << ","
+	// 	    << intersections2plane.at(ii).at(2) << ")"
+	// 	    << " vertex (z,y)=(" << vertex2plane.at(ii).at(0) << ", " << vertex2plane.at(ii).at(1) << ")" << std::endl;
+	// }
 	  
-	std::cout << " 3 plane intersections:" << std::endl;
-	for (int ii=0 ; ii<(int)intersections3plane.size(); ii++) {
-	  std::cout << "   (" << intersections3plane.at(ii).at(0) << ","
-		    << intersections3plane.at(ii).at(1) << ","
-		    << intersections3plane.at(ii).at(2) << ") "
-		    << " vertex (z,y)=(" << vertex3plane.at(ii).at(0) << ", " << vertex3plane.at(ii).at(1) << ")"
-		    << "score=" << areas3plane.at(ii) << std::endl;
-	}
+	// std::cout << " 3 plane intersections:" << std::endl;
+	// for (int ii=0 ; ii<(int)intersections3plane.size(); ii++) {
+	//   std::cout << "   (" << intersections3plane.at(ii).at(0) << ","
+	// 	    << intersections3plane.at(ii).at(1) << ","
+	// 	    << intersections3plane.at(ii).at(2) << ") "
+	// 	    << " vertex (z,y)=(" << vertex3plane.at(ii).at(0) << ", " << vertex3plane.at(ii).at(1) << ")"
+	// 	    << "score=" << areas3plane.at(ii) << std::endl;
+	// }
 	
 	// now we go through and find our best match(es)
 	int max_flash_combos = 3;
@@ -374,7 +245,7 @@ namespace larlitecv {
 	    continue; // only accept more than the max unless its a really good match
 	  
 	  // valid combo. now invalid these wires
-	  for (int iw=0; iw<wire_combo.size(); iw++) {
+	  for (int iw=0; iw<(int)wire_combo.size(); iw++) {
 	    int wid = wire_combo.at(iw);
 	    used_wid[iw].insert( wid );
 	  }
@@ -404,7 +275,7 @@ namespace larlitecv {
 	  bool missing_in_badch = false;
 	  for (int n=-3;n<=3;n++) {
 	    int col_ = wirecol+n;
-	    if ( col_<0 || col_>=meta.cols() ) continue;
+	    if ( col_<0 || col_>=(int)meta.cols() ) continue;
 	    if ( badch_imgs.at(missing_plane).pixel(0,col_)>0 ){
 	      missing_in_badch = true;
 	      break;
@@ -418,7 +289,7 @@ namespace larlitecv {
 	      intersect3[ip] = intersections2plane.at(ii).at(ip);
 	    intersect3[missing_plane] = (int)wireco;
 	    int min_totdiff = 10000;
-	    for (int jj=0; jj<intersections3plane.size(); jj++) {
+	    for (int jj=0; jj<(int)intersections3plane.size(); jj++) {
 	      int totdiff = 0;
 	      for (int ip=0; ip<3; ip++)
 		totdiff += abs( intersections3plane.at(jj).at(ip)-intersect3.at(ip) );
@@ -426,8 +297,8 @@ namespace larlitecv {
 		min_totdiff = totdiff;
 	    }
 	    if ( min_totdiff>=5 ) {
-	      std::cout << "  adding 2-plane intersection+badch wire into 3 plane intersections: "
-			<< "(" << intersect3[0] << "," << intersect3[1] << "," << intersect3[2] << ")" << std::endl;
+	      //std::cout << "  adding 2-plane intersection+badch wire into 3 plane intersections: "
+	      //<< "(" << intersect3[0] << "," << intersect3[1] << "," << intersect3[2] << ")" << std::endl;
 	      std::vector<float> fvertzy(2,0.0);
 	      fvertzy[0] = vertex2plane.at(ii).at(0);
 	      fvertzy[1] = vertex2plane.at(ii).at(1);
@@ -454,7 +325,7 @@ namespace larlitecv {
 
 	// =================================================================================================
 	// FINAL 3 PLANE COMBOS. FILL TRACK END POINTS CONTAINER WITH RESULTS
-	std::cout << "Final 3-plane combos" << std::endl;
+	//std::cout << "Final 3-plane combos" << std::endl;
 	for (int ii=0 ; ii<(int)final_combos_idx.size(); ii++) {
 	  int idx = final_combos_idx.at(ii);
 	  std::vector<int> endptidx(3,-1);
@@ -465,12 +336,12 @@ namespace larlitecv {
 	      endptidx[ip] = it_endpt->second;
 	    }
 	  }
-	  std::cout << "   (" << intersections3plane.at(idx).at(0) << ","
-		    << intersections3plane.at(idx).at(1) << ","
-		    << intersections3plane.at(idx).at(2) << ") "
-		    << " endpt=(" << endptidx[0] << "," << endptidx[1] << "," << endptidx[2] << ") "
-		    << " vertex (z,y)=(" << vertex3plane.at(idx).at(0) << ", " << vertex3plane.at(idx).at(1) << ")"
-		    << "score=" << areas3plane.at(idx) << std::endl;
+	  // std::cout << "   (" << intersections3plane.at(idx).at(0) << ","
+	  // 	    << intersections3plane.at(idx).at(1) << ","
+	  // 	    << intersections3plane.at(idx).at(2) << ") "
+	  // 	    << " endpt=(" << endptidx[0] << "," << endptidx[1] << "," << endptidx[2] << ") "
+	  // 	    << " vertex (z,y)=(" << vertex3plane.at(idx).at(0) << ", " << vertex3plane.at(idx).at(1) << ")"
+	  // 	    << "score=" << areas3plane.at(idx) << std::endl;
 	  std::vector< BoundaryEndPt > endpt_v;
 	  for (int ip=0; ip<nplanes; ip++) {
 	    int eidx = endptidx.at(ip); // end point index
@@ -497,117 +368,7 @@ namespace larlitecv {
     }//end of opflashsets    
     return true;
   }
-  
-  
-  // subalgos
-  bool FlashMuonTaggerAlgo::getClusters( const larcv::Image2D& tpc_img, int query_row, int query_col, 
-					 dbscan::dbscanOutput& cluster_info,  dbscan::dbPoints& winpoints, int& containing_cluster) {
-    winpoints.clear();
-
-    const larcv::ImageMeta& meta = tpc_img.meta();
-    int plane = meta.plane();
     
-    // new, unexplored region!
-    // we define a window around this point: (query_row, c)
-    float t1 = meta.pos_y(query_row);
-    float w  = meta.pos_x(query_col);
-
-    if ( fConfig.verbosity<2) 
-      std::cout << "[flashmuontagger: clustering region, return cluster and cluster endpoints]" << std::endl;
-
-    int centeridx = -1;
-    for (int dwire=-fConfig.clustering_wire_neighborhood.at(plane); dwire<=fConfig.clustering_wire_neighborhood.at(plane); dwire++) {
-      for (int dtwin=-fConfig.clustering_time_neighborhood.at(plane); dtwin<=fConfig.clustering_time_neighborhood.at(plane); dtwin++) {
-	int r = query_row+dtwin;
-	int c = query_col+dwire;
-	// check validity
-	if ( r>=0 && r<meta.rows() && c>=0 && c<meta.cols() && tpc_img.pixel(r,c)>fConfig.pixel_value_threshold[plane] ) {
-	  // mark as visited
-	  //stage1_annode_hits.at(plane).set_pixel( r, c, 10.0 );
-	  std::vector<double> pt(2,0.0);
-	  pt[0] = c;
-	  pt[1] = r;
-	  winpoints.emplace_back( pt );
-	  if ( dtwin==0 && dwire==0 ) centeridx = winpoints.size()-1;
-	}// if valid point
-      }//end of time window
-    }//end of wire window
-    if ( fConfig.verbosity<1 ) {
-      std::cout << "  exploring around: plane=" << plane
-		<< " (c,r)=" << query_col << ", " << query_row << " (w,t)=(" << w << "," << t1 << ")  npoints=" << winpoints.size() << std::endl;
-    }
-
-    // clustering
-    dbscan::DBSCANAlgo dbalgo;
-    cluster_info = dbalgo.scan( winpoints, 3, 3.0, false, 0.0 );
-
-    // which cluster is the center point in?
-    containing_cluster = cluster_info.clusterid.at(centeridx);
-    if ( fConfig.verbosity<2 ) {
-      std::cout << "  connected clusterid=" << containing_cluster  << std::endl;
-      for (int ic=0; ic<cluster_info.clusters.size(); ic++) {
-	std::cout << "    clusterid=" << ic << ", size=" << cluster_info.clusters.at(ic).size() << std::endl;
-      }
-    }
-		  
-    // cluster that hit is a part of is too small
-    if ( containing_cluster<0 || cluster_info.clusters.at(containing_cluster).size()<5 )
-      return false;
-
-    if ( fConfig.verbosity<1 )
-      std::cout << "  valid connected cluster: " << containing_cluster << " cluster size=" << cluster_info.clusters.at(containing_cluster).size() << std::endl;
-    
-    return true;
-    
-      
-
-  }
-
-
-  bool FlashMuonTaggerAlgo::findImageBoundaryEnds( const larcv::Image2D& tpc_img, std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg ) {
-						   
-    if ( fSearchMode!=kOutOfImage ) {
-      std::cout << "[ERROR] Invalid search mode for these type of track endpoints" << std::endl;
-      return false;
-    }
-
-    // we build fake flashes to pass into findTrackEnds
-    larlite::event_opflash* faux_flashes = new larlite::event_opflash;
-    std::vector<double> dummy(32,0.);
-    larlite::opflash img_begin( 2400.0+1, 0, 0, 0, dummy ); // make this config pars
-    larlite::opflash img_end( 2400.0+6048-1, 0, 0, 0, dummy ); // make this config pars
-    faux_flashes->emplace_back( img_begin );
-    faux_flashes->emplace_back( img_end );
-    std::vector< larlite::event_opflash* > faux_flashes_v;
-    faux_flashes_v.push_back( faux_flashes );
-    bool result = findTrackEnds( faux_flashes_v, tpc_img, trackendpts, markedimg );
-    delete faux_flashes;
-    return result;
-  }  
-  
-  bool FlashMuonTaggerAlgo::findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-						std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimgs ) {
-						   
-    if ( fSearchMode!=kOutOfImage ) {
-      std::cout << "[ERROR] Invalid search mode for these type of track endpoints" << std::endl;
-      return false;
-    }
-    
-    // we build fake flashes to pass into findTrackEnds
-    larlite::event_opflash* faux_flashes = new larlite::event_opflash;
-    std::vector<double> dummy(32,0.);
-    larlite::opflash img_begin( 2400.0+1, 0, 0, 0, dummy ); // make this config pars
-    larlite::opflash img_end( 2400.0+6048-1, 0, 0, 0, dummy ); // make this config pars
-    faux_flashes->emplace_back( img_begin );
-    faux_flashes->emplace_back( img_end );
-    std::vector< larlite::event_opflash* > faux_flashes_v;
-    faux_flashes_v.push_back( faux_flashes );
-    //bool result = findTrackEnds( faux_flashes_v, tpc_img, trackendpts, markedimg );
-    bool results = flashMatchTrackEnds( faux_flashes_v, tpc_imgs, badch_imgs, trackendpts, markedimgs );
-    delete faux_flashes;
-    return results;
-  }  
-
   void FlashMuonTaggerAlgo::loadGeoInfo() {
 
     TFile fGeoFile( Form("%s/app/PMTWeights/dat/geoinfo.root",getenv("LARCV_BASEDIR")), "OPEN" );
@@ -633,8 +394,8 @@ namespace larlitecv {
   
   bool FlashMuonTaggerAlgo::findClusterEnds( const dbscan::dbscanOutput& clout, const dbscan::dbPoints& winpoints, 
 					     const int clusterid, const int row_target, const int plane, 
-					     const larcv::ImageMeta& meta,
-					     BoundaryEndPt& endpt, larcv::Image2D& markedimg  ) {
+					     const larcv::ImageMeta& meta, BoundaryEndPt& endpt   ) {
+					     
     
     // find extremities of cluster (in time)
     int tmax = -1;
@@ -642,22 +403,22 @@ namespace larlitecv {
     int wmax = -1;
     int wmin = -1;
 
-    for ( int ichit=0; ichit<clout.clusters.at(clusterid).size(); ichit++ ) {
+    for ( int ichit=0; ichit<(int)clout.clusters.at(clusterid).size(); ichit++ ) {
       int hitidx = clout.clusters.at(clusterid).at(ichit);
       int x_ = (int)winpoints.at(hitidx).at(0)+0.1;
       int y_ = (int)winpoints.at(hitidx).at(1)+0.1;
-      //markedimg.set_pixel( y_, x_, 10.0 );
+
       if ( tmax==-1 || y_>tmax ) { tmax = y_; wmax = x_; };
       if ( tmin==-1 || y_<tmin ) { tmin = y_; wmin = x_; };
     }
-    if ( fConfig.verbosity<2 ) {
-      std::cout << "end points: max (r,c)=(" << tmax << ", " << wmax << ")"
-		<< " tw=(" << meta.pos_y(tmax) << "," << meta.pos_x(wmax) << ")"
-		<< "  min (r,c)=(" << tmin << "," << wmin << ")" 
-		<< " tw=(" << meta.pos_y(tmin) << "," << meta.pos_x(wmin) << ")"
-		<< "  versus: query_row=" << row_target
-		<< std::endl;
-    }
+    // if ( fConfig.verbosity<2 ) {
+    //   std::cout << "end points: max (r,c)=(" << tmax << ", " << wmax << ")"
+    // 		<< " tw=(" << meta.pos_y(tmax) << "," << meta.pos_x(wmax) << ")"
+    // 		<< "  min (r,c)=(" << tmin << "," << wmin << ")" 
+    // 		<< " tw=(" << meta.pos_y(tmin) << "," << meta.pos_x(wmin) << ")"
+    // 		<< "  versus: query_row=" << row_target
+    // 		<< std::endl;
+    // }
 
     // is this a marked flash-end?
     // if extrema matches the annode flash hypothesis row. mark as interesting (Score 200)
@@ -665,13 +426,11 @@ namespace larlitecv {
     bool tmin_isend = false;
     bool tmax_isend = false;
     if ( abs(tmin-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) {
-      if ( fConfig.verbosity<1 ) std::cout << "MATCHED MIN END" << std::endl;
-      markedimg.set_pixel( tmin, wmin, 200.0 );
+      //if ( fConfig.verbosity<1 ) std::cout << "MATCHED MIN END" << std::endl;
       tmin_isend = true;
     }
     if ( abs(tmax-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) { 
-      if ( fConfig.verbosity<1 ) std::cout << "MATCHED MAX_END" << std::endl;
-      markedimg.set_pixel( tmax, wmax, 200.0 );
+      //if ( fConfig.verbosity<1 ) std::cout << "MATCHED MAX_END" << std::endl;
       tmax_isend = true;
     }
 
@@ -691,21 +450,32 @@ namespace larlitecv {
       else if ( fSearchMode==kCathode ) endpt.type = BoundaryEndPt::kCathode;
       else if ( fSearchMode==kOutOfImage ) endpt.type = BoundaryEndPt::kImageEnd;
     }      
-    
-    if ( success ) {
-      // mark good cluster, so we don't use it again
-      for ( int ichit=0; ichit<clout.clusters.at(clusterid).size(); ichit++ ) {
-	int hitidx = clout.clusters.at(clusterid).at(ichit);
-	int x_ = (int)winpoints.at(hitidx).at(0)+0.1;
-	int y_ = (int)winpoints.at(hitidx).at(1)+0.1;
-	if ( markedimg.pixel( y_, x_ )<100 )
-	  markedimg.set_pixel( y_, x_, 10.0 );      
-      }	      
-    }
-    
+        
     return success;
   }
 
+  bool FlashMuonTaggerAlgo::findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
+						std::vector< std::vector< BoundaryEndPt > >& trackendpts ) {
+    
+    if ( fSearchMode!=kOutOfImage ) {
+      std::cout << "[ERROR] Invalid search mode for these type of track endpoints" << std::endl;
+      return false;
+    }
+    
+    // we build fake flashes to pass into findTrackEnds
+    larlite::event_opflash* faux_flashes = new larlite::event_opflash;
+    std::vector<double> dummy(32,0.);
+    larlite::opflash img_begin( 2400.0+1, 0, 0, 0, dummy ); // make this config pars
+    larlite::opflash img_end( 2400.0+60481, 0, 0, 0, dummy ); // make this config pars
+    faux_flashes->emplace_back( img_begin );
+    faux_flashes->emplace_back( img_end );
+    std::vector< larlite::event_opflash* > faux_flashes_v;
+    faux_flashes_v.push_back( faux_flashes );
+    bool results = flashMatchTrackEnds( faux_flashes_v, tpc_imgs, badch_imgs, trackendpts );
+    delete faux_flashes;
+    return results;
+  }  
+  
 
 }
 

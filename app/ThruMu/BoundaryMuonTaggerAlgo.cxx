@@ -83,11 +83,11 @@ namespace larlitecv {
       larcv::Image2D matchimage( meta );
       matchimage.paint(0.0);
       matchedspacepts.emplace_back( std::move(matchimage) );
-      for (int p=0; p<3; p++) {
-	larcv::Image2D matchimage2( imgs.at(p).meta() );
-	matchimage2.paint(0.0);
-	matchedpixels.emplace_back( std::move(matchimage2) );
-      }
+      //for (int p=0; p<3; p++) {
+      //larcv::Image2D matchimage2( imgs.at(p).meta() );
+      //matchimage2.paint(0.0);
+      //matchedpixels.emplace_back( std::move(matchimage2) );
+      //}
     }
 
     // we need the wire downsampling factor
@@ -400,11 +400,11 @@ namespace larlitecv {
 	      }
 	    }//end of if point end type = 3 or 4
 
-	    std::cout << "endpt_type=" << pt << " plane=" << p << "chargepts=" << chargepts[p].size()
-		      << " (" << imgs.at(p).meta().pos_x( (int)pos[0][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[0][1] ) << ") "
-		      << "vs (" << imgs.at(p).meta().pos_x( (int)pos[1][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[1][1] ) << "): "
-		      << "nsteps[0]=" << nsteps[0] << " vs. nsteps[1]=" << nsteps[1]
-		      << std::endl;
+	    // std::cout << "endpt_type=" << pt << " plane=" << p << "chargepts=" << chargepts[p].size()
+	    // 	      << " (" << imgs.at(p).meta().pos_x( (int)pos[0][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[0][1] ) << ") "
+	    // 	      << "vs (" << imgs.at(p).meta().pos_x( (int)pos[1][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[1][1] ) << "): "
+	    // 	      << "nsteps[0]=" << nsteps[0] << " vs. nsteps[1]=" << nsteps[1]
+	    // 	      << std::endl;
 	    
 	    BoundaryEndPt endpt_min( (int)pos[0][1], (int)pos[0][0], (BoundaryEndPt::BoundaryEnd_t)pt );
 	    endpt_min.dir[0] = -dir[0];
@@ -467,9 +467,10 @@ namespace larlitecv {
 
 	if ( pts_a.at(0).type==pts_b.at(0).type ) continue; // don't connect same type
 	npossible++;
-	std::cout << "[ path-finding for endpoints (" << i << "," << j << ") "
-		  << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
+	//std::cout << "[ path-finding for endpoints (" << i << "," << j << ") "
+	//	  << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
 
+	/*
 	for (int p=0; p<3; p++) {
 	  int col_a = pts_a.at(p).w;
 	  int row_a = pts_a.at(p).t;
@@ -480,7 +481,8 @@ namespace larlitecv {
 		    << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
 		    << std::endl;	    
 	}
-	
+	*/
+
 	// don't try to connect points that can't be due to drift time
 	bool within_drift = true;
 	for (int p=0; p<3; p++) {
@@ -491,7 +493,7 @@ namespace larlitecv {
 	  }
 	}
 	if ( !within_drift ) {
-	  std::cout << "time separation longer than drift window" << std::endl;
+	  //std::cout << "time separation longer than drift window" << std::endl;
 	  continue;
 	}
 	//use test heuristic to see if we should run astar
@@ -503,9 +505,9 @@ namespace larlitecv {
 // 	  lrt.verbose_debug = false;
 	std::vector< BMTrackCluster2D > test_track(3);
 	bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
-	std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
+	//std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
 	if ( !shallwe ) { 
-	  std::cout << "failed heuristic." << std::endl;
+	  //std::cout << "failed heuristic." << std::endl;
 	  continue; // we shant
 	}
 	//check max deviation from straight line
@@ -517,7 +519,7 @@ namespace larlitecv {
 	      maxdev = (int)fabs(ttrack.pixelpath.at(ipix).Intensity());
 	    }
 	  }
-	  std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
+	  //std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
 	}
 	
 
@@ -532,8 +534,8 @@ namespace larlitecv {
 // 		    << std::endl;
 	  
 	  BMTrackCluster2D track = runAstar( pts_a.at(p), pts_b.at(p), img_v.at(p), badchimg_v.at(p), 5, 5, 2, true );
-	  std::cout << "  p=" << p << " (" << track.start.w << "," << track.start.t << ") "
-		    << " -> (" << track.end.w << "," << track.end.t << "): pathsize=" << track.pixelpath.size() << std::endl;
+	  //std::cout << "  p=" << p << " (" << track.start.w << "," << track.start.t << ") "
+	  //	    << " -> (" << track.end.w << "," << track.end.t << "): pathsize=" << track.pixelpath.size() << std::endl;
 	  if ( track.pixelpath.size()>3 ) ncompleted++;
 	  planetracks.emplace_back( std::move( track ) );
 	}
@@ -604,13 +606,13 @@ namespace larlitecv {
       }//end of planetracks
 
       bool goodtrack = true;
-      std::cout << "fraction of path has charge (or badch): ";
+      //std::cout << "fraction of path has charge (or badch): ";
       for (int p=0; p<3; p++) {
-	std::cout << "p=" << p << ": " << frac_marked[p] << "    ";
+	//std::cout << "p=" << p << ": " << frac_marked[p] << "    ";
 	if ( frac_marked[p]<0.9 )
 	  goodtrack = false;
       }
-      std::cout << std::endl;
+      //std::cout << std::endl;
 
       if ( goodtrack ) {
 	for (int p=0; p<3; p++) {
@@ -837,7 +839,7 @@ namespace larlitecv {
       pathlength[p] = 0.0;
       if ( planetrack.pixelpath.size()<2 ) {
 	isgood[p] = false;
-	std::cout << "p=" << p << " does not have enough pixels" << std::endl;
+	//std::cout << "p=" << p << " does not have enough pixels" << std::endl;
 	continue; // skip this plane
       }
       // follow the 2d track paths and file path info variables above
@@ -867,12 +869,12 @@ namespace larlitecv {
 	  float lastcos = lastdir[0]*ndir[0] + ndir[1]*lastdir[1];
 	  if ( lastcos<0.70 ) { // around 45 degrees
 	    // kink. probably bad
-	    std::cout << "kink found: p=" << p << " lastcos=" << lastcos << " step=" << i << ":"
-		      << "(" << planetrack.pixelpath.at(i-1).X() << "," << planetrack.pixelpath.at(i-1).Y() << ") -> "
-		      << "(" << planetrack.pixelpath.at(i).X() << ","<< planetrack.pixelpath.at(i).Y() << "). "
-		      << " dir: "
-		      << "(" << lastdir[0] << ", " << lastdir[1] << ") -> "
-		      << "(" << ndir[0] << "," << ndir[1] << ")" << std::endl;
+	    // std::cout << "kink found: p=" << p << " lastcos=" << lastcos << " step=" << i << ":"
+	    // 	      << "(" << planetrack.pixelpath.at(i-1).X() << "," << planetrack.pixelpath.at(i-1).Y() << ") -> "
+	    // 	      << "(" << planetrack.pixelpath.at(i).X() << ","<< planetrack.pixelpath.at(i).Y() << "). "
+	    // 	      << " dir: "
+	    // 	      << "(" << lastdir[0] << ", " << lastdir[1] << ") -> "
+	    // 	      << "(" << ndir[0] << "," << ndir[1] << ")" << std::endl;
 	    //isgood[p] = false;
 	  }
 	}
@@ -986,9 +988,9 @@ namespace larlitecv {
 	std::vector<float> vertex3plane;
 	double tri_area = 0.0;
 	larcv::UBWireTool::wireIntersection( wirelists, intersection, tri_area, crosses );
-	if ( tri_area>3.0 ) {
-	  std::cout << "warning, large intersection area for wires u=" << wireid[0]  << " v=" << wireid[1] << " y=" << wireid[2] << " area=" << tri_area << std::endl;
-	}
+	//if ( tri_area>3.0 ) {
+	//std::cout << "warning, large intersection area for wires u=" << wireid[0]  << " v=" << wireid[1] << " y=" << wireid[2] << " area=" << tri_area << std::endl;
+	//}
       }
       
       std::vector<double> point3d(3,0.0);
@@ -1050,13 +1052,13 @@ namespace larlitecv {
       }
       
       if ( track3d.path3d.size()==0 || track3d.path3d.back()!=point3d ) {
-	std::cout << "step=" << istep << " node=(" << current_node[0] << "," << current_node[1] << "," << current_node[2] << ") "
-		  << "tick=" << avetick << " "
-		  << "pos=(" << point3d[0] << "," << point3d[1] << "," << point3d[2] << ") " 
-		  << "(p=" << pid[0] << ", wire=" << wireid[0] << ") + "
-		  << "(p=" << pid[1] << ", wire=" << wireid[1] << ") "
-		  << "(p=" << pid[2] << ", wire=" << wireid[2] << ") "
-		  << "crosses=" << crosses << " (isec=" << intersection.size() << ")" << std::endl;
+	// std::cout << "step=" << istep << " node=(" << current_node[0] << "," << current_node[1] << "," << current_node[2] << ") "
+	// 	  << "tick=" << avetick << " "
+	// 	  << "pos=(" << point3d[0] << "," << point3d[1] << "," << point3d[2] << ") " 
+	// 	  << "(p=" << pid[0] << ", wire=" << wireid[0] << ") + "
+	// 	  << "(p=" << pid[1] << ", wire=" << wireid[1] << ") "
+	// 	  << "(p=" << pid[2] << ", wire=" << wireid[2] << ") "
+	// 	  << "crosses=" << crosses << " (isec=" << intersection.size() << ")" << std::endl;
 	track3d.path3d.emplace_back( std::move( point3d ) );
       }
       
@@ -1093,12 +1095,12 @@ namespace larlitecv {
     float pix_rows_to_cm = meta.pixel_height()*0.5*drift_v; // cm/row
     float pix_cols_to_cm = meta.pixel_width()*0.3; // cm
 
-    std::cout << " 3D track start points (w,t): " << std::endl;
-    for (int p=0; p<3; p++ )
-      std::cout << "  p" << p << ":: " << track3d.start_endpts[p].w << ", " << track3d.start_endpts[p].t << std::endl;
-    std::cout << " 3D track end points (w,t): " << std::endl;
-    for (int p=0; p<3; p++ )
-      std::cout << "  p" << p << ":: " << track3d.end_endpts[p].w << ", " << track3d.end_endpts[p].t << std::endl;
+    // std::cout << " 3D track start points (w,t): " << std::endl;
+    // for (int p=0; p<3; p++ )
+    //   std::cout << "  p" << p << ":: " << track3d.start_endpts[p].w << ", " << track3d.start_endpts[p].t << std::endl;
+    // std::cout << " 3D track end points (w,t): " << std::endl;
+    // for (int p=0; p<3; p++ )
+    //   std::cout << "  p" << p << ":: " << track3d.end_endpts[p].w << ", " << track3d.end_endpts[p].t << std::endl;
       
 
     // check end points first
@@ -1111,7 +1113,7 @@ namespace larlitecv {
 	distances[p][1] = -1;
 	continue;
       }
-      std::cout << "testing 2d endpoint p=" << p << "(" << track2d[p].start.w << ", " << track2d[p].start.t << ")" << std::endl;
+      //std::cout << "testing 2d endpoint p=" << p << "(" << track2d[p].start.w << ", " << track2d[p].start.t << ")" << std::endl;
       float dt = (track2d[p].start.t-track3d.start_endpts[p].t)*pix_rows_to_cm;
       float dw = (track2d[p].start.w-track3d.start_endpts[p].w)*pix_cols_to_cm;
       start_dists[0] = sqrt( dt*dt + dw*dw );
@@ -1133,7 +1135,7 @@ namespace larlitecv {
       distances[p][0] = start_dists[use_idx];
       distances[p][1] = end_dists[use_idx];
       
-      std::cout << "distance between 2d endpoints on plane=" << p << " start=" << distances[p][0] << " end=" << distances[p][1] << std::endl;
+      //std::cout << "distance between 2d endpoints on plane=" << p << " start=" << distances[p][0] << " end=" << distances[p][1] << std::endl;
     }
     
     bool allclose = true;
@@ -1145,7 +1147,7 @@ namespace larlitecv {
       }
     }
     if ( allclose ) {
-      std::cout << "track too similar in end points" << std::endl;
+      //std::cout << "track too similar in end points" << std::endl;
       return true;
     }
 
@@ -1180,18 +1182,18 @@ namespace larlitecv {
       larcv::UBWireTool::wireIntersection( goodplanes[0], end_wids[0],   goodplanes[1], end_wids[1],   end_poszy,   crosses[1] );
     }
 
-    if ( crosses[0]==0 ) {
-      std::cout << "Start point doesn't make a valid 3D point! start wid=(" << start_wids[0] << "," << start_wids[1];
-      if ( ngoodplanes==3 )
-	std::cout << "," << start_wids[2];
-      std::cout << ")" << std::endl;
-    }
-    if ( crosses[1]==0 ) {
-      std::cout << "End point doesn't make a valid 3D point! end wid=(" << end_wids[0] << "," << end_wids[1];
-      if ( ngoodplanes==3 )
-	std::cout << "," << end_wids[2];
-      std::cout << ")" << std::endl;
-    }
+    // if ( crosses[0]==0 ) {
+    //   std::cout << "Start point doesn't make a valid 3D point! start wid=(" << start_wids[0] << "," << start_wids[1];
+    //   if ( ngoodplanes==3 )
+    // 	std::cout << "," << start_wids[2];
+    //   std::cout << ")" << std::endl;
+    // }
+    // if ( crosses[1]==0 ) {
+    //   std::cout << "End point doesn't make a valid 3D point! end wid=(" << end_wids[0] << "," << end_wids[1];
+    //   if ( ngoodplanes==3 )
+    // 	std::cout << "," << end_wids[2];
+    //   std::cout << ")" << std::endl;
+    // }
     if ( crosses[0]==0 || crosses[1]==0 )
       return false;
     
@@ -1210,14 +1212,14 @@ namespace larlitecv {
     end3d[1] = end_poszy[1];
     end3d[2] = end_poszy[0];
 
-    std::cout << "track 2d 3D endpoints: "
-	      << " start=(" << start3d[0] << "," << start3d[1] << "," << start3d[2] << ") "
-	      << " end=(" << end3d[0] << "," << end3d[1] << "," << end3d[2] << ") "
-	      << std::endl;
-    std::cout << "track3d 3D endpoints: "
-	      << " start=(" << track3d.path3d.front()[0] << "," << track3d.path3d.front()[1] << "," << track3d.path3d.front()[2] << ") "
-	      << " end=(" << track3d.path3d.back()[0] << "," << track3d.path3d.back()[1] << "," << track3d.path3d.back()[2] << ") "
-	      << std::endl;
+    // std::cout << "track 2d 3D endpoints: "
+    // 	      << " start=(" << start3d[0] << "," << start3d[1] << "," << start3d[2] << ") "
+    // 	      << " end=(" << end3d[0] << "," << end3d[1] << "," << end3d[2] << ") "
+    // 	      << std::endl;
+    // std::cout << "track3d 3D endpoints: "
+    // 	      << " start=(" << track3d.path3d.front()[0] << "," << track3d.path3d.front()[1] << "," << track3d.path3d.front()[2] << ") "
+    // 	      << " end=(" << track3d.path3d.back()[0] << "," << track3d.path3d.back()[1] << "," << track3d.path3d.back()[2] << ") "
+    // 	      << std::endl;
     
     // ok now that 3d start and end position found, check how close they are to the 3d path
     // we use the geoalgo tools from larlite
@@ -1228,7 +1230,7 @@ namespace larlitecv {
     ::geoalgo::Point_t    end_pt( end3d );
     double closest_dist_start     = sqrt( algo.SqDist( start_pt, traj ) );
     double closest_dist_end       = sqrt( algo.SqDist( end_pt, traj ) );
-    std::cout << "closest distance of start/end points to trajectory: start=" << closest_dist_start << " end=" << closest_dist_end << std::endl;
+    //std::cout << "closest distance of start/end points to trajectory: start=" << closest_dist_start << " end=" << closest_dist_end << std::endl;
     if ( closest_dist_start<path_radius_cm && closest_dist_end<closest_dist_end ) {
       return true;
     }

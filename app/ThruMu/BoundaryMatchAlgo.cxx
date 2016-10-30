@@ -3,6 +3,7 @@
 #include <ctime>
 #include <iostream>
 #include <assert.h>
+#include <cstring>
 
 #include "BoundaryMatchArrays.h"
 #include "UBWireTool/UBWireTool.h"

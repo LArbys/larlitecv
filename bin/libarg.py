@@ -12,6 +12,8 @@ if 'LARLITE_BASEDIR' in os.environ:
     libs+= ["-lBasicTool_GeoAlgo"]
 if 'LARCV_BASEDIR' in os.environ:
     libs+= commands.getoutput('larcv-config --libs').split()
+if 'ANN_LIBDIR' in os.environ:
+    libs+= ["-L%s -lANN" % ( os.environ["ANN_LIBDIR"].strip() )]
     
 objs_list=[]
 dict_list=[]

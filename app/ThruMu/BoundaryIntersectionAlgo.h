@@ -13,7 +13,7 @@ namespace larlitecv {
     virtual ~BoundaryIntersectionAlgo() {};
 
 
-    void determine3Dpoint( const std::vector<int>& plane_wires, std::vector<float>& vertex, BoundaryEndPt::BoundaryEnd_t endpt_type ) {};
+    //void determine3Dpoint( const std::vector<int>& plane_wires, std::vector<float>& vertex, BoundaryEndPt::BoundaryEnd_t endpt_type ) {};
 
   };
 

@@ -50,15 +50,11 @@ namespace larlitecv {
     virtual ~FlashMuonTaggerAlgo() {};
     
     void configure( const FlashMuonTaggerConfig& config_ ) { fConfig=config_; fconfigured = true; };
-    bool findTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const larcv::Image2D& image, 
-			std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg );
     bool flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const std::vector<larcv::Image2D>& tpc_imgs,
 			      const std::vector<larcv::Image2D>& badch_imgs,
-			      std::vector< std::vector< BoundaryEndPt > >& trackendpts, std::vector< larcv::Image2D >& markedimg );
-    bool findImageBoundaryEnds( const larcv::Image2D& tpc_img, std::vector< BoundaryEndPt >& trackendpts, larcv::Image2D& markedimg );    
+			      std::vector< std::vector< BoundaryEndPt > >& trackendpts );
     bool findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-			     std::vector< std::vector< BoundaryEndPt > >& trackendpts, 
-			     std::vector< larcv::Image2D >& markedimgs );
+			     std::vector< std::vector< BoundaryEndPt > >& trackendpts );
     
   protected:
     
@@ -69,8 +65,7 @@ namespace larlitecv {
     // subroutines
     bool findClusterEnds( const dbscan::dbscanOutput& clout, const dbscan::dbPoints& winpoints, 
 			  const int clusterid, const int row_target, const int plane, const larcv::ImageMeta& meta,
-			  BoundaryEndPt& endpt, larcv::Image2D& markedimg  );
-    bool getClusters( const larcv::Image2D& tpc_img, int query_row, int query_col, dbscan::dbscanOutput& cluster_info, dbscan::dbPoints& windowpts, int& containing_cluster );
+			  BoundaryEndPt& endpt );
     void loadGeoInfo();
     
   public:
