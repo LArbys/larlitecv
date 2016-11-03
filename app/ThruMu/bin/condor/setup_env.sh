@@ -2,6 +2,8 @@
 MY_LARLITE=/a/data/amsterdam/tmw23/sw/larlite
 MY_LARCV=/a/data/amsterdam/tmw23/sw/LArCV
 MY_LARLITECV=/a/data/amsterdam/tmw23/sw/larlitecv
+export ANN_LIBDIR=/a/data/amsterdam/tmw23/sw/LArCV/app/ann_1.1.2/lib
+export ANN_INCDIR=/a/data/amsterdam/tmw23/sw/LArCV/app/ann_1.1.2/include
 
 #SETUP LARLITE
 source ${MY_LARLITE}/config/setup.sh

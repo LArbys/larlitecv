@@ -107,7 +107,7 @@ int main( int nargs, char** argv ) {
   //int nentries = 20;
   //int nentries = 5;
   
-  for (int ientry=0; ientry<nentries; ientry++) {
+  for (int ientry=1; ientry<nentries; ientry++) {
     
     dataco.goto_entry(ientry,"larcv");
 

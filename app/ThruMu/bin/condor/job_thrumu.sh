@@ -44,6 +44,6 @@ cat input_larlite.txt
 
 cd ..
 
-rm -r ./tmp
+#rm -r ./tmp
 
 echo "COMPLETE"

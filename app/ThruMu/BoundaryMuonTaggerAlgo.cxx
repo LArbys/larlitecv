@@ -949,9 +949,15 @@ namespace larlitecv {
 	wireid[ip] = (int)imgcol[ip]*img_v.at(p).meta().pixel_width();
 	pid[ip] = p;
 	avetick += img_v.at(p).meta().pos_y( (int)imgpos[1] );
+	std::cout << " imgpos[1] p=" << p << ", currentnode=" << current_node[p] << ": " << imgpos[1] << std::endl;
 	ip++;
       }
+      if ( ip==0 ) {
+	std::cout << "no good plane?" << std::endl;
+	continue;
+      }
       avetick /= float(ip);
+      std::cout << "istep=" << istep << " avetick=" << avetick << " ip=" << ip << std::endl;
       
       // now intersect depending on number of good wires
       int crosses = 0;
