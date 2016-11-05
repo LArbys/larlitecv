@@ -1,7 +1,7 @@
 {
   "larcv_process_cfg": "default_larcv.cfg", 
   "larlite_process_cfg": "default_larlite.cfg", 
-  "larlite_filelist": "last_filelist_larlite.txt", 
+  "larlite_filelist": "fout_larlite.txt", 
   "larcv_filelist": "flist.txt",
   "load_files_on_start":"yes",
   "default_filetype_driver":"LARCV"
