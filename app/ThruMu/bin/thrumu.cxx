@@ -103,11 +103,11 @@ int main( int nargs, char** argv ) {
   imgends_flash_tagger.configure(flashtagger_cfg);
 
   // Start Event Loop
-  int nentries = dataco.get_nentries("larcv");
+  //int nentries = dataco.get_nentries("larcv");
   //int nentries = 20;
-  //int nentries = 5;
+  int nentries = 1;
   
-  for (int ientry=1; ientry<nentries; ientry++) {
+  for (int ientry=0; ientry<nentries; ientry++) {
     
     dataco.goto_entry(ientry,"larcv");
 

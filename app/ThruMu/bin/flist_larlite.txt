@@ -1,0 +1,3 @@
+data/data_samples/v05/extbnb/larlite_opdigit_20161020_192212_034523.root
+data/data_samples/v05/extbnb/larlite_opreco_20161020_192212_037150.root
+data/data_samples/v05/extbnb/larlite_wire_20161020_192212_031437.root
