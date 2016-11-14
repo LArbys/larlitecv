@@ -3,11 +3,24 @@
 source /usr/nevis/adm/nevis-init.sh
 module load root/06.04.00
 
-let "jobid=$1+$2"
+let "processid=$1+$2"
 sw_dir=$3
 cfg_dir=$4
 input_dir=$5
 out_dir=$6
+procspath=$7
+
+scp $procspath procs.txt
+
+let NUM_PROCS=`cat procs.txt | wc -l`
+echo "number of processes: $NUM_PROCS"
+if [ "$NUM_PROCS" -lt "$processid" ]; then
+    echo "No Procces ID to run."
+    return
+fi
+
+let "proc_line=${processid}+1"
+let jobid=`sed -n ${proc_line}p procs.txt`
 
 sleep $jobid
 scp -r $sw_dir/larlitecv/app/ThruMu/bin/condor ./tmp

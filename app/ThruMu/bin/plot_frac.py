@@ -5,6 +5,8 @@ rt.gStyle.SetOptStat(0)
 
 fgood = open("spoon_roi_scan.csv",'r')
 lgood = fgood.readlines()
+use_handscan = False
+use_dwallcut = False
 
 goodroi = []
 for l in lgood[1:]:
@@ -22,12 +24,12 @@ htot = rt.TH1D("htot","",10,0,1.1)
 nentries = bmt.GetEntries()
 for i in range(0,nentries):
     bmt.GetEntry(i)
-    if bmt.dwall<5:
+    if use_dwallcut and bmt.dwall<5:
         continue
     for p in range(0,3):
         totfrac = bmt.total_frac_remain[p]
         nufrac   = bmt.nubb_frac_remain[p]
-        if True or goodroi[i][p]==1:
+        if not use_handscan or goodroi[i][p]==1:
             htot.Fill( totfrac )
             hnu.Fill( nufrac )
             if nufrac<0.9:

@@ -37,6 +37,7 @@ int main( int nargs, char** argv ) {
   // output file
   TFile* out = new TFile("output_analysis.root", "RECREATE" );
   TTree* bmt = new TTree("bmt","boundary muon tagger metrics");
+  int run, subrun, event;
   int current;
   int mode;
   float enu;
@@ -52,6 +53,9 @@ int main( int nargs, char** argv ) {
   float total_frac_remain[3];
   int nubb_diff;
   float nubb_frac_remain[3];
+  bmt->Branch( "run", &run, "run/I" );
+  bmt->Branch( "subrun", &subrun, "subrun/I" );
+  bmt->Branch( "event", &event, "event/I" );
   bmt->Branch( "current", &current, "current/I" );
   bmt->Branch( "mode", &mode, "mode/I" );
   bmt->Branch( "dwall", &dwall, "dwall/F" );
@@ -74,13 +78,15 @@ int main( int nargs, char** argv ) {
   larlitecv::DataCoordinator dataco;
 
   // larlite
-  dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_mcinfo_0000.root",  "larlite" );
-  dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_wire_0000.root",    "larlite" );
-  dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_opdigit_0000.root", "larlite" );
-  dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_opreco_0000.root",  "larlite" );
+  // dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_mcinfo_0000.root",  "larlite" );
+  // dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_wire_0000.root",    "larlite" );
+  // dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_opdigit_0000.root", "larlite" );
+  // dataco.add_inputfile( "data/data_samples/v05/spoon/larlite/larlite_opreco_0000.root",  "larlite" );
 
   // larcv
-  dataco.add_inputfile( "fullrun_2.root", "larcv" );
+  //dataco.add_inputfile( "fullrun_2.root", "larcv" );
+  //dataco.set_filelist( "input_thrumu_files.txt", "larcv" );
+  dataco.set_filelist( "inputlist.txt", "larcv" );
 
   // configure
   dataco.configure( "analyze.cfg", "StorageManager", "IOManager", "Analysis" );
@@ -114,11 +120,14 @@ int main( int nargs, char** argv ) {
     enu     = primary.EnergyInit();
     std::cout << "Event " << ientry << std::endl;
     std::cout << "  current=" << current << " mode=" << mode << " enu=" << enu << std::endl;
+    run = event_rois->run();
+    subrun = event_rois->subrun();
+    event = event_rois->event();
 
     // distance from wall
     pos[0] = primary.X();
     pos[1] = primary.Y();
-    pos[2] = primary.Y();
+    pos[2] = primary.Z();
     double dwall_v[3] = {0.0};
     dwall_v[0] = std::min( pos[0]-(-10.0), 250.0-pos[0] );
     dwall_v[1] = std::min( pos[1]-(-125.0), 125.0-pos[1] );
@@ -163,15 +172,19 @@ int main( int nargs, char** argv ) {
 
     // count pixels
     larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "tpc" );
-    larcv::EventImage2D* event_marked  = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "trackcluster" );
+    larcv::EventImage2D* event_marked  = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
+    larcv::EventImage2D* event_segment = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "segment" );
     const std::vector< larcv::Image2D >& tpc_imgs    = event_imgs->Image2DArray();
     const std::vector< larcv::Image2D >& thrumu_imgs = event_marked->Image2DArray();
+    const std::vector< larcv::Image2D >& segment_imgs = event_segment->Image2DArray();
 
     for (int p=0; p<3; p++) {
       
-      const larcv::Image2D& img    = tpc_imgs.at(p);
-      const larcv::Image2D& thrumu = thrumu_imgs.at(p);
-      const larcv::ImageMeta& meta = img.meta();
+      const larcv::Image2D& img     = tpc_imgs.at(p);
+      const larcv::Image2D& seg_img = segment_imgs.at(p);
+      const larcv::Image2D& thrumu  = thrumu_imgs.at(p);
+      const larcv::ImageMeta& meta  = img.meta();
+      const larcv::ImageMeta& seg_meta = segment_imgs.at(p).meta();
       
       const larcv::ImageMeta& nu_bbox = primary.BB(p);
 
@@ -184,24 +197,32 @@ int main( int nargs, char** argv ) {
 	  if ( orig_val>threshold ) {
 	    total_pixel_count[p]++;
 	    if ( tag_val>10 ) total_tag_count[p]++;
+
+	    // determine if neutrino pixel or not
 	    float x = meta.pos_x( c );
 	    float y = meta.pos_y( r );
-	    if ( nu_bbox.min_y() <= y && y <= nu_bbox.max_y() 
-		 && nu_bbox.min_x() <= x && x <= nu_bbox.max_x() ) {
-	      nubb_pixel_count[p]++;
-	      if ( tag_val>10 ) nubb_tag_count[p]++;
-	    }
-	  }
-	}
-      }
+
+	    if ( seg_meta.min_y() <= y && y <= seg_meta.max_y() 
+		 && seg_meta.min_x() <= x && x <= seg_meta.max_x() ) {
+	      // within the segment image!
+	      int seg_r = seg_meta.row( y );
+	      int seg_c = seg_meta.col( x );
+	      if ( seg_c < seg_meta.cols() && seg_r<seg_meta.rows() && seg_img.pixel( seg_r, seg_c )!=larcv::kROIUnknown ) {
+		nubb_pixel_count[p]++;
+		if ( tag_val>10 ) nubb_tag_count[p]++;
+	      }
+	    }//if within segment image
+	  }// if pixel above threshold
+	}//loop over cols
+      }// loop over rows
 
       total_diff = total_pixel_count[p]-total_tag_count[p];
       total_frac_remain[p] = float(total_diff)/float(total_pixel_count[p]);
-      std::cout << "Total pixels: total(" << total_pixel_count[p] << ") - tagged(" << total_tag_count[p] << ") = " << total_diff << ", frac=" << total_frac_remain << std::endl;
+      std::cout << "Total pixels: total(" << total_pixel_count[p] << ") - tagged(" << total_tag_count[p] << ") = " << total_diff << ", frac=" << total_frac_remain[p] << std::endl;
 
       nubb_diff = nubb_pixel_count[p]-nubb_tag_count[p];
       nubb_frac_remain[p] = float(nubb_diff)/float(nubb_pixel_count[p]);
-      std::cout << "Nu ROI pixels: nubb(" << nubb_pixel_count[p] << ") - tagged(" << nubb_tag_count[p] << ") = " << nubb_diff << ", frac=" << nubb_frac_remain << std::endl;
+      std::cout << "Nu ROI pixels: nubb(" << nubb_pixel_count[p] << ") - tagged(" << nubb_tag_count[p] << ") = " << nubb_diff << ", frac=" << nubb_frac_remain[p] << std::endl;
 
     }//end of loop over planes
     bmt->Fill();
