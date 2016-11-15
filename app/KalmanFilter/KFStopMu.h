@@ -3,7 +3,8 @@
 
 // for documentation, see: http://kalman.sourceforge.net/doc/index.html
 
-#include "DataFormat/ImageMeta.h"
+#include <vector>
+#include "DataFormat/Image2D.h"
 
 #include "kalman/kfilter.hpp"
 
@@ -18,7 +19,7 @@ namespace larlitecv {
     
   public:
     
-    KFStopMu( const larcv::ImageMeta& meta );
+    KFStopMu( const std::vector<larcv::Image2D>& imgs );
     virtual ~KFStopMu();
 
     // required classes to be instantiated
@@ -47,8 +48,12 @@ namespace larlitecv {
     int n;
 
   protected:
-    larcv::ImageMeta fMeta;
-
+    const std::vector<larcv::Image2D>& fImages;
+    float fdriftv;
+    float ftrigger_time;
+    float fmax_step_cm;
+    float fpixheight_ticks;
+    float fpixwidth;
   };
 
   typedef KFStopMu::Vector Vector;
