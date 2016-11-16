@@ -9,6 +9,7 @@
 
 // larcv
 #include "DataFormat/Image2D.h"
+#include "DataFormat/EventChStatus.h"
 
 
 namespace larlitecv {
@@ -23,6 +24,9 @@ namespace larlitecv {
     std::vector<larcv::Image2D> makeBadChImage( int minstatus, int nplanes, int start_tick, int nticks, int nchannels, 
 						int time_downsample_factor, int wire_downsample_factor,
 						const larlite::event_chstatus& ev_status );
+    std::vector<larcv::Image2D> makeBadChImage( int minstatus, int nplanes, int start_tick, int nticks, int nchannels, 
+						int time_downsample_factor, int wire_downsample_factor,
+						const larcv::EventChStatus& ev_status );
     
   };
   
