@@ -9,6 +9,7 @@ CXXFLAGS += $(shell larcv-config --includes)/../app
 CXXFLAGS += $(shell larlitecv-config --includes)
 CXXFLAGS += $(shell larlitecv-config --includes)/../app
 CXXFLAGS += -I$(KALMAN_INCDIR)
+CXXFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
 
 # Include your shared object lib location
 LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
