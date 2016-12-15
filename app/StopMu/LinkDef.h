@@ -13,5 +13,7 @@
 #pragma link C++ class larlitecv::StopMuStart+;
 #pragma link C++ class larlitecv::StopMuSkeleton+;
 #pragma link C++ class larlitecv::StopMuAlgo+;
+#pragma link C++ class larlitecv::Step3D+;
+#pragma link C++ class larlitecv::StopMuTrack+;
 //ADD_NEW_CLASS ... do not change this line
 #endif
