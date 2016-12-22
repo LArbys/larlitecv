@@ -46,7 +46,7 @@ int main( int nargs, char** argv ) {
   dataco.initialize();
 
   // go to some entry
-  dataco.goto_entry(0, "larcv");
+  dataco.goto_entry(1, "larcv");
 
   // STOP MU START PARAMETERS
   float fThreshold = 10.0;
@@ -76,7 +76,8 @@ int main( int nargs, char** argv ) {
     float tick = meta.pos_y( pix.Y() );
     std::cout << "top endpoint #" << i << ": tick=" << tick << std::endl;
     //if ( tick>3850 && tick<3950 ) { // test point A
-    if ( tick>6900 && tick<6910 ) { // test point B
+    //if ( tick>6900 && tick<6910 ) { // test point B
+    if ( tick>=6180 && tick<=6190 ) { // test point C
       std::cout << "Found test start point:tick= " << tick << std::endl;
       for (int p=0; p<3; p++) {
 	larcv::Pixel2D copy( top_spacepoints->Pixel2DArray(p).at(i) );
@@ -108,7 +109,8 @@ int main( int nargs, char** argv ) {
   }
   larlitecv::StopMuTracker sttracker( img_v, thrumu_v );
   larlitecv::Step3D start_track;
-  sttracker.trackStopMu( start2d_pos, start_dir2d, start_spacepoint, start_dir3d, start_track );
+  //sttracker.trackStopMu( start2d_pos, start_dir2d, start_spacepoint, start_dir3d, start_track );
+  sttracker.stopMuString( img_v, start2d_pos, start_dir2d, start_spacepoint, start_dir3d, start_track );
 
   // let's mark up an image
   std::vector<larcv::Image2D> out_imgs;
@@ -116,6 +118,14 @@ int main( int nargs, char** argv ) {
     larcv::Image2D img( img_v.at(p) );
     for (int r=0; r<img.meta().rows(); r++) {
       for (int c=0; c<img.meta().cols(); c++) {
+
+	if ( sttracker.skel_v.at(p).pixel(r,c)>0 ) {
+	  //img.set_pixel(r,c,img.pixel(r,c)+100);
+	  img.set_pixel(r,c,150);
+	}
+	else
+	  img.set_pixel(r,c,0);
+
 	if ( img.pixel(r,c)<10 )
 	  img.set_pixel(r,c,0);
 	else if ( img.pixel(r,c)>200 )
