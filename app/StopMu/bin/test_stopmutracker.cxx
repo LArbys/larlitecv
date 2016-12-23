@@ -46,7 +46,7 @@ int main( int nargs, char** argv ) {
   dataco.initialize();
 
   // go to some entry
-  dataco.goto_entry(1, "larcv");
+  dataco.goto_entry(0, "larcv");
 
   // STOP MU START PARAMETERS
   float fThreshold = 10.0;
@@ -76,8 +76,8 @@ int main( int nargs, char** argv ) {
     float tick = meta.pos_y( pix.Y() );
     std::cout << "top endpoint #" << i << ": tick=" << tick << std::endl;
     //if ( tick>3850 && tick<3950 ) { // test point A
-    //if ( tick>6900 && tick<6910 ) { // test point B
-    if ( tick>=6180 && tick<=6190 ) { // test point C
+    if ( tick>6900 && tick<6910 ) { // test point B
+    //if ( tick>=6180 && tick<=6190 ) { // test point C
       std::cout << "Found test start point:tick= " << tick << std::endl;
       for (int p=0; p<3; p++) {
 	larcv::Pixel2D copy( top_spacepoints->Pixel2DArray(p).at(i) );
