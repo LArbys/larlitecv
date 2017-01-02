@@ -26,22 +26,27 @@ namespace larlitecv {
 
     std::cout << "StopMuFilterSpacePoints::StopMuFilterSpacePoints" << std::endl;
 
-    // [ Remove Through-going Muons ]
-    std::vector< std::vector<const larcv::Pixel2D*> > not_thrumu;
-    removeThroughGoingEndPoints( spacepoints_list, thrumu_pixels, not_thrumu );
-
-    std::cout << "number of non-thru-mu endpoints: " << not_thrumu.size() << std::endl;
 
     // [ Remove Duplicates ]
     std::vector< std::vector<const larcv::Pixel2D*> > not_duplicagted;
     removeDuplicateEndPoints( spacepoints_list, thrumu_pixels, not_duplicagted );
     std::cout << "number of non-duplicated endpoints: " << not_duplicagted.size() << std::endl;
+
+    // [ Remove Through-going Muons ]
+    std::vector< std::vector<const larcv::Pixel2D*> > not_thrumu;
+    removeThroughGoingEndPointsFromPixVectors( not_duplicagted, thrumu_pixels, not_thrumu );
+    
+    std::cout << "number of non-duplicated, non-thru-mu endpoints: " << not_thrumu.size() << std::endl;
     
   }
-  
+
+  // ----------------------------------------------------------------------------------------------------
+  // Through-going end points
+
   void StopMuFilterSpacePoints::removeThroughGoingEndPoints( const std::vector< larcv::EventPixel2D*  >& spacepoints_list,
 							     const std::vector<larcv::Image2D>& thrumu_pixels,
 							     std::vector< std::vector<const larcv::Pixel2D*> >& passlist ) {
+    
     for ( auto &ev_ptr : spacepoints_list ) {
       size_t nendpts = (*ev_ptr).Pixel2DArray(0).size();
       for (size_t i=0; i<nendpts; i++) {
@@ -51,30 +56,52 @@ namespace larlitecv {
 	  pix_v[p] = &(ev_ptr->Pixel2DArray(p).at(i));
 	}
 	
-	// we check the thrumu_pixel, is there a thru-mu tag nearby?
-	int nplanes_tagged = 0;
-	for (int p=0; p<3; p++) {
-	  int pix_row=pix_v[p]->Y();
-	  int pix_col=pix_v[p]->X();
-	  for (int r=-m_config->row_tag_neighborhood; r<=m_config->row_tag_neighborhood; r++) {
-	    for (int c=-m_config->col_tag_neighborhood; c<=m_config->col_tag_neighborhood; c++) {
-	      int row = pix_row+r;
-	      int col = pix_col+c;
-	      if ( row<0 || row>=thrumu_pixels.at(p).meta().rows() || col<0 || col>=thrumu_pixels.at(p).meta().cols() )
-		continue;
-	      if ( thrumu_pixels.at(p).pixel(row,col)>0 )
-		nplanes_tagged++;
-	    }
-	  }//end of r loop
-	}//end of plane loop
-
-	if ( nplanes_tagged>=2 )
+	bool isthrumu = isEndPtNearThruMuTag( pix_v, thrumu_pixels );
+	if ( isthrumu )
 	  passlist.push_back( pix_v );
-
+	
       }//end of endpoint loop
     }//end of list loop
+    
+  }
+
+  void StopMuFilterSpacePoints::removeThroughGoingEndPointsFromPixVectors( std::vector< std::vector<const larcv::Pixel2D*> >& spacepoints_list,
+									   const std::vector<larcv::Image2D>& thrumu_pixels,
+									   std::vector< std::vector<const larcv::Pixel2D*> >& passlist ) {
+    
+    for ( auto &pix_v : spacepoints_list ) {      
+      bool isthrumu = isEndPtNearThruMuTag( pix_v, thrumu_pixels );
+      if ( isthrumu )
+	passlist.push_back( pix_v );
+    }//end of list loop
+
+  }
+  
+  bool StopMuFilterSpacePoints::isEndPtNearThruMuTag( const std::vector<const larcv::Pixel2D*>& pix_v, const std::vector<larcv::Image2D>& thrumu_pixels ) {
+    
+    // we check the thrumu_pixel, is there a thru-mu tag nearby?
+    int nplanes_tagged = 0;
+    for (int p=0; p<3; p++) {
+      int pix_row=pix_v[p]->Y();
+      int pix_col=pix_v[p]->X();
+      for (int r=-m_config->row_tag_neighborhood; r<=m_config->row_tag_neighborhood; r++) {
+	for (int c=-m_config->col_tag_neighborhood; c<=m_config->col_tag_neighborhood; c++) {
+	  int row = pix_row+r;
+	  int col = pix_col+c;
+	  if ( row<0 || row>=thrumu_pixels.at(p).meta().rows() || col<0 || col>=thrumu_pixels.at(p).meta().cols() )
+	    continue;
+	  if ( thrumu_pixels.at(p).pixel(row,col)>0 )
+	    nplanes_tagged++;
+	}
+      }//end of r loop
+    }//end of plane loop
+
+    if ( nplanes_tagged>=2 )
+      return true;
+    return false;
   }//end of removeThroughGoingEndPoints
 							     
+  // ----------------------------------------------------------------------------------------------------
 
   void StopMuFilterSpacePoints::removeDuplicateEndPoints( const std::vector< larcv::EventPixel2D*  >& spacepoints_list,
 							  const std::vector< larcv::Image2D >& img_v,
@@ -89,6 +116,8 @@ namespace larlitecv {
     float duplicate_cluster_maxpixdist = 3.0;
     float duplicate_cluster_threshold = 10.0;
 
+    int nendpts_considered = 0;
+
     // are pixels of the same time next to one another?
     for ( auto &ev_ptr : spacepoints_list ) {
       size_t nendpts = (*ev_ptr).Pixel2DArray(0).size();
@@ -96,6 +125,8 @@ namespace larlitecv {
 
       for (size_t i=0; i<nendpts; i++) {
 	
+	nendpts_considered++;
+
 	if ( rejected[i]==1 ) continue;
 
 	// get the 3D points for i
@@ -111,10 +142,10 @@ namespace larlitecv {
 
 	std::vector<float> pos3d_i(3,0);
 	pos3d_i[0] = (tick_i-trig_tick)*cm_per_tick; // x position
-	if ( pos3d_i[0] < 0 || pos3d_i[0]>270.0 ) {
-	  rejected[i]=1;
-	  continue;
-	}
+	//if ( pos3d_i[0] < 0 || pos3d_i[0]>270.0 ) {
+	//rejected[i]=1;
+	//continue;
+	//}
 	pos3d_i[1] = intersection_i[1];
 	pos3d_i[2] = intersection_i[0];
 	
@@ -135,10 +166,10 @@ namespace larlitecv {
 
 	  std::vector<float> pos3d_j(3,0);
 	  pos3d_j[0] = (tick_j-trig_tick)*cm_per_tick; // x position
-	  if ( pos3d_j[0] < 0 || pos3d_j[0]>270.0 ) {
-	    rejected[j]=1;
-	    continue;
-	  }
+	  //if ( pos3d_j[0] < 0 || pos3d_j[0]>270.0 ) {
+	  //rejected[j]=1;
+	  //continue;
+	  //}
 	  pos3d_j[1] = intersection_j[1];
 	  pos3d_j[2] = intersection_j[0];
 
@@ -204,6 +235,8 @@ namespace larlitecv {
 	      std::cout << " -- reject either cluster i=" << i << " and j=" << j << " dwalls are: i=" << dwall_i << " cm and j=" << dwall_j << std::endl;
 	      if ( dwall_i < dwall_j )
 		rejected[j] = 1;
+	      else if ( dwall_j < dwall_j )
+		rejected[i] = 1;
 	      else
 		rejected[j] = 1;
 	    }
@@ -224,7 +257,7 @@ namespace larlitecv {
       }//end of spacepoint loop
     }//end of spacepoint list loop
 
-    std::cout << "Filter saved " << outputlist.size() << " end points." << std::endl;
+    std::cout << "Filter saved " << outputlist.size() << " out of " << nendpts_considered << " end points." << std::endl;
 
   }//end of removeDuplicateEndPoints
 

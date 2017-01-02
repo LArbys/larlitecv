@@ -86,7 +86,7 @@ int main( int nargs, char** argv ) {
   std::cout << "total end points=" << tot_endpts << std::endl;
 
   larlitecv::StopMuFilterSpacePointsConfig stopmu_filter_cfg;
-  stopmu_filter_cfg.duplicate_radius_cm = 10.0;
+  stopmu_filter_cfg.duplicate_radius_cm = 20.0;
   stopmu_filter_cfg.pixel_threshold = 10.0;
   stopmu_filter_cfg.track_width_pixels = 5;
   stopmu_filter_cfg.row_tag_neighborhood = 5;
