@@ -40,6 +40,11 @@ namespace larlitecv {
     void removeThroughGoingEndPoints( const std::vector< larcv::EventPixel2D*  >& spacepoints_list,
 				      const std::vector<larcv::Image2D>& thrumu_pixels,
 				      std::vector< std::vector<const larcv::Pixel2D*> >& passlist );
+    void removeDuplicateEndPoints( const std::vector< larcv::EventPixel2D*  >& spacepoints_list,
+				   const std::vector< larcv::Image2D >& img_v,
+				   std::vector< std::vector<const larcv::Pixel2D*> >& outputlist );
+
+    float dwall( std::vector<float>& pos3d );
 
 
 
