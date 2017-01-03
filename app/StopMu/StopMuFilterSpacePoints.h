@@ -33,9 +33,9 @@ namespace larlitecv {
 
     const StopMuFilterSpacePointsConfig* m_config; //< configuration parameters
 
-    std::vector<larcv::Pixel2D> filterSpacePoints( const std::vector< larcv::EventPixel2D* >& spacepoints_list, 
-						   const std::vector<larcv::Image2D>& thrumu_pixels,
-						   const std::vector<larcv::Image2D>& badch_imgs);
+    std::vector< std::vector< const larcv::Pixel2D* > >filterSpacePoints( const std::vector< larcv::EventPixel2D* >& spacepoints_list, 
+									  const std::vector<larcv::Image2D>& thrumu_pixels,
+									  const std::vector<larcv::Image2D>& badch_imgs);
 
     void removeThroughGoingEndPoints( const std::vector< larcv::EventPixel2D*  >& spacepoints_list,
 				      const std::vector<larcv::Image2D>& thrumu_pixels,

@@ -28,7 +28,9 @@
 
 namespace larlitecv {
 
-  StopMuTracker::StopMuTracker( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v ) {
+  StopMuTracker::StopMuTracker( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, int verbosity ) {
+    
+    setVerbosity(verbosity);
 				
     
     // skeletonize image
@@ -59,19 +61,25 @@ namespace larlitecv {
       dbscan::dbscanOutput cluster = dbalgo.scan( data, 5, 50.0 );
       m_imghits.emplace_back( data );
       m_clusters.emplace_back( cluster );
-      std::cout << "number of clusters on plane " << p << ": " << m_clusters.at(p).clusters.size() << std::endl;
+      //std::cout << "number of clusters on plane " << p << ": " << m_clusters.at(p).clusters.size() << std::endl;
     }//loop over clusters
     
     time_t cluster_finished = time(NULL);
     //double dt_clusters = difftime(cluster_start,cluster_finished);
     double dt_clusters = cluster_finished-cluster_start;
-    std::cout << "clustered in " << dt_clusters << " seconds." << std::endl;
+    //std::cout << "clustered in " << dt_clusters << " seconds." << std::endl;
     
     // initialize hit list
     for (int p=0; p<3; p++) {
       current_hit[p] = -1;
     }
 
+    for (int p=0; p<3; p++) {
+      cv::Mat imgmat = larcv::as_mat_greyscale2bgr( skel_v.at(p), 0, 1.0);
+      std::stringstream ss;
+      ss << "skel_p" << p << ".jpg";
+      cv::imwrite( ss.str().c_str(), imgmat );
+    }
   }
 
   void StopMuTracker::trackStopMu( const std::vector< std::vector<int> >& start2d, const std::vector< std::vector<float> >& start_dir2d,
@@ -94,6 +102,7 @@ namespace larlitecv {
       std::vector<double> testpoint(2);
       testpoint[0] = start2d.at(p)[0]; // X
       testpoint[1] = start2d.at(p)[1]; // Y
+
       std::cout << "plane " << p << " testpoint: (col,row)=(" << testpoint[0] << "," << testpoint[1] << ") " 
 		<< " (wire,tick)=(" << meta.pos_x( testpoint[0] ) << "," << meta.pos_y( testpoint[1] ) << ")" << std::endl;
       int match = m_clusters.at(p).findMatchingCluster( testpoint, m_imghits.at(p), 10.0 );
@@ -188,6 +197,7 @@ namespace larlitecv {
       int tick;
       std::vector<int> wid;
       imagePositions( proposed_pos, tick, wid );
+
       std::cout << "proposal location on the 2D planes: tick=" << tick << " planes U=" << wid[0] << " V=" << wid[1] << " Y=" << wid[2] << std::endl;
 
       std::vector<int> pixel_cols;
@@ -650,7 +660,7 @@ namespace larlitecv {
     }//end of loop over planes for sorting hits
     
     return img_clusters;
-  }
+  }// StopMuTracker::fillSortedHit2Dlist
 
   // ------------------------------------------------------------------------------------------------
   // *** Hit2DList Functions ****
@@ -756,9 +766,14 @@ namespace larlitecv {
     int tick;
     std::vector<int> wids;
     larlitecv::StopMuTracker::imagePositions( pos, tick, wids );
+    if ( tick<meta.min_y() )  tick = meta.min_y();
+    if ( tick>=meta.max_y() ) tick = meta.max_y()-1;
+    
     int tick_anchor;
     std::vector<int> wids_anchor;
     larlitecv::StopMuTracker::imagePositions( anchor, tick_anchor, wids_anchor );
+    if ( tick_anchor<meta.min_y() )  tick_anchor = meta.min_y();
+    if ( tick_anchor>=meta.max_y() ) tick_anchor = meta.max_y()-1;
 
     // find the closest point on each plane
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
@@ -773,6 +788,10 @@ namespace larlitecv {
       std::vector<double> testpoint(2,0.0);
       testpoint[0] = meta.col( wids[p] );
       testpoint[1] = meta.row( tick );
+      if ( testpoint[0]< 0 ) testpoint[0];
+      if ( testpoint[0]>=meta.cols() ) testpoint[0] = meta.cols()-1;
+      if ( testpoint[1]< 0 ) testpoint[1] = 0;
+      if ( testpoint[1]>=meta.rows() ) testpoint[1] = meta.rows()-1;
       planehits.closestHits( testpoint, meta, cm_per_tick, cm_per_wire, closest, 3, 1 );
       if ( closest.size()>0 && closest.front().second<closest_dists[p]) {
 	closest_dists[p] = closest.front().second;
@@ -802,7 +821,13 @@ namespace larlitecv {
     ydir[1] = float(meta.row(tick)) - float(meta.row(tick_anchor));
     float ynorm = sqrt( ydir[0]*ydir[0] + ydir[1]*ydir[1] );
     if ( fabs(ydir[0])<1.0e-3 && fabs(ydir[1])<1.0e-3 ) {
-      tot_adc_on_yplane = img_v[2].pixel( meta.row(tick), meta.col(wids[2]) );
+      int col = meta.col(wids[2]);
+      int row = meta.row(tick);
+      if ( col<0 ) col = 0;
+      if ( col>=meta.cols() ) col = meta.cols()-1;
+      if ( row<0 ) row = 0;
+      if ( row>=meta.rows() ) row = meta.rows()-1;
+      tot_adc_on_yplane = img_v[2].pixel( row, col );
       n_ypixels++;
     }
     else {
@@ -819,6 +844,10 @@ namespace larlitecv {
 	for (int icol=0; icol<=(int)ncols; icol++) {
 	  int row = float(meta.row(tick_anchor)) + (ydir[1]/ydir[0])*icol;
 	  int col = float(meta.col(wids_anchor[2])) + icol;
+	  if ( col<0 ) col = 0;
+	  if ( col>=meta.cols() ) col = meta.cols()-1;
+	  if ( row<0 ) row = 0;
+	  if ( row>=meta.rows() ) row = meta.rows()-1;
 	  tot_adc_on_yplane += img_v[2].pixel( row, col );
 	  n_ypixels++;
 	}
@@ -828,6 +857,10 @@ namespace larlitecv {
 	for (int irow=0; irow<=(int)nrows; irow++) {
 	  int col = float(meta.col(wids_anchor[2])) + (ydir[0]/ydir[1])*irow;
 	  int row = float(meta.row(tick_anchor)) + irow;
+	  if ( col<0 ) col = 0;
+	  if ( col>=meta.cols() ) col = meta.cols()-1;
+	  if ( row<0 ) row = 0;
+	  if ( row>=meta.rows() ) row = meta.rows()-1;
 	  tot_adc_on_yplane += img_v[2].pixel( row, col );
 	  n_ypixels++;
 	}	
@@ -899,12 +932,14 @@ namespace larlitecv {
     std::vector<larcv::Image2D> img_clusters = fillSortedHit2Dlist( meta, start2d, start_dir2d, hitlists, clusterid );
     
     // for debug output
-    for (int p=0; p<3; p++) {
-      const larcv::Image2D& img_cluster = img_clusters.at(p);
-      cv::Mat imgmat = larcv::as_mat( img_cluster );
-      std::stringstream ss;
-      ss << "baka_p" << p << ".jpg";
-      cv::imwrite( ss.str().c_str(), imgmat );
+    if ( m_verbosity>2 ) {
+      for (int p=0; p<3; p++) {
+	const larcv::Image2D& img_cluster = img_clusters.at(p);
+	cv::Mat imgmat = larcv::as_mat( img_cluster );
+	std::stringstream ss;
+	ss << "baka_p" << p << ".jpg";
+	cv::imwrite( ss.str().c_str(), imgmat );
+      }
     }
 
     int istep = 0;
@@ -943,9 +978,11 @@ namespace larlitecv {
     minimizer->SetFunction(func);
 
     while ( !isfinished && istep<1000 ) {
-      
-      std::cout << "===============================================================" << std::endl;
-      std::cout << " Step " << istep << " [ptr=" << &(*current_step) << "]" << std::endl;
+     
+      if ( m_verbosity > 0 ) {
+	std::cout << "===============================================================" << std::endl;
+	std::cout << " Step " << istep << " [ptr=" << &(*current_step) << "]" << std::endl;
+      }
 
       current_pos = current_step->pos;
       current_dir = current_step->dir;
@@ -953,10 +990,12 @@ namespace larlitecv {
       // update 3D step
       makeProposedPos( current_pos, current_dir, proposed_pos, fStepSize_cm );
 
-      std::cout << " from current pos=(" << current_pos[0] << "," << current_pos[1] << "," << current_pos[2] << ")"
-		<< " and current dir=(" << current_dir[0] << "," << current_dir[1] << "," << current_dir[2] << ")" << std::endl;
-      std::cout << " stepsize=" << fStepSize_cm << " cm" << std::endl;
-      std::cout << " made proposal: " << proposed_pos[0] << "," << proposed_pos[1] << "," << proposed_pos[2] << ")" << std::endl;
+      if ( m_verbosity > 0 ) {
+	std::cout << " from current pos=(" << current_pos[0] << "," << current_pos[1] << "," << current_pos[2] << ")"
+		  << " and current dir=(" << current_dir[0] << "," << current_dir[1] << "," << current_dir[2] << ")" << std::endl;
+	std::cout << " stepsize=" << fStepSize_cm << " cm" << std::endl;
+	std::cout << " made proposal: " << proposed_pos[0] << "," << proposed_pos[1] << "," << proposed_pos[2] << ")" << std::endl;
+      }
 
       double min_value = 0.;
       double min_cosine = 2.0;
@@ -984,19 +1023,24 @@ namespace larlitecv {
 	minimizer->SetLimitedVariable(1,  "phi", variable[1], step[1], -3.14159, 3.14159 );
 
 	// do the minimization
-	std::cout << "initialize minimizer with cosz=" << variable[0] << " phi=" << variable[1] << std::endl;
-	std::cout << "Run Minimizer." << std::endl;
+	if ( m_verbosity > 0 ) {
+	  std::cout << "initialize minimizer with cosz=" << variable[0] << " phi=" << variable[1] << std::endl;
+	  std::cout << "Run Minimizer." << std::endl;
+	}
 	minimizer->Minimize();
 
 	const double *xs = minimizer->X();
-	std::cout << "Minimum: f(" << xs[0] << "," << xs[1] << "): " << minimizer->MinValue()  << std::endl;
+	if ( m_verbosity > 0 )
+	  std::cout << "Minimum: f(" << xs[0] << "," << xs[1] << "): " << minimizer->MinValue()  << std::endl;
 	proposed_dir[2] = xs[0];
 	proposed_dir[0] = sqrt(1.0-xs[0]*xs[0])*cos(xs[1]);
 	proposed_dir[1] = sqrt(1.0-xs[0]*xs[0])*sin(xs[1]);
 	_norm(proposed_dir);
 	for (int i=0; i<3; i++) proposed_pos[i] = current_pos[i] + proposed_dir[i]*fStepSize_cm;
-	std::cout << "post-min pos: (" << proposed_pos[0] << "," << proposed_pos[1] << "," << proposed_pos[2] << ")" << std::endl;
-	std::cout << "post-min dir: (" << proposed_dir[0] << "," << proposed_dir[1] << "," << proposed_dir[2] << ")" << std::endl;
+	if ( m_verbosity > 0 ) {
+	  std::cout << "post-min pos: (" << proposed_pos[0] << "," << proposed_pos[1] << "," << proposed_pos[2] << ")" << std::endl;
+	  std::cout << "post-min dir: (" << proposed_dir[0] << "," << proposed_dir[1] << "," << proposed_dir[2] << ")" << std::endl;
+	}
 	min_value = minimizer->MinValue();
 	min_cosine = 0.;
 	for (int i=0; i<3; i++) min_cosine += current_dir[i]*proposed_dir[i];
@@ -1007,9 +1051,11 @@ namespace larlitecv {
       }
 
       // stopping condition test
-      std::cout << "post-min cosine: " << min_cosine << std::endl;
+      if ( m_verbosity > 0 )
+	std::cout << "post-min cosine: " << min_cosine << std::endl;
       if ( min_cosine<-0.2 ) {
-	std::cout << "Stopping condition met." << std::endl;
+	if ( m_verbosity > 0 )
+	  std::cout << "Stopping condition met." << std::endl;
 	break;
       }
 
@@ -1017,17 +1063,23 @@ namespace larlitecv {
       int tick;
       std::vector<int> wid;
       imagePositions( proposed_pos, tick, wid );
-      std::cout << "proposal location on the 2D planes: tick=" << tick << " planes U=" << wid[0] << " V=" << wid[1] << " Y=" << wid[2] << std::endl;
+      if ( tick<meta.min_y() )  tick = meta.min_y();
+      if ( tick>=meta.max_y() ) tick = meta.max_y()-1;
+
+      if ( m_verbosity > 0 )
+	std::cout << "proposal location on the 2D planes: tick=" << tick << " planes U=" << wid[0] << " V=" << wid[1] << " Y=" << wid[2] << std::endl;
 
       std::vector<int> pixel_cols;
       int pixel_row;
       _wire2pixel( tick, wid, meta, pixel_cols, pixel_row );
-      std::cout << "proposal location on the image: row=" << pixel_row << " plane col U=" << pixel_cols[0] << " V=" << pixel_cols[1] << " Y=" << pixel_cols[2] << std::endl;
+      if ( m_verbosity > 0 ) 
+	std::cout << "proposal location on the image: row=" << pixel_row << " plane col U=" << pixel_cols[0] << " V=" << pixel_cols[1] << " Y=" << pixel_cols[2] << std::endl;
 
 
       // update tracker
       // prepare wire info
-      std::cout << "update tracker/prepare wire info" << std::endl;
+      if ( m_verbosity > 0 )
+	std::cout << "update tracker/prepare wire info" << std::endl;
       std::vector<Point2D_t> closest_hits_list(3);
       std::vector<Point2D_t> plane_pos_list(3);
       bool close_enough = true;
@@ -1042,19 +1094,25 @@ namespace larlitecv {
 	dhit[1] = theplanehit[1];
 	std::vector<int> theclosesthit(2,0);
 	std::vector< std::pair<int,double> > close_list;
-	hitlists[p]._verbose_ = true;
+	if ( m_verbosity>1 )
+	  hitlists[p]._verbose_ = true;
+	else
+	  hitlists[p]._verbose_ = false;
 	hitlists[p].closestHits( dhit, meta, cm_per_tick, cm_per_wire, close_list, 3, 1 );
 	hitlists[p]._verbose_ = false;
-	std::cout << "mark hit up to: ";
+	if ( m_verbosity > 0 )
+	  std::cout << "mark hit up to: ";
 	if ( close_list.size()>0 ) {
 	  int hitidx = close_list.front().first;
 	  hitlists[p].markUpTo( hitidx );
 	  theclosesthit[0] = hitlists[p].at( hitidx )[0];
 	  theclosesthit[1] = hitlists[p].at( hitidx )[1];
 	  closest_hits_list[p] = theclosesthit;
-	  std::cout << " p" << p << "=" << hitidx 
-		    << " closest hit=(" << theclosesthit[0] << "," << theclosesthit[1] << ")"
-		    << std::endl;
+	  if ( m_verbosity > 0 ) {
+	    std::cout << " p" << p << "=" << hitidx 
+		      << " closest hit=(" << theclosesthit[0] << "," << theclosesthit[1] << ")"
+		      << std::endl;
+	  }
 	  if ( close_list.front().second>0.3*20.0 ) {
 	    close_enough = false;
 	  }
@@ -1066,7 +1124,8 @@ namespace larlitecv {
       
       Step3D* next_step = new Step3D( proposed_pos, proposed_dir, closest_hits_list, plane_pos_list, *current_step );
       current_step = next_step;
-      std::cout << "updated Step3D list." << std::endl;
+      if ( m_verbosity > 0 )
+	std::cout << "updated Step3D list." << std::endl;
 
       bool hits_left = true;
       for (int p=0; p<3; p++) {
@@ -1077,37 +1136,24 @@ namespace larlitecv {
       }
 	
       if ( !hits_left ) {
-	std::cout << "no more hits in the cluster." << std::endl;
+	if ( m_verbosity > 0 )
+	  std::cout << "no more hits in the cluster." << std::endl;
 	break;
       }
       if ( !close_enough ) {
-	std::cout << "we have lost our way." << std::endl;
+	if ( m_verbosity > 0 )
+	  std::cout << "we have lost our way." << std::endl;
 	break;
       }
 
-//       }
-//       else {
-// 	//  current path is no good. need to re-orient or stop
-// 	std::cout << "need to re-direct track" << std::endl;
-// 	Step3D* proposed_step = new Step3D;
-// 	continue_search = findNewDirection( *current_step, meta, closest_pixels, hitlists, *proposed_step );
-// 	std::cout << "re-directed step returned." << std::endl;
-// 	if ( continue_search )
-// 	  current_step = proposed_step;
-// 	current_pos = current_step->pos;
-// 	current_dir = current_step->dir;
-// 	std::cin.get();
-//       }
-
-//       if ( !continue_search ) {
-// 	std::cout << "Stopping condition met." << std::endl;
-// 	break;
-//       }
 	
       istep++;
     }
-    std::cout << "[End of stopmu tracker. numebr of steps=" << istep << ".]" << std::endl;
-    std::cout << "===============================================================" << std::endl;    
+    
+    if ( m_verbosity>0 ) {
+      std::cout << "[End of stopmu tracker. numebr of steps=" << istep << ".]" << std::endl;
+      std::cout << "===============================================================" << std::endl;    
+    }
   }
   
 }

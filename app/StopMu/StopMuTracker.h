@@ -44,6 +44,7 @@ namespace larlitecv {
       _prev.next = this;
     };
     virtual ~Step3D() {};
+    
     std::vector<float> pos; //< 3d position
     std::vector<float> dir;
     std::vector<Point2D_t> closesthits; //< closest 2d plane pixels (can be different times)
@@ -71,6 +72,13 @@ namespace larlitecv {
 	return true;
       return false;
     };
+
+    void removeNext() {
+      if ( next )
+	delete next;
+      next = NULL;
+    };
+
   };
   
   class Hit2D : public std::array<int,2> {
@@ -156,11 +164,13 @@ namespace larlitecv {
 
   class StopMuTracker {
 
-    StopMuTracker() {};
+    StopMuTracker() { 
+      m_verbosity = 0;
+    };
 
   public:
       
-    StopMuTracker( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v );
+    StopMuTracker( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, int verbosity=0 );
     virtual ~StopMuTracker() {};
 
     void trackStopMu(const std::vector< std::vector<int> >& start2d, const std::vector< std::vector<float> >& start_dir2d,
@@ -182,6 +192,7 @@ namespace larlitecv {
 
     void stopMuString(const std::vector<larcv::Image2D>& img_v, const std::vector< std::vector<int> >& start2d, const std::vector< std::vector<float> >& start_dir2d,
 		      const std::vector< float >& start_pos3d, const std::vector<float>& start_dir3d, Step3D& start_step );
+    void setVerbosity( int v ) { m_verbosity = v; };
     
     std::vector<larcv::Image2D> skel_v; // skeleton images
     std::vector< dbscan::dbPoints > m_imghits;
@@ -191,7 +202,7 @@ namespace larlitecv {
     int current_hit[3];
     Step3D* trackstart;
     Step3D* current;
-
+    int m_verbosity;
 
   protected:
     float _norm( std::vector<float>& vec );

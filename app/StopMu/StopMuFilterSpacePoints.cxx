@@ -16,9 +16,9 @@ namespace larlitecv {
     m_config = &config;
   }
 
-  std::vector<larcv::Pixel2D> StopMuFilterSpacePoints::filterSpacePoints( const std::vector< larcv::EventPixel2D*  >& spacepoints_list,
-									  const std::vector<larcv::Image2D>& thrumu_pixels,
-									  const std::vector<larcv::Image2D>& badch_imgs) {
+  std::vector< std::vector< const larcv::Pixel2D* > > StopMuFilterSpacePoints::filterSpacePoints( const std::vector< larcv::EventPixel2D*  >& spacepoints_list,
+												  const std::vector<larcv::Image2D>& thrumu_pixels,
+												  const std::vector<larcv::Image2D>& badch_imgs) {
     // this function selects spacepoints we want to pass to the stop-mu tracker
     // the goal is to
     // (1) filter out space points that below any through-going muon points
@@ -37,7 +37,8 @@ namespace larlitecv {
     removeThroughGoingEndPointsFromPixVectors( not_duplicagted, thrumu_pixels, not_thrumu );
     
     std::cout << "number of non-duplicated, non-thru-mu endpoints: " << not_thrumu.size() << std::endl;
-    
+
+    return not_thrumu;
   }
 
   // ----------------------------------------------------------------------------------------------------
@@ -57,7 +58,7 @@ namespace larlitecv {
 	}
 	
 	bool isthrumu = isEndPtNearThruMuTag( pix_v, thrumu_pixels );
-	if ( isthrumu )
+	if ( !isthrumu )
 	  passlist.push_back( pix_v );
 	
       }//end of endpoint loop
@@ -71,7 +72,7 @@ namespace larlitecv {
     
     for ( auto &pix_v : spacepoints_list ) {      
       bool isthrumu = isEndPtNearThruMuTag( pix_v, thrumu_pixels );
-      if ( isthrumu )
+      if ( !isthrumu )
 	passlist.push_back( pix_v );
     }//end of list loop
 
