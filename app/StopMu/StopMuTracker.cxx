@@ -930,7 +930,7 @@ namespace larlitecv {
     const larcv::ImageMeta& meta = skel_v.at(0).meta();
     std::vector<Hit2DList> hitlists(3);
     std::vector<larcv::Image2D> img_clusters = fillSortedHit2Dlist( meta, start2d, start_dir2d, hitlists, clusterid );
-    
+
     // for debug output
     if ( m_verbosity>2 ) {
       for (int p=0; p<3; p++) {
@@ -940,6 +940,19 @@ namespace larlitecv {
 	ss << "baka_p" << p << ".jpg";
 	cv::imwrite( ss.str().c_str(), imgmat );
       }
+    }
+
+    // we need to check the quality of the cluster
+    bool clusterok = true;
+    for (size_t p=0; p<3; p++) {
+      if ( hitlists.at(p).size()<1 ) {
+	clusterok = false;
+	break;
+      }
+    }
+
+    if ( clusterok==false ) {
+      return;
     }
 
     int istep = 0;
