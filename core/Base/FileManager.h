@@ -26,8 +26,10 @@ namespace larlitecv {
     bool operator<(const RSE &b) const {
       if ( run<b.run ) return true;
       else if ( run>b.run ) return false;
+      // run==b.run
       if ( subrun<b.subrun ) return true;
       else if ( subrun>b.subrun) return false;
+      //subrun=b.subrun
       if ( event<b.event) return true;
       else if ( event>b.event ) return false;
       return false;
@@ -42,7 +44,8 @@ namespace larlitecv {
   
   class RSElist : public std::vector< RSE > {
   public:
-    RSElist() {};
+    RSElist() 
+      {};
     virtual ~RSElist() {};
     bool operator<(const RSElist &b) const {
       if ( run()<b.run() ) return true;

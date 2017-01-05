@@ -118,6 +118,7 @@ namespace larlitecv {
       for ( auto const &larlitefile : fManagers["larlite"]->get_final_filelist() )
 	larlite_io.add_in_filename( larlitefile );
       larlite_io.open();
+      larlite_io.enable_event_alignment(false);
     }
     // larcv iomanager
     if ( !larcv_unused ) {
@@ -257,9 +258,9 @@ namespace larlitecv {
       fManagers["larlite"]->getRSE( entry, run, subrun, event );
       if ( !larcv_unused ) {
 	fManagers["larcv"]->getEntry( run, subrun, event, other_entry );
-	std::cout << "given larlite entry=" << entry  << ". "
-		  << ". rse=(" << run << ", " << subrun << ", " << event << ")"
-		  << " larcv entry=" << other_entry << std::endl;
+	// std::cout << "given larlite entry=" << entry  << " with "
+	// 	  << " rse=(" << run << ", " << subrun << ", " << event << ")"
+	// 	  << " corresponds to larcv entry=" << other_entry << std::endl;
 	larcv_io.read_entry( other_entry );
       }
     }
@@ -272,6 +273,9 @@ namespace larlitecv {
       fManagers["larcv"]->getRSE( entry, run, subrun, event );
       if ( !larlite_unused ) {
 	fManagers["larlite"]->getEntry( run, subrun, event, other_entry );
+	// std::cout << "given larcv entry=" << entry  << " with "
+	// 	  << " rse=(" << run << ", " << subrun << ", " << event << ")"
+	// 	  << " corresponds to larlite entry=" << other_entry << std::endl;
 	larlite_io.go_to( other_entry, false );
       }
     }
