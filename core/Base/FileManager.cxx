@@ -4,6 +4,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <assert.h>
+#include <stdexcept>
+#include <sstream>
 #include "TFile.h"
 #include "TTree.h"
 
@@ -77,13 +79,19 @@ namespace larlitecv {
     tcache.Branch("run",&run,"run/I");
     tcache.Branch("subrun",&subrun,"subrun/I");
     tcache.Branch("event",&event,"event/I");
-    int entry=0;
-    for ( auto &rse : fentry2rse ) {
-      run = rse.second.run;
-      subrun = rse.second.subrun;
-      event = rse.second.event;
+    int nentries = (int)fentry2rse.size();
+    for (int entry=0; entry<nentries; entry++) {
+      auto iter = fentry2rse.find(entry);
+      if ( iter==fentry2rse.end() ) {
+	std::stringstream ss;
+	ss << __FILE__ << ":" << __LINE__ << " could not find entry #" << entry << " in fentry2rse." << std::endl;
+	throw std::runtime_error( ss.str() );
+      }
+      const RSE& rse = iter->second;
+      run = rse.run;
+      subrun = rse.subrun;
+      event = rse.event;
       tcache.Fill();
-      entry++;
     }
     //tcache.Write();
     rcache.Write();
