@@ -21,6 +21,7 @@
 #include "DataFormat/EventImage2D.h"
 #include "DataFormat/EventPixel2D.h"
 #include "DataFormat/EventChStatus.h"
+#include "DataFormat/EventROI.h"
 #include "CVUtil/CVUtil.h"
 
 // larlitecv
@@ -43,7 +44,8 @@ int main( int nargs, char** argv ) {
 
   // data coordinator: load an example data file
   larlitecv::DataCoordinator dataco;
-  dataco.add_inputfile( "output_larcv_testextbnb_001.root", "larcv" );
+  //dataco.add_inputfile( "output_larcv_testextbnb_001.root", "larcv" );
+  dataco.add_inputfile( "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/thrumu_testmcbnbcosmic_signalnumu.root","larcv");
   dataco.configure( cfg_file, "StorageManager", "IOManager", "StopMu" );
   dataco.initialize();
 
@@ -72,9 +74,11 @@ int main( int nargs, char** argv ) {
 
 
   int nentries = dataco.get_nentries("larcv");
-  nentries = 20;
+  int start_entry = 0;
+  //nentries = 1;
 
-  for (int ientry=0; ientry<nentries; ientry++) {
+
+  for (int ientry=start_entry; ientry<start_entry+nentries; ientry++) {
 
     std::cout << "=====================================================" << std::endl;
     std::cout << "--------------------" << std::endl;
@@ -89,6 +93,7 @@ int main( int nargs, char** argv ) {
     // at time around tick 3880
     larcv::EventImage2D* imgs            = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "modimgs" );
     larcv::EventImage2D* marked3d        = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
+    larcv::EventROI* rois                = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "tpc" );
     
     // make the bad channel image
     larlitecv::EmptyChannelAlgo emptyalgo;
@@ -152,6 +157,10 @@ int main( int nargs, char** argv ) {
 	  }
 	}
       }
+
+      // draw interaction BBox
+      larcv::draw_bb( imgmat, img_v.at(p).meta(), rois->ROIArray().at(0).BB().at(p), 0, 200, 0, 1 );
+      
       cvimgs_v.emplace_back( std::move(imgmat) );
     }
 
@@ -160,17 +169,6 @@ int main( int nargs, char** argv ) {
       // this is a bad situation for this code.  we skip it for now, because we need to bring bigger guns
       std::cout << "too many candidates. this is probably an indication of an event with too much cosmic ray activity for current code." << std::endl;
       run_tracker = false;
-//       for (int p=0; p<3; p++) {
-// 	cv::Mat& imgmat = cvimgs_v.at(p);
-// 	std::stringstream ss;
-// 	ss << "run_stopmu_start_r" << dataco.run() << "_s" << dataco.subrun() << "_e" << dataco.event() << "_p" << p << ".png";
-// 	cv::imwrite( ss.str(), imgmat );
-//       }
-
-//       larcv::EventImage2D* stopmu_eventimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmu" );
-//       stopmu_eventimgs->Emplace( std::move(stopmu_v) );
-//       dataco.save_entry();
-//       continue;
     }
     
     // OK now we have a list of end points to loop through
@@ -185,6 +183,12 @@ int main( int nargs, char** argv ) {
 	larcv::Pixel2D pix( *pix_v.at(p) );
 	start.emplace_back( pix );
       }
+
+      std::cout << "Pixel position in plane views: tick=" << img_v.at(0).meta().pos_y( start.at(0).Y() ) 
+		<< " wids=(" << img_v.at(0).meta().pos_x( start.at(0).X() ) << ","
+		<< img_v.at(1).meta().pos_x(start.at(1).X() ) << ","
+		<< img_v.at(2).meta().pos_x(start.at(2).X() ) << ")" << std::endl;
+
       
       // starting dir and position
       std::cout << "--- getting starting point's direction and 3D position ---" << std::endl;
@@ -205,11 +209,7 @@ int main( int nargs, char** argv ) {
 	continue;
       }
 
-      std::cout << "3D position=(" << start_spacepoint[0] << "," << start_spacepoint[1] << "," << start_spacepoint[2] << ") "
-		<< " plane views: tick=" << img_v.at(0).meta().pos_y( start.at(0).Y() ) 
-		<< " wids=(" << img_v.at(0).meta().pos_x( start.at(0).X() ) << ","
-		<< img_v.at(1).meta().pos_x(start.at(1).X() ) << ","
-		<< img_v.at(2).meta().pos_x(start.at(2).X() ) << ")" << std::endl;
+      std::cout << "3D position=(" << start_spacepoint[0] << "," << start_spacepoint[1] << "," << start_spacepoint[2] << ") " << std::endl;
       std::cout << "3D direction=(" << start_dir3d[0] << "," << start_dir3d[1] << ","<< start_dir3d[2] << ")" << std::endl;
       std::cout << "Plane directions: "
 		<< " p0=(" << start_dir2d.at(0)[0] << "," << start_dir2d.at(0)[1] << ") "
@@ -307,7 +307,7 @@ int main( int nargs, char** argv ) {
     for (int p=0; p<3; p++) {
       cv::Mat& imgmat = cvimgs_v.at(p);
       std::stringstream ss;
-      ss << "run_stopmu_start_r" << dataco.run() << "_s" << dataco.subrun() << "_e" << dataco.event() << "_p" << p << ".png";
+      ss << "stopmu_n" << ientry << "_r" << dataco.run() << "_s" << dataco.subrun() << "_e" << dataco.event() << "_p" << p << ".png";
       cv::imwrite( ss.str(), imgmat );
     }
     
