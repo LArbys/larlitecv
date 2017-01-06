@@ -1,9 +1,9 @@
 #include "StopMuSkeleton.h"
 
 #ifndef __CINT__
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/core.hpp>
-#include "CVUtil/CVUtil.h"
+//#include <opencv2/opencv.hpp>
+//#include <opencv2/core/core.hpp>
+//#include "CVUtil/CVUtil.h"
 #endif
 
 #include "DataFormat/Image2D.h"
@@ -12,7 +12,7 @@
 namespace larlitecv {
     
   larcv::Image2D StopMuSkeleton::skeletonize( const larcv::Image2D& img, const float thresh, const int kernel_size ) {
-
+    /*
     // convert to cv::Mat
     cv::Mat imgmat = larcv::as_mat_1FC( img );
 
@@ -55,6 +55,9 @@ namespace larlitecv {
     std::cout << "Skeleton made after " << iteration << " iterations." << std::endl;
       
     return larcv::mat_to_image2d( skelimg, img.meta() );
+    */
+    larcv::Image2D a(img_v.at(0).meta());
+    return a;
   }
 
 

@@ -11,7 +11,7 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 #HEADERS += IOManager.inl
 
 # include options for this package
-INCFLAGS  = -g -I.                       #Include itself
+INCFLAGS  = -g -I. $(shell root-config --cflags)
 INCFLAGS += $(shell larcv-config --includes) 
 INCFLAGS += $(shell larcv-config --includes)/../app
 INCFLAGS += $(shell larlite-config --includes) 
@@ -28,7 +28,7 @@ OSNAMEMODE      = $(OSNAME)
 include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 
-LDFLAGS += -L$(OPENCV_LIBDIR) -lopencv_core -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc
+#LDFLAGS += -L$(OPENCV_LIBDIR) -lopencv_core -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc
 LDFLAGS += $(shell larcv-config --libs)
 LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
 # call the common GNUmakefile

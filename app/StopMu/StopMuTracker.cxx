@@ -5,9 +5,9 @@
 #include <sstream>
 
 #ifndef __CINT__
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/core.hpp>
-#include "CVUtil/CVUtil.h"
+//#include <opencv2/opencv.hpp>
+//#include <opencv2/core/core.hpp>
+//#include "CVUtil/CVUtil.h"
 #endif
 
 // ROOT
@@ -74,12 +74,12 @@ namespace larlitecv {
       current_hit[p] = -1;
     }
 
-    for (int p=0; p<3; p++) {
-      cv::Mat imgmat = larcv::as_mat_greyscale2bgr( skel_v.at(p), 0, 1.0);
-      std::stringstream ss;
-      ss << "skel_p" << p << ".jpg";
-      cv::imwrite( ss.str().c_str(), imgmat );
-    }
+    // for (int p=0; p<3; p++) {
+    //   cv::Mat imgmat = larcv::as_mat_greyscale2bgr( skel_v.at(p), 0, 1.0);
+    //   std::stringstream ss;
+    //   ss << "skel_p" << p << ".jpg";
+    //   cv::imwrite( ss.str().c_str(), imgmat );
+    // }
   }
 
   void StopMuTracker::trackStopMu( const std::vector< std::vector<int> >& start2d, const std::vector< std::vector<float> >& start_dir2d,
@@ -157,10 +157,10 @@ namespace larlitecv {
       
     }//end of loop over planes for sorting hits
     
-    cv::Mat imgmat = larcv::as_mat( img_cluster );
-    std::stringstream ss;
-    ss << "baka.jpg";
-    cv::imwrite( ss.str().c_str(), imgmat );
+    // cv::Mat imgmat = larcv::as_mat( img_cluster );
+    // std::stringstream ss;
+    // ss << "baka.jpg";
+    // cv::imwrite( ss.str().c_str(), imgmat );
 
     int istep = 0;
     bool isfinished = false;
@@ -932,15 +932,15 @@ namespace larlitecv {
     std::vector<larcv::Image2D> img_clusters = fillSortedHit2Dlist( meta, start2d, start_dir2d, hitlists, clusterid );
 
     // for debug output
-    if ( m_verbosity>2 ) {
-      for (int p=0; p<3; p++) {
-	const larcv::Image2D& img_cluster = img_clusters.at(p);
-	cv::Mat imgmat = larcv::as_mat( img_cluster );
-	std::stringstream ss;
-	ss << "baka_p" << p << ".jpg";
-	cv::imwrite( ss.str().c_str(), imgmat );
-      }
-    }
+    // if ( m_verbosity>2 ) {
+    //   for (int p=0; p<3; p++) {
+    // 	const larcv::Image2D& img_cluster = img_clusters.at(p);
+    // 	cv::Mat imgmat = larcv::as_mat( img_cluster );
+    // 	std::stringstream ss;
+    // 	ss << "baka_p" << p << ".jpg";
+    // 	cv::imwrite( ss.str().c_str(), imgmat );
+    //   }
+    // }
 
     // we need to check the quality of the cluster
     bool clusterok = true;
