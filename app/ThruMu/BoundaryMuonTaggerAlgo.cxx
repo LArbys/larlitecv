@@ -115,7 +115,7 @@ namespace larlitecv {
     int total_combos = 0;
     
     // now loop over over the time of the images
-    for (int r=0; r<meta.rows(); r++) {
+    for (size_t r=0; r<meta.rows(); r++) {
 
       // Find boundary combos using search algo
       //std::vector< int > hits[3];
@@ -125,13 +125,13 @@ namespace larlitecv {
 	memset( hits[p].data(), 0, sizeof(int)*hits[p].size() );
 	const larcv::Image2D& img = imgs.at(p);                                                                                                                                
 	//const larcv::Image2D& badchimg = badchs.at(p);
-	for (int c=0; c<meta.cols(); c++) {
+	for (size_t c=0; c<meta.cols(); c++) {
 	  int wid = dsfactor*c;
 	  float val = img.pixel( r, c );
 	  int lastcol = -1;
 	  if ( val > _config.thresholds.at(p) ) {
 	    for (int n=-_config.neighborhoods[p]; n<=_config.neighborhoods[p]; n++) {
-	      if ( wid+n>=hits[p].size() ) continue;
+	      if ( wid+n>=(int)hits[p].size() ) continue;
 	      if ( wid+n<0 ) continue;
 	      hits[p][wid+n] = 1;
 	      lastcol = wid+n;
@@ -141,7 +141,7 @@ namespace larlitecv {
 // 	  if ( badchimg.pixel( r, c )>0 ) {
 // 	    hits[p][wid] = 1;
 // 	  }
-	  if ( lastcol>=0 && lastcol<meta.cols() )
+	  if ( lastcol>=0 && lastcol<(int)meta.cols() )
 	    c = lastcol;
 	}
       }
@@ -152,11 +152,11 @@ namespace larlitecv {
       // two pass
       std::vector< std::vector<BoundaryCombo> > matched_combos(4);
       matchalgo_tight->findCombos( hits[0], hits[1], hits[2], 
-				   _config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
+				   //_config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
 				   badchs, true,
 				   matched_combos );
       matchalgo_loose->findCombos( hits[0], hits[1], hits[2], 
-				   _config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
+				   //_config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
 				   badchs, true,
 				   matched_combos );
       
@@ -192,12 +192,10 @@ namespace larlitecv {
 
 	  // get total charge
 	  float charge = 0.0;
-	  bool has_charge[3] = { false, false, false };
 	  int nhascharge = 0;
 	  for (int p=0; p<3; p++) {
 	    if ( imgs.at(p).pixel( r, wirecols[p] )>_config.thresholds.at(p) 
 		 || badchs.at(p).pixel( r, wirecols[p] )>0 ) {
-	      has_charge[p] = true;
 	      nhascharge++;
 	      charge += imgs.at(p).pixel( r, wirecols[p] );
 	    }
@@ -237,7 +235,7 @@ namespace larlitecv {
       
       dbscan::DBSCANAlgo dbalgo;
       //std::cout << "  starting dbscan for boundary type: " << pt << ". number of points: " << combo_points[pt].size() << std::endl;
-      if ( combo_points[pt].size()<_config.boundary_cluster_minpixels.at(0)) {
+      if ( (int)combo_points[pt].size()<_config.boundary_cluster_minpixels.at(0)) {
 	//for (int i=0; i<combo_points[pt].size(); i++) {
 	//std::cout << " (" << i << "): " << combo_points[pt].at(i)[0] << ", " << combo_points[pt].at(i)[1] << std::endl;
 	//}
@@ -248,9 +246,9 @@ namespace larlitecv {
       //ann::ANNAlgo::cleanup();
 
       //std::cout << "  number of clusters: " << clout.clusters.size() << std::endl;
-      for (int ic=0; ic<clout.clusters.size(); ic++) {
+      for (size_t ic=0; ic<clout.clusters.size(); ic++) {
 	// loop over clusters in the real space points
-
+	
 	if ( clout.clusters.at(ic).size() > 2 ) {
 	  //std::cout << "Find the endpoints for cluster pt=" << pt << " id=" << ic << " size=" << clout.clusters.at(ic).size() << std::endl;
 
@@ -262,12 +260,12 @@ namespace larlitecv {
 	    workspace[p].paint(0.0);
 	  
 	  // loop through hit in real space cluster. collect pixels in image space to cluster once more.
-	  for (int ihit=0; ihit<clout.clusters.at(ic).size(); ihit++) {
+	  for (size_t ihit=0; ihit<clout.clusters.at(ic).size(); ihit++) {
 	    int idxhit = clout.clusters.at(ic).at(ihit);
-	    for (int p=0; p<3; p++) {
+	    for (size_t p=0; p<3; p++) {
 	      int col = combo_cols[pt][idxhit][p];
 	      for (int n=-_config.neighborhoods[p]; n<=_config.neighborhoods[p]; n++) {
-		if ( col+n<0 || col+n>=imgs.at(p).meta().cols() ) continue;
+		if ( col+n<0 || col+n>=(int)imgs.at(p).meta().cols() ) continue;
 		float q = imgs.at(p).pixel( (int)combo_points[pt][idxhit][1], col+n );
 		if ( q > _config.thresholds.at(p) ) {
 		  workspace[p].set_pixel( (int)combo_points[pt][idxhit][1], col+n, q );
@@ -285,9 +283,9 @@ namespace larlitecv {
 	  }//end of loop over hits in real space
 	  
 	  // collection charge pts
-	  for (int p=0; p<3; p++) {
-	    for (int r=0; r<workspace[p].meta().rows(); r++) {
-	      for (int c=0; c<workspace[p].meta().cols(); c++) {
+	  for (size_t p=0; p<3; p++) {
+	    for (size_t r=0; r<workspace[p].meta().rows(); r++) {
+	      for (size_t c=0; c<workspace[p].meta().cols(); c++) {
 		float q = workspace[p].pixel(r,c);
 		if ( q>0.0 ) {
 		  std::vector<double> qpt(2,0.0);
@@ -308,11 +306,11 @@ namespace larlitecv {
 	  std::vector< BoundaryEndPt > endpt_v_max; // at max time of cluster
 	  int end_vote[3] = { 0, 0, 0 }; // votes by each plane for min or max time
 
-	  for (int p=0; p<3; p++) {
+	  for (size_t p=0; p<3; p++) {
 	    // this block is slow. it's the reclustering of the charge!
 	    // cluster the charge hits on the plane
 	    //std::cout << "  " << chargepts[p].size() << " charge points on plane=" << p << std::endl;
-	    if ( chargepts[p].size()< _config.boundary_cluster_minpixels.at(p)+1 ) {
+	    if ( (int)chargepts[p].size()< _config.boundary_cluster_minpixels.at(p)+1 ) {
 	      // don't have enough here
 	      //std::cout << "  not enough to cluster. just make a point from largest charge" << std::endl;
 	      BoundaryEndPt endpt( chargepts[p].at( largest_qpt[p] )[1],  chargepts[p].at( largest_qpt[p] )[0], (BoundaryEndPt::BoundaryEnd_t)pt );
@@ -327,8 +325,8 @@ namespace larlitecv {
 	    //ann::ANNAlgo::cleanup();
 	    int largest_cluster = -1;
 	    int largest_size = 0;
-	    for ( int icq=0; icq<q_clout.clusters.size(); icq++ ) {
-	      if ( largest_cluster<0 || q_clout.clusters.at(icq).size()>largest_size ) {
+	    for ( size_t icq=0; icq<q_clout.clusters.size(); icq++ ) {
+	      if ( largest_cluster<0 || (int)q_clout.clusters.at(icq).size()>largest_size ) {
 		largest_cluster = icq;
 		largest_size = q_clout.clusters.at(icq).size();
 	      }
@@ -358,7 +356,7 @@ namespace larlitecv {
 		  if ( nzeros[j]>3 ) break; // cut it off
 		  int r = pos[j][1] + (2*j-1)*dir[1]*i;
 		  int c = pos[j][0] + (2*j-1)*dir[0]*i;
-		  if ( r<2 || r>=imgs.at(p).meta().rows()-2 || c<2 || c>=imgs.at(p).meta().cols()-2 )
+		  if ( r<2 || r>=(int)imgs.at(p).meta().rows()-2 || c<2 || c>=(int)imgs.at(p).meta().cols()-2 )
 		    break;
 		  int npixs = 0;
 		  for ( int dr=-2; dr<=2; dr++) {
@@ -511,10 +509,10 @@ namespace larlitecv {
 	  continue; // we shant
 	}
 	//check max deviation from straight line
-	for (int p=0; p<3; p++) {
+	for (size_t p=0; p<3; p++) {
 	  int maxdev = -1;
 	  const BMTrackCluster2D& ttrack = test_track.at(p);
-	  for (int ipix=0; ipix<ttrack.pixelpath.size(); ipix++) {
+	  for (size_t ipix=0; ipix<ttrack.pixelpath.size(); ipix++) {
 	    if ( maxdev < (int)fabs(ttrack.pixelpath.at(ipix).Intensity()) ) {
 	      maxdev = (int)fabs(ttrack.pixelpath.at(ipix).Intensity());
 	    }
@@ -525,7 +523,7 @@ namespace larlitecv {
 
 	std::vector< BMTrackCluster2D > planetracks;
 	int ncompleted = 0;
-	for (int p=0; p<3; p++) {
+	for (size_t p=0; p<3; p++) {
 // 	  std::cout << "  plane=" << p << ": "
 // 		    << " (c,r): (" << pts_a.at(p).w << "," << pts_a.at(p).t << ") ->"
 // 		    << " (" << pts_b.at(p).w << "," << pts_b.at(p).t << "), "
@@ -589,8 +587,8 @@ namespace larlitecv {
 	    for ( int dr=-_config.astar_neighborhood.at(plane); dr<=_config.astar_neighborhood.at(plane); dr++ ) {
 	      int r = row+dr;
 	      int c = col+dc;
-	      if ( r<0 || r>=meta.rows() ) continue;
-	      if ( c<0 || c>=meta.cols() ) continue;
+	      if ( r<0 || r>=(int)meta.rows() ) continue;
+	      if ( c<0 || c>=(int)meta.cols() ) continue;
 	      float val = img.pixel( r, c );
 	      if ( val>_config.thresholds.at(plane) || badchimgs.at(plane).pixel(r,c)>0 ) {
 		workspace.at(plane).set_pixel( r, c, 100.0 );
@@ -607,7 +605,7 @@ namespace larlitecv {
 
       bool goodtrack = true;
       //std::cout << "fraction of path has charge (or badch): ";
-      for (int p=0; p<3; p++) {
+      for (size_t p=0; p<3; p++) {
 	//std::cout << "p=" << p << ": " << frac_marked[p] << "    ";
 	if ( frac_marked[p]<0.9 )
 	  goodtrack = false;
@@ -615,9 +613,9 @@ namespace larlitecv {
       //std::cout << std::endl;
 
       if ( goodtrack ) {
-	for (int p=0; p<3; p++) {
-	  for (int row=0; row<imgs.at(p).meta().rows(); row++) {
-	    for (int col=0; col<imgs.at(p).meta().cols(); col++) {
+	for (size_t p=0; p<3; p++) {
+	  for (size_t row=0; row<imgs.at(p).meta().rows(); row++) {
+	    for (size_t col=0; col<imgs.at(p).meta().cols(); col++) {
 	      if ( workspace.at(p).pixel(row,col)>0 ) {
 		markedimgs.at(p).set_pixel( row, col, 255 );
 	      }

@@ -57,7 +57,7 @@ namespace larlitecv {
     virtual ~BoundaryMatchList();
 
     std::vector<BoundaryCombo> findCombos( const std::vector<int>& uwires, const std::vector<int>& vwires, const std::vector<int>& ywires, 
-					   int urange, int vrange, int yrange, const std::vector<larcv::Image2D>& badchs, bool use_badchs );
+					   const std::vector<larcv::Image2D>& badchs, bool use_badchs );
 
   protected:
 
@@ -85,7 +85,6 @@ namespace larlitecv {
     virtual ~BoundaryMatchAlgo();
 
     void findCombos( const std::vector<int>& uwires, const std::vector<int>& vwires, const std::vector<int>& ywires,
-		     int urange, int vrange, int yrange,
 		     const std::vector<larcv::Image2D>& badchs, bool use_badchs,
 		     std::vector<  std::vector<BoundaryCombo>  >& boundary_combos );
     

@@ -51,7 +51,7 @@ namespace larlitecv {
 	int pos[2] =  { (int)(start_v.at(p).w + istep*stepsize[0]), (int)(start_v.at(p).t + istep*stepsize[1]) };
 	if ( verbose_debug )
 	  std::cout << "LRT step=" << istep << " pos=(" << pos[0] << "," << pos[1] << ")";
-	if ( pos[0]<0 ||  pos[0]>=img_v.at(p).meta().cols() || pos[1]<0 || pos[1]>=img_v.at(p).meta().rows() )  {
+	if ( pos[0]<0 ||  pos[0]>=(int)img_v.at(p).meta().cols() || pos[1]<0 || pos[1]>=(int)img_v.at(p).meta().rows() )  {
 	  if ( verbose_debug ) std::cout << " out of image." << std::endl;
 	  continue;
 	}
@@ -64,8 +64,8 @@ namespace larlitecv {
 	if ( regionidx==1 ) {
 	  // region scan in time dimension
 	  for (int r=-fRegionWidth;r<=fRegionWidth; r++) {
-	    if ( pos[1]+r>=0 && pos[1]+r<img_v.at(p).meta().rows()
-		 && ( img_v.at(p).pixel(pos[1]+r,pos[0])>fPixelThreshold || badchimg_v.at(p).pixel(pos[1]+r,pos[0])>0 ) ) {
+	    if ( pos[1]+r>=0 && pos[1]+r<(int)img_v.at(p).meta().rows()
+		 && ( (int)img_v.at(p).pixel(pos[1]+r,pos[0])>fPixelThreshold || badchimg_v.at(p).pixel(pos[1]+r,pos[0])>0 ) ) {
 	      found_charge = true;
 	      if ( opt_track2d==NULL )
 		break;
@@ -92,7 +92,7 @@ namespace larlitecv {
 	else {
 	  /// region scan in column direction
 	  for (int c=-fRegionWidth;c<=fRegionWidth; c++) {
-	    if ( pos[0]+c>=0 && pos[0]+c<img_v.at(p).meta().cols()
+	    if ( pos[0]+c>=0 && pos[0]+c<(int)img_v.at(p).meta().cols()
 		 && ( img_v.at(p).pixel(pos[1],pos[0]+c)>fPixelThreshold ) ) {
 	      found_charge = true;
 	      if ( opt_track2d==NULL )
@@ -109,7 +109,7 @@ namespace larlitecv {
 	      }
 	    }
 	  }
-	  if ( pos[0]>=0 && pos[0]<img_v.at(p).meta().cols() && badchimg_v.at(p).pixel(pos[1],pos[0])>0 ) {
+	  if ( pos[0]>=0 && pos[0]<(int)img_v.at(p).meta().cols() && badchimg_v.at(p).pixel(pos[1],pos[0])>0 ) {
 	    // badch test (a little different from above)
 	    float val = img_v.at(p).pixel(pos[1],pos[0]);
 	    if ( val<fPixelThreshold ) {

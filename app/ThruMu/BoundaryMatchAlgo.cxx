@@ -23,9 +23,9 @@ namespace larlitecv {
     
     m_combos.resize( match_arrays.nmatches(t) );
 
-    const larcv::WireData& plane0data = larcv::UBWireTool::getWireData(0);
-    const larcv::WireData& plane1data = larcv::UBWireTool::getWireData(1);
-    const larcv::WireData& plane2data = larcv::UBWireTool::getWireData(2);
+    //const larcv::WireData& plane0data = larcv::UBWireTool::getWireData(0);
+    //const larcv::WireData& plane1data = larcv::UBWireTool::getWireData(1);
+    //const larcv::WireData& plane2data = larcv::UBWireTool::getWireData(2);
 
     for (int imatch=0; imatch<match_arrays.nmatches(t); imatch++) {
       int u, v, y;
@@ -34,33 +34,7 @@ namespace larlitecv {
       // define and store the combo
       float pos[3] = { 0., 0., 0.};
       match_arrays.getPosition( t, imatch, pos[0], pos[1], pos[2] );
-      /*
-      switch ( t ) {
-      case BoundaryMatchArrays::kTop:
-	pos[0] = top_positions[imatch][0];
-	pos[1] = top_positions[imatch][1];
-	pos[2] = top_positions[imatch][2];
-	break;
-      case BoundaryMatchArrays::kBottom:
-	pos[0] = bottom_positions[imatch][0];
-	pos[1] = bottom_positions[imatch][1];
-	pos[2] = bottom_positions[imatch][2];
-	break;
-      case BoundaryMatchArrays::kUpstream:
-	pos[0] = upstream_positions[imatch][0];
-	pos[1] = upstream_positions[imatch][1];
-	pos[2] = upstream_positions[imatch][2];
-	break;
-      case BoundaryMatchArrays::kDownstream:
-	pos[0] = downstream_positions[imatch][0];
-	pos[1] = downstream_positions[imatch][1];
-	pos[2] = downstream_positions[imatch][2];
-	break;
-      default:
-	assert(false);
-	break;
-      }
-      */
+
       BoundaryCombo combo( u, v, y, pos[0], pos[1], pos[2] );
       m_combos[imatch] = combo;
 
@@ -94,8 +68,8 @@ namespace larlitecv {
   }
   
   std::vector<BoundaryCombo> BoundaryMatchList::findCombos( const std::vector<int>& uwires, const std::vector<int>& vwires, const std::vector<int>& ywires, 
-							    int urange, int vrange, int yrange, const std::vector<larcv::Image2D>& badchs, bool use_badchs ) {
-    const clock_t begin_time = clock();
+							    const std::vector<larcv::Image2D>& badchs, bool use_badchs ) {
+    //const clock_t begin_time = clock();
 
     memset(uvec,0,sizeof(int)*m_combos.size());
     memset(vvec,0,sizeof(int)*m_combos.size());
@@ -108,7 +82,7 @@ namespace larlitecv {
 
     // loop over u-wires
     //std::cout << " u: ";
-    for (int uwid=0; uwid<uwires.size(); uwid++) {
+    for (size_t uwid=0; uwid<uwires.size(); uwid++) {
       if ( uwires[uwid]==0 ) continue;	
       idx uidx = (idx)( uwid );
       //std::cout << " " << uidx;
@@ -122,7 +96,7 @@ namespace larlitecv {
     
     // loop over v-wires, filter matched indices
     //std::cout << " v: ";
-    for (int vwid=0; vwid<vwires.size(); vwid++) {
+    for (size_t vwid=0; vwid<vwires.size(); vwid++) {
       if ( vwires[vwid]== 0 ) continue;
       idx vidx = (idx)( vwid );
       //std::cout << " " << vidx;
@@ -135,7 +109,7 @@ namespace larlitecv {
 
     // loop over y-wires, filter matched indices
     //std::cout << " y: ";
-    for (int ywid=0; ywid<ywires.size(); ywid++) {
+    for (size_t ywid=0; ywid<ywires.size(); ywid++) {
       if ( ywires[ywid]== 0 ) continue;
       idx yidx = (idx)(ywid);
       //std::cout << " " << yidx;
@@ -145,13 +119,13 @@ namespace larlitecv {
     }
     //std::cout << std::endl;
 
-    float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
+    //float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     //std::cout << "boundary match searched in " << elapsed_secs << " secs" << std::endl;    
 
     std::vector< BoundaryCombo > combo_v;
     combo_v.reserve( m_combos.size() );
     int ncombos=0;
-    for (int idx=0; idx<m_combos.size(); idx++) {
+    for (size_t idx=0; idx<m_combos.size(); idx++) {
       int votes = uvec[idx]+vvec[idx]+yvec[idx];
       if ( votes>=3 ) {
 	combo_v.push_back( m_combos.at(idx) );
@@ -179,7 +153,7 @@ namespace larlitecv {
       }
     }
     
-    elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
+    //elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     //std::cout << "ncombos=" << ncombos << ". boundary match searched/stored in " << elapsed_secs << " secs" << std::endl;    
     
     return combo_v;
@@ -201,7 +175,6 @@ namespace larlitecv {
   }
 
   void BoundaryMatchAlgo::findCombos( const std::vector<int>& uwires, const std::vector<int>& vwires, const std::vector<int>& ywires,
-				      int urange, int vrange, int yrange,
 				      const std::vector<larcv::Image2D>& badchs, bool use_badchs,
 				      std::vector<  std::vector<BoundaryCombo>  >& boundary_combos ) {
     if ( boundary_combos.size()!=4 ) {
@@ -209,10 +182,10 @@ namespace larlitecv {
       assert(false);
     }
     
-    for (int i=0; i<4; i++) {
-      std::vector<BoundaryCombo> combos = matchlist[i]->findCombos( uwires, vwires, ywires, urange, vrange, yrange, badchs, use_badchs );
+    for (size_t i=0; i<4; i++) {
+      std::vector<BoundaryCombo> combos = matchlist[i]->findCombos( uwires, vwires, ywires, badchs, use_badchs );
       std::vector<BoundaryCombo>& out_combos = boundary_combos.at(i);
-      for (int j=0; j<combos.size(); j++) {
+      for (size_t j=0; j<combos.size(); j++) {
 	//boundary_combos.push_back( std::move(combos) );
 	out_combos.push_back( combos.at(j) );
       }
