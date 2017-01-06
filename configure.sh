@@ -67,6 +67,16 @@ else
     return 1;
 fi
 
+# Check OpenCV
+export LARCV_OPENCV=1
+if [[ -z $OPENCV_INCDIR ]]; then
+    export LARCV_OPENCV=0
+fi
+if [[ -z $OPENCV_LIBDIR ]]; then
+    export LARCV_OPENCV=0
+fi
+
+
 export LARLITECV_CXX=clang++
 if [ -z `command -v $LARLITECV_CXX` ]; then
     export LARLITECV_CXX=g++

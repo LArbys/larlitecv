@@ -5,9 +5,11 @@
 #include <sstream>
 
 #ifndef __CINT__
-//#include <opencv2/opencv.hpp>
-//#include <opencv2/core/core.hpp>
-//#include "CVUtil/CVUtil.h"
+#ifdef USE_OPENCV
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include "CVUtil/CVUtil.h"
+#endif
 #endif
 
 // ROOT
@@ -44,11 +46,11 @@ namespace larlitecv {
     // cluster skeleton pixel, but mask thru-mu pixels
     time_t cluster_start = time(NULL);
     
-    for (int p=0; p<3; p++) {
+    for (size_t p=0; p<3; p++) {
       dbscan::dbPoints data;
       const larcv::Image2D& skelimg = skel_v.at(p);
-      for (int r=0; r<skelimg.meta().rows(); r++) {
-	for (int c=0; c<skelimg.meta().cols(); c++) {
+      for (size_t r=0; r<skelimg.meta().rows(); r++) {
+	for (size_t c=0; c<skelimg.meta().cols(); c++) {
 	  if ( skelimg.pixel(r,c)==0 ) continue; // not skeleton
 	  if ( thrumu_v.at(p).pixel(r,c)>0 ) continue; // mask thrumu
 	  std::vector<double> point(2);
@@ -65,21 +67,23 @@ namespace larlitecv {
     }//loop over clusters
     
     time_t cluster_finished = time(NULL);
-    //double dt_clusters = difftime(cluster_start,cluster_finished);
     double dt_clusters = cluster_finished-cluster_start;
-    //std::cout << "clustered in " << dt_clusters << " seconds." << std::endl;
+    if ( verbosity>1 )
+      std::cout << "clustered in " << dt_clusters << " seconds." << std::endl;
     
     // initialize hit list
-    for (int p=0; p<3; p++) {
+    for (size_t p=0; p<3; p++) {
       current_hit[p] = -1;
     }
-
+#ifdef USE_OPENCV
+    // for debug
     // for (int p=0; p<3; p++) {
     //   cv::Mat imgmat = larcv::as_mat_greyscale2bgr( skel_v.at(p), 0, 1.0);
     //   std::stringstream ss;
     //   ss << "skel_p" << p << ".jpg";
     //   cv::imwrite( ss.str().c_str(), imgmat );
     // }
+#endif
   }
 
   void StopMuTracker::trackStopMu( const std::vector< std::vector<int> >& start2d, const std::vector< std::vector<float> >& start_dir2d,
@@ -114,7 +118,7 @@ namespace larlitecv {
       // we make a sorted list of pixels by distance
       // we also need an initial direction
 
-      for (int ihit=0; ihit<m_clusters.at(p).clusters.at(match).size(); ihit++) {
+      for (size_t ihit=0; ihit<m_clusters.at(p).clusters.at(match).size(); ihit++) {
 	int hitidx = m_clusters.at(p).clusters.at(match).at(ihit);
 	int x = m_imghits.at(p).at(hitidx)[0];
 	int y = m_imghits.at(p).at(hitidx)[1];
@@ -150,7 +154,7 @@ namespace larlitecv {
 
       
       std::cout << "plane " << p << " number of hits=" << hitlists[p].size() << std::endl;
-      for (int ihit=0; ihit<(int)hitlists[p].size(); ihit++) {
+      for (size_t ihit=0; ihit<hitlists[p].size(); ihit++) {
 	std::cout << " [#" << ihit << "] (" << hitlists[p].at(ihit)[0] << "," << hitlists[p].at(ihit)[1] << ")"
 		  << " " << hitlists[p].at(ihit).distance << std::endl; 
       }
@@ -223,12 +227,10 @@ namespace larlitecv {
       
       // is there a close hit in each plane?
       std::cout << "closest distance to hits on each plane: ";
-      bool closehits[3] = {false};
       int ngoodplanes = 0;
       for (int p=0; p<3; p++) {
 	if ( closest_pixels.at(p).size()>0 && closest_pixels.at(p).at(0).second<fCloseHitThreshold_cm ) {
 	  ngoodplanes++;
-	  closehits[p] = true;
 	  std::cout << " [ok: p=" << p << ", (" << hitlists.at(p)[closest_pixels.at(p).at(0).first][0] << "," << hitlists.at(p)[closest_pixels.at(p).at(0).first][1] << ")" 
 		    << "," << closest_pixels.at(p).at(0).second << " cm] ";
 	}
@@ -359,7 +361,7 @@ namespace larlitecv {
 					const std::vector< std::vector< std::pair<int,double> > >& closest_pixels, const std::vector<Hit2DList>& sorted_hits, 
 					Step3D& proposed_step ) {
     // we are going to use the sorted_hits list to find a new direction forward
-    int nhits_back = 3;
+    //int nhits_back = 3;
     int nhits_forward = 10;
     int nhits_vary = 3;
     
@@ -384,7 +386,7 @@ namespace larlitecv {
 	std::cout << "closest hits plane=" << p << ": " << closest_pixels.at(p).size() << std::endl;
 	if ( closest_pixels.at(p).size()>0 && closest_pixels.at(p).at(0).first>=0 ) {
 	  hit_index[p] = closest_pixels.at(p).at(0).first+nhits_forward;
-	  if ( hit_index[p]>=sorted_hits.at(p).size() )
+	  if ( hit_index[p]>=(int)sorted_hits.at(p).size() )
 	    hit_index[p] = sorted_hits.at(p).size()-1;
 	  std::cout << "hit_index[" << p << "]=" << hit_index[p] << " (" << sorted_hits.at(p).at( hit_index[p] )[0] << "," << sorted_hits.at(p).at( hit_index[p] )[1] << ")" << std::endl;
 	  next_planewire[p] = meta.pos_x( sorted_hits.at(p).at( hit_index[p] )[0] );
@@ -445,7 +447,7 @@ namespace larlitecv {
 	std::vector<int> best_wires(3);
 	double best_area = 1.0e6;
 	double best_ave_row = 0.;
-	int crosses = -1;
+	//int crosses = -1;
 	std::vector<float> best_intersection(2,0.0);
 	int num_valid_wire_combos = 0;
 	float min_invalid_diff = -1.0;
@@ -453,12 +455,12 @@ namespace larlitecv {
 
 	  std::vector<int> test_wires(3);
 	  std::vector<float> test_rows(3);
-	  float test_ave_tick = 0.;
-	  float test_tick_weight = 0.;
+	  //float test_ave_tick = 0.;
+	  //float test_tick_weight = 0.;
 	  for (int p=0; p<3; p++) {
 	    int hitidx = hit_index[p] + dhits[p];
 	    if ( hitidx<0 )                      hitidx = 0;
-	    if ( hitidx>=sorted_hits.at(p).size() ) hitidx = sorted_hits.at(p).size()-1;
+	    if ( hitidx>=(int)sorted_hits.at(p).size() ) hitidx = sorted_hits.at(p).size()-1;
 	    test_wires[p] = sorted_hits.at(p).at(hitidx)[0];
 	    test_rows[p]  = sorted_hits.at(p).at(hitidx)[1];
 	    if ( test_wires[p]<0 ) test_wires[p] = 0;
@@ -612,7 +614,7 @@ namespace larlitecv {
       // we make a sorted list of pixels by distance
       // we also need an initial direction
 
-      for (int ihit=0; ihit<m_clusters.at(p).clusters.at(match).size(); ihit++) {
+      for (size_t ihit=0; ihit<m_clusters.at(p).clusters.at(match).size(); ihit++) {
 	int hitidx = m_clusters.at(p).clusters.at(match).at(ihit);
 	int x = m_imghits.at(p).at(hitidx)[0];
 	int y = m_imghits.at(p).at(hitidx)[1];
@@ -687,7 +689,7 @@ namespace larlitecv {
       std::pair<int,double> test_hit( ihit, hit_dist );
       if ( max_nhits>0 ) {
 	// we have to care about the number of hits in the list
-	if ( hitlist.size()<max_nhits ) {
+	if ( (int)hitlist.size()<max_nhits ) {
 	  // but not now
 	  hitlist.emplace_back( test_hit );
 	}
@@ -824,9 +826,9 @@ namespace larlitecv {
       int col = meta.col(wids[2]);
       int row = meta.row(tick);
       if ( col<0 ) col = 0;
-      if ( col>=meta.cols() ) col = meta.cols()-1;
+      if ( col>=(int)meta.cols() ) col = (int)meta.cols()-1;
       if ( row<0 ) row = 0;
-      if ( row>=meta.rows() ) row = meta.rows()-1;
+      if ( row>=(int)meta.rows() ) row = (int)meta.rows()-1;
       tot_adc_on_yplane = img_v[2].pixel( row, col );
       n_ypixels++;
     }
@@ -845,9 +847,9 @@ namespace larlitecv {
 	  int row = float(meta.row(tick_anchor)) + (ydir[1]/ydir[0])*icol;
 	  int col = float(meta.col(wids_anchor[2])) + icol;
 	  if ( col<0 ) col = 0;
-	  if ( col>=meta.cols() ) col = meta.cols()-1;
+	  if ( col>=(int)meta.cols() ) col = (int)meta.cols()-1;
 	  if ( row<0 ) row = 0;
-	  if ( row>=meta.rows() ) row = meta.rows()-1;
+	  if ( row>=(int)meta.rows() ) row = (int)meta.rows()-1;
 	  tot_adc_on_yplane += img_v[2].pixel( row, col );
 	  n_ypixels++;
 	}
@@ -858,9 +860,9 @@ namespace larlitecv {
 	  int col = float(meta.col(wids_anchor[2])) + (ydir[0]/ydir[1])*irow;
 	  int row = float(meta.row(tick_anchor)) + irow;
 	  if ( col<0 ) col = 0;
-	  if ( col>=meta.cols() ) col = meta.cols()-1;
+	  if ( col>=(int)meta.cols() ) col = (int)meta.cols()-1;
 	  if ( row<0 ) row = 0;
-	  if ( row>=meta.rows() ) row = meta.rows()-1;
+	  if ( row>=(int)meta.rows() ) row = (int)meta.rows()-1;
 	  tot_adc_on_yplane += img_v[2].pixel( row, col );
 	  n_ypixels++;
 	}	
@@ -919,7 +921,7 @@ namespace larlitecv {
 				    const std::vector< float >& start_pos3d, const std::vector<float>& start_dir3d, Step3D& trackstart ) {
 
     // parameters: move these to configuration file later
-    float fCloseHitThreshold_cm = 0.5; // 2 wire disagreement
+    //float fCloseHitThreshold_cm = 0.5; // 2 wire disagreement
     float fStepSize_cm = 0.3; // 3 wires or ~10 microseconds or 20 ticks, which are a little more than 3 rows
     //float fStepSize_cm = 1.0; // 3 wires or ~10 microseconds or 20 ticks, which are a little more than 3 rows
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]
@@ -931,16 +933,18 @@ namespace larlitecv {
     std::vector<Hit2DList> hitlists(3);
     std::vector<larcv::Image2D> img_clusters = fillSortedHit2Dlist( meta, start2d, start_dir2d, hitlists, clusterid );
 
-    // for debug output
-    // if ( m_verbosity>2 ) {
-    //   for (int p=0; p<3; p++) {
-    // 	const larcv::Image2D& img_cluster = img_clusters.at(p);
-    // 	cv::Mat imgmat = larcv::as_mat( img_cluster );
-    // 	std::stringstream ss;
-    // 	ss << "baka_p" << p << ".jpg";
-    // 	cv::imwrite( ss.str().c_str(), imgmat );
-    //   }
-    // }
+#ifdef USE_OPENCV
+    //for debug output
+    if ( m_verbosity>2 ) {
+      for (int p=0; p<3; p++) {
+    	const larcv::Image2D& img_cluster = img_clusters.at(p);
+    	cv::Mat imgmat = larcv::as_mat( img_cluster );
+    	std::stringstream ss;
+    	ss << "baka_p" << p << ".jpg";
+    	cv::imwrite( ss.str().c_str(), imgmat );
+      }
+    }
+#endif
 
     // we need to check the quality of the cluster
     bool clusterok = true;
@@ -1050,11 +1054,12 @@ namespace larlitecv {
 	proposed_dir[1] = sqrt(1.0-xs[0]*xs[0])*sin(xs[1]);
 	_norm(proposed_dir);
 	for (int i=0; i<3; i++) proposed_pos[i] = current_pos[i] + proposed_dir[i]*fStepSize_cm;
+	min_value = minimizer->MinValue();
 	if ( m_verbosity > 0 ) {
 	  std::cout << "post-min pos: (" << proposed_pos[0] << "," << proposed_pos[1] << "," << proposed_pos[2] << ")" << std::endl;
 	  std::cout << "post-min dir: (" << proposed_dir[0] << "," << proposed_dir[1] << "," << proposed_dir[2] << ")" << std::endl;
+	  std::cout << "post-min func. value=" << min_value << std::endl;
 	}
-	min_value = minimizer->MinValue();
 	min_cosine = 0.;
 	for (int i=0; i<3; i++) min_cosine += current_dir[i]*proposed_dir[i];
       }

@@ -1,9 +1,14 @@
 #include "StopMuSkeleton.h"
 
+#include <stdexcept>
+#include <sstream>
+
 #ifndef __CINT__
-//#include <opencv2/opencv.hpp>
-//#include <opencv2/core/core.hpp>
-//#include "CVUtil/CVUtil.h"
+#ifdef USE_OPENCV
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include "CVUtil/CVUtil.h"
+#endif
 #endif
 
 #include "DataFormat/Image2D.h"
@@ -12,7 +17,7 @@
 namespace larlitecv {
     
   larcv::Image2D StopMuSkeleton::skeletonize( const larcv::Image2D& img, const float thresh, const int kernel_size ) {
-    /*
+#ifdef USE_OPENCV
     // convert to cv::Mat
     cv::Mat imgmat = larcv::as_mat_1FC( img );
 
@@ -55,8 +60,14 @@ namespace larlitecv {
     std::cout << "Skeleton made after " << iteration << " iterations." << std::endl;
       
     return larcv::mat_to_image2d( skelimg, img.meta() );
-    */
-    larcv::Image2D a(img_v.at(0).meta());
+#else
+
+    std::stringstream ss;
+    ss << __FILE__ << ":" << __LINE__ << "  use of " << __PRETTY_FUNCTION__ << " requires OpenCV" << std::endl;
+    throw std::runtime_error(ss.str());
+#endif
+    
+    larcv::Image2D a(img.meta());
     return a;
   }
 

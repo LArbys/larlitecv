@@ -1,3 +1,4 @@
+
 #include "StopMuStart.h"
 #include <assert.h>
 
@@ -25,22 +26,22 @@ namespace larlitecv {
     float step_size = 3.0;
     float max_time_step_cm = 1.0; // cm    
     
-    const int nplanes = img_v.size();
+    const size_t nplanes = img_v.size();
     std::vector<dbscan::dbPoints> combo_points(nplanes);
     std::vector<dbscan::dbscanOutput> clustering_out;
     int endpoint_hitindex[nplanes];
       
-    for (int p=0; p<nplanes; p++) {
+    for (size_t p=0; p<nplanes; p++) {
       const larcv::ImageMeta& meta = img_v.at(p).meta();
       const larcv::Pixel2D& endpoint = start.at(p);
       //std::cout << "plane=" << p << " start point: (" << endpoint.X() << "," << endpoint.Y() << ")" << std::endl;
       // gather pixels above threshold that are around endpoint
       for (int dr=-rneighbor;dr<=rneighbor; dr++) {
 	int row = endpoint.Y() + dr;
-	if ( row<0 || row >= meta.rows() ) continue;
+	if ( row<0 || row >= (int)meta.rows() ) continue;
 	for ( int dc=-cneighbor;dc<=cneighbor; dc++ ) {
 	  int col = endpoint.X() + dc;
-	  if ( col<0 || col>= meta.cols() ) continue;
+	  if ( col<0 || col>= (int)meta.cols() ) continue;
 	  if ( img_v.at(p).pixel( row, col ) > fThreshold || (dc==0 && dr==0) ) {
 	    // if pixel above threshold
 	    std::vector<double> point(2);
@@ -48,7 +49,7 @@ namespace larlitecv {
 	    point[1] = (double)row;
 	    combo_points[p].emplace_back( point );
 	    if ( dc==0 && dr==0 ) {
-	      endpoint_hitindex[p] = combo_points[p].size()-1;
+	      endpoint_hitindex[p] = (int)combo_points[p].size()-1;
 	    }
 	  }
 	}
@@ -64,12 +65,12 @@ namespace larlitecv {
 
     //  (b) we get the cluster that the point is attached to
     int pointclusters[nplanes];
-    for (int p=0; p<nplanes; p++) {
+    for (size_t p=0; p<nplanes; p++) {
       pointclusters[p] = -1;
-      for (int c=0; c<clustering_out.at(p).clusters.size(); c++) {
+      for (size_t c=0; c<clustering_out.at(p).clusters.size(); c++) {
 	if ( pointclusters[p]!=-1 ) break; // already found the cluster, move on
 	const std::vector<int>& cluster = clustering_out.at(p).clusters.at(c);
-	for (int ihit=0; ihit<cluster.size(); ihit++) {
+	for (size_t ihit=0; ihit<cluster.size(); ihit++) {
 	  int hitidx = cluster.at(ihit);
 	  if ( hitidx==endpoint_hitindex[p] ) {
 	    pointclusters[p] = c;
@@ -85,21 +86,18 @@ namespace larlitecv {
     //  (c) we find the furthest pixel and get the direction
     float plane_dir[nplanes][2];
     float maxdist[nplanes];
-    for (int p=0; p<nplanes; p++) {
+    for (size_t p=0; p<nplanes; p++) {
       maxdist[p] = 0.0;
       const larcv::ImageMeta& meta = img_v.at(p).meta();
       plane_dir[p][0] = plane_dir[p][1] = 0;
       const std::vector<int>& cluster = clustering_out.at(p).clusters.at(pointclusters[p]);
-      float hitpos[2] = {0};
-      for (int ihit=0; ihit<cluster.size(); ihit++) {
+      for (size_t ihit=0; ihit<cluster.size(); ihit++) {
 	float dx = (combo_points[p].at(ihit)[0]-start.at(p).X())*meta.pixel_width()*0.3; // cm
 	float dy = -(combo_points[p].at(ihit)[1]-start.at(p).Y())*meta.pixel_height()*0.5*::larutil::LArProperties::GetME()->DriftVelocity(); // cm 
 	// (note, above negative, because of reverse time order used in image 2D)
 	float dist = sqrt( dx*dx + dy*dy );
 	if ( dist>maxdist[p] ) {
 	  maxdist[p] = dist;
-	  hitpos[0] = combo_points[p].at(ihit)[0];
-	  hitpos[1] = combo_points[p].at(ihit)[1];
 	  plane_dir[p][0] = dx/dist;
 	  plane_dir[p][1] = dy/dist;
 	}
@@ -118,7 +116,7 @@ namespace larlitecv {
     float init_dist[nplanes];
     float target_tick[nplanes];
     float closest_tick = 1e6;
-    for (int p=0; p<nplanes; p++) {
+    for (size_t p=0; p<nplanes; p++) {
       if ( plane_dir[p][1]!=0.0 )
 	init_dist[p] = fabs((step_size*img_v.at(p).meta().pixel_height()*cm_per_tick)/plane_dir[p][1]);// how many unit vectors required to go the step size
       else
@@ -136,7 +134,7 @@ namespace larlitecv {
     std::vector<int> target_col(nplanes,-1);
     std::vector<int> target_wires(nplanes,-1);
     std::vector<int> start_wires(nplanes,-1);
-    for (int p=0; p<nplanes; p++) {
+    for (size_t p=0; p<nplanes; p++) {
       if ( plane_dir[p][1]!=0.0 ) {
 	float start_tick = img_v.at(p).meta().pos_y( start.at(p).Y() );
 	//float s = (target_tick[p]-start_tick)*cm_per_tick/plane_dir[p][1];
