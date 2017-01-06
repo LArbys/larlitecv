@@ -15,13 +15,18 @@ namespace larlitecv {
   class BMTrackCluster2D {
     
   public:
-    BMTrackCluster2D() {};
+    BMTrackCluster2D() {
+      start_pix_idx = -1;
+      end_pix_idx = -1;
+    };
     virtual ~BMTrackCluster2D() {};
 
     BoundaryEndPt start;
     BoundaryEndPt end;
     larcv::Pixel2DCluster pixelpath;
     int plane;
+    int start_pix_idx;
+    int end_pix_idx;
 
   };
 

@@ -532,6 +532,9 @@ namespace larlitecv {
 // 		    << std::endl;
 	  
 	  BMTrackCluster2D track = runAstar( pts_a.at(p), pts_b.at(p), img_v.at(p), badchimg_v.at(p), 5, 5, 2, true );
+	  // book keeping
+	  track.start_pix_idx = i;
+	  track.end_pix_idx = j;
 	  //std::cout << "  p=" << p << " (" << track.start.w << "," << track.start.t << ") "
 	  //	    << " -> (" << track.end.w << "," << track.end.t << "): pathsize=" << track.pixelpath.size() << std::endl;
 	  if ( track.pixelpath.size()>3 ) ncompleted++;

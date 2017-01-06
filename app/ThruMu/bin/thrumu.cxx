@@ -173,17 +173,20 @@ int main( int nargs, char** argv ) {
     std::vector< larcv::Image2D > boundarypixels; // hits in real space cooridinaes
     std::vector< larcv::Image2D > realspacehits;
     std::vector< std::vector< larlitecv::BoundaryEndPt > > space_points;
+    std::vector< std::vector<int> > boundary_endpt_usedtag(7); // [top,bot,up,down,anode,cathode,imgend]
     sidetagger.searchforboundarypixels3D( imgs, badchimgs, space_points, boundarypixels, realspacehits );
     if ( space_points.size()>0 ) {
+      int nsidepts[4] = {0};
       std::cout << "[[ Side Tagger End Points 3D=" << space_points.size() << " ]]" << std::endl;
-      int ncrossings[4] = {0};
       for (int i=0; i<(int)space_points.size(); i++) {
-	ncrossings[ space_points.at(i).at(0).type ]++;
+	nsidepts[ space_points.at(i).at(0).type ]++;
       }
-      std::cout << "  top=" << ncrossings[0] << std::endl;
-      std::cout << "  bottom=" << ncrossings[1] << std::endl;
-      std::cout << "  upstream=" << ncrossings[2] << std::endl;
-      std::cout << "  downstream=" << ncrossings[3] << std::endl;
+      std::cout << "  top=" << nsidepts[0] << std::endl;
+      std::cout << "  bottom=" << nsidepts[1] << std::endl;
+      std::cout << "  upstream=" << nsidepts[2] << std::endl;
+      std::cout << "  downstream=" << nsidepts[3] << std::endl;
+      for (int i=0; i<4; i++)
+	boundary_endpt_usedtag.at(i).resize( nsidepts[i], 0 );
     }
 
     // here we take those images and do some clustering.
@@ -212,6 +215,9 @@ int main( int nargs, char** argv ) {
     std::cout << "    anode: " << trackendpts_anode.size() << std::endl;
     std::cout << "    cathode: " << trackendpts_cathode.size() << std::endl;
     std::cout << "    imgends: " << trackendpts_imgends.size() << std::endl;
+    boundary_endpt_usedtag.at(4).resize( trackendpts_anode.size(), 0 );
+    boundary_endpt_usedtag.at(5).resize( trackendpts_cathode.size(), 0 );
+    boundary_endpt_usedtag.at(6).resize( trackendpts_imgends.size(), 0 );
 
 //     if ( use_pos_flash_matching ) {
 //       std::cout << "skipping ahead" << std::endl;
@@ -221,6 +227,7 @@ int main( int nargs, char** argv ) {
     // ------------------------------------------------------------------------------------------//
     // MAKE TRACKS USING COLLECTED END POINTS
 
+    /// pixels of different types are unrolled
     std::vector< const std::vector< larlitecv::BoundaryEndPt >* > all_endpoints;
     
     // gather endpoints from space points
@@ -242,12 +249,10 @@ int main( int nargs, char** argv ) {
       const std::vector< larlitecv::BoundaryEndPt >* pts = &(trackendpts_imgends.at(isp));
       all_endpoints.push_back( pts );
     }
-    
 
     // ------------------------------------------------------------------------------------------//
     // Form 2D tracks on each plane from boundary points
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > trackclusters;
-    //sidetagger.makeTrackClusters3D( imgs, badchimgs, all_endpoints, trackclusters );
     sidetagger.makeTrackClusters3D( imgs, emptyimgs, all_endpoints, trackclusters );
 
     // ------------------------------------------------------------------------------------------//
@@ -257,6 +262,36 @@ int main( int nargs, char** argv ) {
     std::vector<int> goodlist;
     sidetagger.process2Dtracks( trackclusters, imgs, badchimgs, tracks3d, goodlist );
 
+    // boring booking. we now want to mark which pixel2d objects were used up
+    // booking was post-hoc, so it's really hacky and fragile
+    for (size_t itrack2d=0; itrack2d<trackclusters.size(); itrack2d++) {
+      if ( goodlist.at(itrack2d)==1 ) {
+	// track2d was used
+
+	// now mark pixels as used
+	// assumes that filled in order of top:bot:upstream:downstream:anode:cathode:imgends
+	int idx_a = trackclusters.at(itrack2d).at(0).start_pix_idx;
+	for ( int iendpt_type=0; iendpt_type<(int)boundary_endpt_usedtag.size(); iendpt_type++ ) {
+	  // does the index of pixel-A indicate pixel is of type: iendpt_type
+	  if ( idx_a<(int)boundary_endpt_usedtag.at(iendpt_type).size() ) {
+	    boundary_endpt_usedtag.at(iendpt_type).at( idx_a ) = 1;
+	    break;
+	  }
+	  idx_a -= (int)boundary_endpt_usedtag.at(iendpt_type).size();
+	}
+
+	int idx_b = trackclusters.at(itrack2d).at(0).end_pix_idx;
+	for ( int iendpt_type=0; iendpt_type<(int)boundary_endpt_usedtag.size(); iendpt_type++ ) {
+	  // does the index of pixel-A indicate pixel is of type: iendpt_type
+	  if ( idx_b<(int)boundary_endpt_usedtag.at(iendpt_type).size() ) {
+	    boundary_endpt_usedtag.at(iendpt_type).at( idx_b ) = 1;
+	    break;
+	  }
+	  idx_b -= (int)boundary_endpt_usedtag.at(iendpt_type).size();
+	}
+      }
+    }
+    
     std::cout << "[NUMBER OF POST-PROCESSED 3D TRAJECTORIES: " << tracks3d.size() << "]" << std::endl;
 
     // ------------------------------------------------------------------------------------------//
@@ -294,14 +329,23 @@ int main( int nargs, char** argv ) {
     for (int i=0; i<(int)space_points.size(); i++) {
       const std::vector< larlitecv::BoundaryEndPt >& sp_v = space_points.at(i);
       int sptype = (int)sp_v.at(0).type;
+      int type_idx = i;
+      for (int t=0; t<=sptype-1; t++) {
+	type_idx -= (int)boundary_endpt_usedtag.at(t).size();
+      }
+      std::cout << "space point #" << i << " type=" << sptype << " type_idx=" << type_idx << std::endl;
       for (int p=0; p<3; p++) {
 	const larlitecv::BoundaryEndPt& sp = sp_v.at(p);
 	larcv::Pixel2D pixel( sp.w, sp.t );
-	pixel.Intensity( sptype );
+	pixel.Intensity( sptype ); // using intensity to label pixel
+	if ( boundary_endpt_usedtag.at(sptype).at(type_idx)==1 )
+	  pixel.Width( 1 ); // using width to mark if used
+	else
+	  pixel.Width( 0 ); // using width to mark if unused
 	realspace_endpts[sptype]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
       }
     }
-
+    
     // flash tagger
 
     enum { flanode=0, flcathode, flimgends, nflashends };
@@ -313,6 +357,9 @@ int main( int nargs, char** argv ) {
       const std::vector< larlitecv::BoundaryEndPt >& anode_pts   = trackendpts_anode.at(i);
       for (int p=0; p<3; p++) {
 	larcv::Pixel2D pixel( anode_pts.at(p).w, anode_pts.at(p).t );
+	int itype = (int)nendpts+(int)flanode;
+	pixel.Intensity( itype );
+	pixel.Width( boundary_endpt_usedtag.at(itype).at(i) );
 	flashends[flanode]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
       }
     }
@@ -320,6 +367,9 @@ int main( int nargs, char** argv ) {
       const std::vector< larlitecv::BoundaryEndPt >& cathode_pts   = trackendpts_cathode.at(i);
       for (int p=0; p<3; p++) {
 	larcv::Pixel2D pixel( cathode_pts.at(p).w, cathode_pts.at(p).t );
+	int itype = (int)nendpts+(int)flcathode;
+	pixel.Intensity( itype );
+	pixel.Width( boundary_endpt_usedtag.at(itype).at(i) );
 	flashends[flcathode]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
       }
     }
@@ -327,6 +377,9 @@ int main( int nargs, char** argv ) {
       const std::vector< larlitecv::BoundaryEndPt >& imgends_pts   = trackendpts_imgends.at(i);
       for (int p=0; p<3; p++) {
 	larcv::Pixel2D pixel( imgends_pts.at(p).w, imgends_pts.at(p).t );
+	int itype = (int)nendpts+(int)flimgends;
+	pixel.Intensity( itype );
+	pixel.Width( boundary_endpt_usedtag.at(itype).at(i) );
 	flashends[flimgends]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
       }
     }
