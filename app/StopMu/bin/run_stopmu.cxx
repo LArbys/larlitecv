@@ -45,7 +45,8 @@ int main( int nargs, char** argv ) {
   // data coordinator: load an example data file
   larlitecv::DataCoordinator dataco;
   //dataco.add_inputfile( "output_larcv_testextbnb_001.root", "larcv" );
-  dataco.add_inputfile( "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/thrumu_testmcbnbcosmic_signalnumu.root","larcv");
+  //dataco.add_inputfile( "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/thrumu_testmcbnbcosmic_signalnumu.root","larcv");
+  dataco.add_inputfile( "output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" );
   dataco.configure( cfg_file, "StorageManager", "IOManager", "StopMu" );
   dataco.initialize();
 
@@ -58,6 +59,7 @@ int main( int nargs, char** argv ) {
   
   // filter out end points we are unlikely to be interested in: duplicates and those already used as thru-mu end points
   larlitecv::StopMuFilterSpacePointsConfig stopmu_filter_cfg;
+  stopmu_filter_cfg.filter_thrumu_by_tag = true;
   stopmu_filter_cfg.duplicate_radius_cm = 20.0;
   stopmu_filter_cfg.pixel_threshold = 10.0;
   stopmu_filter_cfg.track_width_pixels = 5;
@@ -129,16 +131,16 @@ int main( int nargs, char** argv ) {
       stopmu_img.paint(0);
       stopmu_v.emplace_back( std::move(stopmu_img) );
     }
+    
+    // --------------------------------------------
+    // Algo Prep
+    std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpts = stopmu_filterpts.filterSpacePoints( ev_pixs, thrumu_v, badch_v );
 
     // --------------------------------------------
     // stop mu tracker
     
-    larlitecv::StopMuTracker sttracker( img_v, thrumu_v );
+    larlitecv::StopMuTracker sttracker( img_v, thrumu_v, stopmu_candidate_endpts );
     sttracker.setVerbosity(0);
-    
-    // --------------------------------------------
-    // RUN ALGO
-    std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpts = stopmu_filterpts.filterSpacePoints( ev_pixs, thrumu_v, badch_v );
 
     std::cout << " Number of candidate stop-mu start points: " << stopmu_candidate_endpts.size() << std::endl;
 
@@ -216,22 +218,6 @@ int main( int nargs, char** argv ) {
 		<< " p1=(" << start_dir2d.at(1)[0] << "," << start_dir2d.at(1)[1] << ") "
 		<< " p2=(" << start_dir2d.at(2)[0] << "," << start_dir2d.at(2)[1] << ") " 
 		<< std::endl;
-
-      // make a opencv object for drawing's sake
-      for (int p=0; p<3; p++) {
-	cv::Mat imgmat = cvimgs_v.at(p);
-	// draw the start position
-	cv::circle(imgmat,cv::Point(start.at(p).X(),start.at(p).Y()), 5, cv::Scalar(255,0,255),-1);//
-	
-	//std::stringstream ss;
-	//ss << "run_stopmu_start_p" << p << ".png";
-	//cv::imwrite( ss.str(), imgmat );
-	//cvimgs_v.emplace_back( imgmat );
-      }
-      
-      // for debug
-      //ipix++;
-      //continue; // for debug
       
       // translate start point into simpler object
       std::vector< std::vector<int> > start2d_pos;
@@ -245,16 +231,34 @@ int main( int nargs, char** argv ) {
       std::cout << "--- use start point to track stop-mu  ---" << std::endl;
       bool tracked = false;
       larlitecv::Step3D start_track; // a linked list
+      enum { ok=0, unknown, clustererror };
+      int tracker_err = ok;
       if ( run_tracker ) {
 
 	try {
 	  sttracker.stopMuString( img_v, start2d_pos, start_dir2d, start_spacepoint, start_dir3d, start_track );
 	  tracked = true;
+	  tracker_err = ok;
 	}
 	catch (const std::exception& e) {
 	  std::cout << "went pear shaped. error: " << e.what() << std::endl;
 	  tracked = false;
+	  tracker_err = unknown;
+	  if ( e.what()==std::string("no cluster error") )
+	    tracker_err = clustererror;
 	}
+      }
+      
+      // add dot information to cv image
+      for (int p=0; p<3; p++) {
+	cv::Mat imgmat = cvimgs_v.at(p);
+	// draw the start position
+	cv::Scalar dotcolor(255,0,255);
+	if ( tracker_err==unknown )
+	  dotcolor = cv::Scalar(0,200,0);
+	else if (tracker_err==clustererror)
+	  dotcolor = cv::Scalar(200,200,0);
+	cv::circle(imgmat,cv::Point(start.at(p).X(),start.at(p).Y()), 5, dotcolor,-1);//
       }
       
       // tag stopmu pixels
@@ -276,7 +280,8 @@ int main( int nargs, char** argv ) {
 	    current_step = &(current_step->GetNext());
 	  continue;
 	}
-	
+
+	// label track
 	for (int p=0; p<3; p++) {
 	  cv::Mat& cvimg = cvimgs_v.at(p);
 	  cv::circle( cvimg, cv::Point(current_step->planepositions.at(p)[0], current_step->planepositions.at(p)[1]), 1, cv::Scalar(0,0,200), -1 );

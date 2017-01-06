@@ -30,7 +30,10 @@
 
 namespace larlitecv {
 
-  StopMuTracker::StopMuTracker( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, int verbosity ) {
+  StopMuTracker::StopMuTracker( const std::vector<larcv::Image2D>& img_v,
+				const std::vector<larcv::Image2D>& thrumu_v,
+				const std::vector< std::vector< const larcv::Pixel2D* > >& candidate_stopmu_points,
+				int verbosity ) {
     
     setVerbosity(verbosity);
 				
@@ -42,6 +45,30 @@ namespace larlitecv {
       larcv::Image2D skel = skeleton_op.skeletonize( img_v.at(p), 10.0, 3 );
       skel_v.emplace_back( std::move(skel) );
     }
+
+    // with candidate points provided, we make an image marking neighboring pixels.
+    // this is to protect these pixels from thrumu-pixel masking step which follows
+    std::vector<larcv::Image2D> candidate_pixels;
+    for (size_t p=0; p<3; p++) {
+      larcv::Image2D img( img_v.at(p).meta() );
+      img.paint(0.0);
+      for ( auto& pix_v : candidate_stopmu_points ) {
+	int row=pix_v.at(p)->Y();
+	int col=pix_v.at(p)->X();
+
+	for ( int r=-10; r<=10; r++) {
+	  int rtest = row+r;
+	  if ( rtest<0 || rtest>=(int)img_v.at(p).meta().rows() ) continue;
+	  for (int c=-10; c<=10; c++) {
+	    int ctest = col+c;
+	    if ( ctest<0 || ctest>=(int)img_v.at(p).meta().cols() ) continue;
+	    if ( img_v.at(p).pixel( rtest, ctest )>10 )
+	      img.set_pixel( rtest, ctest, 1 );
+	  }
+	}
+      }//end of loop over candidate points
+      candidate_pixels.emplace_back( std::move(img) );
+    }//end of loop over planes
     
     // cluster skeleton pixel, but mask thru-mu pixels
     time_t cluster_start = time(NULL);
@@ -49,10 +76,11 @@ namespace larlitecv {
     for (size_t p=0; p<3; p++) {
       dbscan::dbPoints data;
       const larcv::Image2D& skelimg = skel_v.at(p);
+      const larcv::Image2D& candpix = candidate_pixels.at(p);
       for (size_t r=0; r<skelimg.meta().rows(); r++) {
 	for (size_t c=0; c<skelimg.meta().cols(); c++) {
 	  if ( skelimg.pixel(r,c)==0 ) continue; // not skeleton
-	  if ( thrumu_v.at(p).pixel(r,c)>0 ) continue; // mask thrumu
+	  if ( thrumu_v.at(p).pixel(r,c)>0 && candpix.pixel(r,c)==0 ) continue; // mask thrumu if not near candidate pixel
 	  std::vector<double> point(2);
 	  point[0] = c; // X 
 	  point[1] = r; // Y
@@ -320,8 +348,11 @@ namespace larlitecv {
     wid.resize(3,-1); // wire position
     double dpos[3];
     for (int p=0; p<3; p++) dpos[p] = currentpos[p];
-    for (int p=0; p<3; p++)
+    for (int p=0; p<3; p++) {
       wid[p] = (int)::larutil::Geometry::GetME()->WireCoordinate( dpos, p );
+      if ( wid[p]<0 ) wid[p] = 0;
+      if ( wid[p]>(int)larutil::Geometry::GetME()->Nwires(p) ) wid[p] = (int)larutil::Geometry::GetME()->Nwires(p)-1;
+    }
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]
     tick = (int)(currentpos[0]/cm_per_tick) + 3200;
   }
@@ -582,7 +613,7 @@ namespace larlitecv {
 
   std::vector<larcv::Image2D> StopMuTracker::fillSortedHit2Dlist( const larcv::ImageMeta& meta, 
 								  const std::vector< std::vector<int> >& start2d,  const std::vector< std::vector<float> >& start_dir2d,
-								  std::vector<Hit2DList>& hitlists, std::vector<int>& clusterid ) {
+								  std::vector<Hit2DList>& hitlists, std::vector<int>& clusterid, const std::vector< float >& match_radius ) {
     // given a starting pixel, uses stored clusters (m_clusters) and list of dbPoints (m_imghits) 
     // to provide a list of Hit2D objects sorted by distance from start point
     // also returns an image containing which contains the hits that form the cluster in question
@@ -595,19 +626,22 @@ namespace larlitecv {
     hitlists.clear();
     hitlists.resize(3);
     for (int p=0; p<3; p++) {
-
-      larcv::Image2D img_cluster( meta );
-      img_cluster.paint(0.0);
-    
       std::vector<double> testpoint(2);
       testpoint[0] = start2d.at(p)[0]; // X
       testpoint[1] = start2d.at(p)[1]; // Y
       std::cout << "plane " << p << " testpoint: (col,row)=(" << testpoint[0] << "," << testpoint[1] << ")" 
 		<< " (wire,tick)=(" << meta.pos_x( testpoint[0] ) << "," << meta.pos_y( testpoint[1] ) << ")" << std::endl;
-      int match = m_clusters.at(p).findMatchingCluster( testpoint, m_imghits.at(p), 5.0 );
-      clusterid.push_back(match);
+      int match = m_clusters.at(p).findMatchingCluster( testpoint, m_imghits.at(p), match_radius[p] );
+      std::cout << "plane " << p << " matching cluster=" << match << std::endl;
+      clusterid[p] = match;
+    }
+    
+    for (int p=0; p<3; p++) {
+
+      larcv::Image2D img_cluster( meta );
+      img_cluster.paint(0.0);
+      int match = clusterid.at(p);
       std::cout << "plane=" << p << " start_dir2d=(" << start_dir2d.at(p)[0] << "," << start_dir2d.at(p)[1] << ") "
-		<< " matching cluster index=" << match 
 		<< " size=" << m_clusters.at(p).clusters.at(match).size()
 		<< std::endl;
 
@@ -931,7 +965,30 @@ namespace larlitecv {
     std::vector<int> clusterid;
     const larcv::ImageMeta& meta = skel_v.at(0).meta();
     std::vector<Hit2DList> hitlists(3);
-    std::vector<larcv::Image2D> img_clusters = fillSortedHit2Dlist( meta, start2d, start_dir2d, hitlists, clusterid );
+    std::vector<larcv::Image2D> img_clusters;
+    std::vector<float> match_radius = {5,5,5};
+    bool clustersfound = false;
+    for (int itry=0; itry<3; itry++) {
+      try {
+	img_clusters = fillSortedHit2Dlist( meta, start2d, start_dir2d, hitlists, clusterid, match_radius );
+      }
+      catch (const std::exception& e) {
+	std::cout << "could not find a cluster for the end point in each plane?" << std::endl;
+      }
+      clustersfound = true;
+      for (int p=0; p<3; p++) {
+	match_radius[p] *= 2.0;
+	if ( clusterid[p]<0 ) {
+	  clustersfound = false;
+	}
+      }
+      if ( clustersfound ) break;
+    }
+    if ( !clustersfound ) {
+      std::stringstream ss;
+      ss << "no cluster error" << std::endl;
+      throw std::runtime_error(ss.str());
+    }
 
 #ifdef USE_OPENCV
     //for debug output

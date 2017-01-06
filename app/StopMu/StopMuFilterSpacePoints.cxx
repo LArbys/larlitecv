@@ -34,7 +34,14 @@ namespace larlitecv {
 
     // [ Remove Through-going Muons ]
     std::vector< std::vector<const larcv::Pixel2D*> > not_thrumu;
-    removeThroughGoingEndPointsFromPixVectors( not_duplicagted, thrumu_pixels, not_thrumu );
+    if ( !m_config->filter_thrumu_by_tag ) {
+      std::cout << "filter thrumu end points by proximinty to thrumu-tagged pixels" << std::endl;
+      removeThroughGoingEndPointsFromPixVectors( not_duplicagted, thrumu_pixels, not_thrumu );
+    }
+    else {
+      std::cout << "filter thrumu end points using tags" << std::endl;
+      removeThroughGoingEndPointsFromTags( not_duplicagted, thrumu_pixels, not_thrumu );
+    }
     
     std::cout << "number of non-duplicated, non-thru-mu endpoints: " << not_thrumu.size() << std::endl;
 
@@ -101,6 +108,17 @@ namespace larlitecv {
       return true;
     return false;
   }//end of removeThroughGoingEndPoints
+
+  void StopMuFilterSpacePoints::removeThroughGoingEndPointsFromTags( std::vector< std::vector<const larcv::Pixel2D*> >& spacepoints_list,
+								     const std::vector<larcv::Image2D>& thrumu_pixels,
+								     std::vector< std::vector<const larcv::Pixel2D*> >& passlist ) {
+    for ( auto &pix_v : spacepoints_list ) {      
+      if ( pix_v.at(0)->Width()<=0.1 )
+	passlist.push_back( pix_v );
+    }//end of list loop
+    
+  }
+
 							     
   // ----------------------------------------------------------------------------------------------------
 

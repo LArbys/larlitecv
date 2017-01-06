@@ -15,6 +15,7 @@ namespace larlitecv {
     StopMuFilterSpacePointsConfig() {};
     virtual ~StopMuFilterSpacePointsConfig() {};
 
+    bool filter_thrumu_by_tag;
     float duplicate_radius_cm;
     float pixel_threshold;
     int track_width_pixels;
@@ -43,6 +44,9 @@ namespace larlitecv {
     void removeThroughGoingEndPointsFromPixVectors( std::vector< std::vector<const larcv::Pixel2D*> >& spacepoints_list,
 						    const std::vector<larcv::Image2D>& thrumu_pixels,
 						    std::vector< std::vector<const larcv::Pixel2D*> >& passlist );
+    void removeThroughGoingEndPointsFromTags( std::vector< std::vector<const larcv::Pixel2D*> >& spacepoints_list,
+					      const std::vector<larcv::Image2D>& thrumu_pixels,
+					      std::vector< std::vector<const larcv::Pixel2D*> >& passlist );
     bool isEndPtNearThruMuTag( const std::vector<const larcv::Pixel2D*>& pix_v, const std::vector<larcv::Image2D>& thrumu_pixels );
     
     

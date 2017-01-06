@@ -170,7 +170,10 @@ namespace larlitecv {
 
   public:
       
-    StopMuTracker( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, int verbosity=0 );
+    StopMuTracker( const std::vector<larcv::Image2D>& img_v,
+		   const std::vector<larcv::Image2D>& thrumu_v,
+		   const std::vector< std::vector< const larcv::Pixel2D* > >& candidate_stopmu_points,
+		   int verbosity=0 );
     virtual ~StopMuTracker() {};
 
     void trackStopMu(const std::vector< std::vector<int> >& start2d, const std::vector< std::vector<float> >& start_dir2d,
@@ -184,7 +187,7 @@ namespace larlitecv {
 			       std::vector< std::pair<int,double> >& hitlist );
     std::vector<larcv::Image2D> fillSortedHit2Dlist( const larcv::ImageMeta& meta, 
 						     const std::vector< std::vector<int> >& start2d,  const std::vector< std::vector<float> >& start_dir2d,
-						     std::vector<Hit2DList>& hitlists, std::vector<int>& clusterid );
+						     std::vector<Hit2DList>& hitlists, std::vector<int>& clusterid, const std::vector<float>& match_radius );
     bool findNewDirection( Step3D& current_step, const larcv::ImageMeta& meta,
 			   const std::vector< std::vector< std::pair<int,double> > >& closest_pixels, const std::vector<Hit2DList>& sorted_hits,
 			   Step3D& proposed_step );
@@ -192,6 +195,7 @@ namespace larlitecv {
 
     void stopMuString(const std::vector<larcv::Image2D>& img_v, const std::vector< std::vector<int> >& start2d, const std::vector< std::vector<float> >& start_dir2d,
 		      const std::vector< float >& start_pos3d, const std::vector<float>& start_dir3d, Step3D& start_step );
+
     void setVerbosity( int v ) { m_verbosity = v; };
     
     std::vector<larcv::Image2D> skel_v; // skeleton images
