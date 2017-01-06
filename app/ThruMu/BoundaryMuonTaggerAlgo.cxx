@@ -767,8 +767,8 @@ namespace larlitecv {
     idxhit_wmin = -1;
     idxhit_wmax = -1;
 
-    double hit_tmin[2];
-    double hit_tmax[2];
+    double hit_tmin[2] = {1.0e6};
+    double hit_tmax[2] = {1.0e6};
     //double hit_wmin[2];
     //double hit_wmax[2];
 		      
@@ -1009,7 +1009,7 @@ namespace larlitecv {
 	if ( !isgood[p] ) continue;
 	float stepsize = pathlength[p]/float(nsteps);
 	float next_ds = node_ds[p]+stepsize;
-	if ( current_node[p]<edgelength[p].size() ) {
+	if ( current_node[p]<(int)edgelength[p].size() ) {
 	  if ( next_ds>edgelength[p].at( current_node[p] ) ) {
 	    node_ds[p] = next_ds-edgelength[p].at( current_node[p] );
 	    current_node[p]++;
