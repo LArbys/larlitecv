@@ -104,10 +104,19 @@ int main( int nargs, char** argv ) {
 
   // Start Event Loop
   int nentries = dataco.get_nentries("larcv");
-  //int nentries = 20;
-  //int nentries = 1;
+  int user_nentries =   bmt.get<int>("NumEntries",-1);
+  int user_startentry = bmt.get<int>("StartEntry",-1);
+  int startentry = 0;
+  if ( user_startentry>=0 ) {
+    startentry = user_startentry;
+  }
+  int endentry = nentries;
+  if ( user_nentries>=0 ) {
+    if ( user_nentries+startentry<nentries )
+      endentry = user_nentries+startentry;
+  }
   
-  for (int ientry=0; ientry<nentries; ientry++) {
+  for (int ientry=startentry; ientry<endentry; ientry++) {
     
     dataco.goto_entry(ientry,"larcv");
 

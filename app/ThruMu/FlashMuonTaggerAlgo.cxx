@@ -466,7 +466,7 @@ namespace larlitecv {
     larlite::event_opflash* faux_flashes = new larlite::event_opflash;
     std::vector<double> dummy(32,0.);
     larlite::opflash img_begin( 2400.0+1, 0, 0, 0, dummy ); // make this config pars
-    larlite::opflash img_end( 2400.0+60481, 0, 0, 0, dummy ); // make this config pars
+    larlite::opflash img_end( 2400.0+6048-1, 0, 0, 0, dummy ); // make this config pars
     faux_flashes->emplace_back( img_begin );
     faux_flashes->emplace_back( img_end );
     std::vector< larlite::event_opflash* > faux_flashes_v;

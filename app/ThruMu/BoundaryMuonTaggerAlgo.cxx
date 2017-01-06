@@ -832,7 +832,7 @@ namespace larlitecv {
     
     BMTrackCluster3D track3d;
 
-    for (int p=0; p<3; p++) {
+    for (size_t p=0; p<3; p++) {
       const BMTrackCluster2D& planetrack = track2d.at(p);
       pathlength[p] = 0.0;
       if ( planetrack.pixelpath.size()<2 ) {
@@ -926,7 +926,9 @@ namespace larlitecv {
     int current_node[3] = { 0, 0, 0 };
     float node_ds[3] = {0, 0, 0 };
           
-    //std::cout << "Track with " << nsteps << " steps" << std::endl;
+    // std::cout << "Track with " << nsteps << " steps. number of nodes="
+    // 	      << "(" << nodepos[0].size() << "," << nodepos[1].size() << "," << nodepos[2].size() << ")"
+    // 	      << std::endl;
     for (int istep=0; istep<nsteps; istep++) {
 	
       // get wire at this step
@@ -941,21 +943,24 @@ namespace larlitecv {
 	}
 	float imgpos[2] = { 0., 0. };
 	for (int v=0; v<2; v++) {
-	  imgpos[v] = nodepos[p].at( current_node[p] )[v] + edgedir[p].at( current_node[p] )[v];
+	  imgpos[v] = nodepos[p].at( current_node[p] )[v] + edgedir[p].at( current_node[p] )[v]*node_ds[v];
 	}
 	imgcol[ip] = (int)imgpos[0];
 	wireid[ip] = (int)imgcol[ip]*img_v.at(p).meta().pixel_width();
 	pid[ip] = p;
-	avetick += img_v.at(p).meta().pos_y( (int)imgpos[1] );
-	std::cout << " imgpos[1] p=" << p << ", currentnode=" << current_node[p] << ": " << imgpos[1] << std::endl;
+	int imgpos_row = (int)imgpos[1];
+	if ( imgpos_row<0 ) imgpos_row = 0;
+	if ( imgpos_row>=(int)img_v.at(p).meta().rows() ) imgpos_row = (int)img_v.at(p).meta().rows()-1;
+	avetick += img_v.at(p).meta().pos_y( imgpos_row );
+	//std::cout << " imgpos[1] p=" << p << ", currentnode=" << current_node[p] << ": " << imgpos[1] << " tick=" << imgpos_row << std::endl;
 	ip++;
       }
       if ( ip==0 ) {
-	std::cout << "no good plane?" << std::endl;
+	//std::cout << "no good plane?" << std::endl;
 	continue;
       }
       avetick /= float(ip);
-      std::cout << "istep=" << istep << " avetick=" << avetick << " ip=" << ip << std::endl;
+      //std::cout << "istep=" << istep << " avetick=" << avetick << " ip=" << ip << std::endl;
       
       // now intersect depending on number of good wires
       int crosses = 0;
@@ -971,6 +976,7 @@ namespace larlitecv {
 	else if ( pid[0]==2 && pid[1]==1 ) pid[2] = 0;
 	double worldpos[3] = { 0, (double)intersection[1], (double)intersection[0] };
 	wireid[2] = larutil::Geometry::GetME()->WireCoordinate( worldpos, pid[2] );
+	if ( wireid[2]<0 ) wireid[2]=0;
 	imgcol[2] = wireid[2]/img_v.at(0).meta().pixel_width();
 	// we can backfill the missing bad plane
 	larcv::Pixel2D pix( imgcol[2], (int)img_v.at(pid[2]).meta().row( avetick ) );
@@ -988,7 +994,10 @@ namespace larlitecv {
 // 	std::vector< std::vector<float> > vertex2plane; 
 //	larcv::UBWireTool::findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
 	std::vector<int> wirelists(3,0);
-	for (int p=0; p<3; p++) wirelists[p] = wireid[p];
+	for (int p=0; p<3; p++) {
+	  wirelists[p] = wireid[p];
+	  if ( wirelists[p]<0 ) wirelists[p] = 0;
+	}
 	std::vector<float> vertex3plane;
 	double tri_area = 0.0;
 	larcv::UBWireTool::wireIntersection( wirelists, intersection, tri_area, crosses );
