@@ -256,15 +256,19 @@ int main( int nargs, char** argv ) {
 
     // ------------------------------------------------------------------------------------------//
     // Check that the number of end points is not excessive
+    bool runtracker = true;
     if ( (int)all_endpoints.size()>max_endpts_to_process ) {
       std::cout << "The number of total end points is excessive: " << all_endpoints.size() << ". The event is probably too busy." << std::endl;
+      runtracker = false;
       continue;
     }
 
     // ------------------------------------------------------------------------------------------//
     // Form 2D tracks on each plane from boundary points
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > trackclusters;
-    sidetagger.makeTrackClusters3D( imgs, emptyimgs, all_endpoints, trackclusters );
+    if (runtracker) {
+      sidetagger.makeTrackClusters3D( imgs, emptyimgs, all_endpoints, trackclusters );
+    }
 
     // ------------------------------------------------------------------------------------------//
     // Filter 2D tracks and form 3D tracks
