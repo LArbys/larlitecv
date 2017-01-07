@@ -672,6 +672,7 @@ namespace larlitecv {
     std::vector< larlitecv::AStarNode > path = algo.findpath( img, start.row, start.col, goal.row, goal.col, 5.0, use_badchs );
     for ( auto& node : path ) {
       larcv::Pixel2D pixel( node.col, node.row );
+      if ( node.row<0 || node.row>=(int)img.meta().rows() || node.col<0 || node.col>=(int)img.meta().cols() ) continue;
       pixel.Intensity( img.pixel( node.row, node.col ) );
       track2d.pixelpath += pixel; // uniary operator!
     }
@@ -950,6 +951,8 @@ namespace larlitecv {
 	}
 	imgcol[ip] = (int)imgpos[0];
 	wireid[ip] = (int)imgcol[ip]*img_v.at(p).meta().pixel_width();
+	if ( wireid[ip]<0 ) wireid[ip]=0;
+	if ( wireid[ip]>=(int)larutil::Geometry::GetME()->Nwires(p) ) wireid[ip] = (int)larutil::Geometry::GetME()->Nwires(p)-1;
 	pid[ip] = p;
 	int imgpos_row = (int)imgpos[1];
 	if ( imgpos_row<0 ) imgpos_row = 0;

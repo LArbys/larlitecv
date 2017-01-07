@@ -102,6 +102,10 @@ int main( int nargs, char** argv ) {
   cathode_flash_tagger.configure(flashtagger_cfg);
   imgends_flash_tagger.configure(flashtagger_cfg);
 
+  // other parameters 
+  int max_endpts_to_process = bmt.get<int>("MaxEndPointsToProcess"); // safety valve
+  int jebwiresfactor = bmt.get<float>("JebWiresFactor",5.0);
+
   // Start Event Loop
   int nentries = dataco.get_nentries("larcv");
   int user_nentries =   bmt.get<int>("NumEntries",-1);
@@ -137,7 +141,7 @@ int main( int nargs, char** argv ) {
 	  float val = img.pixel( row, col );
 	  if (meta.plane()==0 ) { 
 	    if ( (col>=2016 && col<=2111) || (col>=2176 && 2212) ) {
-	      val *= 5.0;
+	      val *= jebwiresfactor;
 	    }
 	  }
 	  dejebbed.set_pixel(row,col,val);
@@ -251,6 +255,13 @@ int main( int nargs, char** argv ) {
     }
 
     // ------------------------------------------------------------------------------------------//
+    // Check that the number of end points is not excessive
+    if ( (int)all_endpoints.size()>max_endpts_to_process ) {
+      std::cout << "The number of total end points is excessive: " << all_endpoints.size() << ". The event is probably too busy." << std::endl;
+      continue;
+    }
+
+    // ------------------------------------------------------------------------------------------//
     // Form 2D tracks on each plane from boundary points
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > trackclusters;
     sidetagger.makeTrackClusters3D( imgs, emptyimgs, all_endpoints, trackclusters );
@@ -295,7 +306,7 @@ int main( int nargs, char** argv ) {
     std::cout << "[NUMBER OF POST-PROCESSED 3D TRAJECTORIES: " << tracks3d.size() << "]" << std::endl;
 
     // ------------------------------------------------------------------------------------------//
-    // MARK IMAGES
+
 
     std::vector< larcv::Image2D > markedimgs;
     sidetagger.markImageWithTrackClusters( imgs, badchimgs, trackclusters, goodlist, markedimgs );
