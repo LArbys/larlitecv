@@ -50,7 +50,7 @@ namespace larlitecv {
 
     // navigation
     void goto_entry( int entry, std::string ftype );
-    void goto_event( int run, int subrun, int event );
+    void goto_event( int run, int subrun, int event, std::string ftype_driver );
 
     // get/set id
     void set_id( int run, int subrun, int event );
