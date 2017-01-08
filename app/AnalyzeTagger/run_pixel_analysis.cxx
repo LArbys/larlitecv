@@ -62,6 +62,10 @@ int main( int nargs, char** argv ) {
   dataco_thrumu.initialize();
   dataco_stopmu.initialize();
 
+  std::cout << "data[source] entries=" << dataco_source.get_nentries("larcv") << std::endl;
+  std::cout << "data[thrumu] entries=" << dataco_thrumu.get_nentries("larcv") << std::endl;
+  std::cout << "data[stopmu] entries=" << dataco_stopmu.get_nentries("larcv") << std::endl;
+
   // configuration parameters
   larcv::PSet cfg = larcv::CreatePSetFromFile( "config.cfg" );
   larcv::PSet pixana_cfg = cfg.get<larcv::PSet>("PixelAnalysis");
@@ -105,14 +109,20 @@ int main( int nargs, char** argv ) {
 
   int nentries = dataco_stopmu.get_nentries("larcv");
 
+  dataco_source.goto_entry(0,"larcv");
+  dataco_thrumu.goto_entry(0,"larcv");
+  dataco_stopmu.goto_entry(0,"larcv");
+
   for (int ientry=0; ientry<nentries; ientry++) {
 
   	dataco_stopmu.goto_entry(ientry,"larcv");
 
   	dataco_stopmu.get_id(run,subrun,event);
 
-  	std::cout << "entry " << ientry << std::endl;
-  	std::cout << " (r,s,e)=(" << run << ", " << " , " << subrun << ", " << event << ")" << std::endl;
+  	if ( ientry%10==0 ) {
+	  	std::cout << "entry " << ientry << std::endl;
+  		std::cout << " (r,s,e)=(" << run << ", " << " , " << subrun << ", " << event << ")" << std::endl;
+  	}
 
   	dataco_thrumu.goto_event(run,subrun,event,"larcv");
   	dataco_source.goto_event(run,subrun,event,"larcv");
