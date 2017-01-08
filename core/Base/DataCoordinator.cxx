@@ -4,6 +4,8 @@
 #include "LarliteFileManager.h"
 #include <iostream>
 #include <fstream>
+#include <stdexcept>
+#include <sstream>
 #include <assert.h>
 #include "Base/LArCVBaseUtilFunc.h"
 #include "Base/larcv_logger.h"
@@ -289,8 +291,9 @@ namespace larlitecv {
   }
 
 
-  void DataCoordinator::goto_event( int run, int subrun, int event ) {
+  void DataCoordinator::goto_event( int run, int subrun, int event, std::string ftype_driver ) {
     int entry;
+    fLastDriver = ftype_driver;
     if ( !larlite_unused ) {
       fManagers["larlite"]->getEntry( run, subrun, event, entry );
       larlite_io.go_to( entry, false );
@@ -355,18 +358,22 @@ namespace larlitecv {
   }
 
   void DataCoordinator::get_id( int& run, int& subrun, int& event ) {
-    if ( fLastDriver=="larlite" ) {
+    if ( fLastDriver==std::string("larlite") ) {
       run = larlite_io.run_id();
       subrun = larlite_io.subrun_id();
       event = larlite_io.event_id();
+      return;
     }
-    else if ( fLastDriver=="larcv" ) {
+    else if ( fLastDriver==std::string("larcv") ) {
       larcv::EventBase const& ev = larcv_io.event_id();
       run = ev.run();
       subrun = ev.subrun();
       event = ev.event();
+      return;
     }
-    assert(false);
+    std::stringstream ss;
+    ss << __FILE__ << ":" << __LINE__ << " unrecognised driver file type = '" << fLastDriver << "'" << std::endl;
+    throw std::runtime_error(ss.str());
   }
 
 }
