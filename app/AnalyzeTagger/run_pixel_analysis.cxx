@@ -89,6 +89,7 @@ int main( int nargs, char** argv ) {
   float frac_cosmic;  // fraction of cosmic tagged
   float frac_nu;      // fraction of neutrino pixels tagged
   float frac_vertex;  // fraction of vertex pixels tagged
+  float fpos[3];
   int run, subrun, event;
   tree->Branch("run",&run,"run/I");
   tree->Branch("subrun",&subrun,"subrun/I");
@@ -106,6 +107,7 @@ int main( int nargs, char** argv ) {
 	tree->Branch("frac_cosmic",&frac_cosmic,"frac_cosmic/F");
   tree->Branch("frac_nu",&frac_nu,"frac_nu/F");
   tree->Branch("frac_vertex",&frac_vertex,"frac_vertex/F");
+  tree->Branch("pos",fpos,"pos[3]/F");
 
   int nentries = dataco_stopmu.get_nentries("larcv");
 
@@ -141,6 +143,7 @@ int main( int nargs, char** argv ) {
   	frac_cosmic = 0.;
   	frac_vertex = 0.;
   	frac_nu = 0.;
+  	fpos[0] = fpos[1] = fpos[2] = 0.;
 
   	// ok now to do damage
 
@@ -167,15 +170,15 @@ int main( int nargs, char** argv ) {
 	  current = neutrino.CCNC();
 	  EnuGeV = neutrino.Nu().Momentum(0).E();
     const TLorentzVector& nu_pos = neutrino.Nu().Position();
-    std::vector<float> fpos(3);
+    std::vector<float> fpos_v(3);
     std::vector<double> dpos(3);
-    fpos[0] = nu_pos.X();
-    fpos[1] = nu_pos.Y();
-    fpos[2] = nu_pos.Z();
+    fpos_v[0] = nu_pos.X();
+    fpos_v[1] = nu_pos.Y();
+    fpos_v[2] = nu_pos.Z();
     dpos[0] = nu_pos.X();
     dpos[1] = nu_pos.Y();
     dpos[2] = nu_pos.Z();
-    fdwall = dwall(fpos);
+    fdwall = dwall(fpos_v);
 
     // get the vertex in the pixel coordinates
     std::vector<int> wid(3,-1);
@@ -184,6 +187,7 @@ int main( int nargs, char** argv ) {
 			wid[p] = ::larutil::Geometry::GetME()->WireCoordinate( dpos, p );
 			if ( wid[p]>=0 && wid[p]<3456 )
 				vertex_col[p] = imgs_v.at(p).meta().col(wid[p]);
+			fpos[p] = fpos_v[p];
 		}
 		float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
 		float ftick = nu_pos[0]/cm_per_tick + 3200.0;
