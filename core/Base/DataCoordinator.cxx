@@ -359,16 +359,15 @@ namespace larlitecv {
 
   void DataCoordinator::get_id( int& run, int& subrun, int& event ) {
     if ( fLastDriver==std::string("larlite") ) {
-      run = larlite_io.run_id();
-      subrun = larlite_io.subrun_id();
-      event = larlite_io.event_id();
+      run    = _current_run;
+      subrun = _current_subrun;
+      event  = _current_event;
       return;
     }
     else if ( fLastDriver==std::string("larcv") ) {
-      larcv::EventBase const& ev = larcv_io.event_id();
-      run = ev.run();
-      subrun = ev.subrun();
-      event = ev.event();
+      run    = _current_run;
+      subrun = _current_subrun;
+      event  = _current_event;
       return;
     }
     std::stringstream ss;
