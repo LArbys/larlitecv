@@ -25,6 +25,7 @@
 #include "dbscan/DBSCANAlgo.h"
 
 #include "StopMuAlgoTypes.h"
+#include "StopMuTrackerConfig.h"
 
 namespace larlitecv {
 
@@ -170,14 +171,12 @@ namespace larlitecv {
 
   public:
       
-    StopMuTracker( const std::vector<larcv::Image2D>& img_v,
+    StopMuTracker( const StopMuTrackerConfig& cfg, const std::vector<larcv::Image2D>& img_v,
 		   const std::vector<larcv::Image2D>& thrumu_v,
 		   const std::vector< std::vector< const larcv::Pixel2D* > >& candidate_stopmu_points,
 		   int verbosity=0 );
     virtual ~StopMuTracker() {};
 
-    void trackStopMu(const std::vector< std::vector<int> >& start2d, const std::vector< std::vector<float> >& start_dir2d,
-		     const std::vector< float >& start_pos3d, const std::vector<float>& start_dir3d, Step3D& start_step );
     void makeProposedPos( const std::vector<float>& currentpos, const std::vector<float>& currentdir, std::vector<float>& proposedpos, const float stepsize );    
     static void imagePositions( const std::vector<float>& currentpos, int& tick, std::vector<int>& wid );
     void getClosestHitsInPlane( const int clusterid, const std::vector<int>& test_pos,
@@ -188,10 +187,6 @@ namespace larlitecv {
     std::vector<larcv::Image2D> fillSortedHit2Dlist( const larcv::ImageMeta& meta, 
 						     const std::vector< std::vector<int> >& start2d,  const std::vector< std::vector<float> >& start_dir2d,
 						     std::vector<Hit2DList>& hitlists, std::vector<int>& clusterid, const std::vector<float>& match_radius );
-    bool findNewDirection( Step3D& current_step, const larcv::ImageMeta& meta,
-			   const std::vector< std::vector< std::pair<int,double> > >& closest_pixels, const std::vector<Hit2DList>& sorted_hits,
-			   Step3D& proposed_step );
-
 
     void stopMuString(const std::vector<larcv::Image2D>& img_v, const std::vector< std::vector<int> >& start2d, const std::vector< std::vector<float> >& start_dir2d,
 		      const std::vector< float >& start_pos3d, const std::vector<float>& start_dir3d, Step3D& start_step );
@@ -202,7 +197,7 @@ namespace larlitecv {
     std::vector< dbscan::dbPoints > m_imghits;
     std::vector< dbscan::dbscanOutput > m_clusters;
     
-    
+    StopMuTrackerConfig m_config;
     int current_hit[3];
     Step3D* trackstart;
     Step3D* current;
