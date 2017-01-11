@@ -9,6 +9,7 @@
 #include "DataFormat/mctruth.h"
 #include "DataFormat/mcpart.h"
 #include "DataFormat/mctrajectory.h"
+#include "DataFormat/mctrack.h"
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
 
@@ -201,6 +202,7 @@ int main( int nargs, char** argv ) {
 
     // get other information, e.g. truth
     larlite::event_mctruth* ev_mctruth = (larlite::event_mctruth*)dataco_source.get_larlite_data(larlite::data::kMCTruth,"generator");
+    larlite::event_mctrack* ev_mctrack = (larlite::event_mctrack*)dataco_source.get_larlite_data(larlite::data::kMCTrack,"mcreco");
 
     // extract the truth quantities of interest
     const larlite::mcnu& neutrino = ev_mctruth->at(0).GetNeutrino();
@@ -240,35 +242,16 @@ int main( int nargs, char** argv ) {
     const std::vector<larlite::mcpart>& particles = ev_mctruth->at(0).GetParticles();
     bool found_lepton = false;
     int hit_nucleon_id = 2;
+    int lepton_track_id = -1;
     std::set<int> protonids;
     for ( auto  const& particle : particles ) {
     	float KE = particle.Trajectory().front().E() - particle.Mass();
 	    if ( !found_lepton && (particle.PdgCode()==13 || particle.PdgCode()==-13) ) {
 	    	// found the lepton
 	    	const larlite::mctrajectory& traj = particle.Trajectory();
-	    	const larlite::mcstep& last_step = traj.back();
-	    	const larlite::mcstep& first_step = traj.front();
-	    	std::cout << "  lepton E=" << particle.Trajectory().front().E() << " KE=" << KE
-	    		<< "  last step position: "
-	    		<< "(" << last_step.X()  << "," << last_step.Y() << "," << last_step.Z() << ")"
-	    		<< std::endl;
-	    	std::vector<float> lepton_end(3);
-	    	lepton_end[0] = last_step.X();
-	    	lepton_end[1] = last_step.Y();
-	    	lepton_end[2] = last_step.Z();
-	    	float norm = 0.;
-	    	std::vector<float> lepton_dir(3);
-	    	lepton_dir[0] = first_step.Momentum().Vect().X();
-	    	lepton_dir[1] = first_step.Momentum().Vect().Y();
-	    	lepton_dir[2] = first_step.Momentum().Vect().Z();
-	    	for (int v=0; v<3; v++) norm += lepton_dir[v]*lepton_dir[v];
-	    	norm = sqrt(norm);
-	    	for (int v=0; v<3; v++) lepton_dir[v] /= norm;
-	    	lepton_cosz = lepton_dir[2];
-	    	lepton_phiz = atan2( lepton_dir[1], lepton_dir[0] );
-
-	    	dwall_lepton = dwall( lepton_end, lepton_boundary );
+	    	std::cout << "  lepton E=" << particle.Trajectory().front().E() << " KE=" << KE << std::endl;
 	    	found_lepton = true;
+	    	lepton_track_id = particle.TrackId();
 	    }
 	    else if ( particle.PdgCode()==2212 ) {
 	    	std::cout << "  a proton. p=" << particle.Momentum(0).Vect().Mag() 
@@ -302,65 +285,107 @@ int main( int nargs, char** argv ) {
 
     }//end of particle track loop
 
+    std::cout << "lepton track id = " << lepton_track_id << std::endl;
     std::cout << "num_protons_over60mev=" << num_protons_over60mev << std::endl;
     std::cout << "primary_proton_ke=" << primary_proton_ke << std::endl;
 
+    // loop over MC tracks, find the neutrino lepton by matching vertex
+    for ( auto const& track : *ev_mctrack ) {
+    	if ( std::abs(track.PdgCode())!=13  ) continue;
+    	if ( track.size()==0 ) continue;
+    	const TLorentzVector& track_start = track.front().Position();
+    	std::vector<float> fstart(3);
+    	fstart[0] = track_start.X();
+    	fstart[1] = track_start.Y();
+    	fstart[2] = track_start.Z();
+
+    	float vert_dist = 0.;
+    	for (int v=0; v<3; v++) {
+    		float dv = fpos_v[v]-fstart[v];
+    		vert_dist += dv*dv;
+    	}
+    	vert_dist = sqrt(vert_dist);
+    	if (vert_dist>1.0) continue;
+
+    	std::cout << "matches neutrino vertex: vert_dist=" << vert_dist
+    		<< " mctrack id=" << track.TrackID() << " pdg=" << track.PdgCode() << std::endl;
+
+    	const larlite::mcstep& first_step = track.front();
+    	const larlite::mcstep& last_step  = track.back();
+    	std::vector<float> lepton_end(3);
+	    lepton_end[0] = last_step.X();
+	    lepton_end[1] = last_step.Y();
+	    lepton_end[2] = last_step.Z();
+	    std::cout << "lepton end=" << lepton_end[0] << "," << lepton_end[1] << "," << lepton_end[2] << std::endl;
+	    float norm = 0.;
+	    std::vector<float> lepton_dir(3);
+	    lepton_dir[0] = first_step.Momentum().Vect().X();
+	    lepton_dir[1] = first_step.Momentum().Vect().Y();
+	    lepton_dir[2] = first_step.Momentum().Vect().Z();
+	    for (int v=0; v<3; v++) norm += lepton_dir[v]*lepton_dir[v];
+	    	norm = sqrt(norm);
+	    for (int v=0; v<3; v++) lepton_dir[v] /= norm;
+	    	lepton_cosz = lepton_dir[2];
+	    lepton_phiz = atan2( lepton_dir[1], lepton_dir[0] );
+	    dwall_lepton = dwall( lepton_end, lepton_boundary );
+    }
+
     // count the pixels. we loop through the rows and cols
     for (size_t p=0; p<3; p++) {
-      for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
-	for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
-	  // check if this is a pixel of interest
-	  if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
+    	for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
+    		for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
+	  			// check if this is a pixel of interest
+    			if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
 
-	  bool near_vertex = false;
-	  // are we some radius from the vertex?
-	  if ( (int)row>=vertex_row-fvertex_radius && (int)row<=vertex_row+fvertex_radius
-	       && (int)col>=vertex_col[p]-fvertex_radius && (int)col<=vertex_col[p]+fvertex_radius ) {
-	    near_vertex = true;		
-	  }
+    			bool near_vertex = false;
+	  			// are we some radius from the vertex?
+    			if ( (int)row>=vertex_row-fvertex_radius && (int)row<=vertex_row+fvertex_radius
+    				&& (int)col>=vertex_col[p]-fvertex_radius && (int)col<=vertex_col[p]+fvertex_radius ) {
+    				near_vertex = true;		
+    			}
 
-	  // above threshold. is it a neutrino pixel?
-	  const larcv::Image2D& segimg = segs_v.at(p);
-	  float x = imgs_v.at(p).meta().pos_x(col);
-	  float y = imgs_v.at(p).meta().pos_y(row);
-	  bool in_seg_image = false;
-	  int seg_row = -1;
-	  int seg_col = -1;
-	  if ( x>segs_v.at(p).meta().min_x() && x<segs_v.at(p).meta().max_x()
-	       && y>segs_v.at(p).meta().min_y() && y<segs_v.at(p).meta().max_y() ) {
-	    in_seg_image = true;
-	    seg_row = segs_v.at(p).meta().row(y);
-	    seg_col = segs_v.at(p).meta().col(x);
-	  }
-	  if ( in_seg_image && segs_v.at(p).pixel(seg_row,seg_col)>0 ) {
+	 			 	// above threshold. is it a neutrino pixel?
+    			const larcv::Image2D& segimg = segs_v.at(p);
+    			float x = imgs_v.at(p).meta().pos_x(col);
+    			float y = imgs_v.at(p).meta().pos_y(row);
+    			bool in_seg_image = false;
+    			int seg_row = -1;
+    			int seg_col = -1;
+    			if ( x>segs_v.at(p).meta().min_x() && x<segs_v.at(p).meta().max_x()
+    				&& y>segs_v.at(p).meta().min_y() && y<segs_v.at(p).meta().max_y() ) {
+    				in_seg_image = true;
+    			seg_row = segs_v.at(p).meta().row(y);
+    			seg_col = segs_v.at(p).meta().col(x);
+    		}
+    		if ( in_seg_image && segs_v.at(p).pixel(seg_row,seg_col)>0 ) {
 
-	    nnu_pixels++;
-	    if (near_vertex)
-	      nvertex_pixels++;
+    			nnu_pixels++;
+    			if (near_vertex)
+    				nvertex_pixels++;
 
-	    // is it tagged?
-	    if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 )  {
-	      nnu_tagged++;
-	      if ( near_vertex )
-		nvertex_tagged++;
-	    }
-	  }
-	  else {
-	    // not a neutrino, so cosmic
-	    ncosmic_pixels++;
-	    // is it tagged?
-	    if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 ) 
-	      ncosmic_tagged++;
-	  }
-	}
-      }
+	    		// is it tagged?
+    			if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 )  {
+    				nnu_tagged++;
+    				if ( near_vertex )
+    					nvertex_tagged++;
+    			}
+    		}
+    		else {
+	   			// not a neutrino, so cosmic
+    			ncosmic_pixels++;
+	   			// is it tagged?
+    			if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 ) 
+    				ncosmic_tagged++;
+    		}
+    	}
     }
-    tree->Fill();
-
-    if ( ientry>=100 )
-      break;
   }
+  tree->Fill();
 
-  rfile->Write();
-  return 0;
+  if ( ientry>=100 )
+  	break;
+	}
+
+	rfile->Write();
+	return 0;
 };
