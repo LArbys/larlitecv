@@ -66,6 +66,8 @@ int main( int nargs, char** argv ) {
   stopmu_filter_cfg.row_tag_neighborhood = 10;
   stopmu_filter_cfg.col_tag_neighborhood = 10;
   larlitecv::StopMuFilterSpacePoints stopmu_filterpts(stopmu_filter_cfg);
+
+  larlitecv::StopMuTrackerConfig stopmu_tracker_config;
   
   // start point direction
   larlitecv::StopMuStart start_finder_algo;
@@ -139,7 +141,7 @@ int main( int nargs, char** argv ) {
     // --------------------------------------------
     // stop mu tracker
     
-    larlitecv::StopMuTracker sttracker( img_v, thrumu_v, stopmu_candidate_endpts );
+    larlitecv::StopMuTracker sttracker( stopmu_tracker_config, img_v, thrumu_v, stopmu_candidate_endpts );
     sttracker.setVerbosity(0);
 
     std::cout << " Number of candidate stop-mu start points: " << stopmu_candidate_endpts.size() << std::endl;
