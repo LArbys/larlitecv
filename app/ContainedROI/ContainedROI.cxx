@@ -1,5 +1,5 @@
 #include "ContainedROI.h"
-
+#include <array>
 namespace larlitecv {
 
 	ContainedROI::ContainedROI( const ContainedROIConfig& config ) {
@@ -102,11 +102,11 @@ namespace larlitecv {
  				const std::vector<double>& hit = clusters_info.pixels.at(idx_hit);
 
  				if ( ihit==0 ) {
- 					// first hit, we fill the extrema store
- 					for (size_t h=0; h<4; h++) {
- 						extrema_pixels[h][0] = (int)hit[0];
-	 					extrema_pixels[h][1] = (int)hit[1];
-	 				}
+				  // first hit, we fill the extrema store
+				  for (size_t h=0; h<4; h++) {
+				    extrema_pixels[h][0] = (int)hit[0];
+				    extrema_pixels[h][1] = (int)hit[1];
+				  }
  				}
  				else {
 	 				// highest/lowest in col
