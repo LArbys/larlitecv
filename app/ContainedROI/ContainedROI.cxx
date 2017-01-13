@@ -157,5 +157,58 @@ namespace larlitecv {
 
  	}
 
+ 	float ContainedROI::CalculateMatchLikelihood( const std::vector<analyzed_cluster_t>& clusters, const std::vector<larcv::Image2D>& img_v ) {
+ 		// we build a matching score based on the following quantities
+ 		// 1) charge
+ 		// 2) timing of start and end of cluster
+ 		// 3) 3D consistency 
+
+ 		int nplanes = (int)clusters.size();
+
+ 		typedef std::pair<int,int> plane_combo_t;
+
+ 		// 1) charge and end timings
+ 		std::map< plane_combo_t, float> charge_diffs;
+ 		std::map< plane_combo_t, float> start_diffs;
+	 	std::map< plane_combo_t, float> end_diffs;
+
+ 		for (int a=0; a<nplanes; a++) {
+ 			for (int b=a+1; b<nplanes; b++) {
+
+ 				const analyzed_cluster_t& cluster_a = clusters.at(a);
+ 				const analyzed_cluster_t& cluster_b = clusters.at(b); 				
+ 				const larcv::ImageMeta& meta_a = img_v.at(a).meta();
+ 				const larcv::ImageMeta& meta_b = img_v.at(b).meta();
+
+ 				// charge
+		 		float charge_diff = clusters.at(a).total_charge - clusters.at(b).total_charge;
+			  plane_combo_t q_combo(a,b);
+		 		charge_diffs.insert( std::make_pair< plane_combo_t, float >( std::move(q_combo), std::move(charge_diff) ) );
+
+		 		// end timings
+		 		plane_combo_t start_combo(a,b);
+		 		float start_diff = meta_a.pos_y(cluster_a.extrema_pts.at(3).Y()) - meta_b.pos_y(cluster_b.extrema_pts.at(3).Y());
+		 		start_diffs.insert( std::make_pair< plane_combo_t, float >(std::move(start_combo),std::move(start_diff) ) );
+
+		 		plane_combo_t end_combo(a,b);
+ 				float end_diff   = meta_a.pos_y(cluster_a.extrema_pts.at(2).Y()) - meta_b.pos_y(cluster_b.extrema_pts.at(2).Y());
+ 				end_diffs.insert(   std::make_pair< plane_combo_t, float >(std::move(end_combo),std::move(end_diff)) );
+
+ 			}
+ 		}
+
+
+ 		// 2) end timings
+
+ 		// 3) 3D consistency of extrema 
+ 		//for (int ipt=0; ipt<3; ipt++) {
+ 		//	// get wid of all three planes
+ 		//	std::vector<int> wid(3,0);
+ 		//	wid[p] = cluster_
+ 		//}
+
+
+ 	}
+
 
 }

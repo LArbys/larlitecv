@@ -51,6 +51,7 @@ namespace larlitecv {
     // Supporting Methods
 		larcv::Image2D CollectedUntaggedPixels( const larcv::Image2D& img, const larcv::Image2D& thrumu, const larcv::Image2D& stopmu);
 		std::vector< analyzed_cluster_t > AnalyzeClusters( const untagged_cluster_info_t& clusters_info, const larcv::Image2D& img );
+		float CalculateMatchLikelihood( const std::vector<analyzed_cluster_t>& clusters, const std::vector<larcv::Image2D>& meta );
     
   };
 
