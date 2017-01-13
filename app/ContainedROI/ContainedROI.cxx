@@ -9,7 +9,7 @@ namespace larlitecv {
 
  	std::vector<larcv::ROI> ContainedROI::SelectROIs( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v,
     	const std::vector<larcv::Image2D>& stopmu_v, const std::vector<larcv::Image2D>& badch_v, 
-    	const larlite::event_opflash& opflash_v ) {
+    	const std::vector<larlite::event_opflash*>& opflashes_v ) {
 
  		// goal is to return ROIs around contained clusters that will serve as potential neutrino candidates
 
@@ -32,14 +32,37 @@ namespace larlitecv {
  		std::vector<untagged_cluster_info_t> untagged_cluster_info_v;
  		for (size_t p=0; p<untagged_v.size(); p++) {
  			untagged_cluster_info_t plane_cluster;
- 			plane_cluster.pixels = dbscan::extractPointsFromImage( untagged_v.at(p), m_config.pixel_threshold );
+ 			plane_cluster.pixels = dbscan::extractPointsFromImage( untagged_v.at(p), 0.5 );
  			dbscan::DBSCANAlgo algo;
  			plane_cluster.output = algo.scan( plane_cluster.pixels, 5, 10.0 );
+ 			std::cout << "plane " << p << " has " << plane_cluster.output.clusters.size() << std::endl;
  			untagged_cluster_info_v.emplace_back( std::move(plane_cluster) );
  		}
 
  		// with the clusters in hand (or in vector), we filter out the clusters we find interesting and locate extrema points.
  		// the extrema points serve as key points to use to try and match the cluster across planes
+ 		std::vector< std::vector<analyzed_cluster_t> > analyzed_clusters;
+ 		for (size_t p=0; p<untagged_v.size(); p++) {
+			std::vector< ContainedROI::analyzed_cluster_t > plane_clusters = AnalyzeClusters( untagged_cluster_info_v.at(p), img_v.at(p) );
+			std::cout << "plane " << p << " has " << plane_clusters.size() << " untagged clusters." << std::endl;
+			const larcv::ImageMeta& meta = untagged_v.at(p).meta();
+			for ( size_t icluster=0; icluster<plane_clusters.size(); icluster++ ) {
+				const analyzed_cluster_t& cluster = plane_clusters.at(icluster);
+				std::cout << " cluster #" << icluster << " index=" << cluster.cluster_idx
+					<< " num hits=" << untagged_cluster_info_v.at(p).output.clusters.at(cluster.cluster_idx).size()
+					<< " charge=" << cluster.total_charge
+				  << " mean pixel=(" << cluster.mean[0] << "," << cluster.mean[1] << ") "
+				  << " largest col=("  << cluster.extrema_pts.at(0).X() << "," << meta.pos_y(cluster.extrema_pts.at(0).Y()) << ") "
+					<< " smallest col=(" << cluster.extrema_pts.at(1).X() << "," << meta.pos_y(cluster.extrema_pts.at(1).Y()) << ") "
+				  << " largest row=("  << cluster.extrema_pts.at(2).X() << "," << meta.pos_y(cluster.extrema_pts.at(2).Y()) << ") "
+				  << " smallest row=(" << cluster.extrema_pts.at(3).X() << "," << meta.pos_y(cluster.extrema_pts.at(3).Y()) << ") "
+				  << std::endl;
+			}
+			analyzed_clusters.emplace_back( std::move(plane_clusters) );
+		}
+
+		std::vector<larcv::ROI> out;
+		return out;
 
  	}
 
@@ -51,7 +74,7 @@ namespace larlitecv {
 
  		for (size_t r=0; r<meta.rows(); r++) {
  			for (size_t c=0; c<meta.cols(); c++) {
- 				if ( img.pixel(r,c) > m_config.pixel_threshold && (thrumu.pixel(r,c)==0 && stopmu.pixel(r,c)==0 ) ) {
+ 				if ( img.pixel(r,c) > m_config.pixel_threshold && (thrumu.pixel(r,c)<0.5 && stopmu.pixel(r,c)<0.5 ) ) {
  					untagged.set_pixel(r,c,1);
  				}
  			}
@@ -60,7 +83,7 @@ namespace larlitecv {
  		return untagged;
  	}
 
- 	std::vector< ContainedROI::analyzed_cluster_t > ContainedROI::AnalyzeClusters( const untagged_cluster_info_t& clusters_info ) {
+ 	std::vector< ContainedROI::analyzed_cluster_t > ContainedROI::AnalyzeClusters( const untagged_cluster_info_t& clusters_info, const larcv::Image2D& img ) {
 
  		std::vector< ContainedROI::analyzed_cluster_t > interesting_clusters;
 
@@ -73,6 +96,7 @@ namespace larlitecv {
  			// we scan the hits, defining he extrema in row and column
  			std::vector< std::array<int,2> > extrema_pixels(4); // { highest in col, lowest in col, highest in row lowest in row }
  			std::vector< float > pixel_means(2,0.0); // mean in {col,row} dimensions
+ 			float total_charge = 0.;
  			for (size_t ihit=0; ihit<cluster.size(); ihit++ ) {
  				int idx_hit = cluster.at(ihit);
  				const std::vector<double>& hit = clusters_info.pixels.at(idx_hit);
@@ -108,6 +132,9 @@ namespace larlitecv {
 				// find average of col and row
 				for (size_t v=0; v<2; v++)
 					pixel_means[v] += (float)hit[v];
+
+				// total the charge
+				total_charge += img.pixel( (int)hit[1], (int)hit[0] );
  			}
 
  			// fill the output
@@ -117,6 +144,7 @@ namespace larlitecv {
  			analyzed_cluster_t ana_cluster;
  			ana_cluster.cluster_idx = idx_cluster;
  			ana_cluster.mean = pixel_means;
+ 			ana_cluster.total_charge = total_charge;
  			for (size_t h=0; h<4; h++) {
 				larcv::Pixel2D pix(extrema_pixels[h][0],extrema_pixels[h][1]);
 				ana_cluster.extrema_pts.emplace_back( std::move(pix) );

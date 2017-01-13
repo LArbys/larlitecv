@@ -1,10 +1,24 @@
 #include <iostream>
 #include <string>
+#include <vector>
 
-#include "Base/DataCoordinator.h"
-
+// larcv
+#include "DataFormat/ROI.h"
+#include "DataFormat/Image2D.h"
+#include "DataFormat/EventImage2D.h"
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
+
+// larlite
+#include "DataFormat/opflash.h"
+#include "DataFormat/chstatus.h"
+
+// larlitecv
+#include "Base/DataCoordinator.h"
+#include "ThruMu/EmptyChannelAlgo.h"
+#include "ContainedROIConfig.h"
+#include "ContainedROI.h"
+
 
 int main( int nargs, char** argv ) {
 
@@ -39,12 +53,61 @@ int main( int nargs, char** argv ) {
   std::cout << "data[stopmu] entries=" << dataco_stopmu.get_nentries("larcv") << std::endl;
 
   // configuration parameters
-  larcv::PSet cfg = larcv::CreatePSetFromFile( "config.cfg" );
-  larcv::PSet pixana_cfg = cfg.get<larcv::PSet>("PixelAnalysis");
-  float fthreshold   = pixana_cfg.get<float>("PixelThreshold");
-  int fvertex_radius = pixana_cfg.get<int>("PixelRadius");
-  int verbosity      = pixana_cfg.get<int>("Verbosity",0);
+  larcv::PSet cfg = larcv::CreatePSetFromFile( "containedroi.cfg" );
+  larcv::PSet pset = cfg.get<larcv::PSet>("ContainedROI");
+  larcv::PSet contained_pset = pset.get<larcv::PSet>("ContainedROIConfig");
+  std::vector<std::string> flashproducers = pset.get< std::vector<std::string> >("OpFlashProducers");
 
+  larlitecv::ContainedROIConfig contained_cfg = larlitecv::CreateContainedROIConfig( contained_pset );
+
+  // contained ROI selection algorithm
+  larlitecv::ContainedROI algo( contained_cfg );
+
+  // event loop
+
+  int nentries = dataco_stopmu.get_nentries("larcv");
+  int start_entry = 2;
+  int end_entry = nentries;
+
+  for ( int ientry=start_entry; ientry<end_entry; ientry++ ) {
+
+  	// load same event in all three data sets
+  	dataco_stopmu.goto_entry(ientry,"larcv");
+  	int run,subrun,event;
+  	dataco_stopmu.get_id(run,subrun,event);
+	  std::cout << "entry " << ientry << std::endl;
+    std::cout << " (r,s,e)=(" << run << ", " << subrun << ", " << event << ")" << std::endl;
+    dataco_thrumu.goto_event(run,subrun,event,"larcv");
+    dataco_source.goto_event(run,subrun,event,"larcv");
+
+  	// get images
+  	larcv::EventImage2D* ev_imgs   = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"modimgs");
+    larcv::EventImage2D* ev_thrumu = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"marked3d");
+    larcv::EventImage2D* ev_stopmu = (larcv::EventImage2D*)dataco_stopmu.get_larcv_data(larcv::kProductImage2D,"stopmu");  	
+
+    const std::vector<larcv::Image2D>& imgs_v   = ev_imgs->Image2DArray();
+    const std::vector<larcv::Image2D>& thrumu_v = ev_thrumu->Image2DArray();
+    const std::vector<larcv::Image2D>& stopmu_v = ev_stopmu->Image2DArray();
+
+    // use larlite chstatus to get badch
+    larlite::event_chstatus* ev_status = (larlite::event_chstatus*)dataco_source.get_larlite_data( larlite::data::kChStatus, "chstatus" );
+    larlitecv::EmptyChannelAlgo emptyalgo;
+    std::cout << "ch status planes: " << ev_status->size() << std::endl;
+    std::vector< larcv::Image2D > badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+    std::cout << "number of bad ch imgs: " << badch_v.size() << std::endl;
+
+    // larlite opflash data
+		std::vector< larlite::event_opflash* > opflash_containers;
+    for ( auto &flashproducer : flashproducers ) {
+      larlite::event_opflash* opdata = (larlite::event_opflash*)dataco_source.get_larlite_data(larlite::data::kOpFlash, flashproducer );
+      std::cout << "search for flash hits from " << flashproducer << ": " << opdata->size() << " flashes" << std::endl;
+      opflash_containers.push_back( opdata );
+    }
+
+    std::vector<larcv::ROI> untagged_rois = algo.SelectROIs( imgs_v, thrumu_v, stopmu_v, badch_v, opflash_containers );
+
+    break;
+	}//end of event loop
 
 	return 0;
 }

@@ -16,17 +16,11 @@
 // larlite
 #include "DataFormat/opflash.h"
 
+// larlitecv
+#include "ContainedROIConfig.h"
+
 namespace larlitecv {
 
-	class ContainedROIConfig {
-	public:
-		ContainedROIConfig() {};
-		virtual ~ContainedROIConfig() {};
-
-		float pixel_threshold;
-		int min_cluster_size;
-
-	};
 
   class ContainedROI {
   public:
@@ -45,17 +39,18 @@ namespace larlitecv {
     	int cluster_idx;
     	std::vector< larcv::Pixel2D > extrema_pts;
     	std::vector<float> mean;
+    	float total_charge;
     };
 
     // Primary Method
     std::vector<larcv::ROI> SelectROIs( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v,
     	const std::vector<larcv::Image2D>& stopmu_v, const std::vector<larcv::Image2D>& badch_v, 
-    	const larlite::event_opflash& opflash_v );
+    	const std::vector<larlite::event_opflash*>& opflashes_v );
 
 
     // Supporting Methods
 		larcv::Image2D CollectedUntaggedPixels( const larcv::Image2D& img, const larcv::Image2D& thrumu, const larcv::Image2D& stopmu);
-		std::vector< analyzed_cluster_t > AnalyzeClusters( const untagged_cluster_info_t& clusters_info );
+		std::vector< analyzed_cluster_t > AnalyzeClusters( const untagged_cluster_info_t& clusters_info, const larcv::Image2D& img );
     
   };
 
