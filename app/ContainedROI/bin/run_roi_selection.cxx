@@ -26,9 +26,9 @@ int main( int nargs, char** argv ) {
   dataco_stopmu.add_inputfile( data_folder+"/output_stopmu_larcv_p1.root", "larcv" ); //stopmu-tagger output
 
 
-  dataco_source.configure( "config.cfg", "StorageManager", "IOManager", "ContainedROI" );
-  dataco_thrumu.configure( "config.cfg", "StorageManager", "IOManager", "ContainedROI" );
-  dataco_stopmu.configure( "config.cfg", "StorageManager", "IOManager", "ContainedROI" );
+  dataco_source.configure( "containedroi.cfg", "StorageManager", "IOManager", "ContainedROI" );
+  dataco_thrumu.configure( "containedroi.cfg", "StorageManager", "IOManager", "ContainedROI" );
+  dataco_stopmu.configure( "containedroi.cfg", "StorageManager", "IOManager", "ContainedROI" );
 
   dataco_source.initialize();
   dataco_thrumu.initialize();
