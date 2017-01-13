@@ -1,5 +1,8 @@
 #include "ContainedROI.h"
 #include <array>
+// larcv
+#include "UBWireTool/UBWireTool.h"
+
 namespace larlitecv {
 
 	ContainedROI::ContainedROI( const ContainedROIConfig& config ) {
@@ -182,6 +185,8 @@ namespace larlitecv {
 
  				// charge
 		 		float charge_diff = clusters.at(a).total_charge - clusters.at(b).total_charge;
+		 		float ave_charge = 0.5*(clusters.at(a).total_charge + clusters.at(b).total_charge);
+		 		charge_diff /= ave_charge; // needs to be with respect to total charge
 			  plane_combo_t q_combo(a,b);
 		 		charge_diffs.insert( std::make_pair< plane_combo_t, float >( std::move(q_combo), std::move(charge_diff) ) );
 
@@ -197,17 +202,46 @@ namespace larlitecv {
  			}
  		}
 
-
- 		// 2) end timings
-
  		// 3) 3D consistency of extrema 
- 		//for (int ipt=0; ipt<3; ipt++) {
- 		//	// get wid of all three planes
- 		//	std::vector<int> wid(3,0);
- 		//	wid[p] = cluster_
- 		//}
+ 		std::vector<float> extrema_triarea(4,1.0e6);
+ 		for (int ipt=0; ipt<4; ipt++) {
+ 			// get wid of all three planes
+ 			std::vector<int> wid(3,0);
+ 			for (int p=0; p<nplanes; p++) {
+	 			wid[p] = img_v.at(p).meta().pos_x( clusters.at(p).extrema_pts.at(ipt).X() );
+	 		}
+	 		double triarea = 0;
+	 		int crosses = 0;
+	 		std::vector<float> intersection_yz;
+	 		larcv::UBWireTool::wireIntersection( wid, intersection_yz, triarea, crosses );
+	 		if ( crosses==1 ) {
+	 			extrema_triarea[ipt] = triarea;
+	 		}
+ 		}
 
+ 		// calculate the likelihood 
+ 		float likelihood = 0.;
+ 		for ( auto& it_charge_diff : charge_diffs ) {
+ 			float cdiff = it_charge_diff.second/m_config.charge_diff_sigma;
+ 			likelihood += m_config.charge_diff_weight*0.5*cdiff*cdiff;
+ 		}
 
+ 		for ( auto& it_start_diff : start_diffs ) {
+ 			float sdiff = it_start_diff.second/m_config.time_boundary_diff_sigma;
+ 			likelihood += m_config.time_boundary_diff_weight*0.5*sdiff*sdiff;
+ 		}
+
+ 		for ( auto& it_end_diff : end_diffs ) {
+ 			float ediff = it_end_diff.second/m_config.time_boundary_diff_sigma;
+ 			likelihood += m_config.time_boundary_diff_weight*0.5*ediff*ediff;
+ 		}
+
+ 		for ( auto& triarea : extrema_triarea ) {
+ 			float tdiff = triarea/m_config.triarea_sigma;
+ 			likelihood += m_config.triarea_weight*0.5*tdiff*tdiff;
+ 		}
+
+ 		return likelihood;
  	}
 
 

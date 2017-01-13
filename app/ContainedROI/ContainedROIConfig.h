@@ -13,6 +13,13 @@ namespace larlitecv {
 
 		float pixel_threshold;
 		int min_cluster_size;
+		std::vector<float> min_cluster_plane_charge;
+		float charge_diff_sigma;
+		float charge_diff_weight;
+		float time_boundary_diff_sigma;
+		float time_boundary_diff_weight;
+		float triarea_sigma;
+		float triarea_weight;
 
 		void setDefaults();
 
