@@ -2,6 +2,9 @@
 #include <sstream>
 #include <exception>
 
+// ROOT
+#include "TVector3.h"
+
 // config/storage
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
@@ -16,12 +19,14 @@
 // larlite
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
+#include "DataFormat/track.h"
 
 // larcv data
 #include "DataFormat/EventImage2D.h"
 #include "DataFormat/EventPixel2D.h"
 #include "DataFormat/EventChStatus.h"
 #include "DataFormat/EventROI.h"
+#include "DataFormat/Pixel2DCluster.h"
 #include "CVUtil/CVUtil.h"
 
 // larlitecv
@@ -36,7 +41,6 @@
 
 
 int main( int nargs, char** argv ) {
-
   std::cout << "Test the stop mu tracker." << std::endl;
 
   // config file
@@ -75,7 +79,6 @@ int main( int nargs, char** argv ) {
 
   larlitecv::StopMuTrackerConfig stopmu_tracker_config;
 
-  
   // start point direction
   larlitecv::StopMuStart start_finder_algo;
   start_finder_algo.setVerbose(1);
@@ -143,14 +146,18 @@ int main( int nargs, char** argv ) {
     // --------------------------------------------
     // Output Data objects
   
-    // output stopmu-tagged pixels
+    // output: stopmu-tagged pixels
     std::vector<larcv::Image2D> stopmu_v;
     for (size_t p=0; p<img_v.size(); p++) {
       larcv::Image2D stopmu_img( img_v.at(p).meta() );
       stopmu_img.paint(0);
       stopmu_v.emplace_back( std::move(stopmu_img) );
     }
-    
+    // output: pixel clusters for eah stopmu track
+    larcv::EventPixel2D* ev_stopmu_pixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "stopmupixels" );
+    // output: 3D trajectory points from stopmu tracker
+    larlite::event_track* ev_stopmu_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "stopmutracks" );
+
     // --------------------------------------------
     // Algo Prep
     std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpts = stopmu_filterpts.filterSpacePoints( ev_pixs, thrumu_v, badch_v );
@@ -170,22 +177,22 @@ int main( int nargs, char** argv ) {
       
       // and label thru-mu pixels
       for (int r=0; r<img_v.at(p).meta().rows(); r++) {
-	for (int c=0; c<img_v.at(p).meta().cols(); c++) {
-	  if ( thrumu_v.at(p).pixel(r,c)>0 ) {
-	    imgmat.at< cv::Vec3b >( cv::Point(c,r) )[0] = (unsigned char)200;
-	    imgmat.at< cv::Vec3b >( cv::Point(c,r) )[1] = (unsigned char)0;
-	    imgmat.at< cv::Vec3b >( cv::Point(c,r) )[2] = (unsigned char)0;
-	  }
-	}
-      }
+	     for (int c=0; c<img_v.at(p).meta().cols(); c++) {
+	       if ( thrumu_v.at(p).pixel(r,c)>0 ) {
+	         imgmat.at< cv::Vec3b >( cv::Point(c,r) )[0] = (unsigned char)200;
+	         imgmat.at< cv::Vec3b >( cv::Point(c,r) )[1] = (unsigned char)0;
+	         imgmat.at< cv::Vec3b >( cv::Point(c,r) )[2] = (unsigned char)0;
+	       }
+	     }
+      } 
 
       // draw interaction BBox
       if (rois->ROIArray().size()>0 && p<(int)rois->ROIArray().at(0).BB().size() && p<(int)img_v.size() ) {
-	larcv::draw_bb( imgmat, img_v.at(p).meta(), rois->ROIArray().at(0).BB().at(p), 0, 200, 0, 1 );
+	     larcv::draw_bb( imgmat, img_v.at(p).meta(), rois->ROIArray().at(0).BB().at(p), 0, 200, 0, 1 );
       }
       
       cvimgs_v.emplace_back( std::move(imgmat) );
-    }
+    }//end of loop over planes
 
     bool run_tracker = true;
     if ( stopmu_candidate_endpts.size()>stopmu_cfg.get<int>("StopMuEndPointLimits") ) {
@@ -203,14 +210,14 @@ int main( int nargs, char** argv ) {
       // make starting point object
       std::vector<larcv::Pixel2D> start;
       for (size_t p=0; p<pix_v.size(); p++) {
-	larcv::Pixel2D pix( *pix_v.at(p) );
-	start.emplace_back( pix );
+	     larcv::Pixel2D pix( *pix_v.at(p) );
+	     start.emplace_back( pix );
       }
 
       std::cout << "Pixel position in plane views: tick=" << img_v.at(0).meta().pos_y( start.at(0).Y() ) 
-		<< " wids=(" << img_v.at(0).meta().pos_x( start.at(0).X() ) << ","
-		<< img_v.at(1).meta().pos_x(start.at(1).X() ) << ","
-		<< img_v.at(2).meta().pos_x(start.at(2).X() ) << ")" << std::endl;
+		    << " wids=(" << img_v.at(0).meta().pos_x( start.at(0).X() ) << ","
+		    << img_v.at(1).meta().pos_x(start.at(1).X() ) << ","
+		    << img_v.at(2).meta().pos_x(start.at(2).X() ) << ")" << std::endl;
 
       
       // starting dir and position
@@ -219,34 +226,34 @@ int main( int nargs, char** argv ) {
       std::vector< std::vector<float> > start_dir2d;
       std::vector<float> start_dir3d;
       try {
-	start_finder_algo.getStartDirectionV( img_v, badch_v, start, rneighbor, cneighbor, fThreshold, start_spacepoint, start_dir2d, start_dir3d );
+	     start_finder_algo.getStartDirectionV( img_v, badch_v, start, rneighbor, cneighbor, fThreshold, start_spacepoint, start_dir2d, start_dir3d );
       }
       catch (const std::exception& e) {
-	std::cout << "candidate ipixel=" << ipix << " doesn't return a good start direction. error: " << e.what() << std::endl;
-	for (int p=0; p<3; p++) {
-	  cv::Mat imgmat = cvimgs_v.at(p);
-	  // draw the start position
-	  cv::circle(imgmat,cv::Point(start.at(p).X(),start.at(p).Y()), 5, cv::Scalar(0,255,0),-1);//
-	}
-	ipix++;
-	continue;
-      }
+	     std::cout << "candidate ipixel=" << ipix << " doesn't return a good start direction. error: " << e.what() << std::endl;
+	     for (int p=0; p<3; p++) {
+	       cv::Mat imgmat = cvimgs_v.at(p);
+	       // draw the start position
+	       cv::circle(imgmat,cv::Point(start.at(p).X(),start.at(p).Y()), 5, cv::Scalar(0,255,0),-1);//
+	     }
+	     ipix++;
+	     continue;
+      }//end of catch
 
       std::cout << "3D position=(" << start_spacepoint[0] << "," << start_spacepoint[1] << "," << start_spacepoint[2] << ") " << std::endl;
       std::cout << "3D direction=(" << start_dir3d[0] << "," << start_dir3d[1] << ","<< start_dir3d[2] << ")" << std::endl;
       std::cout << "Plane directions: "
-		<< " p0=(" << start_dir2d.at(0)[0] << "," << start_dir2d.at(0)[1] << ") "
-		<< " p1=(" << start_dir2d.at(1)[0] << "," << start_dir2d.at(1)[1] << ") "
-		<< " p2=(" << start_dir2d.at(2)[0] << "," << start_dir2d.at(2)[1] << ") " 
-		<< std::endl;
+		    << " p0=(" << start_dir2d.at(0)[0] << "," << start_dir2d.at(0)[1] << ") "
+		    << " p1=(" << start_dir2d.at(1)[0] << "," << start_dir2d.at(1)[1] << ") "
+		    << " p2=(" << start_dir2d.at(2)[0] << "," << start_dir2d.at(2)[1] << ") " 
+		    << std::endl;
       
       // translate start point into simpler object
       std::vector< std::vector<int> > start2d_pos;
       for (int p=0; p<3; p++) {
-	std::vector<int> pos(2);
-	pos[0] = start.at(p).X();
-	pos[1] = start.at(p).Y();
-	start2d_pos.emplace_back( pos );
+        std::vector<int> pos(2);
+        pos[0] = start.at(p).X();
+        pos[1] = start.at(p).Y();
+        start2d_pos.emplace_back( pos );
       }
 
       std::cout << "--- use start point to track stop-mu  ---" << std::endl;
@@ -255,31 +262,30 @@ int main( int nargs, char** argv ) {
       enum { ok=0, unknown, clustererror };
       int tracker_err = ok;
       if ( run_tracker ) {
-
-	try {
-	  sttracker.stopMuString( img_v, start2d_pos, start_dir2d, start_spacepoint, start_dir3d, start_track );
-	  tracked = true;
-	  tracker_err = ok;
-	}
-	catch (const std::exception& e) {
-	  std::cout << "went pear shaped. error: " << e.what() << std::endl;
-	  tracked = false;
-	  tracker_err = unknown;
-	  if ( e.what()==std::string("no cluster error") )
-	    tracker_err = clustererror;
-	}
+        try {
+          sttracker.stopMuString( img_v, start2d_pos, start_dir2d, start_spacepoint, start_dir3d, start_track );
+          tracked = true;
+          tracker_err = ok;
+        }
+        catch (const std::exception& e) {
+          std::cout << "went pear shaped. error: " << e.what() << std::endl;
+          tracked = false;
+          tracker_err = unknown;
+          if ( e.what()==std::string("no cluster error") )
+            tracker_err = clustererror;
+        }
       }
       
       // add dot information to cv image
       for (int p=0; p<3; p++) {
-	cv::Mat imgmat = cvimgs_v.at(p);
-	// draw the start position
-	cv::Scalar dotcolor(255,0,255);
-	if ( tracker_err==unknown )
-	  dotcolor = cv::Scalar(0,200,0);
-	else if (tracker_err==clustererror)
-	  dotcolor = cv::Scalar(200,200,0);
-	cv::circle(imgmat,cv::Point(start.at(p).X(),start.at(p).Y()), 5, dotcolor,-1);//
+        cv::Mat imgmat = cvimgs_v.at(p);
+        // draw the start position
+        cv::Scalar dotcolor(255,0,255);
+        if ( tracker_err==unknown )
+          dotcolor = cv::Scalar(0,200,0);
+        else if (tracker_err==clustererror)
+          dotcolor = cv::Scalar(200,200,0);
+        cv::circle(imgmat,cv::Point(start.at(p).X(),start.at(p).Y()), 5, dotcolor,-1);//
       }
       
       // tag stopmu pixels
@@ -287,60 +293,89 @@ int main( int nargs, char** argv ) {
       //const larcv::Image2D& img = img_v.at(p);
       //larcv::Image2D& stopmu = stopmu_v.at(p);
       //}
+
+      // [ loop through track, tag stopmu image with pixels, save 2D clusters ]
       
       int nsteps = 0;
       int non_3plane_steps = 0;
       larlitecv::Step3D* current_step = &start_track;
+      std::vector< larcv::Pixel2DCluster > stopmu_cluster(img_v.size()); // cluster on all three planes
+      larlite::track larlite_track;
+      //TVector3 vec( point3d[0], point3d[1], point3d[2] );
+      //lltrack.add_vertex( vec ); 
+      // add first step point
+      if ( !current_step->isEnd() && current_step->planepositions.size()!=3 ) {
+        TVector3 first_steppt( current_step->pos[0], current_step->pos[1], current_step->pos[2] );
+        TVector3 first_dirpt( current_step->dir[0], current_step->dir[1], current_step->dir[2] );
+        larlite_track.add_vertex( first_steppt );
+        larlite_track.add_direction( first_dirpt );
+      }
+
       do { 
-	//std::cout << " nstep=" << nsteps << " addr=" << current_step << std::endl;
-	if ( current_step->planepositions.size()!=3 ) {
-	  // why?
-	  non_3plane_steps++;
-	  nsteps++;
-	  if ( !current_step->isEnd() )
-	    current_step = &(current_step->GetNext());
-	  continue;
-	}
+        //std::cout << " nstep=" << nsteps << " addr=" << current_step << std::endl;
+        if ( current_step->planepositions.size()!=3 ) {
+          // why?
+          non_3plane_steps++;
+          nsteps++;
+          if ( !current_step->isEnd() )
+            current_step = &(current_step->GetNext());
+          continue;
+        }
+        // label track in opencv image
+        for (int p=0; p<3; p++) {
+          // mark up opencv image
+          cv::Mat& cvimg = cvimgs_v.at(p);
+          cv::circle( cvimg, cv::Point(current_step->planepositions.at(p)[0], current_step->planepositions.at(p)[1]), 1, cv::Scalar(0,0,200), -1 );
 
-	// label track in opencv image
-	for (int p=0; p<3; p++) {
-	  cv::Mat& cvimg = cvimgs_v.at(p);
-	  cv::circle( cvimg, cv::Point(current_step->planepositions.at(p)[0], current_step->planepositions.at(p)[1]), 1, cv::Scalar(0,0,200), -1 );
+          // save pixels (if within bounds)
+          const larcv::ImageMeta& meta = img_v.at(p).meta();
+          int col = current_step->planepositions.at(p)[0];
+          int row = current_step->planepositions.at(p)[1];
+          if ( col>=0 && col<meta.cols() && row>=0 && row<meta.rows() ) {
+            larcv::Pixel2D pixel( col, row );
+            pixel.Intensity( img_v.at(p).pixel( row, col ) );
+            pixel.Width( 1 );
+            stopmu_cluster.at(p) += pixel;
+          }
 
-	  // label track in larcv image
-	  for (int dr=-tagged_stopmu_pixelradius; dr<=tagged_stopmu_pixelradius; dr++) {
-	    int tag_row = current_step->planepositions.at(p)[1] + dr;
-	    if ( tag_row<0 || tag_row>=img_v.at(p).meta().rows() ) continue;
-	    for (int dc=-tagged_stopmu_pixelradius; dc<=tagged_stopmu_pixelradius; dc++) {
-	      int tag_col = current_step->planepositions.at(p)[0];
-	      if ( tag_col<0 || tag_col>=img_v.at(p).meta().cols() ) continue;
-	      if ( img_v.at(p).pixel(tag_row,tag_col)>0.5*fThreshold ) {
-		stopmu_v.at(p).set_pixel(tag_row,tag_col,1);
-	      }
-	    }
-	  }
-	}//end of loop over planes to tag two types of images
-	
-	if ( !current_step->isEnd() )
-	  current_step = &(current_step->GetNext());
-	nsteps++;
+          // add step point
+          TVector3 steppt( current_step->pos[0], current_step->pos[1], current_step->pos[2] );
+          TVector3 dirpt( current_step->dir[0], current_step->dir[1], current_step->dir[2] );
+          larlite_track.add_vertex( steppt );
+          larlite_track.add_direction( dirpt );
+
+          // label track in larcv image
+          for (int dr=-tagged_stopmu_pixelradius; dr<=tagged_stopmu_pixelradius; dr++) {
+            int tag_row = row + dr;
+            if ( tag_row<0 || tag_row>=img_v.at(p).meta().rows() ) continue;
+            for (int dc=-tagged_stopmu_pixelradius; dc<=tagged_stopmu_pixelradius; dc++) {
+              int tag_col = col + dc;
+              if ( tag_col<0 || tag_col>=img_v.at(p).meta().cols() ) continue;
+              if ( img_v.at(p).pixel(tag_row,tag_col)>0.5*fThreshold ) {
+                stopmu_v.at(p).set_pixel(tag_row,tag_col,1);
+              }
+            }
+          }
+        }//end of loop over planes to tag two types of images
+
+        if ( !current_step->isEnd() )
+          current_step = &(current_step->GetNext());
+        nsteps++;
       } while ( !current_step->isEnd() );
       
       std::string status = "good";
       if ( !tracked ) status = "bad";
       std::cout << "Pixel #" << ipix << ": produced a " << status << " track with " << nsteps << " steps. (" << non_3plane_steps << " non-3 plane steps)" << std::endl;
       
-      // make/store 3D trajectory
       ipix++;
       
       // destroy linked list
       std::cout << "clean up track" << std::endl;
       while ( !current_step->isStart() ) {
-	//std::cout << " current=" << current_step << " prev=" << &(current_step->GetPrev()) << std::endl;
-	current_step = &(current_step->GetPrev());
-	current_step->removeNext();
+      //std::cout << " current=" << current_step << " prev=" << &(current_step->GetPrev()) << std::endl;
+        current_step = &(current_step->GetPrev());
+        current_step->removeNext();
       }
-
     }//end of candidate stopmu end points
 
     for (int p=0; p<3; p++) {
