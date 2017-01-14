@@ -41,22 +41,28 @@ int main( int nargs, char** argv ) {
 
   // config file
   std::string cfg_file = "stopmu.cfg";
+  // configuration parameters
+  larcv::PSet cfg = larcv::CreatePSetFromFile( cfg_file );
+  larcv::PSet stopmu_cfg = cfg.get<larcv::PSet>("StopMu");
 
+  // --------------------------------------------
+  // load data
+  std::string flist_larcv   = stopmu_cfg.get<std::string>("LArCVInputList");
+  std::string flist_larlite = stopmu_cfg.get<std::string>("LArLiteInputList");
+  
   // data coordinator: load an example data file
   larlitecv::DataCoordinator dataco;
   //dataco.add_inputfile( "output_larcv_testextbnb_001.root", "larcv" );
   //dataco.add_inputfile( "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/thrumu_testmcbnbcosmic_signalnumu.root","larcv");
-  dataco.add_inputfile( "output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" );
+  //dataco.add_inputfile( "output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" );
+  dataco.set_filelist( flist_larcv,   "larcv" );
+  dataco.set_filelist( flist_larlite, "larlite" );
   dataco.configure( cfg_file, "StorageManager", "IOManager", "StopMu" );
   dataco.initialize();
 
   // --------------------------------------------
   // Instatiate Algos
-  
-  // configuration parameters
-  larcv::PSet cfg = larcv::CreatePSetFromFile( cfg_file );
-  larcv::PSet stopmu_cfg = cfg.get<larcv::PSet>("StopMu");
-  
+    
   // filter out end points we are unlikely to be interested in: duplicates and those already used as thru-mu end points
   larlitecv::StopMuFilterSpacePointsConfig stopmu_filter_cfg;
   stopmu_filter_cfg.filter_thrumu_by_tag = true;
@@ -66,6 +72,7 @@ int main( int nargs, char** argv ) {
   stopmu_filter_cfg.row_tag_neighborhood = 10;
   stopmu_filter_cfg.col_tag_neighborhood = 10;
   larlitecv::StopMuFilterSpacePoints stopmu_filterpts(stopmu_filter_cfg);
+
   
   // start point direction
   larlitecv::StopMuStart start_finder_algo;
@@ -74,13 +81,23 @@ int main( int nargs, char** argv ) {
   int rneighbor = 10;
   int cneighbor = 10;
 
+  // tagging parameters
+  int tagged_stopmu_pixelradius = 2;
 
   int nentries = dataco.get_nentries("larcv");
-  int start_entry = 0;
-  //nentries = 1;
-
-
-  for (int ientry=start_entry; ientry<start_entry+nentries; ientry++) {
+  int user_nentries =   stopmu_cfg.get<int>("NumEntries",-1);
+  int user_startentry = stopmu_cfg.get<int>("StartEntry",-1);
+  int startentry = 0;
+  if ( user_startentry>=0 ) {
+    startentry = user_startentry;
+  }
+  int endentry = nentries;
+  if ( user_nentries>=0 ) {
+    if ( user_nentries+startentry<nentries )
+      endentry = user_nentries+startentry;
+  }
+  
+  for (int ientry=startentry; ientry<endentry; ientry++) {
 
     std::cout << "=====================================================" << std::endl;
     std::cout << "--------------------" << std::endl;
@@ -161,7 +178,9 @@ int main( int nargs, char** argv ) {
       }
 
       // draw interaction BBox
-      larcv::draw_bb( imgmat, img_v.at(p).meta(), rois->ROIArray().at(0).BB().at(p), 0, 200, 0, 1 );
+      if (rois->ROIArray().size()>0 && p<(int)rois->ROIArray().at(0).BB().size() && p<(int)img_v.size() ) {
+	larcv::draw_bb( imgmat, img_v.at(p).meta(), rois->ROIArray().at(0).BB().at(p), 0, 200, 0, 1 );
+      }
       
       cvimgs_v.emplace_back( std::move(imgmat) );
     }
@@ -281,11 +300,24 @@ int main( int nargs, char** argv ) {
 	  continue;
 	}
 
-	// label track
+	// label track in opencv image
 	for (int p=0; p<3; p++) {
 	  cv::Mat& cvimg = cvimgs_v.at(p);
 	  cv::circle( cvimg, cv::Point(current_step->planepositions.at(p)[0], current_step->planepositions.at(p)[1]), 1, cv::Scalar(0,0,200), -1 );
-	}
+
+	  // label track in larcv image
+	  for (int dr=-tagged_stopmu_pixelradius; dr<=tagged_stopmu_pixelradius; dr++) {
+	    int tag_row = current_step->planepositions.at(p)[1] + dr;
+	    if ( tag_row<0 || tag_row>=img_v.at(p).meta().rows() ) continue;
+	    for (int dc=-tagged_stopmu_pixelradius; dc<=tagged_stopmu_pixelradius; dc++) {
+	      int tag_col = current_step->planepositions.at(p)[0];
+	      if ( tag_col<0 || tag_col>=img_v.at(p).meta().cols() ) continue;
+	      if ( img_v.at(p).pixel(tag_row,tag_col)>0.5*fThreshold ) {
+		stopmu_v.at(p).set_pixel(tag_row,tag_col,1);
+	      }
+	    }
+	  }
+	}//end of loop over planes to tag two types of images
 	
 	if ( !current_step->isEnd() )
 	  current_step = &(current_step->GetNext());
