@@ -61,9 +61,8 @@ namespace larlitecv {
 	if ( tail!="tree") 
 	  continue;
 	size_t found1 = keyname.find("_");
-	size_t found2 = keyname.find("_",found1+1);
 	std::string dtype    = keyname.substr(0,found1);
-	std::string producer = keyname.substr(found1+1,found2-found1-1 );
+	std::string producer = keyname.substr(found1+1,foundlast-found1-1 );
 	if ( (!found_id_tree) or (found_id_tree && dtype=="partroi" )) {
 	  found_id_tree = true;
 	  idtreename = keyname;

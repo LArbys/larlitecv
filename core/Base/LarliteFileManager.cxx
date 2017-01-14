@@ -52,7 +52,7 @@ namespace larlitecv {
 	std::string keyname = rfile.GetListOfKeys()->At(ikey)->GetName();
 	if ( keyname=="larlite_id_tree" ) found_id_tree = true;
 	size_t found1 = keyname.find("_");
-	size_t found2 = keyname.find("_",found1+1);
+	size_t found2 = keyname.find_last_of("_");
 	std::string dtype    = keyname.substr(0,found1);
 	std::string producer = keyname.substr(found1+1,found2-found1-1 );
 	producers.insert( producer );
