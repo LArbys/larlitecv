@@ -18,6 +18,7 @@
 #include "ThruMu/EmptyChannelAlgo.h"
 #include "ContainedROIConfig.h"
 #include "ContainedROI.h"
+#include "FlashROIMatching.h"
 
 
 int main( int nargs, char** argv ) {
@@ -56,12 +57,15 @@ int main( int nargs, char** argv ) {
   larcv::PSet cfg = larcv::CreatePSetFromFile( "containedroi.cfg" );
   larcv::PSet pset = cfg.get<larcv::PSet>("ContainedROI");
   larcv::PSet contained_pset = pset.get<larcv::PSet>("ContainedROIConfig");
+  larcv::PSet flash_pset     = pset.get<larcv::PSet>("FlashROIMatchingConfig");
   std::vector<std::string> flashproducers = pset.get< std::vector<std::string> >("OpFlashProducers");
 
   larlitecv::ContainedROIConfig contained_cfg = larlitecv::CreateContainedROIConfig( contained_pset );
+  larlitecv::FlashROIMatchingConfig flash_cfg; // add pset interface
 
   // contained ROI selection algorithm
   larlitecv::ContainedROI algo( contained_cfg );
+  larlitecv::FlashROIMatching flash_matching( flash_cfg );
 
   // event loop
 
@@ -111,7 +115,9 @@ int main( int nargs, char** argv ) {
     }
 
     std::vector<larcv::ROI> untagged_rois = algo.SelectROIs( imgs_v, thrumu_v, stopmu_v, badch_v, opflash_containers );
+    std::vector<larcv::ROI> flash_matched_rois = flash_matching.SelectFlashConsistentROIs( untagged_rois, opflash_containers, imgs_v, thrumu_v, stopmu_v, badch_v );
 
+    break;
   }//end of event loop
 
   return 0;
