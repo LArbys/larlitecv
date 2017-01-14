@@ -20,6 +20,9 @@ namespace larlitecv {
 		float time_boundary_diff_weight;
 		float triarea_sigma;
 		float triarea_weight;
+		int max_number_rois;
+		float max_roi_likelihood;
+		float roi_likelihood_cutoff;
 
 		void setDefaults();
 

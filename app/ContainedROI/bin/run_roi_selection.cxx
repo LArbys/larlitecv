@@ -22,18 +22,18 @@
 
 int main( int nargs, char** argv ) {
 
-	std::cout << "[[ ROI SELECTION ]]" << std::endl;
+  std::cout << "[[ ROI SELECTION ]]" << std::endl;
 
-	// we need to have a data coordinator for each stage because the number of entries could be different.
-	// we'll coordinate by using event,subrun,run information
-	std::string data_folder = "~/working/data/larbys/cosmic_tagger_dev/";
+  // we need to have a data coordinator for each stage because the number of entries could be different.
+  // we'll coordinate by using event,subrun,run information
+  std::string data_folder = "~/working/data/larbys/cosmic_tagger_dev/";
 
   larlitecv::DataCoordinator dataco_source;
   dataco_source.add_inputfile( data_folder+"/output_larcv.root", "larcv" ); // segment image/original image
   dataco_source.add_inputfile( data_folder+"/output_larlite.root", "larlite"); //source larlite file
 
   larlitecv::DataCoordinator dataco_thrumu;
-	dataco_thrumu.add_inputfile( data_folder+"/output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" ); // thrumu-tagger info, larcv
+  dataco_thrumu.add_inputfile( data_folder+"/output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" ); // thrumu-tagger info, larcv
   dataco_thrumu.add_inputfile( data_folder+"/output_larlite_testmcbnbcosmic_signalnumu.root", "larlite"); //thrumu-tagged info, larlite
 
   larlitecv::DataCoordinator dataco_stopmu;
@@ -66,22 +66,27 @@ int main( int nargs, char** argv ) {
   // event loop
 
   int nentries = dataco_stopmu.get_nentries("larcv");
-  int start_entry = 2;
-  int end_entry = nentries;
+  int start_entry = 0;
+  //int end_entry = nentries;
+  int end_entry = 10;
 
   for ( int ientry=start_entry; ientry<end_entry; ientry++ ) {
 
-  	// load same event in all three data sets
-  	dataco_stopmu.goto_entry(ientry,"larcv");
-  	int run,subrun,event;
-  	dataco_stopmu.get_id(run,subrun,event);
-	  std::cout << "entry " << ientry << std::endl;
+    // load same event in all three data sets
+    dataco_stopmu.goto_entry(ientry,"larcv");
+    int run,subrun,event;
+    dataco_stopmu.get_id(run,subrun,event);
+    std::cout << "entry " << ientry << std::endl;
     std::cout << " (r,s,e)=(" << run << ", " << subrun << ", " << event << ")" << std::endl;
     dataco_thrumu.goto_event(run,subrun,event,"larcv");
     dataco_source.goto_event(run,subrun,event,"larcv");
+    algo.m_run = run;
+    algo.m_subrun = subrun;
+    algo.m_event = event;
+    algo.m_entry = ientry;
 
-  	// get images
-  	larcv::EventImage2D* ev_imgs   = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"modimgs");
+    // get images
+    larcv::EventImage2D* ev_imgs   = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"modimgs");
     larcv::EventImage2D* ev_thrumu = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"marked3d");
     larcv::EventImage2D* ev_stopmu = (larcv::EventImage2D*)dataco_stopmu.get_larcv_data(larcv::kProductImage2D,"stopmu");  	
 
@@ -97,17 +102,17 @@ int main( int nargs, char** argv ) {
     std::cout << "number of bad ch imgs: " << badch_v.size() << std::endl;
 
     // larlite opflash data
-		std::vector< larlite::event_opflash* > opflash_containers;
+    std::vector< larlite::event_opflash* > opflash_containers;
     for ( auto &flashproducer : flashproducers ) {
+      std::cout << "search for flash hits from " << flashproducer << ". ";
       larlite::event_opflash* opdata = (larlite::event_opflash*)dataco_source.get_larlite_data(larlite::data::kOpFlash, flashproducer );
-      std::cout << "search for flash hits from " << flashproducer << ": " << opdata->size() << " flashes" << std::endl;
+      std::cout << " has " << opdata->size() << " flashes" << std::endl;
       opflash_containers.push_back( opdata );
     }
 
     std::vector<larcv::ROI> untagged_rois = algo.SelectROIs( imgs_v, thrumu_v, stopmu_v, badch_v, opflash_containers );
 
-    break;
-	}//end of event loop
+  }//end of event loop
 
-	return 0;
+  return 0;
 }

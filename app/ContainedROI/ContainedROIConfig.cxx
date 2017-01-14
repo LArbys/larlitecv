@@ -12,10 +12,13 @@ namespace larlitecv {
 		time_boundary_diff_weight = 1.0;
 		triarea_sigma = 3.0;
 		triarea_weight = 0.5;
+		max_number_rois = 5;
+		max_roi_likelihood = 10000.0;
+		roi_likelihood_cutoff = 100.0;
 	}
 
 	ContainedROIConfig CreateContainedROIConfig( const larcv::PSet& ps ) {
-		
+
 		ContainedROIConfig config;
 		config.pixel_threshold   = ps.get<float>("PixelThreshold");
 		config.min_cluster_size  = ps.get<int>("MinClusterSize");
@@ -26,6 +29,9 @@ namespace larlitecv {
 		config.time_boundary_diff_weight = ps.get<float>("TimeBoundaryDiffWeight");
 		config.triarea_sigma = ps.get<float>("TriAreaSigma");
 		config.triarea_weight = ps.get<float>("TriAreaWeight");
+		config.max_number_rois = ps.get<int>("MaxNumberOfROIs");
+		config.max_roi_likelihood = ps.get<float>("MaxROIlikelihood");
+		config.roi_likelihood_cutoff = ps.get<float>("ROIlikelihoodCutoff");
 
 		return config;
 	}
