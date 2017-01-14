@@ -107,7 +107,9 @@ int main( int nargs, char** argv ) {
     pos[1] = start.at(p).Y();
     start2d_pos.emplace_back( pos );
   }
-  larlitecv::StopMuTracker sttracker( img_v, thrumu_v );
+  larlitecv::StopMuTrackerConfig config;
+  std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidates;
+  larlitecv::StopMuTracker sttracker( config, img_v, thrumu_v, stopmu_candidates );
   larlitecv::Step3D start_track;
   //sttracker.trackStopMu( start2d_pos, start_dir2d, start_spacepoint, start_dir3d, start_track );
   sttracker.stopMuString( img_v, start2d_pos, start_dir2d, start_spacepoint, start_dir3d, start_track );

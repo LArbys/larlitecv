@@ -2,9 +2,7 @@
 #define __STOP_MU_ALGO__
 
 #include <vector>
-#include <list>
 #include <array>
-#include <queue>
 
 #include "DataFormat/Image2D.h"
 #include "DataFormat/ImageMeta.h"
