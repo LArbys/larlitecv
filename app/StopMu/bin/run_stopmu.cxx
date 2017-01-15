@@ -366,6 +366,16 @@ int main( int nargs, char** argv ) {
       std::string status = "good";
       if ( !tracked ) status = "bad";
       std::cout << "Pixel #" << ipix << ": produced a " << status << " track with " << nsteps << " steps. (" << non_3plane_steps << " non-3 plane steps)" << std::endl;
+
+      if ( status=="good") {
+        // store track info
+        ev_stopmu_tracks->emplace_back( std::move(larlite_track) );
+
+        // store track cluster
+        for (size_t p=0; p<3; p++) {
+          ev_stopmu_pixels->Emplace( (larcv::PlaneID_t)p, std::move(stopmu_cluster.at(p)) );
+        }
+      }
       
       ipix++;
       
@@ -386,7 +396,6 @@ int main( int nargs, char** argv ) {
     }
     
     // store
-    
     larcv::EventImage2D* stopmu_eventimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmu" );
     stopmu_eventimgs->Emplace( std::move(stopmu_v) );
     

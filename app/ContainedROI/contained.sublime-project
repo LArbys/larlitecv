@@ -17,6 +17,11 @@
 			"follow_symlinks":true
 		},
 		{
+			"path":"/home/twongjirad/working/larbys/pylard",
+			"folder_exclude_patterns":["backup"],
+			"follow_symlinks":true
+		},
+		{
 			"path":"/home/twongjirad/data",
 			"follow_symlinks":true
 		}
