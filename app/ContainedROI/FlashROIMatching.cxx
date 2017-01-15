@@ -9,10 +9,9 @@
 #include "OpT0Finder/Base/FlashFilterFactory.h"
 #include "OpT0Finder/Base/TPCFilterFactory.h"
 #include "OpT0Finder/Base/FlashMatchFactory.h"
-#include "OpT0Finder/FlashHypothesisFactory.h"
-#include "OpT0Finder/FlashProhibitFactory.h"
-#include "OpT0Finder/CustomAlgoFactory.h"
-n
+#include "OpT0Finder/Base/FlashHypothesisFactory.h"
+#include "OpT0Finder/Base/FlashProhibitFactory.h"
+#include "OpT0Finder/Base/CustomAlgoFactory.h"
 
 namespace larlitecv {
 	
@@ -37,6 +36,8 @@ namespace larlitecv {
 		fcllite::PSet ps = fcllite::CreatePSetFromFile(fname);
 		fcllite::PSet main = ps.get<fcllite::PSet>("ContainedROI");
 		FlashROIMatchingConfig cfg(main.get<fcllite::PSet>("FlashROIMatchingConfig"));
+		//flashana::PhotonLibHypothesisFactory plfact;
+		//flashana::QLLMatchFactory qllfact;
 		return cfg;
 	}
 
@@ -164,8 +165,17 @@ namespace larlitecv {
 			}
 		}
 
+		std::cout << "Loaded " << m_flash_matcher.FlashArray().size() << " flashes "
+			<< " and " << m_flash_matcher.QClusterArray().size() << " clusters" << std::endl;
+
 		// run flash matching code
 		m_results = m_flash_matcher.Match();
+		std::cout << "Flash matching results" << std::endl;
+		for ( auto &result : m_results ) {
+			std::cout << "tpc_id=" << result.tpc_id << " flash_id="  << result.flash_id 
+				<< " score=" << result.score
+				<< std::endl;
+		}
 
 		return flash_matched_rois;
 	}
