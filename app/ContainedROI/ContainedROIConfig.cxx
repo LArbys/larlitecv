@@ -15,6 +15,7 @@ namespace larlitecv {
 		max_number_rois = 5;
 		max_roi_likelihood = 10000.0;
 		roi_likelihood_cutoff = 100.0;
+		generate_calib_info = false;
 	}
 
 	ContainedROIConfig CreateContainedROIConfig( const larcv::PSet& ps ) {
@@ -32,6 +33,7 @@ namespace larlitecv {
 		config.max_number_rois = ps.get<int>("MaxNumberOfROIs");
 		config.max_roi_likelihood = ps.get<float>("MaxROIlikelihood");
 		config.roi_likelihood_cutoff = ps.get<float>("ROIlikelihoodCutoff");
+		config.generate_calib_info = ps.get<bool>("GenerateCalibInfo",false);
 
 		return config;
 	}

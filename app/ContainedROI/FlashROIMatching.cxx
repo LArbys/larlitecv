@@ -12,18 +12,33 @@ namespace larlitecv {
 		beam_tick_range[1] = 350;
 		us_per_tick = 0.015625;
 		pmtflash_thresh = 5.0;
+		store_calib_data = true;
 	}
 
 	FlashROIMatching::FlashROIMatching( const FlashROIMatchingConfig& config)
 		: m_config(config), m_pmtweights("geoinfo.root") { 
 
+			if ( m_config.store_calib_data ) {
+				m_tree = new TTree("flashroi","Flash-ROI Matching Tree");
+				m_tree->Branch( "nuflag",     &m_nuflag,    "nuflag/I" );
+				m_tree->Branch( "tagflag",    &m_tagflag,   "tagflag/I");
+				m_tree->Branch( "totalpe",    &m_totalpe,   "totalpe/F");
+				m_tree->Branch( "flashchi2",  &m_flashchi2, "flashchi2/F");
+				m_tree->Branch( "hypothesis", m_flash_hypothesis, "hypothesis[32]/F");
+				m_tree->Branch( "measured",   m_measured,   "measured[32]/F");
+			}
+			else {
+				m_tree = NULL;
+			}
 	}
 
 
 
-	std::vector< larcv::ROI > FlashROIMatching::SelectFlashConsistentROIs( const std::vector<larcv::ROI>& rois, const std::vector<larlite::event_opflash*>& opflashes_v,
-			const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, 
-			const std::vector<larcv::Image2D>& stopmu_v, const std::vector<larcv::Image2D>& badch_v ) {
+	std::vector< larcv::ROI > FlashROIMatching::SelectFlashConsistentROIs( const std::vector<larlite::event_opflash*>& opflashes_v, 
+		const std::vector<larcv::Image2D>& img_v, 
+		const std::vector< std::vector<larcv::Pixel2DCluster> >& untagged_clusters,  const std::vector< larcv::ROI >& untagged_rois,
+		const larcv::EventPixel2D& thrumu_clusters,
+		const larcv::EventPixel2D& stopmu_clusters ) {
 
 		// the vector we will fill
 		std::vector<larcv::ROI> flash_matched_rois;
@@ -44,7 +59,24 @@ namespace larlitecv {
 		}
 
 		// filter all clusters consistent with this flash: untagged, thrumu, stopmu
-		// 
+		for ( int iflash=0; iflash<(int)beam_flashes.size(); iflash++ ) {
+			const larlite::opflash& flash = beam_flashes.at(iflash);
+			float wire_mean = wire_means.at(iflash);
+			const std::vector<float>& wire_range = wire_ranges.at(iflash);
+
+			// we check compatibility of all clusters (thrumu/stopmu/untagged)
+			// note: untagged only for now to see how we do.  but we will have to fix thrumu/stopmu that have flash-tagged ends
+			for ( auto const& untagged_roi : untagged_rois ) {
+				const larcv::ImageMeta& yplane_bb = untagged_roi.BB().at(2);
+				if ( (wire_range[0]<=yplane_bb.min_x() && yplane_bb.min_x()<=wire_range[1])
+					|| (wire_range[0]<=yplane_bb.max_x() && yplane_bb.max_x()<=wire_range[1]) ) {
+					flash_matched_rois.push_back( untagged_roi );
+					std::cout << "flash matched roi: wire-range=[" << wire_range[0] << "-" << wire_range[1] << "] " 
+						<< " y-plane roi=[" << yplane_bb.min_x() << "-" << yplane_bb.max_x() << "] "
+						<< std::endl;
+				}
+			}
+		}
 
 		// 
 

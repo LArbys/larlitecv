@@ -11,6 +11,7 @@
 #include "DataFormat/Image2D.h"
 #include "DataFormat/ROI.h"
 #include "DataFormat/Pixel2D.h"
+#include "DataFormat/Pixel2DCluster.h"
 #include "dbscan/DBSCANAlgo.h"
 
 // larlite
@@ -42,10 +43,10 @@ namespace larlitecv {
     	float total_charge;
     };
 
-    // Primary Method
+    // Primary Methods
     std::vector<larcv::ROI> SelectROIs( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v,
     	const std::vector<larcv::Image2D>& stopmu_v, const std::vector<larcv::Image2D>& badch_v, 
-    	const std::vector<larlite::event_opflash*>& opflashes_v );
+    	std::vector< std::vector<larcv::Pixel2DCluster> >& matched_pixel_clusters );
 
 
     // Supporting Methods
@@ -60,6 +61,10 @@ namespace larlitecv {
     int m_subrun;
     int m_event;
     int m_entry;
+
+    // untagged clusters on each plane. saved for others to use.
+    std::vector<untagged_cluster_info_t> m_untagged_cluster_info_v; ///< untagged pixel clusters
+
   };
  
 

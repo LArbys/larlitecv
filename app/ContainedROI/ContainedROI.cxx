@@ -21,7 +21,7 @@ namespace larlitecv {
 
  	std::vector<larcv::ROI> ContainedROI::SelectROIs( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v,
     	const std::vector<larcv::Image2D>& stopmu_v, const std::vector<larcv::Image2D>& badch_v, 
-    	const std::vector<larlite::event_opflash*>& opflashes_v ) {
+    	std::vector< std::vector<larcv::Pixel2DCluster> >& matched_pixel_clusters ) {
 
  		// goal is to return ROIs around contained clusters that will serve as potential neutrino candidates
 
@@ -41,14 +41,14 @@ namespace larlitecv {
  		}
 
  		// now we cluster the remaining hits
- 		std::vector<untagged_cluster_info_t> untagged_cluster_info_v;
+ 		m_untagged_cluster_info_v.clear();
  		for (size_t p=0; p<untagged_v.size(); p++) {
  			untagged_cluster_info_t plane_cluster;
  			plane_cluster.pixels = dbscan::extractPointsFromImage( untagged_v.at(p), 0.5 );
  			dbscan::DBSCANAlgo algo;
  			plane_cluster.output = algo.scan( plane_cluster.pixels, 5, 10.0 );
  			std::cout << "plane " << p << " has " << plane_cluster.output.clusters.size() << std::endl;
- 			untagged_cluster_info_v.emplace_back( std::move(plane_cluster) );
+ 			m_untagged_cluster_info_v.emplace_back( std::move(plane_cluster) );
  		}
 
  		std::vector< cv::Mat > cvimgs_v;
@@ -57,7 +57,7 @@ namespace larlitecv {
  		// the extrema points serve as key points to use to try and match the cluster across planes
  		std::vector< std::vector<analyzed_cluster_t> > analyzed_clusters;
  		for (size_t p=0; p<untagged_v.size(); p++) {
-			std::vector< ContainedROI::analyzed_cluster_t > plane_clusters = AnalyzeClusters( untagged_cluster_info_v.at(p), img_v.at(p) );
+			std::vector< ContainedROI::analyzed_cluster_t > plane_clusters = AnalyzeClusters( m_untagged_cluster_info_v.at(p), img_v.at(p) );
 			std::cout << "plane " << p << " has " << plane_clusters.size() << " untagged clusters." << std::endl;
 			const larcv::ImageMeta& meta = untagged_v.at(p).meta();
 
@@ -66,7 +66,7 @@ namespace larlitecv {
 			for ( size_t icluster=0; icluster<plane_clusters.size(); icluster++ ) {
 				const analyzed_cluster_t& cluster = plane_clusters.at(icluster);
 				std::cout << " cluster #" << icluster << " index=" << cluster.cluster_idx
-					<< " num hits=" << untagged_cluster_info_v.at(p).output.clusters.at(cluster.cluster_idx).size()
+					<< " num hits=" << m_untagged_cluster_info_v.at(p).output.clusters.at(cluster.cluster_idx).size()
 					<< " charge=" << cluster.total_charge
 				  << " mean pixel=(" << cluster.mean[0] << "," << cluster.mean[1] << ") "
 				  << " largest col=("  << cluster.extrema_pts.at(0).X() << "," << meta.pos_y(cluster.extrema_pts.at(0).Y()) << ") "
@@ -114,21 +114,21 @@ namespace larlitecv {
 		// evaluate and save ROIs
 		std::vector<larcv::ROI> output;
 
+		// clear pixel clusters
+		matched_pixel_clusters.clear();
+
 		int ncombos = 0;
 		std::vector< std::set<int> > used_clusters;
 		for ( auto const& combo_idx : ordered_combos ) {
 			const std::vector<analyzed_cluster_t>& combo = combinations.at(combo_idx.first);
-			std::cout << "Combo #" << ncombos 
-				<< "(" << combo.at(0).cluster_idx << "," << combo.at(1).cluster_idx << "," << combo.at(2).cluster_idx << ") "
-				<< " ll=" << combo_idx.second 
-				<< " ll(triarea)=" << combo_best_triarea[combo_idx.first]
-				<< std::endl;
+			
 
 			// acceptance conditions...			
 			// we know this will be in adequate, but we use some threshold for the likelihood
 			if ( combo_idx.second < m_config.roi_likelihood_cutoff ) {
 				// we accept, make an roi
 				larcv::ROI untagged_roi;
+				std::vector<larcv::Pixel2DCluster> matched_cluster;
 
 				for ( size_t p=0; p<3; p++ ) {
 					const larcv::ImageMeta& meta = img_v.at(p).meta();
@@ -142,10 +142,25 @@ namespace larlitecv {
 					float max_y = meta.pos_y( cluster.extrema_pts.at(3).Y() );
 					larcv::ImageMeta bb( fabs(max_x-min_x), fabs(max_y-min_y), drow, dcol, min_x, max_y, (larcv::PlaneID_t)p );
 					untagged_roi.AppendBB( bb );
+
+					larcv::Pixel2DCluster pix_cluster;
+					const dbscan::dbCluster& hitcluster = m_untagged_cluster_info_v.at(p).output.clusters.at( cluster.cluster_idx );
+					for ( auto &hitidx : hitcluster ) {
+						larcv::Pixel2D pixhit( m_untagged_cluster_info_v.at(p).pixels.at(hitidx)[0], m_untagged_cluster_info_v.at(p).pixels.at(hitidx)[1] );
+						pix_cluster += pixhit;
+					}
+					matched_cluster.emplace_back( std::move(pix_cluster) );
 				}
 
-				output.emplace_back( std::move(untagged_roi) );
+				std::cout << "Combo #" << ncombos 
+					<< "(" << combo.at(0).cluster_idx << "," << combo.at(1).cluster_idx << "," << combo.at(2).cluster_idx << ") "
+					<< " ll=" << combo_idx.second 
+					<< " ll(triarea)=" << combo_best_triarea[combo_idx.first]
+					<< " y-plane bounds=[" << untagged_roi.BB(2).min_x() << "-" << untagged_roi.BB(2).max_x() << "]"
+					<< std::endl;
 
+				output.emplace_back( std::move(untagged_roi) );
+				matched_pixel_clusters.emplace_back( std::move(matched_cluster) );
 			}
 
 			ncombos++;
@@ -162,7 +177,7 @@ namespace larlitecv {
 				ss << m_entry << "_" << m_run << "_" << m_subrun << "_" << m_event << "_";
 			}
 			ss << "p" << p << ".jpg";
-			
+
 			// add roi's
 			for ( auto &roi : output ) {
 				larcv::draw_bb( cvimgs_v.at(p), img_v.at(p).meta(), roi.BB().at(p), 0, 200, 0, 1 );
