@@ -20,12 +20,13 @@
 // larlite
 #include "DataFormat/opflash.h"
 #include "OpT0Finder/Base/FlashMatchManager.h" // SelectionTool
+#include "FhiclLite/PSet.h"
 
 namespace larlitecv {
 	
 	class FlashROIMatchingConfig {
 	public:
-			FlashROIMatchingConfig();
+			FlashROIMatchingConfig( fcllite::PSet ps_ );
 			virtual ~FlashROIMatchingConfig() {};
 
 			void setDefaults();
@@ -34,7 +35,14 @@ namespace larlitecv {
 			float us_per_tick;
 			float pmtflash_thresh;
 			bool store_calib_data;
+			std::vector<float> gain_correction;
+			float pixel_threshold;
+			float flash_front_boundary;
+			float flash_back_boundary;
+			fcllite::PSet ps;
 	};
+
+	FlashROIMatchingConfig MakeFlashROIMatchingConfigFromFile( std::string fname );
 
 	class FlashROIMatching {
 
@@ -50,15 +58,18 @@ namespace larlitecv {
 		// primary routine
 		std::vector< larcv::ROI > SelectFlashConsistentROIs( const std::vector<larlite::event_opflash*>& opflashes_v, const std::vector<larcv::Image2D>& img_v, 
 			const std::vector< std::vector<larcv::Pixel2DCluster> >& untagged_clusters, const std::vector< larcv::ROI >& untagged_rois,
-			const larcv::EventPixel2D& thrumu_clusters,
-			const larcv::EventPixel2D& stopmu_clusters );
+			larcv::EventPixel2D& thrumu_clusters,
+			larcv::EventPixel2D& stopmu_clusters );
 
 		// supporting routines
     std::vector<larlite::opflash> SelectInTimeFlashes( const std::vector<larlite::event_opflash*>& opflashes_v );
     void GetFlashCenterAndRange( const larlite::opflash& flash, float& zmean, std::vector<float>& zrange );
+    flashana::QCluster_t MakeTPCFlashObject( const larcv::Pixel2DCluster& pixels, const larcv::Image2D& img );
+    bool ClusterWithinRange( const std::vector<float>& wire_range, const larcv::Pixel2DCluster& pixels, const larcv::Image2D& img );
 
     // flash matching algorithm manager
     flashana::FlashMatchManager m_flash_matcher;
+    std::vector<flashana::FlashMatch_t> m_results;
 
     // flash match data for calibration
     TTree* m_tree;

@@ -38,7 +38,8 @@ int main( int nargs, char** argv ) {
   dataco_thrumu.add_inputfile( data_folder+"/output_larlite_testmcbnbcosmic_signalnumu.root", "larlite"); //thrumu-tagged info, larlite
 
   larlitecv::DataCoordinator dataco_stopmu;
-  dataco_stopmu.add_inputfile( data_folder+"/output_stopmu_larcv_p1.root", "larcv" ); //stopmu-tagger output
+  dataco_stopmu.add_inputfile( data_folder+"/output_stopmu_larcv.root",   "larcv" );   //stopmu-tagger output
+  dataco_stopmu.add_inputfile( data_folder+"/output_stopmu_larlite.root", "larlite" ); //stopmu-tagger output
 
 
   dataco_source.configure( "containedroi.cfg", "StorageManager", "IOManager", "ContainedROI" );
@@ -61,7 +62,7 @@ int main( int nargs, char** argv ) {
   std::vector<std::string> flashproducers = pset.get< std::vector<std::string> >("OpFlashProducers");
 
   larlitecv::ContainedROIConfig contained_cfg = larlitecv::CreateContainedROIConfig( contained_pset );
-  larlitecv::FlashROIMatchingConfig flash_cfg; // add pset interface
+  larlitecv::FlashROIMatchingConfig flash_cfg = larlitecv::MakeFlashROIMatchingConfigFromFile( "containedroi.cfg"); // add pset interface
 
   // contained ROI selection algorithm
   larlitecv::ContainedROI algo( contained_cfg );
@@ -114,8 +115,19 @@ int main( int nargs, char** argv ) {
       opflash_containers.push_back( opdata );
     }
 
-    std::vector<larcv::ROI> untagged_rois = algo.SelectROIs( imgs_v, thrumu_v, stopmu_v, badch_v, opflash_containers );
-    std::vector<larcv::ROI> flash_matched_rois = flash_matching.SelectFlashConsistentROIs( untagged_rois, opflash_containers, imgs_v, thrumu_v, stopmu_v, badch_v );
+    // find untagged pixel clusters, matched in all three planes
+    std::vector< std::vector<larcv::Pixel2DCluster> > untagged_pixel_clusters;
+    std::vector<larcv::ROI> untagged_rois = algo.SelectROIs( imgs_v, thrumu_v, stopmu_v, badch_v, untagged_pixel_clusters );
+
+    // retrieve the thrumu and stopmu clusters as well
+    larcv::EventPixel2D*  ev_thrumu_pixels = (larcv::EventPixel2D*) dataco_thrumu.get_larcv_data(larcv::kProductPixel2D,   "thrumu2d" );
+    larlite::event_track* ev_thrumu_tracks = (larlite::event_track*)dataco_thrumu.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
+    larcv::EventPixel2D*  ev_stopmu_pixels = (larcv::EventPixel2D*) dataco_stopmu.get_larcv_data(larcv::kProductPixel2D,   "stopmupixels");
+    larlite::event_track* ev_stopmu_tracks = (larlite::event_track*)dataco_stopmu.get_larlite_data( larlite::data::kTrack, "stopmutracks");
+
+    // we pass these clusters to the 
+    std::vector<larcv::ROI> flash_matched_rois = flash_matching.SelectFlashConsistentROIs( opflash_containers, imgs_v, 
+      untagged_pixel_clusters, untagged_rois, *ev_thrumu_pixels, *ev_stopmu_pixels );
 
     break;
   }//end of event loop
