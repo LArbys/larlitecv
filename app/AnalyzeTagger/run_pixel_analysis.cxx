@@ -61,9 +61,9 @@ int main( int nargs, char** argv ) {
 
   // run pixel analysis. use 
 
-	// we need to have a data coordinator for each stage because the number of entries could be different.
-	// we'll coordinate by using event,subrun,run information
-	std::string data_folder = "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/";
+  // we need to have a data coordinator for each stage because the number of entries could be different.
+  // we'll coordinate by using event,subrun,run information
+  std::string data_folder = "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/";
 
   larlitecv::DataCoordinator dataco_source;
   dataco_source.add_inputfile( data_folder+"/output_larcv.root", "larcv" ); // segment image/original image
@@ -76,18 +76,24 @@ int main( int nargs, char** argv ) {
   larlitecv::DataCoordinator dataco_stopmu;
   dataco_stopmu.add_inputfile( data_folder+"/output_stopmu_larcv_p1.root", "larcv" ); //stopmu-tagger output
 
+  larlitecv::DataCoordinator dataco_nucand;
+  dataco_nucand.add_inputfile( "../ContainedROI/bin/output_containedroi_larcv.root", "larcv");
+  dataco_nucand.add_inputfile( "../ContainedROI/bin/output_containedroi_larlite.root", "larlite");
 
   dataco_source.configure( "config.cfg", "StorageManager", "IOManager", "PixelAnalysis" );
   dataco_thrumu.configure( "config.cfg", "StorageManager", "IOManager", "PixelAnalysis" );
   dataco_stopmu.configure( "config.cfg", "StorageManager", "IOManager", "PixelAnalysis" );
+  dataco_nucand.configure( "config.cfg", "StorageManager", "IOManager", "PixelAnalysis" );
 
   dataco_source.initialize();
   dataco_thrumu.initialize();
   dataco_stopmu.initialize();
+  dataco_nucand.initialize();
 
   std::cout << "data[source] entries=" << dataco_source.get_nentries("larcv") << std::endl;
   std::cout << "data[thrumu] entries=" << dataco_thrumu.get_nentries("larcv") << std::endl;
   std::cout << "data[stopmu] entries=" << dataco_stopmu.get_nentries("larcv") << std::endl;
+  std::cout << "data[nucand] entries=" << dataco_nucand.get_nentries("larcv") << std::endl;
 
   // configuration parameters
   larcv::PSet cfg = larcv::CreatePSetFromFile( "config.cfg" );
@@ -112,12 +118,14 @@ int main( int nargs, char** argv ) {
   int mode;            // interaction mode
   int current;         // interaction cufrrent
   int num_protons_over60mev; // as named
+  int num_rois;        // number of identified ROis
   float EnuGeV;        // neutrino energy in GeV
   float fdwall;        // dwall
   float dwall_lepton;  // dwll for end of lepton
   float frac_cosmic;   // fraction of cosmic tagged
   float frac_nu;       // fraction of neutrino pixels tagged
   float frac_vertex;   // fraction of vertex pixels tagged
+  float frac_inroi;    // fraction of pixels contained in one of the rois
   float primary_proton_ke; // ke of the proton driving from the hit nucleon
   float lepton_cosz;
   float lepton_phiz;
@@ -131,6 +139,7 @@ int main( int nargs, char** argv ) {
   tree->Branch("ncosmic_tagged",&ncosmic_tagged,"ncosmic_tagged/I");
   tree->Branch("nnu_tagged",&nnu_tagged,"nnu_tagged/I");
   tree->Branch("nvertex_tagged",&nvertex_tagged,"nvertex_tagged/I");
+  tree->Branch("num_rois", &num_rois, "num_rois/I");
   tree->Branch("mode",&mode,"mode/I");
   tree->Branch("current",&current,"current/I");
   tree->Branch("lepton_boundary",&lepton_boundary,"lepton_boundary/I");
@@ -142,6 +151,7 @@ int main( int nargs, char** argv ) {
   tree->Branch("frac_cosmic",&frac_cosmic,"frac_cosmic/F");
   tree->Branch("frac_nu",&frac_nu,"frac_nu/F");
   tree->Branch("frac_vertex",&frac_vertex,"frac_vertex/F");
+  tree->Branch("frac_inroi", &frac_inroi, "frac_inroi/F");
   tree->Branch("primary_proton_ke", &primary_proton_ke, "primary_proton_ke/F");
   tree->Branch("pos",fpos,"pos[3]/F");
   tree->Branch("lepton_cosz", &lepton_cosz, "lepton_cosz/F");
@@ -200,6 +210,11 @@ int main( int nargs, char** argv ) {
     const std::vector<larcv::Image2D>& thrumu_v = ev_thrumu->Image2DArray();
     const std::vector<larcv::Image2D>& stopmu_v = ev_stopmu->Image2DArray();
 
+    // get the result of the contained ROI analysis
+    larcv::EventROI* ev_contained_roi = (larcv::EventROI*)dataco_nucand.get_larcv_data(larcv::kProductROI,"containedroi");
+    const std::vector<larcv::Image2D>& containedrois_v = ev_contained_roi->ROIArray();
+    num_rois = (int)containedrois_v.size();
+
     // get other information, e.g. truth
     larlite::event_mctruth* ev_mctruth = (larlite::event_mctruth*)dataco_source.get_larlite_data(larlite::data::kMCTruth,"generator");
     larlite::event_mctrack* ev_mctrack = (larlite::event_mctrack*)dataco_source.get_larlite_data(larlite::data::kMCTrack,"mcreco");
@@ -221,7 +236,7 @@ int main( int nargs, char** argv ) {
     dpos[2] = nu_pos.Z();
     fdwall = dwall(fpos_v, vertex_boundary);
     if ( verbosity>0 )
-	  	std::cout << " Enu=" << EnuGeV << std::endl;
+      std::cout << " Enu=" << EnuGeV << std::endl;
 
     // get the vertex in the pixel coordinates
     std::vector<int> wid(3,-1);
@@ -229,7 +244,7 @@ int main( int nargs, char** argv ) {
     for (size_t p=0; p<3; p++) {
       wid[p] = ::larutil::Geometry::GetME()->WireCoordinate( dpos, p );
       if ( wid[p]>=0 && wid[p]<3456 )
-				vertex_col[p] = imgs_v.at(p).meta().col(wid[p]);
+	vertex_col[p] = imgs_v.at(p).meta().col(wid[p]);
       fpos[p] = fpos_v[p];
     }
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
@@ -245,7 +260,7 @@ int main( int nargs, char** argv ) {
     int lepton_track_id = -1;
     std::set<int> protonids;
     for ( auto  const& particle : particles ) {
-    	float KE = particle.Trajectory().front().E() - particle.Mass();
+      float KE = particle.Trajectory().front().E() - particle.Mass();
 	    if ( !found_lepton && (particle.PdgCode()==13 || particle.PdgCode()==-13) ) {
 	    	// found the lepton
 	    	const larlite::mctrajectory& traj = particle.Trajectory();
@@ -330,7 +345,9 @@ int main( int nargs, char** argv ) {
 	    dwall_lepton = dwall( lepton_end, lepton_boundary );
     }
 
-    // count the pixels. we loop through the rows and cols
+    // count the pixels. determine if cosmic and neutrino are tagged. also if neutrino is in rois
+    // we loop through the rows and cols
+    int num_nupixels_inroi = 0;
     for (size_t p=0; p<3; p++) {
     	for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
     		for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
@@ -369,6 +386,15 @@ int main( int nargs, char** argv ) {
     				if ( near_vertex )
     					nvertex_tagged++;
     			}
+                        // is the neutrino pixel inside the ROI?
+                        for ( auto const& cand_roi : containedrois_v ) {
+                          float wired = imgs_v.at(p).meta().pos_x(col);
+                          float tick  = imgs_v.at(p).meta().pos_y(row);
+                          const larcv::ImageMeta& cand_roi_bb = cand_roi.BB().at(p);
+                          if ( cand_roi_bb.min_x()<wired && wired<cand_roi_bb.max_x() 
+                            && cand_roi_bb.min_y()<tick && tick<cand_roi_bb.max_y() )
+                            num_nupixels_inroi++;
+                        }
     		}
     		else {
 	   			// not a neutrino, so cosmic
@@ -378,7 +404,11 @@ int main( int nargs, char** argv ) {
     				ncosmic_tagged++;
     		}
     	}
-    }
+    }//end of loop over planes for counting neutrino/cosmic pixels
+    if ( nnu_pixels>0 )
+      frac_inroi = float(num_nupixels_inroi)/float(nnu_pixels);
+    else
+      frac_inroi = 0.;
   }
   tree->Fill();
 
