@@ -25,7 +25,7 @@ namespace larlitecv {
 	void FlashROIMatchingConfig::setDefaults() {
 		beam_tick_range.resize(2);
 		beam_tick_range[0] = 150;
-		beam_tick_range[1] = 350;
+		beam_tick_range[1] = 400;
 		us_per_tick = 0.015625;
 		pmtflash_thresh = 5.0;
 		store_calib_data = true;
@@ -34,7 +34,7 @@ namespace larlitecv {
 		flash_front_boundary = 3200.0;
 		flash_back_boundary  = 3200.0 + 4600.0;
 		min_qcluster_size = 5;
-		verbosity = 2;
+		verbosity = 0;
 		qneighborhood = 5;
 		trigger_tick = 3200;
 	}
@@ -45,7 +45,12 @@ namespace larlitecv {
 		fcllite::PSet flashmatchcfg = main.get<fcllite::PSet>("FlashROIMatchingConfig");
 		FlashROIMatchingConfig cfg(flashmatchcfg);
 		cfg.store_calib_data = flashmatchcfg.get<bool>("StoreCalibData");
-		//cfg.verbosity = flashmatchcfg.get<int>("Verbosity");
+		cfg.verbosity = flashmatchcfg.get<int>("Verbosity",0);
+		std::vector<int> input_beam_range = flashmatchcfg.get<std::vector<int> >("BeamTickRange");
+		if ( input_beam_range.size()!=2 )
+			throw std::runtime_error("Invalid BeamTickRange size. Should be 2 (value for lower and upper bound)");
+		cfg.beam_tick_range[0] = input_beam_range[0];
+		cfg.beam_tick_range[1] = input_beam_range[1];
 		//cfg.verbosity = 0;
 		return cfg;
 	}
@@ -54,6 +59,8 @@ namespace larlitecv {
 		: m_config(config), m_pmtweights("geoinfo.root") { 
 
 			ptr_segimg = NULL;
+			SetVerbosity( config.verbosity );
+
 			m_flash_matcher.Configure( m_config.ps );
 			m_flash_matcher.GetAlgo((flashana::Algorithm_t)2)->set_verbosity( (flashana::msg::Level_t)0 );
 			//m_flash_matcher.set_verbosity( (flashana::msg::Level_t)0 );
@@ -94,6 +101,10 @@ namespace larlitecv {
 		larcv::EventPixel2D& thrumu_clusters,
 		larcv::EventPixel2D& stopmu_clusters ) {
 
+		if ( m_verbosity>0 ) {
+			std::cout << "=========================================================================" << std::endl;
+			std::cout << "======== FlashROIMatching: Selecting Candidate Clusters =================" << std::endl;
+		}
 
 		// get all flashes in time with the beam
 		std::vector<larlite::opflash> beam_flashes = SelectInTimeFlashes( opflashes_v );
@@ -110,6 +121,12 @@ namespace larlitecv {
 		std::vector<float> wire_means;
 		std::vector<std::vector<float>> wire_ranges;
 		int flash_id = 0;
+		if ( m_verbosity>0 ) {
+			std::cout << "=========================================================================" << std::endl;
+			std::cout << "======== FlashROIMatching: Selecting Candidate Clusters =================" << std::endl;
+			std::cout << "In-Time Flashes" << std::endl;
+		}
+
 		for ( auto const& flash : beam_flashes ) {
 			// provide mean and basic width
 			float wire_mean;
@@ -117,7 +134,8 @@ namespace larlitecv {
 			GetFlashCenterAndRange( flash, wire_mean, wire_range );
 			wire_means.push_back( wire_mean );
 			wire_ranges.push_back( wire_range );
-			std::cout << "flash position: wire_mean=" << wire_mean << " wire_range=[" << (int)wire_range[0] << "," << (int)wire_range[1] << "]" << std::endl;
+			if ( m_verbosity>0 )
+				std::cout << "Flash #" << flash_id << ": wire_mean=" << wire_mean << " wire_range=[" << (int)wire_range[0] << "," << (int)wire_range[1] << "]" << std::endl;
 
 			// also load flash info into flash manager
 			flashana::Flash_t f;
@@ -233,13 +251,19 @@ namespace larlitecv {
 			for ( auto const& opflash : *ptr_ev_flash ) {
 				int tick = opflash.Time()/m_config.us_per_tick;
 				if ( tick>=m_config.beam_tick_range[0] && tick <=m_config.beam_tick_range[1] ) {
-					std::cout << "In-time flash found: " << opflash.Time() << "us from trigger. Tick=" << tick << std::endl;
+					if ( m_verbosity>0 )
+						std::cout << "In-time flash found: " << opflash.Time() << "us from trigger. Tick=" << tick << std::endl;
 					beam_flashes.push_back( opflash ); // our own copy
+				}
+				else {
+					if ( m_verbosity>0)
+						std::cout << "Rejected flash: " << opflash.Time() << "us from trigger. Tick=" << tick << std::endl;
 				}
 			}
 		}
 
-		std::cout << "FlashROIMatching::SelectInTimeFlashes. Found " << beam_flashes.size() << " flashes." << std::endl;
+		if ( m_verbosity>0 )
+			std::cout << "FlashROIMatching::SelectInTimeFlashes. Found " << beam_flashes.size() << " flashes." << std::endl;
 		return beam_flashes;
 	}
 
@@ -408,6 +432,11 @@ namespace larlitecv {
 			const std::vector<larcv::Pixel2DCluster>& untagged_cluster = untagged_clusters.at(roi_idx);
 			const larcv::ImageMeta& yplane_bb = untagged_roi.BB().at(2);
 
+			if ( m_verbosity>0 )
+				std::cout << "Untagged cluster #" << roi_idx 
+					<< ": wire-span [" << yplane_bb.min_x() << ", " << yplane_bb.max_x() << "]"
+					<< "  tick-span=[" << yplane_bb.min_y() << ","  << yplane_bb.max_y() << "]";
+
 			// check flash compatibility
 			std::vector<int> compatible_flashes;
 			for ( int iflash=0; iflash<(int)beam_flashes.size(); iflash++ ) {
@@ -419,7 +448,11 @@ namespace larlitecv {
 				}
 			}
 
-			if ( compatible_flashes.size()==0 ) continue; // no matching flashes
+			if ( m_verbosity>0 )
+				std::cout << " Num compatible Flashes=" << compatible_flashes.size() << std::endl;
+			if ( compatible_flashes.size()==0 ) {
+				continue; // no matching flashes
+			}
 
 			// compatible ROI
 			CandidateFlashMatchedROI_t candidate;
@@ -443,6 +476,16 @@ namespace larlitecv {
 		for ( int thrumu_idx=0; thrumu_idx<(int)thrumu_clusters.Pixel2DClusterArray( (larcv::PlaneID_t)2 ).size(); thrumu_idx++ ) {
 			const larcv::Pixel2DCluster& pixel_cluster = thrumu_clusters.Pixel2DClusterArray((larcv::PlaneID_t)2).at(thrumu_idx);
 			//std::cout << "thrumu cluster #" << thrumu_idx << " numpixels=" << pixel_cluster.size() << std::endl;
+			if ( m_verbosity>0 ) {
+				// this is a lot for some output...
+				std::vector< larcv::Pixel2DCluster > temp;
+				temp.push_back( pixel_cluster );
+				larcv::ROI thrumu_roi = GenerateClusterROI( temp, img_v );
+				std::cout << "Thrumu cluster #" << thrumu_idx 
+					<< ": wire-span [" << thrumu_roi.BB(0).min_x() << ", " << thrumu_roi.BB(0).max_x() << "]"
+					<< "  tick-span=[" << thrumu_roi.BB(0).min_y() << "," << thrumu_roi.BB(0).max_y() << "]";
+			}
+
 
 			// check flash compatibility
 			std::vector<int> compatible_flashes;
@@ -452,6 +495,10 @@ namespace larlitecv {
 					compatible_flashes.push_back(iflash);
 				}
 			}
+
+			if ( m_verbosity>0 )
+				std::cout << " Num compatible Flashes=" << compatible_flashes.size() << std::endl;
+
 
 			if ( compatible_flashes.size()==0 ) continue; // no matching flashes
 			//std::cout << "thrumu cluster #" << thrumu_idx << " is compatible with flash." << std::endl;
@@ -477,7 +524,20 @@ namespace larlitecv {
 		// stopmu clusters
 		for ( int stopmu_idx=0; stopmu_idx<(int)stopmu_clusters.Pixel2DClusterArray((larcv::PlaneID_t)2).size(); stopmu_idx++ ) {
 			const larcv::Pixel2DCluster& pixel_cluster = stopmu_clusters.Pixel2DClusterArray((larcv::PlaneID_t)2).at(stopmu_idx);
-			//std::cout << "stopmu cluster #" << stopmu_idx << " numpixels=" << pixel_cluster.size() << std::endl;
+			if ( pixel_cluster.size()<1 ) {
+				if ( m_verbosity>0 )
+					std::cout << "StopMu cluster #" << stopmu_idx << " too small." << std::endl;
+				continue;
+			}
+			if ( m_verbosity>0 ) {
+				// this is a lot for some output...
+				std::vector< larcv::Pixel2DCluster > temp;
+				temp.push_back( pixel_cluster );
+				larcv::ROI stopmu_roi = GenerateClusterROI( temp, img_v );
+				std::cout << "StopMu cluster #" << stopmu_idx 
+					<< ": wire-span [" << stopmu_roi.BB(0).min_x() << ", " << stopmu_roi.BB(0).max_x() << "]"
+					<< "  tick-span=[" << stopmu_roi.BB(0).min_y() << ","  << stopmu_roi.BB(0).max_y() << "]";
+			}
 
 			// check flash compatibility
 			std::vector<int> compatible_flashes;
@@ -487,6 +547,9 @@ namespace larlitecv {
 					compatible_flashes.push_back(iflash);
 				}
 			}
+
+			if ( m_verbosity>0 )
+				std::cout << " Num compatible Flashes=" << compatible_flashes.size() << std::endl;
 
 			if ( compatible_flashes.size()==0 ) continue; // no matching flashes
 			//std::cout << "stopmu cluster #" << stopmu_idx << " is compatible with flash." << std::endl;
@@ -650,7 +713,7 @@ namespace larlitecv {
 			float origin_y = meta.pos_y( extrema[2] );
 
 			larcv::ImageMeta bb( width, height, drow, dcol, origin_x, origin_y, (larcv::PlaneID_t)p );
-			std::cout << " defining ROI with origin(" << origin_x << "," << origin_y << ") BB: " << bb.dump() << std::endl;
+			//std::cout << " defining ROI with origin(" << origin_x << "," << origin_y << ") BB: " << bb.dump() << std::endl;
 			roi.AppendBB( bb );
 		}
 

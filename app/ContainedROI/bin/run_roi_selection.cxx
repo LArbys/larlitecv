@@ -85,8 +85,8 @@ int main( int nargs, char** argv ) {
   // event loop
 
   int nentries = dataco_stopmu.get_nentries("larcv");
-  int user_nentries =   contained_pset.get<int>("NumEntries",-1);
-  int user_startentry = contained_pset.get<int>("StartEntry",-1);
+  int user_nentries =   pset.get<int>("NumEntries",-1);
+  int user_startentry = pset.get<int>("StartEntry",-1);
   int start_entry = 0;
   if ( user_startentry>=0 ) {
     start_entry = user_startentry;
@@ -107,6 +107,8 @@ int main( int nargs, char** argv ) {
     std::cout << " (r,s,e)=(" << run << ", " << subrun << ", " << event << ")" << std::endl;
     dataco_thrumu.goto_event(run,subrun,event,"larcv");
     dataco_source.goto_event(run,subrun,event,"larcv");
+    dataco_output.set_id(run, subrun, event);
+
     algo.m_run = run;
     algo.m_subrun = subrun;
     algo.m_event = event;
@@ -186,6 +188,11 @@ int main( int nargs, char** argv ) {
         }
       }
 
+      // draw proposed uncontained rois
+      for ( auto const& roi : untagged_rois ) {
+        larcv::draw_bb( cvimg, imgs_v.at(p).meta(), roi.BB().at(p), 0, 100, 100, 2 );        
+      }
+
       // draw selected ROIs
       for ( auto const& roi : flash_matched_rois ){
         larcv::draw_bb( cvimg, imgs_v.at(p).meta(), roi.BB().at(p), 0, 200, 0, 2 );
@@ -219,7 +226,6 @@ int main( int nargs, char** argv ) {
     for ( auto& img : ev_seg->Image2DArray() )
       out_ev_segmnt->Append( img );
     out_ev_roi->Set( rois->ROIArray() );
-
 
     dataco_output.save_entry();
 

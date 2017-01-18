@@ -73,6 +73,10 @@ namespace larlitecv {
     flashana::QCluster_t MakeTPCFlashObject( const larcv::Pixel2DCluster& pixels, const larcv::Image2D& img, larcv::Pixel2DCluster& expanded_cluster );
     bool ClusterWithinRange( const std::vector<float>& wire_range, const larcv::Pixel2DCluster& pixels, const larcv::Image2D& img );
 
+    // verbosity
+    int m_verbosity;
+    void SetVerbosity( int verbosity ) { m_verbosity = verbosity; }
+
     // flash matching algorithm manager
     flashana::FlashMatchManager m_flash_matcher;
     std::vector<flashana::FlashMatch_t> m_results;
