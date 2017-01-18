@@ -2,6 +2,7 @@
 
 // larcv
 #include "DataFormat/EventImage2D.h"
+#include "DataFormat/EventROI.h"
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
 
@@ -63,7 +64,8 @@ int main( int nargs, char** argv ) {
 
   // we need to have a data coordinator for each stage because the number of entries could be different.
   // we'll coordinate by using event,subrun,run information
-  std::string data_folder = "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/";
+  std::string data_folder = "~/working/data/larbys/cosmic_tagger_dev/";    // blade
+  //std::string data_folder = "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/"; // nudot
 
   larlitecv::DataCoordinator dataco_source;
   dataco_source.add_inputfile( data_folder+"/output_larcv.root", "larcv" ); // segment image/original image
@@ -162,12 +164,13 @@ int main( int nargs, char** argv ) {
   dataco_source.goto_entry(0,"larcv");
   dataco_thrumu.goto_entry(0,"larcv");
   dataco_stopmu.goto_entry(0,"larcv");
+  dataco_nucand.goto_entry(0,"larcv");
 
   for (int ientry=0; ientry<nentries; ientry++) {
 
-    dataco_stopmu.goto_entry(ientry,"larcv");
+    dataco_nucand.goto_entry(ientry,"larcv");
 
-    dataco_stopmu.get_id(run,subrun,event);
+    dataco_nucand.get_id(run,subrun,event);
 
     if ( ientry%10==0 || verbosity>0 ) {
       std::cout << "entry " << ientry << std::endl;
@@ -176,6 +179,7 @@ int main( int nargs, char** argv ) {
 
     dataco_thrumu.goto_event(run,subrun,event,"larcv");
     dataco_source.goto_event(run,subrun,event,"larcv");
+    dataco_nucand.goto_event(run,subrun,event,"larcv");
 
     // initialize the output variables
     ncosmic_pixels = 0;
@@ -212,8 +216,12 @@ int main( int nargs, char** argv ) {
 
     // get the result of the contained ROI analysis
     larcv::EventROI* ev_contained_roi = (larcv::EventROI*)dataco_nucand.get_larcv_data(larcv::kProductROI,"containedroi");
-    const std::vector<larcv::Image2D>& containedrois_v = ev_contained_roi->ROIArray();
+    const std::vector<larcv::ROI>& containedrois_v = ev_contained_roi->ROIArray();
     num_rois = (int)containedrois_v.size();
+    std::cout << "==ROIs==" << std::endl;
+    for ( auto& roi : containedrois_v ) {
+      std::cout << " roi: " << roi.dump();
+    }
 
     // get other information, e.g. truth
     larlite::event_mctruth* ev_mctruth = (larlite::event_mctruth*)dataco_source.get_larlite_data(larlite::data::kMCTruth,"generator");
@@ -261,42 +269,42 @@ int main( int nargs, char** argv ) {
     std::set<int> protonids;
     for ( auto  const& particle : particles ) {
       float KE = particle.Trajectory().front().E() - particle.Mass();
-	    if ( !found_lepton && (particle.PdgCode()==13 || particle.PdgCode()==-13) ) {
-	    	// found the lepton
-	    	const larlite::mctrajectory& traj = particle.Trajectory();
-	    	std::cout << "  lepton E=" << particle.Trajectory().front().E() << " KE=" << KE << std::endl;
-	    	found_lepton = true;
-	    	lepton_track_id = particle.TrackId();
-	    }
-	    else if ( particle.PdgCode()==2212 ) {
-	    	std::cout << "  a proton. p=" << particle.Momentum(0).Vect().Mag() 
-	    		<< " E=" << particle.Trajectory().front().E() << " KE=" << KE
-	    		<< " status=" << particle.StatusCode() 
-	    		<< " trackid=" << particle.TrackId() << " mother=" << particle.Mother()
-	    		<< std::endl;
-	    	if ( particle.StatusCode()!=11 && KE>0.060 && protonids.find(particle.Mother())==protonids.end() ) 
-	    		num_protons_over60mev++; // status 11 means from genie? threshold cut. check that it isn't from the original proton
-	    	protonids.insert( particle.TrackId() );
-	    }
-	    else if ( particle.PdgCode()==14 || particle.PdgCode()==-14 ) {
-	    	std::cout << "  the neutrino (pdg=" << particle.PdgCode() << ") Enu=" << particle.Trajectory().front().E() << std::endl;
-	    } 
-	    else {
-	    	std::cout << "  pdg=" << particle.PdgCode() 
-	    		<< " E=" << particle.Trajectory().front().E() << " KE=" << KE
-	    		<< " status=" << particle.StatusCode() 
-	    		<< " end process=" << particle.EndProcess()
-	    		<< " trackid=" << particle.TrackId() << " mother=" << particle.Mother() << std::endl;
-	    }
+      if ( !found_lepton && (particle.PdgCode()==13 || particle.PdgCode()==-13) ) {
+	// found the lepton
+        const larlite::mctrajectory& traj = particle.Trajectory();
+	std::cout << "  lepton E=" << particle.Trajectory().front().E() << " KE=" << KE << std::endl;
+        found_lepton = true;
+        lepton_track_id = particle.TrackId();
+      }
+      else if ( particle.PdgCode()==2212 ) {
+        std::cout << "  a proton. p=" << particle.Momentum(0).Vect().Mag() 
+          << " E=" << particle.Trajectory().front().E() << " KE=" << KE
+          << " status=" << particle.StatusCode() 
+          << " trackid=" << particle.TrackId() << " mother=" << particle.Mother()
+          << std::endl;
+        if ( particle.StatusCode()!=11 && KE>0.060 && protonids.find(particle.Mother())==protonids.end() ) 
+	  num_protons_over60mev++; // status 11 means from genie? threshold cut. check that it isn't from the original proton
+        protonids.insert( particle.TrackId() );
+      }
+      else if ( particle.PdgCode()==14 || particle.PdgCode()==-14 ) {
+        std::cout << "  the neutrino (pdg=" << particle.PdgCode() << ") Enu=" << particle.Trajectory().front().E() << std::endl;
+      } 
+      else {
+        std::cout << "  pdg=" << particle.PdgCode() 
+          << " E=" << particle.Trajectory().front().E() << " KE=" << KE
+          << " status=" << particle.StatusCode() 
+          << " end process=" << particle.EndProcess()
+          << " trackid=" << particle.TrackId() << " mother=" << particle.Mother() << std::endl;
+      }
 
-	    // stuff we are saving
-	    if ( (particle.PdgCode()==2212 || particle.PdgCode()==2112) && particle.StatusCode()==11 ) {
-	    	hit_nucleon_id = particle.TrackId();
-	    }
-	    if ( particle.PdgCode()==2212 && particle.Mother()==hit_nucleon_id ) {
-	    	primary_proton_ke = KE;
-	    	protonids.insert(particle.TrackId());
-	    }
+      // stuff we are saving
+      if ( (particle.PdgCode()==2212 || particle.PdgCode()==2112) && particle.StatusCode()==11 ) {
+        hit_nucleon_id = particle.TrackId();
+      }
+      if ( particle.PdgCode()==2212 && particle.Mother()==hit_nucleon_id ) {
+        primary_proton_ke = KE;
+        protonids.insert(particle.TrackId());
+      }
 
     }//end of particle track loop
 
@@ -306,116 +314,121 @@ int main( int nargs, char** argv ) {
 
     // loop over MC tracks, find the neutrino lepton by matching vertex
     for ( auto const& track : *ev_mctrack ) {
-    	if ( std::abs(track.PdgCode())!=13  ) continue;
-    	if ( track.size()==0 ) continue;
-    	const TLorentzVector& track_start = track.front().Position();
-    	std::vector<float> fstart(3);
-    	fstart[0] = track_start.X();
-    	fstart[1] = track_start.Y();
-    	fstart[2] = track_start.Z();
+      if ( std::abs(track.PdgCode())!=13  ) continue;
+      if ( track.size()==0 ) continue;
+      const TLorentzVector& track_start = track.front().Position();
+      std::vector<float> fstart(3);
+      fstart[0] = track_start.X();
+      fstart[1] = track_start.Y();
+      fstart[2] = track_start.Z();
 
-    	float vert_dist = 0.;
-    	for (int v=0; v<3; v++) {
-    		float dv = fpos_v[v]-fstart[v];
-    		vert_dist += dv*dv;
-    	}
-    	vert_dist = sqrt(vert_dist);
-    	if (vert_dist>1.0) continue;
+      float vert_dist = 0.;
+      for (int v=0; v<3; v++) {
+        float dv = fpos_v[v]-fstart[v];
+        vert_dist += dv*dv;
+      }
+      vert_dist = sqrt(vert_dist);
+      if (vert_dist>1.0) continue;
 
-    	std::cout << "matches neutrino vertex: vert_dist=" << vert_dist
-    		<< " mctrack id=" << track.TrackID() << " pdg=" << track.PdgCode() << std::endl;
+      std::cout << "matches neutrino vertex: vert_dist=" << vert_dist
+      << " mctrack id=" << track.TrackID() << " pdg=" << track.PdgCode() << std::endl;
 
-    	const larlite::mcstep& first_step = track.front();
-    	const larlite::mcstep& last_step  = track.back();
-    	std::vector<float> lepton_end(3);
-	    lepton_end[0] = last_step.X();
-	    lepton_end[1] = last_step.Y();
-	    lepton_end[2] = last_step.Z();
-	    std::cout << "lepton end=" << lepton_end[0] << "," << lepton_end[1] << "," << lepton_end[2] << std::endl;
-	    float norm = 0.;
-	    std::vector<float> lepton_dir(3);
-	    lepton_dir[0] = first_step.Momentum().Vect().X();
-	    lepton_dir[1] = first_step.Momentum().Vect().Y();
-	    lepton_dir[2] = first_step.Momentum().Vect().Z();
-	    for (int v=0; v<3; v++) norm += lepton_dir[v]*lepton_dir[v];
-	    	norm = sqrt(norm);
-	    for (int v=0; v<3; v++) lepton_dir[v] /= norm;
-	    	lepton_cosz = lepton_dir[2];
-	    lepton_phiz = atan2( lepton_dir[1], lepton_dir[0] );
-	    dwall_lepton = dwall( lepton_end, lepton_boundary );
-    }
+      const larlite::mcstep& first_step = track.front();
+      const larlite::mcstep& last_step  = track.back();
+      std::vector<float> lepton_end(3);
+      lepton_end[0] = last_step.X();
+      lepton_end[1] = last_step.Y();
+      lepton_end[2] = last_step.Z();
+      std::cout << "lepton end=" << lepton_end[0] << "," << lepton_end[1] << "," << lepton_end[2] << std::endl;
+      float norm = 0.;
+      std::vector<float> lepton_dir(3);
+      lepton_dir[0] = first_step.Momentum().Vect().X();
+      lepton_dir[1] = first_step.Momentum().Vect().Y();
+      lepton_dir[2] = first_step.Momentum().Vect().Z();
+      for (int v=0; v<3; v++) norm += lepton_dir[v]*lepton_dir[v];
+        norm = sqrt(norm);
+      for (int v=0; v<3; v++) lepton_dir[v] /= norm;
+        lepton_cosz = lepton_dir[2];
+      lepton_phiz = atan2( lepton_dir[1], lepton_dir[0] );
+      dwall_lepton = dwall( lepton_end, lepton_boundary );
+    }//end of loop over mc tracks
 
     // count the pixels. determine if cosmic and neutrino are tagged. also if neutrino is in rois
     // we loop through the rows and cols
     int num_nupixels_inroi = 0;
     for (size_t p=0; p<3; p++) {
-    	for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
-    		for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
-	  			// check if this is a pixel of interest
-    			if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
+      for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
+        for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
+	  // check if this is a pixel of interest
+          if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
 
-    			bool near_vertex = false;
-	  			// are we some radius from the vertex?
-    			if ( (int)row>=vertex_row-fvertex_radius && (int)row<=vertex_row+fvertex_radius
-    				&& (int)col>=vertex_col[p]-fvertex_radius && (int)col<=vertex_col[p]+fvertex_radius ) {
-    				near_vertex = true;		
-    			}
+          bool near_vertex = false;
+	  // are we some radius from the vertex?
+          if ( (int)row>=vertex_row-fvertex_radius && (int)row<=vertex_row+fvertex_radius
+            && (int)col>=vertex_col[p]-fvertex_radius && (int)col<=vertex_col[p]+fvertex_radius ) {
+            near_vertex = true;		
+          }
 
-	 			 	// above threshold. is it a neutrino pixel?
-    			const larcv::Image2D& segimg = segs_v.at(p);
-    			float x = imgs_v.at(p).meta().pos_x(col);
-    			float y = imgs_v.at(p).meta().pos_y(row);
-    			bool in_seg_image = false;
-    			int seg_row = -1;
-    			int seg_col = -1;
-    			if ( x>segs_v.at(p).meta().min_x() && x<segs_v.at(p).meta().max_x()
-    				&& y>segs_v.at(p).meta().min_y() && y<segs_v.at(p).meta().max_y() ) {
-    				in_seg_image = true;
-    			seg_row = segs_v.at(p).meta().row(y);
-    			seg_col = segs_v.at(p).meta().col(x);
-    		}
-    		if ( in_seg_image && segs_v.at(p).pixel(seg_row,seg_col)>0 ) {
+          // above threshold. is it a neutrino pixel?
+          const larcv::Image2D& segimg = segs_v.at(p);
+          float x = imgs_v.at(p).meta().pos_x(col);
+          float y = imgs_v.at(p).meta().pos_y(row);
+          bool in_seg_image = false;
+          int seg_row = -1;
+          int seg_col = -1;
+          if ( x>segs_v.at(p).meta().min_x() && x<segs_v.at(p).meta().max_x()
+            && y>segs_v.at(p).meta().min_y() && y<segs_v.at(p).meta().max_y() ) {
+            in_seg_image = true;
+            seg_row = segs_v.at(p).meta().row(y);
+            seg_col = segs_v.at(p).meta().col(x);
+          }
+          if ( in_seg_image && segs_v.at(p).pixel(seg_row,seg_col)>0 ) {
 
-    			nnu_pixels++;
-    			if (near_vertex)
-    				nvertex_pixels++;
+            nnu_pixels++;
+            if (near_vertex)
+              nvertex_pixels++;
 
-	    		// is it tagged?
-    			if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 )  {
-    				nnu_tagged++;
-    				if ( near_vertex )
-    					nvertex_tagged++;
-    			}
-                        // is the neutrino pixel inside the ROI?
-                        for ( auto const& cand_roi : containedrois_v ) {
-                          float wired = imgs_v.at(p).meta().pos_x(col);
-                          float tick  = imgs_v.at(p).meta().pos_y(row);
-                          const larcv::ImageMeta& cand_roi_bb = cand_roi.BB().at(p);
-                          if ( cand_roi_bb.min_x()<wired && wired<cand_roi_bb.max_x() 
-                            && cand_roi_bb.min_y()<tick && tick<cand_roi_bb.max_y() )
-                            num_nupixels_inroi++;
-                        }
-    		}
-    		else {
-	   			// not a neutrino, so cosmic
-    			ncosmic_pixels++;
-	   			// is it tagged?
-    			if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 ) 
-    				ncosmic_tagged++;
-    		}
-    	}
+	    // is it tagged?
+            if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 )  {
+              nnu_tagged++;
+              if ( near_vertex )
+                nvertex_tagged++;
+            }
+            // is the neutrino pixel inside the ROI?
+            for ( auto const& cand_roi : containedrois_v ) {
+              float wired = imgs_v.at(p).meta().pos_x(col);
+              float tick  = imgs_v.at(p).meta().pos_y(row);
+              const larcv::ImageMeta& cand_roi_bb = cand_roi.BB().at(p);
+              if ( cand_roi_bb.min_x()<wired && wired<cand_roi_bb.max_x() 
+                && cand_roi_bb.min_y()<tick && tick<cand_roi_bb.max_y() )
+                num_nupixels_inroi++;
+            }
+          }
+          else {
+	    // not a neutrino, so cosmic
+            ncosmic_pixels++;
+	    // is it tagged?
+            if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 ) 
+              ncosmic_tagged++;
+          
+          }
+        }//end of col loop
+      }//end of row loop
     }//end of loop over planes for counting neutrino/cosmic pixels
+
     if ( nnu_pixels>0 )
       frac_inroi = float(num_nupixels_inroi)/float(nnu_pixels);
     else
       frac_inroi = 0.;
-  }
-  tree->Fill();
+    std::cout << "fraction of neutrino pixels inside one of the rois: " << frac_inroi << std::endl;
+    
+    tree->Fill();
 
-  if ( ientry>=100 )
-  	break;
-	}
+    if ( ientry>=100 )
+      break;
+  }//end of entry loop
 
-	rfile->Write();
-	return 0;
-};
+  rfile->Write();
+  return 0;
+
+}//end of main
