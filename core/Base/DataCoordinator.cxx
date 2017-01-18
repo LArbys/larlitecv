@@ -329,6 +329,9 @@ namespace larlitecv {
   void DataCoordinator::set_id( int run, int subrun, int event ) {
     if ( !larcv_unused ) larcv_io.set_id( run, subrun, event );
     if ( !larlite_unused )larlite_io.set_id( run, subrun, event );    
+    _current_run    = run;
+    _current_subrun = subrun;
+    _current_event  = event;
   }
 
   int DataCoordinator::run() {
