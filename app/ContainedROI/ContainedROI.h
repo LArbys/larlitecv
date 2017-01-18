@@ -61,6 +61,8 @@ namespace larlitecv {
     int m_subrun;
     int m_event;
     int m_entry;
+    larcv::ROI m_truth_roi;
+    void SetTruthROI( const larcv::ROI& roi ) { m_truth_roi = roi; }
 
     // untagged clusters on each plane. saved for others to use.
     std::vector<untagged_cluster_info_t> m_untagged_cluster_info_v; ///< untagged pixel clusters

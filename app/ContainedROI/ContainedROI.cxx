@@ -65,6 +65,7 @@ namespace larlitecv {
 
 			for ( size_t icluster=0; icluster<plane_clusters.size(); icluster++ ) {
 				const analyzed_cluster_t& cluster = plane_clusters.at(icluster);
+				/*
 				std::cout << " cluster #" << icluster << " index=" << cluster.cluster_idx
 					<< " num hits=" << m_untagged_cluster_info_v.at(p).output.clusters.at(cluster.cluster_idx).size()
 					<< " charge=" << cluster.total_charge
@@ -74,6 +75,7 @@ namespace larlitecv {
 				  << " largest row=("  << cluster.extrema_pts.at(2).X() << "," << meta.pos_y(cluster.extrema_pts.at(2).Y()) << ") "
 				  << " smallest row=(" << cluster.extrema_pts.at(3).X() << "," << meta.pos_y(cluster.extrema_pts.at(3).Y()) << ") "
 				  << std::endl;
+				  */
 				if (cluster.total_charge>m_config.min_cluster_plane_charge.at(p)) {
 					cv::circle(imgmat,cv::Point(cluster.extrema_pts.at(0).X(),cluster.extrema_pts.at(0).Y()), 5, cv::Scalar(0,255,0),-1);
 					cv::circle(imgmat,cv::Point(cluster.extrema_pts.at(1).X(),cluster.extrema_pts.at(1).Y()), 5, cv::Scalar(255,255,0),-1);
@@ -152,12 +154,14 @@ namespace larlitecv {
 					matched_cluster.emplace_back( std::move(pix_cluster) );
 				}
 
+				/*
 				std::cout << "Combo #" << ncombos 
 					<< "(" << combo.at(0).cluster_idx << "," << combo.at(1).cluster_idx << "," << combo.at(2).cluster_idx << ") "
 					<< " ll=" << combo_idx.second 
 					<< " ll(triarea)=" << combo_best_triarea[combo_idx.first]
 					<< " y-plane bounds=[" << untagged_roi.BB(2).min_x() << "-" << untagged_roi.BB(2).max_x() << "]"
 					<< std::endl;
+					*/
 
 				output.emplace_back( std::move(untagged_roi) );
 				matched_pixel_clusters.emplace_back( std::move(matched_cluster) );
@@ -180,9 +184,13 @@ namespace larlitecv {
 
 			// add roi's
 			for ( auto &roi : output ) {
-				larcv::draw_bb( cvimgs_v.at(p), img_v.at(p).meta(), roi.BB().at(p), 0, 200, 0, 1 );
+				larcv::draw_bb( cvimgs_v.at(p), img_v.at(p).meta(), roi.BB().at(p), 0, 200, 0, 2 );
 			}
-			cv::imwrite( ss.str(), cvimgs_v.at(p) );
+
+			if ( m_config.draw_truth_roi && m_truth_roi.BB().size()>0 ) {
+				larcv::draw_bb( cvimgs_v.at(p), img_v.at(p).meta(), m_truth_roi.BB().at(p), 200, 0, 0, 2 );
+			}
+			//cv::imwrite( ss.str(), cvimgs_v.at(p) );
 		}
 
 		return output;

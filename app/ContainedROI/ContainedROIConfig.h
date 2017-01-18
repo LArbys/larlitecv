@@ -24,6 +24,7 @@ namespace larlitecv {
 		float max_roi_likelihood;
 		float roi_likelihood_cutoff;
 		bool generate_calib_info;
+		bool draw_truth_roi;
 
 		void setDefaults();
 

@@ -12,6 +12,7 @@ CXXFLAGS += $(shell larlitecv-config --includes)
 CXXFLAGS += $(shell larlitecv-config --includes)/../app
 #CXXFLAGS += -I$(KALMAN_INCDIR)
 CXXFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
+CXXFLAGS += -DUSE_OPENCV
 
 # Include your shared object lib location
 LDFLAGS += $(shell larlitecv-config --libs)
