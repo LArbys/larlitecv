@@ -17,7 +17,7 @@ namespace larlitecv {
   }
 
   void BoundaryMatchList::load( BoundaryMatchArrays::Boundary_t t, BoundaryMatchArrays::MatchMode_t mode ) {
-    const clock_t begin_time = clock();
+    //const clock_t begin_time = clock();
     
     BoundaryMatchArrays match_arrays(mode);
     
@@ -62,8 +62,8 @@ namespace larlitecv {
     vvec = new int[m_combos.size()];
     yvec = new int[m_combos.size()];
 
-    float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
-    std::cout << "boundary match list loaded " << elapsed_secs << " secs" << std::endl;
+    //float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
+    //std::cout << "boundary match list loaded " << elapsed_secs << " secs" << std::endl;
     
   }
   

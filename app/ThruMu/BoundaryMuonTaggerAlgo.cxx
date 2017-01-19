@@ -55,8 +55,8 @@ namespace larlitecv {
 
     std::cout << "BoundaryMuonTaggerAlgo::searchforboundarypixels3D" << std::endl;
 
-    int ncrossings = 4;
-    //int nplanes = imgs.size();
+    const int ncrossings = BoundaryMuonTaggerAlgo::kNumCrossings; // 4, it's 4
+    const int nplanes = (int)imgs.size();
 
     if ( !_config.checkOK() )  {
       std::cout << "[BOUNDARY MUON TAGGER ALGO ERROR] Not configured." << std::endl;
@@ -77,41 +77,49 @@ namespace larlitecv {
 
     // create Image2D objects to store the result of boundary matching
     // we use meta to make the same sized image as the input
-    enum { top=0, bot, upstream, downstream };
-
-    for (int i=0; i<ncrossings; i++) { // top, bottom, upstream, downstream x 3 planes
-      larcv::Image2D matchimage( meta );
-      matchimage.paint(0.0);
-      matchedspacepts.emplace_back( std::move(matchimage) );
-      //for (int p=0; p<3; p++) {
-      //larcv::Image2D matchimage2( imgs.at(p).meta() );
-      //matchimage2.paint(0.0);
-      //matchedpixels.emplace_back( std::move(matchimage2) );
-      //}
+    if ( _config.save_endpt_images ) {
+      for (int i=0; i<ncrossings; i++) { // top, bottom, upstream, downstream x 3 planes
+     	larcv::Image2D matchimage( meta );
+     	matchimage.paint(0.0);
+     	matchedspacepts.emplace_back( std::move(matchimage) );
+     	for (int p=0; p<3; p++) {
+     	  larcv::Image2D matchimage2( imgs.at(p).meta() );
+     	  matchimage2.paint(0.0);
+     	  matchedpixels.emplace_back( std::move(matchimage2) );
+     	}
+      }
     }
 
     // we need the wire downsampling factor
     int dsfactor = int( meta.pixel_width()+0.1 ); 
     const clock_t begin_time = clock();
     
-    // we save col number of pixels above threshold in each plane with this
-    std::vector<int> abovethresh[3]; 
-    for (int p=0; p<3; p++) {
+    // we save col number of pixels above threshold in each plane with this vector.
+    // it is the size of the neighborhood we'll look at. _config.neighborhoods defines the radius.
+    std::vector<int> abovethresh[nplanes]; 
+    for (int p=0; p<nplanes; p++) {
       abovethresh[p].resize( 2*_config.neighborhoods.at(p)+1, 0 );
     }
 
-    // reserve space for hit vector. marks where hits occur.
-    std::vector< int > hits[3];
-    for (int p=0; p<3; p++ ) {
+    // reserve space for hit vector. marks the clumns where hits occur for a given a row.
+    // we have one for each plane;
+    std::vector< int > hits[nplanes];
+    for (int p=0; p<nplanes; p++ ) {
       hits[p].resize( meta.cols() );
     }
 
-    // storage for boundary combinations we'll cluster
-    dbscan::dbPoints combo_points[4];
-    std::vector< std::vector<int> > combo_cols[4];
-
-    // misc. trackers
+    // storage for boundary combinations
+    std::vector< dbscan::dbPoints > combo_points(ncrossings);
+    std::vector< std::vector< std::vector<int> > > combo_cols(ncrossings); // [ncrossings][number of combos][column combination]
     float tot_hit_collecting = 0;
+    CollectCandidateBoundaryPixels( imgs, badchs, combo_points, combo_cols, matchedpixels, matchedspacepts );
+    int total_combos = 0;
+    for ( auto& combo_col : combo_cols ) {
+      total_combos += combo_col.size();
+    }
+
+    /*
+    // misc. trackers
     int total_combos = 0;
     
     // now loop over over the time of the images
@@ -120,17 +128,22 @@ namespace larlitecv {
       // Find boundary combos using search algo
       //std::vector< int > hits[3];
       const clock_t begin_hit_collecting = clock();
-      int nhits[3] = {0};
-      for (int p=0; p<3; p++) {
-	memset( hits[p].data(), 0, sizeof(int)*hits[p].size() );
-	const larcv::Image2D& img = imgs.at(p);                                                                                                                                
-	//const larcv::Image2D& badchimg = badchs.at(p);
+      int nhits[nplanes];
+      for (int p=0; p<nplanes; p++) {
+      	// for given row, we mark which columns have pixels above threshold.
+      	// we mark that column but also -neighborhoods and +neighboorhood columns around the central pixel
+        // the hit markers go into the hits vector
+      	nhits[p] = 0;
+	memset( hits[p].data(), 0, sizeof(int)*hits[p].size() ); // clear hit marker with an old-fashion C-method
+	const larcv::Image2D& img = imgs.at(p);
+        //const larcv::Image2D& badchimg = badchs.at(p);
 	for (size_t c=0; c<meta.cols(); c++) {
 	  int wid = dsfactor*c;
 	  float val = img.pixel( r, c );
 	  int lastcol = -1;
 	  if ( val > _config.thresholds.at(p) ) {
 	    for (int n=-_config.neighborhoods[p]; n<=_config.neighborhoods[p]; n++) {
+              // bound check the requested column
 	      if ( wid+n>=(int)hits[p].size() ) continue;
 	      if ( wid+n<0 ) continue;
 	      hits[p][wid+n] = 1;
@@ -141,22 +154,23 @@ namespace larlitecv {
 // 	  if ( badchimg.pixel( r, c )>0 ) {
 // 	    hits[p][wid] = 1;
 // 	  }
+          // because we mark columns that are +neighboorhood from current column, we can skip
+          // to the last column-1 (end of loop will apply +1) to speed up slightly
 	  if ( lastcol>=0 && lastcol<(int)meta.cols() )
-	    c = lastcol;
+	    c = lastcol-1;
 	}
       }
+      // time this hit collecting
       tot_hit_collecting += float( clock()-begin_hit_collecting )/CLOCKS_PER_SEC;
       //std::cout << "[row=" << r << ",t=" << meta.pos_y(r) << "] hits=" << nhits[0] << "," << nhits[1] << "," << nhits[2] << std::endl;
       
       // get boundary combos consistent which charge hits
-      // two pass
-      std::vector< std::vector<BoundaryCombo> > matched_combos(4);
+      // two passes, a tight and loose pass
+      std::vector< std::vector<BoundaryCombo> > matched_combos(ncrossings);
       matchalgo_tight->findCombos( hits[0], hits[1], hits[2], 
-				   //_config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
 				   badchs, true,
 				   matched_combos );
       matchalgo_loose->findCombos( hits[0], hits[1], hits[2], 
-				   //_config.neighborhoods.at(0), _config.neighborhoods.at(1), _config.neighborhoods.at(2), 
 				   badchs, true,
 				   matched_combos );
       
@@ -168,8 +182,10 @@ namespace larlitecv {
 	for ( auto &combo : combos ) {
 	  idx_combo++; // we index the vector combos, so others can refer to it
 	  int wirecols[3] = { combo.u()/dsfactor, combo.v()/dsfactor, combo.y()/dsfactor };
+          // above boundary combo search will count bad channels as "hits"          
+          // we require that at least 2 planes have good wire hits.
 	  int nbadchs = 0;
-	  for ( int p=0; p<3; p++) {
+	  for ( int p=0; p<nplanes; p++) {
 	    if ( badchs.at(p).pixel(r,wirecols[p])>0 ) 
 	      nbadchs++;
 	  }
@@ -179,18 +195,20 @@ namespace larlitecv {
 
 	  // otherwise set match
 
-	  // get pos
+	  // get position to mark up images
+          // we plot top/bottom points in (z,t) (as y fixed by boundary)
+          // we plot upstream/downstream in (y,t) (as z fixed by boundary)
 	  float x = 0;
-	  if ( pt==0 || pt==1 ) {
+	  if ( pt==BoundaryMuonTaggerAlgo::top || pt==BoundaryMuonTaggerAlgo::bot ) {
 	    // top and bottom use the z value
 	    x = combo.pos[2];
 	  }
 	  else {
 	    // up stream and downstream use the y value
-	    x = combo.pos[1]+116.0;
+	    x = combo.pos[1]+117.0; // y-values come back between [-117,117], we offset to have all positive values
 	  }
 
-	  // get total charge
+	  // get average charge
 	  float charge = 0.0;
 	  int nhascharge = 0;
 	  for (int p=0; p<3; p++) {
@@ -202,17 +220,20 @@ namespace larlitecv {
 	  }
 	  charge /= float( 3.0-nbadchs );
 	  if ( charge>_config.thresholds.at(0) ) {
-// 	    float prev_val = matchedspacepts.at( pt ).pixel( r, x_i );
-// 	    matchedspacepts.at(pt).set_pixel( r, x_i, prev_val+charge );
-// 	    for (int p=0; p<3; p++) {
-// 	      prev_val = matchedpixels.at(3*pt+p).pixel( r, wirecols[p] );
-// 	      matchedpixels.at(3*pt+p).set_pixel( r, wirecols[p], prev_val+charge );
-// 	    }
+             if ( _config.save_endpt_images ) {
+              // for optional visualization
+	      float prev_val = matchedspacepts.at( pt ).pixel( r, x );
+  	      matchedspacepts.at(pt).set_pixel( r, x, prev_val+charge );
+	      for (int p=0; p<3; p++) {
+		prev_val = matchedpixels.at(3*pt+p).pixel( r, wirecols[p] );
+		matchedpixels.at(3*pt+p).set_pixel( r, wirecols[p], prev_val+charge );
+	      }
+	    }
 	    // save (x,y) point for clustering
 	    std::vector<double> pt_combo(2,0.0); // this is (z,y)
 	    pt_combo[0] = x;
 	    //pt_combo[1] = r + 0.1*float(idx_combo%10);
-	    pt_combo[1] = r + 0.1*rand.Uniform(); // prevents exact sample point from messing up tree
+	    pt_combo[1] = r + 0.1*rand.Uniform(); // prevents exact sample point from messing up spatial search tree
 	    combo_points[pt].emplace_back( std::move(pt_combo) );
 	    // save (u,v,y) column
 	    std::vector<int> combo_col(3);
@@ -223,7 +244,9 @@ namespace larlitecv {
 	}//end of loop over combos
       }//end of end point types
     }//end of row loop
-    
+    */
+    float elapsed_hitsearch = float( clock()-begin_time )/CLOCKS_PER_SEC;
+
     // cluster each boundary type
     std::cout << "  begin clustering" << std::endl;
     clock_t begin_clustering = clock();
@@ -432,6 +455,7 @@ namespace larlitecv {
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "boundary pixel search took " << elapsed_secs << " secs" << std::endl;
     std::cout << "  hit collecting time: " << tot_hit_collecting << " secs" << std::endl;
+    std::cout << "  end of hit collecting: " << elapsed_hitsearch << " secs" << std::endl;
     std::cout << "  clustering time: " << elapsed_clustering << " secs" << std::endl;
     std::cout << "  total number of combos found: " << total_combos << std::endl;
 
@@ -1257,6 +1281,174 @@ namespace larlitecv {
     return false;
   }
 
+  void BoundaryMuonTaggerAlgo::CollectCandidateBoundaryPixels( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,
+    std::vector< dbscan::dbPoints >& combo_points, std::vector< std::vector< std::vector<int> > >& combo_cols,
+    std::vector< larcv::Image2D>& matchedpixels, std::vector< larcv::Image2D >& matchedspacepts ) {
+    // goal of this method is to search the images for pixels consistent with boundary crossings
+    // (U,V,Y) combinations that meet at the edges of the detector are stored in class attributes matchalgo_loose, matchalgo_tight
+    // for each row in the image, we send in information about which columns have charge above it
+    // we then get in return whether a set of hits across each plane match to a boundary crossing
 
-  
-}
+    const int nplanes = (int)imgs.size();
+    if ( nplanes!=3 ) {
+      throw std::runtime_error("CollectCandidateBoundaryPixels requires 3 planes. Sorry. Feel free to improve this.");
+    }
+
+    const int ncrossings = (int)BoundaryMuonTaggerAlgo::kNumCrossings;
+    const larcv::ImageMeta& meta = imgs.at(0).meta();
+    TRandom3 rand( time(NULL) );    
+
+    // we need the wire downsampling factor
+    int dsfactor = int( meta.pixel_width()+0.1 ); 
+    
+    // we save col number of pixels above threshold in each plane with this vector.
+    // it is the size of the neighborhood we'll look at. _config.neighborhoods defines the radius.
+    std::vector<int> abovethresh[nplanes]; 
+    for (int p=0; p<nplanes; p++) {
+      abovethresh[p].resize( 2*_config.neighborhoods.at(p)+1, 0 );
+    }
+
+    // reserve space for hit vector. marks the clumns where hits occur for a given a row.
+    // we have one for each plane;
+    std::vector< int > hits[nplanes];
+    for (int p=0; p<nplanes; p++ ) {
+      hits[p].resize( meta.cols() );
+    }
+
+    // storage for boundary combinations we'll cluster
+    if ( (int)combo_points.size()!=ncrossings ) {
+      combo_points.clear();
+      combo_points.resize(ncrossings);
+    }
+    if ( (int)combo_cols.size()!=ncrossings ) {
+      combo_cols.clear();
+      combo_points.resize(ncrossings);
+    }
+
+    // misc. trackers
+    float tot_hit_collecting = 0;
+    int total_combos = 0;
+
+    // now loop over over the time of the images
+    for (size_t r=0; r<meta.rows(); r++) {
+
+      // Find boundary combos using search algo
+      //std::vector< int > hits[3];
+      int nhits[nplanes];
+      for (int p=0; p<nplanes; p++) {
+        // for given row, we mark which columns have pixels above threshold.
+        // we mark that column but also -neighborhoods and +neighboorhood columns around the central pixel
+        // the hit markers go into the hits vector
+        nhits[p] = 0;
+        memset( hits[p].data(), 0, sizeof(int)*hits[p].size() ); // clear hit marker with an old-fashion C-method
+        const larcv::Image2D& img = imgs.at(p);
+        //const larcv::Image2D& badchimg = badchs.at(p);
+        for (size_t c=0; c<meta.cols(); c++) {
+          int wid = dsfactor*c;
+          float val = img.pixel( r, c );
+          int lastcol = -1;
+          if ( val > _config.thresholds.at(p) ) {
+            for (int n=-_config.neighborhoods[p]; n<=_config.neighborhoods[p]; n++) {
+              // bound check the requested column
+              if ( wid+n>=(int)hits[p].size() ) continue;
+              if ( wid+n<0 ) continue;
+              hits[p][wid+n] = 1;
+              lastcol = wid+n;
+            }
+            nhits[p]++;
+          }
+          else if ( _config.hitsearch_uses_badchs && badchs.at(p).pixel( r, c )>0 ) {
+            // use badchs. can toggle off/on as this increases false positive rate bigly
+            hits[p][wid] = 1;
+          }
+          // because we mark columns that are +neighboorhood from current column, we can skip
+          // to the last column-1 (end of loop will apply +1) to speed up slightly
+          if ( lastcol>=0 && lastcol<(int)meta.cols() )
+            c = lastcol-1;
+        }
+      }//end of plane loop
+      // time this hit collecting
+      //std::cout << "[row=" << r << ",t=" << meta.pos_y(r) << "] hits=" << nhits[0] << "," << nhits[1] << "," << nhits[2] << std::endl;
+      
+      // get boundary combos consistent which charge hits
+      // two passes, a tight and loose pass
+      std::vector< std::vector<BoundaryCombo> > matched_combos(ncrossings);
+      matchalgo_tight->findCombos( hits[0], hits[1], hits[2], 
+                                   badchs, true,
+                                   matched_combos );
+      matchalgo_loose->findCombos( hits[0], hits[1], hits[2], 
+                                   badchs, true,
+                                   matched_combos );
+      
+      // mark up image, filter out combinations for clustering
+      for ( int pt=0; pt<(int)matched_combos.size(); pt++ ) {
+        const std::vector<BoundaryCombo>& combos = matched_combos.at(pt);
+        //std::cout << "  combos: type=" << pt << " number=" << combos.size() << std::endl;
+        int idx_combo = -1;
+        for ( auto &combo : combos ) {
+          idx_combo++; // we index the vector combos, so others can refer to it
+          int wirecols[3] = { combo.u()/dsfactor, combo.v()/dsfactor, combo.y()/dsfactor };
+          // above boundary combo search will count bad channels as "hits"          
+          // we require that at least 2 planes have good wire hits.
+          int nbadchs = 0;
+          for ( int p=0; p<nplanes; p++) {
+            if ( badchs.at(p).pixel(r,wirecols[p])>0 ) 
+              nbadchs++;
+          }
+          if (nbadchs>=2) {
+            continue; // combo due two badchs
+          }
+
+          // otherwise set match
+
+          // get position to mark up images
+          // we plot top/bottom points in (z,t) (as y fixed by boundary)
+          // we plot upstream/downstream in (y,t) (as z fixed by boundary)
+          float x = 0;
+          if ( pt==BoundaryMuonTaggerAlgo::top || pt==BoundaryMuonTaggerAlgo::bot ) {
+            // top and bottom use the z value
+            x = combo.pos[2];
+          }
+          else {
+            // up stream and downstream use the y value
+            x = combo.pos[1]+117.0; // y-values come back between [-117,117], we offset to have all positive values
+          }
+
+          // get average charge
+          float charge = 0.0;
+          int nhascharge = 0;
+          for (int p=0; p<3; p++) {
+            if ( imgs.at(p).pixel( r, wirecols[p] )>_config.thresholds.at(p) 
+                 || badchs.at(p).pixel( r, wirecols[p] )>0 ) {
+              nhascharge++;
+              charge += imgs.at(p).pixel( r, wirecols[p] );
+            }
+          }
+          charge /= float( 3.0-nbadchs );
+          if ( charge>_config.thresholds.at(0) ) {
+             if ( _config.save_endpt_images ) {
+              // for optional visualization
+              float prev_val = matchedspacepts.at( pt ).pixel( r, x );
+              matchedspacepts.at(pt).set_pixel( r, x, prev_val+charge );
+              for (int p=0; p<3; p++) {
+                prev_val = matchedpixels.at(3*pt+p).pixel( r, wirecols[p] );
+                matchedpixels.at(3*pt+p).set_pixel( r, wirecols[p], prev_val+charge );
+              }
+            }
+            // save (x,y) point for clustering
+            std::vector<double> pt_combo(2,0.0); // this is (z,y)
+            pt_combo[0] = x;
+            //pt_combo[1] = r + 0.1*float(idx_combo%10);
+            pt_combo[1] = r + 0.1*rand.Uniform(); // prevents exact sample point from messing up spatial search tree
+            combo_points[pt].emplace_back( std::move(pt_combo) );
+            // save (u,v,y) column
+            std::vector<int> combo_col(3);
+            for (int p=0; p<3; p++) combo_col[p] = wirecols[p];
+            combo_cols[pt].emplace_back( combo_col );
+            total_combos++;
+          }//if passes charge threshold
+        }//end of loop over combos
+      }//end of end point types
+    }//end of row loop
+  }//end of function
+}//end of namespace

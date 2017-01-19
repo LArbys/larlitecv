@@ -27,6 +27,8 @@ namespace larlitecv {
     std::vector<larcv::Image2D> makeBadChImage( int minstatus, int nplanes, int start_tick, int nticks, int nchannels, 
 						int time_downsample_factor, int wire_downsample_factor,
 						const larcv::EventChStatus& ev_status );
+    std::vector<larcv::Image2D> findMissingBadChs( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimgs_v,
+      const float empty_ch_threshold, const int max_empty_gap );
     
   };
   

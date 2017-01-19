@@ -25,7 +25,11 @@ namespace larlitecv {
       
 
   public:
-    ConfigBoundaryMuonTaggerAlgo() {};
+    ConfigBoundaryMuonTaggerAlgo() {
+      // defaults
+      save_endpt_images = false; 
+      hitsearch_uses_badchs = false;
+    };
     ~ConfigBoundaryMuonTaggerAlgo() {};
 
     bool checkOK() { return true; }; // dummy for now
@@ -42,6 +46,8 @@ namespace larlitecv {
     std::vector<float>   boundary_cluster_radius;    ///< nearest neighbor radius for dbscan clustering of boundary pixels
     std::vector<float> astar_thresholds; //< passed to astar config
     std::vector<int>   astar_neighborhood; //< passed to astar config
+    bool save_endpt_images;
+    bool hitsearch_uses_badchs;
   };
 
   class BoundaryMuonTaggerAlgo {
@@ -57,6 +63,7 @@ namespace larlitecv {
     virtual ~BoundaryMuonTaggerAlgo();
 
     enum { kOK=0, kErr_NotConfigured, kErr_BadInput };
+    typedef enum { top=0, bot, upstream, downstream, kNumCrossings } Crossings_t;
 
   public:
     
@@ -102,6 +109,10 @@ namespace larlitecv {
 				     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v );
     bool compare2Dtrack( const std::vector< BMTrackCluster2D >& track2d, const BMTrackCluster3D& track3d, const larcv::ImageMeta& meta,
 			 float path_radius_cm, float endpt_radius_cm );
+
+    void CollectCandidateBoundaryPixels( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,
+      std::vector< dbscan::dbPoints >& combo_points, std::vector< std::vector< std::vector<int> > >& combo_cols,
+      std::vector< larcv::Image2D>& matchedpixels, std::vector< larcv::Image2D >& matchedspacepts );
 
 
   };
