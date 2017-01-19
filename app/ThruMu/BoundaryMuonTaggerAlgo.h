@@ -114,6 +114,9 @@ namespace larlitecv {
       std::vector< dbscan::dbPoints >& combo_points, std::vector< std::vector< std::vector<int> > >& combo_cols,
       std::vector< larcv::Image2D>& matchedpixels, std::vector< larcv::Image2D >& matchedspacepts );
 
+    void ClusterBoundaryHitsIntoEndpointCandidates( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs, 
+      const std::vector< dbscan::dbPoints >& combo_points, const std::vector< std::vector< std::vector<int> > >& combo_cols, 
+      std::vector< std::vector<BoundaryEndPt> >& end_points );
 
   };
 
