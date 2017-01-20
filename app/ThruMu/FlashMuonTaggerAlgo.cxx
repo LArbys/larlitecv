@@ -88,7 +88,11 @@ namespace larlitecv {
 	  }
 	}
 
-	std::vector<float> z_range = { z_weighted+min_dist_z, z_weighted+max_dist_z }; // be more intelligent later
+        // extend by some factor (example 10%). This is to ensure acceptance of tracks.
+        float zwidth = fabs(min_dist_z)+fabs(max_dist_z);
+        float extension = zwidth*fConfig.flash_zrange_extension*0.5;
+
+	std::vector<float> z_range = { z_weighted+min_dist_z-extension, z_weighted+max_dist_z+extension}; // be more intelligent later
 	std::vector<float> y_range = { -120.0, 120.0 };
 	if ( fSearchMode==kOutOfImage ) {
 	  // accept all
@@ -414,14 +418,14 @@ namespace larlitecv {
       if ( tmax==-1 || y_>tmax ) { tmax = y_; wmax = x_; };
       if ( tmin==-1 || y_<tmin ) { tmin = y_; wmin = x_; };
     }
-    // if ( fConfig.verbosity<2 ) {
-    //   std::cout << "end points: max (r,c)=(" << tmax << ", " << wmax << ")"
-    // 		<< " tw=(" << meta.pos_y(tmax) << "," << meta.pos_x(wmax) << ")"
-    // 		<< "  min (r,c)=(" << tmin << "," << wmin << ")" 
-    // 		<< " tw=(" << meta.pos_y(tmin) << "," << meta.pos_x(wmin) << ")"
-    // 		<< "  versus: query_row=" << row_target
-    // 		<< std::endl;
-    // }
+    if ( fConfig.verbosity<1 ) {
+      std::cout << "  end points: max (r,c)=(" << tmax << ", " << wmax << ")"
+    		<< "  tw=(" << meta.pos_y(tmax) << "," << meta.pos_x(wmax) << ")"
+    		<< "  min (r,c)=(" << tmin << "," << wmin << ")" 
+    		<< "  tw=(" << meta.pos_y(tmin) << "," << meta.pos_x(wmin) << ")"
+    		<< "  versus: query_row=" << row_target
+    		<< std::endl;
+    }
 
     // is this a marked flash-end?
     // if extrema matches the annode flash hypothesis row. mark as interesting (Score 200)
@@ -429,11 +433,11 @@ namespace larlitecv {
     bool tmin_isend = false;
     bool tmax_isend = false;
     if ( abs(tmin-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) {
-      //if ( fConfig.verbosity<1 ) std::cout << "MATCHED MIN END" << std::endl;
+      //if ( fConfig.verbosity<1 ) std::cout << "  MATCHED MIN END" << std::endl;
       tmin_isend = true;
     }
     if ( abs(tmax-row_target)<=fConfig.endpoint_time_neighborhood.at(plane) ) { 
-      //if ( fConfig.verbosity<1 ) std::cout << "MATCHED MAX_END" << std::endl;
+      //if ( fConfig.verbosity<1 ) std::cout << "  MATCHED MAX_END" << std::endl;
       tmax_isend = true;
     }
 
