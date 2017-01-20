@@ -34,6 +34,7 @@ namespace larlitecv {
     float               usec_per_tick;
     float               drift_distance;
     float               drift_velocity;
+    int                 search_row_radius; ///< neighborhood to gather charge for clustering
   };
   
   class FlashMuonTaggerAlgo {

@@ -103,19 +103,19 @@ namespace larlitecv {
 	
 	int row_target = meta.row( tick_target );
 	
-	// if ( true || fConfig.verbosity<1 ) {
-	//   std::cout << "============================================================================================" << std::endl;
-	//   std::cout << "[Opflash search] " << modename << " mode" << std::endl;
-	//   std::cout << "  opflash: "
-	// 	    << " flash_tick=" << flash_tick
-	// 	    << " tick_target=" << tick_target
-	// 	    << " row_target=" << row_target
-	// 	    << " qtot= " << qtot
-	// 	    << " z_range=[" << z_range[0] << "," << z_range[1] << "] "
-	// 	    << " w_range=[" << int(z_range[0]/0.3/meta.pixel_width()) << "," << int(z_range[1]/0.3/meta.pixel_width()) << "] "
-	// 	    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+240.0 << " ticks"
-	// 	    << std::endl;
-	// }
+	if ( fConfig.verbosity<1 ) {
+	  std::cout << "============================================================================================" << std::endl;
+	  std::cout << "[Opflash search] " << modename << " mode" << std::endl;
+	  std::cout << "  opflash: "
+		    << " flash_tick=" << flash_tick
+		    << " tick_target=" << tick_target
+		    << " row_target=" << row_target
+		    << " qtot= " << qtot
+		    << " z_range=[" << z_range[0] << "," << z_range[1] << "] "
+		    << " w_range=[" << int(z_range[0]/0.3/meta.pixel_width()) << "," << int(z_range[1]/0.3/meta.pixel_width()) << "] "
+		    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+240.0 << " ticks"
+		    << std::endl;
+	}
 	
 	// we find track ends on all three planes
 	dbscan::dbPoints* hits[nplanes];
@@ -152,7 +152,8 @@ namespace larlitecv {
 	    bool foundend = findClusterEnds( *(cluster_info[p]), *(hits[p]), ic, row_target, p, meta, endpt );
 	    if ( foundend ) endpts[p]->emplace_back( endpt );
 	  }
-	  //std::cout << "  flashmuontaggeralgo: plane " << p << " clusters: " << cluster_info[p]->clusters.size() << " endpoints=" << endpts[p]->size() << std::endl;
+          if (fConfig.verbosity<1 )
+	    std::cout << "  flashmuontaggeralgo: plane " << p << " clusters: " << cluster_info[p]->clusters.size() << " endpoints=" << endpts[p]->size() << std::endl;
 	}
 
 	// now that we have end points for each cluster, we ID position of charge deposition in (Y,Z) and check if consistent with the flash
@@ -179,23 +180,25 @@ namespace larlitecv {
 	
 	::larcv::UBWireTool::findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
 
-	// std::cout << " 2 plane intersections: " << std::endl;
-	// for (int ii=0; ii<(int)intersections2plane.size(); ii++) {
-	//   std::cout << "   (" << intersections2plane.at(ii).at(0) << ","
-	// 	    << intersections2plane.at(ii).at(1) << ","
-	// 	    << intersections2plane.at(ii).at(2) << ")"
-	// 	    << " vertex (z,y)=(" << vertex2plane.at(ii).at(0) << ", " << vertex2plane.at(ii).at(1) << ")" << std::endl;
-	// }
+        if ( fConfig.verbosity<1 ) {
+	  std::cout << " 2 plane intersections: " << std::endl;
+	  for (int ii=0; ii<(int)intersections2plane.size(); ii++) {
+	    std::cout << "   (" << intersections2plane.at(ii).at(0) << ","
+		    << intersections2plane.at(ii).at(1) << ","
+		    << intersections2plane.at(ii).at(2) << ")"
+		    << " vertex (z,y)=(" << vertex2plane.at(ii).at(0) << ", " << vertex2plane.at(ii).at(1) << ")" << std::endl;
+	  }
 	  
-	// std::cout << " 3 plane intersections:" << std::endl;
-	// for (int ii=0 ; ii<(int)intersections3plane.size(); ii++) {
-	//   std::cout << "   (" << intersections3plane.at(ii).at(0) << ","
-	// 	    << intersections3plane.at(ii).at(1) << ","
-	// 	    << intersections3plane.at(ii).at(2) << ") "
-	// 	    << " vertex (z,y)=(" << vertex3plane.at(ii).at(0) << ", " << vertex3plane.at(ii).at(1) << ")"
-	// 	    << "score=" << areas3plane.at(ii) << std::endl;
-	// }
-	
+	  std::cout << " 3 plane intersections:" << std::endl;
+	  for (int ii=0 ; ii<(int)intersections3plane.size(); ii++) {
+	    std::cout << "   (" << intersections3plane.at(ii).at(0) << ","
+		    << intersections3plane.at(ii).at(1) << ","
+		    << intersections3plane.at(ii).at(2) << ") "
+		    << " vertex (z,y)=(" << vertex3plane.at(ii).at(0) << ", " << vertex3plane.at(ii).at(1) << ")"
+		    << "score=" << areas3plane.at(ii) << std::endl;
+	  }
+	}
+
 	// now we go through and find our best match(es)
 	int max_flash_combos = 3;
 	int ncombos = 0;
