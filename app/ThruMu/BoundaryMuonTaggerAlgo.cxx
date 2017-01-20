@@ -1148,9 +1148,13 @@ namespace larlitecv {
           //std::cout << "Find the endpoints for cluster pt=" << pt << " id=" << ic << " size=" << clout.clusters.at(ic).size() << std::endl;
 
           const dbscan::dbCluster& detspace_cluster = clout.clusters.at(ic);
-          std::vector< BoundaryEndPt > endpt_v = DefineEndpointFromBoundaryCluster( (BoundaryMuonTaggerAlgo::Crossings_t)pt, detspace_cluster, imgs, badchs, 
-          	combo_points.at(pt), combo_cols.at(pt), matchedpixels );
-          end_points.emplace_back( std::move(endpt_v) );
+          //std::vector< BoundaryEndPt > endpt_v = DefineEndpointFromBoundaryCluster( (BoundaryMuonTaggerAlgo::Crossings_t)pt, detspace_cluster, imgs, badchs, 
+          //      combo_points.at(pt), combo_cols.at(pt), matchedpixels );
+          std::vector< BoundaryEndPt > endpt_v = DefineEndpointFromBoundaryClusterV2( (BoundaryMuonTaggerAlgo::Crossings_t)pt, detspace_cluster, imgs, badchs, 
+                combo_points.at(pt), combo_cols.at(pt), matchedpixels );
+
+          if (nplanes==(int)endpt_v.size())
+	    end_points.emplace_back( std::move(endpt_v) );
           
         }//end of if cluster size is large enough
       }//end of cluster loop
@@ -1339,6 +1343,216 @@ namespace larlitecv {
     else
       endpt_v = endpt_v_max;
     
+    return endpt_v;
+  }//end of end point definition
+
+
+  std::vector< BoundaryEndPt > BoundaryMuonTaggerAlgo::DefineEndpointFromBoundaryClusterV2( const BoundaryMuonTaggerAlgo::Crossings_t crossing_type, 
+    const dbscan::dbCluster& detspace_cluster, 
+    const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,
+    const dbscan::dbPoints& combo_points, const std::vector< std::vector<int> >& combo_cols, std::vector<larcv::Image2D>& matchedpixels ) {
+
+    const int nplanes = (int)imgs.size();
+    const int ncrossings = BoundaryMuonTaggerAlgo::kNumCrossings;
+    const larcv::ImageMeta& meta = imgs.at(0).meta();
+
+    // we transfer information from this cluster into image space.  we mark pixels in image space with a hit
+    std::vector< larcv::Image2D > workspace;
+    for (int p=0; p<nplanes; p++) {
+      workspace.push_back( larcv::Image2D( imgs.at(p).meta() ) );
+      workspace.back().paint(0.0);
+    }    
+
+    // loop through hit in real space cluster. collect pixels in image space to cluster once more.
+    TRandom3 rand( time(NULL) );    
+    dbscan::dbPoints chargepts[3]; // charge per plane    
+    std::vector<int> min_row(nplanes,-1);
+    std::vector<int> max_row(nplanes,-1);
+    std::vector<float> cluster_q(nplanes,0);
+    int abs_min_row = -1;
+    int abs_max_row = -1;
+
+    // we organize image-space pixels in a vector that is sorted by (row,charge)
+    struct PixelPt_t {
+       int col;
+       int row;
+       float q;
+    };
+    struct PixelSorter_t {
+      bool operator()(PixelPt_t lhs, PixelPt_t rhs) {
+      	if ( lhs.row<rhs.row ) return true;
+      	else if ( lhs.row==rhs.row ) {
+      	  if ( lhs.q<rhs.q) return true;
+      	}
+        return false;
+      };
+    } my_sorter;
+    std::vector< std::vector<PixelPt_t> > sorted_imagespace_pixels(nplanes);
+
+    for (size_t ihit=0; ihit<detspace_cluster.size(); ihit++) {
+      int idxhit = detspace_cluster.at(ihit);
+      for (size_t p=0; p<3; p++) {
+      	int row = combo_points[idxhit][1];
+        if ( abs_min_row<0 || row<abs_min_row )
+          abs_min_row = row;
+        if ( abs_max_row<0 || row>abs_max_row )
+          abs_max_row = row;
+        int col = combo_cols[idxhit][p]; // get the position in the image for this point
+        // look for charge in neighborhood of this point
+        int neighborhood = _config.neighborhoods[p]*_config.type_modifier[(int)crossing_type];
+        for (int n=-neighborhood; n<=neighborhood; n++) {
+          if ( col+n<0 || col+n>=(int)imgs.at(p).meta().cols() ) continue;
+          float q = imgs.at(p).pixel( (int)combo_points[idxhit][1], col+n );
+          if ( q > _config.thresholds.at(p) && workspace[p].pixel(row,col+n)==0 ) {
+            // define charge point in image space. jiggle col,row because ANN fails if points on top one another
+            std::vector<double> imagespacept(2);
+            imagespacept[0] = double(col+n) + 0.1*rand.Uniform();
+            imagespacept[1] = double(row) + 0.1*rand.Uniform();
+
+            chargepts[p].push_back( imagespacept );
+            // mark this pixel as used
+            workspace[p].set_pixel( row, col+n, 10.0 );
+            if ( _config.save_endpt_images )
+              matchedpixels.at(nplanes*crossing_type+p).set_pixel( (int)combo_points[idxhit][1], col+n, 255.0 );
+
+            // set max or min row
+            if ( min_row[p]==-1 || min_row[p]>row)
+	      min_row[p] = row;
+            if ( max_row[p]==-1 || max_row[p]<row )
+              max_row[p] = row;
+
+            cluster_q[p] += q;
+
+            // fill PixelPt_t container
+            PixelPt_t pix;
+            pix.col = col+n;
+            pix.row = row;
+            pix.q = q;
+            sorted_imagespace_pixels.at(p).emplace_back( std::move(pix) );
+
+          }//if pixel above thresh
+        }// loop over neighborhood
+      }//end of loop over plane
+    }//end of loop over hits in real space
+
+    // we sort
+    for ( int p=0; p<nplanes; p++ ) {
+      std::sort( sorted_imagespace_pixels.at(p).begin(), sorted_imagespace_pixels.at(p).end(), my_sorter );
+    }
+
+    // with sorted list of image-space points, we now step through time, pairing same-time triples, to find consistent positions
+    // we keep the pixel that is closest to the wall
+    int current_row = abs_min_row;
+    std::vector<int> plane_idx(nplanes,0);
+    int best_row = 0;
+    std::vector<int> best_cols(3,0);
+    float best_dwall = -1;
+    float best_triarea = -1;
+    bool more_combos = true;
+    while ( more_combos ) {
+      // go to pixel in each plane that is at least this row
+      std::vector<int> wids(nplanes);
+      std::vector<int> plane_row(nplanes,0);
+      for (int p=0; p<nplanes; p++) {
+      	// keep moving up pixel list until we find a pixel that is same row or further
+      	while ( current_row > sorted_imagespace_pixels[p][plane_idx[p]].row && plane_idx[p]<sorted_imagespace_pixels.at(p).size() ) {
+          plane_idx[p]++;
+        }
+        wids[p]      = sorted_imagespace_pixels[p][plane_idx[p]].col;
+        plane_row[p] = sorted_imagespace_pixels[p][plane_idx[p]].row;
+      }
+      std::cout << "current_row=" << current_row 
+       << " plane_idx's=[" 
+       << " " << plane_idx[0] << "/" << sorted_imagespace_pixels[0].size() << "r=" << sorted_imagespace_pixels[0][plane_idx[0]].row << ","
+       << " " << plane_idx[1] << "/" << sorted_imagespace_pixels[1].size() << "r=" << sorted_imagespace_pixels[1][plane_idx[1]].row << ","
+       << " " << plane_idx[2] << "/" << sorted_imagespace_pixels[2].size() << "r=" << sorted_imagespace_pixels[2][plane_idx[2]].row << "]" 
+       << std::endl;                         
+
+      // are they the same row?
+      int smallest_row = -1;
+      for ( int p=0; p<nplanes; p++) {
+      	if ( smallest_row<0 || plane_row[p]<smallest_row ) {
+          smallest_row = plane_row[p];
+        }
+      }
+      if (smallest_row>current_row) {
+      	current_row = smallest_row;
+        std::cout << " -- out of sync. move to next." << std::endl;
+        continue; // look again for an alignment
+      }
+
+      // otherwise we have same-tick pixel to test intersection
+      std::vector<float> poszy;
+      double triarea = 0.;
+      int crosses = 0;
+      larcv::UBWireTool::wireIntersection( wids, poszy, triarea, crosses );
+
+      if ( crosses==1 && triarea<1 ) {
+      	// good intersection. find dwall
+        float thisdwall = 0.;
+        if ( crossing_type==top ) thisdwall = 117.0-poszy[1];
+        else if ( crossing_type==bot ) thisdwall = poszy[1] + 117.0;
+        else if ( crossing_type==upstream ) thisdwall = poszy[0];
+        else if ( crossing_type==downstream ) thisdwall = 1040-poszy[0];
+	std::cout << "  -- valid point dwall= " << 	thisdwall << std::endl;
+        if ( best_dwall<0 || thisdwall<best_dwall ) {
+	  best_dwall = thisdwall;
+          best_row = current_row;
+          best_cols = wids;
+          best_triarea = triarea;
+          std::cout << "  -- update." << std::endl;
+        }
+      }
+
+      // we increment to move forward. but which plane's list?
+      // the one with the most remaining pixels at this current row i guess
+      std::vector<int> num_remaining(nplanes,0);
+      for ( int p=0; p<nplanes; p++) {
+	for (int idx=plane_idx[p]+1; idx<sorted_imagespace_pixels[p].size(); idx++) {
+          if ( sorted_imagespace_pixels[p][idx].row==current_row ) num_remaining[p]++;
+          else if ( sorted_imagespace_pixels[p][idx].row>current_row ) break;
+        }
+      }
+
+      int increment_p = 0;
+      int max_remaining = num_remaining[0];
+      for (int p=1; p<nplanes; p++) {
+      	if ( num_remaining[p]>max_remaining) {
+          increment_p = p;
+          max_remaining = num_remaining[p];
+        }
+      }
+
+      plane_idx[increment_p]++;
+      for (int p=0; p<nplanes; p++){
+      	if ( plane_idx[p]<sorted_imagespace_pixels[p].size()  ) {
+          if ( sorted_imagespace_pixels[p][plane_idx[p]].row>current_row )
+	    current_row = sorted_imagespace_pixels[p][plane_idx[p]].row;
+        }
+        else {
+          more_combos = false;
+        }
+      }
+    }
+    
+    // we have defined an image-space cluster of pixels on each plane in chargepts 
+    // we have the min and max row and charge for this cluster on all three planes
+    std::cout << "Candidate Endpt(type=" << crossing_type << ")"
+	    << " min ticks=(" << meta.pos_y(max_row[0]) << "," << meta.pos_y(max_row[1]) << "," << meta.pos_y(max_row[2]) << ") "
+      	    << " max_rows=(" <<  meta.pos_y(min_row[0]) << "," << meta.pos_y(min_row[1]) << "," << meta.pos_y(min_row[2]) << ") "
+            << " endpt-dwall=" << best_dwall
+            << " endpt-tick=" << meta.pos_y(best_row)
+            << " endpt-cols=" << best_cols[0] << "," << best_cols[1] << "," << best_cols[2] << ") "
+            << " best-tri=" << best_triarea
+            << std::endl;
+
+
+    // create the end point
+    std::vector< BoundaryEndPt > endpt_v; 
+    for ( int p=0; p<nplanes; p++)  {
+      BoundaryEndPt endpt(best_row,best_cols[p], (BoundaryEndPt::BoundaryEnd_t)crossing_type );
+      endpt_v.emplace_back( std::move(endpt) );
+    }
     return endpt_v;
   }//end of end point definition
 
