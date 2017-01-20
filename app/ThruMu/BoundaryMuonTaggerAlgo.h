@@ -29,6 +29,7 @@ namespace larlitecv {
       // defaults
       save_endpt_images = false; 
       hitsearch_uses_badchs = false;
+      ticks_per_full_drift = 4650;
     };
     ~ConfigBoundaryMuonTaggerAlgo() {};
 
@@ -48,6 +49,7 @@ namespace larlitecv {
     std::vector<int>   astar_neighborhood; //< passed to astar config
     bool save_endpt_images;
     bool hitsearch_uses_badchs;
+    int ticks_per_full_drift;
   };
 
   class BoundaryMuonTaggerAlgo {
@@ -116,7 +118,10 @@ namespace larlitecv {
 
     void ClusterBoundaryHitsIntoEndpointCandidates( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs, 
       const std::vector< dbscan::dbPoints >& combo_points, const std::vector< std::vector< std::vector<int> > >& combo_cols, 
-      std::vector< std::vector<BoundaryEndPt> >& end_points );
+      std::vector< std::vector<BoundaryEndPt> >& end_points, std::vector< larcv::Image2D>& matchedpixels );
+    std::vector< BoundaryEndPt > DefineEndpointFromBoundaryCluster(  const BoundaryMuonTaggerAlgo::Crossings_t crossing_type, const dbscan::dbCluster& detspace_cluster, 
+      const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,      
+      const dbscan::dbPoints& combo_points, const std::vector< std::vector<int> >& combo_cols, std::vector<larcv::Image2D>& matchedpixels );
 
   };
 

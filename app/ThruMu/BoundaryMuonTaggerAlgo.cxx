@@ -40,10 +40,10 @@ namespace larlitecv {
   }
 
   int BoundaryMuonTaggerAlgo::searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, 
-							 const std::vector< larcv::Image2D >& badchs,
-							 std::vector< std::vector<BoundaryEndPt> >& end_points,
-							 std::vector< larcv::Image2D >& matchedpixels,
-							 std::vector< larcv::Image2D >& matchedspacepts ) {
+                                                         const std::vector< larcv::Image2D >& badchs,
+                                                         std::vector< std::vector<BoundaryEndPt> >& end_points,
+                                                         std::vector< larcv::Image2D >& matchedpixels,
+                                                         std::vector< larcv::Image2D >& matchedspacepts ) {
     // this checks for pixels consistent with boundary crossings at the top/bottom/upstream/downstream portions of the TPC
     // returns an image that marks the location of such pixels
     // the vector returned has N*4 elements from N planes x 4 crossing types
@@ -80,14 +80,14 @@ namespace larlitecv {
     // we use meta to make the same sized image as the input
     if ( _config.save_endpt_images ) {
       for (int i=0; i<ncrossings; i++) { // top, bottom, upstream, downstream x 3 planes
-     	larcv::Image2D matchimage( meta );
-     	matchimage.paint(0.0);
-     	matchedspacepts.emplace_back( std::move(matchimage) );
-     	for (int p=0; p<3; p++) {
-     	  larcv::Image2D matchimage2( imgs.at(p).meta() );
-     	  matchimage2.paint(0.0);
-     	  matchedpixels.emplace_back( std::move(matchimage2) );
-     	}
+        larcv::Image2D matchimage( meta );
+        matchimage.paint(0.0);
+        matchedspacepts.emplace_back( std::move(matchimage) );
+        for (int p=0; p<3; p++) {
+          larcv::Image2D matchimage2( imgs.at(p).meta() );
+          matchimage2.paint(0.0);
+          matchedpixels.emplace_back( std::move(matchimage2) );
+        }
       }
     }
     
@@ -104,7 +104,7 @@ namespace larlitecv {
 
     // cluster each boundary type pixel (cluster of points in detector space)
     clock_t begin_clustering = clock();
-    ClusterBoundaryHitsIntoEndpointCandidates( imgs, badchs, combo_points, combo_cols, end_points );
+    ClusterBoundaryHitsIntoEndpointCandidates( imgs, badchs, combo_points, combo_cols, end_points, matchedpixels );
     float elapsed_clustering = float( clock()-begin_clustering )/CLOCKS_PER_SEC;
     
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
@@ -118,8 +118,8 @@ namespace larlitecv {
   }
 
   int BoundaryMuonTaggerAlgo::makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
-						   const std::vector< const std::vector< BoundaryEndPt >* >& spacepts,
-						   std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters ) {
+                                                   const std::vector< const std::vector< BoundaryEndPt >* >& spacepts,
+                                                   std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters ) {
     
     // wrap references into a struct so i can treat them more like an array
     // the order matches the order in BoundaryEnd_t enum
@@ -138,91 +138,91 @@ namespace larlitecv {
 
     for (int i=0; i<nendpts; i++) {
       for (int j=i+1; j<nendpts; j++) {
-	const std::vector< BoundaryEndPt >& pts_a = *(spacepts[i]);
-	const std::vector< BoundaryEndPt >& pts_b = *(spacepts[j]);
+        const std::vector< BoundaryEndPt >& pts_a = *(spacepts[i]);
+        const std::vector< BoundaryEndPt >& pts_b = *(spacepts[j]);
 
-	if ( pts_a.at(0).type==pts_b.at(0).type ) continue; // don't connect same type
-	npossible++;
-	//std::cout << "[ path-finding for endpoints (" << i << "," << j << ") "
-	//	  << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
+        if ( pts_a.at(0).type==pts_b.at(0).type ) continue; // don't connect same type
+        npossible++;
+        //std::cout << "[ path-finding for endpoints (" << i << "," << j << ") "
+        //        << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
 
-	/*
-	for (int p=0; p<3; p++) {
-	  int col_a = pts_a.at(p).w;
-	  int row_a = pts_a.at(p).t;
-	  int col_b = pts_b.at(p).w;
-	  int row_b = pts_b.at(p).t;
-	  std::cout << "  plane=" << p << ": "
-		    << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
-		    << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
-		    << std::endl;	    
-	}
-	*/
+        /*
+        for (int p=0; p<3; p++) {
+          int col_a = pts_a.at(p).w;
+          int row_a = pts_a.at(p).t;
+          int col_b = pts_b.at(p).w;
+          int row_b = pts_b.at(p).t;
+          std::cout << "  plane=" << p << ": "
+                    << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
+                    << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
+                    << std::endl;           
+        }
+        */
 
-	// don't try to connect points that can't be due to drift time
-	bool within_drift = true;
-	for (int p=0; p<3; p++) {
-	  int row_a = pts_a.at(p).t;
-	  int row_b = pts_b.at(p).t;
-	  if ( fabs( img_v.at(p).meta().pos_y( row_b )-img_v.at(p).meta().pos_y( row_a ) )>4650 ) { // ticks
-	    within_drift = false;
-	  }
-	}
-	if ( !within_drift ) {
-	  //std::cout << "time separation longer than drift window" << std::endl;
-	  continue;
-	}
-	//use test heuristic to see if we should run astar
-	//bool shallwe = passTrackTest( pts_a, pts_b, img_v, badchimg_v );
-	// for debugging specific tracks
-// 	if ( i==19 && j==30 )
-// 	  lrt.verbose_debug = true;
-// 	else
-// 	  lrt.verbose_debug = false;
-	std::vector< BMTrackCluster2D > test_track(3);
-	bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
-	//std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
-	if ( !shallwe ) { 
-	  //std::cout << "failed heuristic." << std::endl;
-	  continue; // we shant
-	}
-	//check max deviation from straight line
-	for (size_t p=0; p<3; p++) {
-	  int maxdev = -1;
-	  const BMTrackCluster2D& ttrack = test_track.at(p);
-	  for (size_t ipix=0; ipix<ttrack.pixelpath.size(); ipix++) {
-	    if ( maxdev < (int)fabs(ttrack.pixelpath.at(ipix).Intensity()) ) {
-	      maxdev = (int)fabs(ttrack.pixelpath.at(ipix).Intensity());
-	    }
-	  }
-	  //std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
-	}
-	
+        // don't try to connect points that can't be due to drift time
+        bool within_drift = true;
+        for (int p=0; p<3; p++) {
+          int row_a = pts_a.at(p).t;
+          int row_b = pts_b.at(p).t;
+          if ( fabs( img_v.at(p).meta().pos_y( row_b )-img_v.at(p).meta().pos_y( row_a ) )>_config.ticks_per_full_drift ) { // ticks
+            within_drift = false;
+          }
+        }
+        if ( !within_drift ) {
+          //std::cout << "time separation longer than drift window" << std::endl;
+          continue;
+        }
+        //use test heuristic to see if we should run astar
+        //bool shallwe = passTrackTest( pts_a, pts_b, img_v, badchimg_v );
+        // for debugging specific tracks
+//      if ( i==19 && j==30 )
+//        lrt.verbose_debug = true;
+//      else
+//        lrt.verbose_debug = false;
+        std::vector< BMTrackCluster2D > test_track(3);
+        bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
+        //std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
+        if ( !shallwe ) { 
+          //std::cout << "failed heuristic." << std::endl;
+          continue; // we shant
+        }
+        //check max deviation from straight line
+        for (size_t p=0; p<3; p++) {
+          int maxdev = -1;
+          const BMTrackCluster2D& ttrack = test_track.at(p);
+          for (size_t ipix=0; ipix<ttrack.pixelpath.size(); ipix++) {
+            if ( maxdev < (int)fabs(ttrack.pixelpath.at(ipix).Intensity()) ) {
+              maxdev = (int)fabs(ttrack.pixelpath.at(ipix).Intensity());
+            }
+          }
+          //std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
+        }
+        
 
-	std::vector< BMTrackCluster2D > planetracks;
-	int ncompleted = 0;
-	for (size_t p=0; p<3; p++) {
-// 	  std::cout << "  plane=" << p << ": "
-// 		    << " (c,r): (" << pts_a.at(p).w << "," << pts_a.at(p).t << ") ->"
-// 		    << " (" << pts_b.at(p).w << "," << pts_b.at(p).t << "), "
-// 		    << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
-// 		    << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
-// 		    << std::endl;
-	  
-	  BMTrackCluster2D track = runAstar( pts_a.at(p), pts_b.at(p), img_v.at(p), badchimg_v.at(p), 5, 5, 2, true );
-	  // book keeping
-	  track.start_pix_idx = i;
-	  track.end_pix_idx = j;
-	  //std::cout << "  p=" << p << " (" << track.start.w << "," << track.start.t << ") "
-	  //	    << " -> (" << track.end.w << "," << track.end.t << "): pathsize=" << track.pixelpath.size() << std::endl;
-	  if ( track.pixelpath.size()>3 ) ncompleted++;
-	  planetracks.emplace_back( std::move( track ) );
-	}
-	
-	if ( ncompleted>=2 ) {
-	  trackclusters.emplace_back( std::move(planetracks) );
-	}
-	ntotsearched++;
+        std::vector< BMTrackCluster2D > planetracks;
+        int ncompleted = 0;
+        for (size_t p=0; p<3; p++) {
+//        std::cout << "  plane=" << p << ": "
+//                  << " (c,r): (" << pts_a.at(p).w << "," << pts_a.at(p).t << ") ->"
+//                  << " (" << pts_b.at(p).w << "," << pts_b.at(p).t << "), "
+//                  << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
+//                  << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
+//                  << std::endl;
+          
+          BMTrackCluster2D track = runAstar( pts_a.at(p), pts_b.at(p), img_v.at(p), badchimg_v.at(p), 5, 5, 2, true );
+          // book keeping
+          track.start_pix_idx = i;
+          track.end_pix_idx = j;
+          //std::cout << "  p=" << p << " (" << track.start.w << "," << track.start.t << ") "
+          //        << " -> (" << track.end.w << "," << track.end.t << "): pathsize=" << track.pixelpath.size() << std::endl;
+          if ( track.pixelpath.size()>3 ) ncompleted++;
+          planetracks.emplace_back( std::move( track ) );
+        }
+        
+        if ( ncompleted>=2 ) {
+          trackclusters.emplace_back( std::move(planetracks) );
+        }
+        ntotsearched++;
       }//loop over pt b
     }//loop over pt a
     
@@ -233,8 +233,8 @@ namespace larlitecv {
   }
 
   int BoundaryMuonTaggerAlgo::markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
-							  const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters,
-							  std::vector<int>& goodlist, std::vector<larcv::Image2D>& markedimgs ) {
+                                                          const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters,
+                                                          std::vector<int>& goodlist, std::vector<larcv::Image2D>& markedimgs ) {
     std::vector< larcv::Image2D > workspace;
     for (auto &img : imgs ) {
       larcv::Image2D ws( img.meta() );
@@ -252,61 +252,61 @@ namespace larlitecv {
       
       float frac_marked[imgs.size()];
       for ( auto &img : imgs ) {
-	const larcv::ImageMeta& meta = img.meta();
-	int plane = (int)meta.plane();
-	workspace.at(img.meta().plane()).paint(0.0);
-	frac_marked[plane] = 0.;
+        const larcv::ImageMeta& meta = img.meta();
+        int plane = (int)meta.plane();
+        workspace.at(img.meta().plane()).paint(0.0);
+        frac_marked[plane] = 0.;
 
-	const larlitecv::BMTrackCluster2D& track = tracks2d.at(plane);
-	int nmarked = 0;
+        const larlitecv::BMTrackCluster2D& track = tracks2d.at(plane);
+        int nmarked = 0;
 
-	for ( auto &pixel : track.pixelpath ) {
-	  int col = pixel.X();
-	  int row = pixel.Y();
-	  bool foundcharge = false;
-	  for ( int dc=-_config.astar_neighborhood.at(plane); dc<=_config.astar_neighborhood.at(plane); dc++ ) {
-	    for ( int dr=-_config.astar_neighborhood.at(plane); dr<=_config.astar_neighborhood.at(plane); dr++ ) {
-	      int r = row+dr;
-	      int c = col+dc;
-	      if ( r<0 || r>=(int)meta.rows() ) continue;
-	      if ( c<0 || c>=(int)meta.cols() ) continue;
-	      float val = img.pixel( r, c );
-	      if ( val>_config.thresholds.at(plane) || badchimgs.at(plane).pixel(r,c)>0 ) {
-		workspace.at(plane).set_pixel( r, c, 100.0 );
-		foundcharge = true;
-	      }
-	    }
-	  }
-	  if ( foundcharge ) nmarked++;
-	}//end of pixel list
-	
-	frac_marked[plane] = float(nmarked)/float(track.pixelpath.size());
-	
+        for ( auto &pixel : track.pixelpath ) {
+          int col = pixel.X();
+          int row = pixel.Y();
+          bool foundcharge = false;
+          for ( int dc=-_config.astar_neighborhood.at(plane); dc<=_config.astar_neighborhood.at(plane); dc++ ) {
+            for ( int dr=-_config.astar_neighborhood.at(plane); dr<=_config.astar_neighborhood.at(plane); dr++ ) {
+              int r = row+dr;
+              int c = col+dc;
+              if ( r<0 || r>=(int)meta.rows() ) continue;
+              if ( c<0 || c>=(int)meta.cols() ) continue;
+              float val = img.pixel( r, c );
+              if ( val>_config.thresholds.at(plane) || badchimgs.at(plane).pixel(r,c)>0 ) {
+                workspace.at(plane).set_pixel( r, c, 100.0 );
+                foundcharge = true;
+              }
+            }
+          }
+          if ( foundcharge ) nmarked++;
+        }//end of pixel list
+        
+        frac_marked[plane] = float(nmarked)/float(track.pixelpath.size());
+        
       }//end of planetracks
 
       bool goodtrack = true;
       //std::cout << "fraction of path has charge (or badch): ";
       for (size_t p=0; p<3; p++) {
-	//std::cout << "p=" << p << ": " << frac_marked[p] << "    ";
-	if ( frac_marked[p]<0.9 )
-	  goodtrack = false;
+        //std::cout << "p=" << p << ": " << frac_marked[p] << "    ";
+        if ( frac_marked[p]<0.9 )
+          goodtrack = false;
       }
       //std::cout << std::endl;
 
       if ( goodtrack ) {
-	for (size_t p=0; p<3; p++) {
-	  for (size_t row=0; row<imgs.at(p).meta().rows(); row++) {
-	    for (size_t col=0; col<imgs.at(p).meta().cols(); col++) {
-	      if ( workspace.at(p).pixel(row,col)>0 ) {
-		markedimgs.at(p).set_pixel( row, col, 255 );
-	      }
-	    }
-	  }
-	}
+        for (size_t p=0; p<3; p++) {
+          for (size_t row=0; row<imgs.at(p).meta().rows(); row++) {
+            for (size_t col=0; col<imgs.at(p).meta().cols(); col++) {
+              if ( workspace.at(p).pixel(row,col)>0 ) {
+                markedimgs.at(p).set_pixel( row, col, 255 );
+              }
+            }
+          }
+        }
       }//end of if good track
       else {
-	// mark as rejected
-	goodlist.at(itrack) = 0; 
+        // mark as rejected
+        goodlist.at(itrack) = 0; 
       }
     } // end of loop over all tracks
     
@@ -314,8 +314,8 @@ namespace larlitecv {
   }
 
   BMTrackCluster2D BoundaryMuonTaggerAlgo::runAstar( const BoundaryEndPt& start_pt, const BoundaryEndPt& end_pt, 
-						     const larcv::Image2D& img, const larcv::Image2D& badchimg,
-						     int start_pad, int end_pad, int verbose, bool use_badchs ) {
+                                                     const larcv::Image2D& img, const larcv::Image2D& badchimg,
+                                                     int start_pad, int end_pad, int verbose, bool use_badchs ) {
     // This wraps/interfaces with the AStar algorithm on our image. runs one start to end check.
     // inputs
     // ------
@@ -358,8 +358,8 @@ namespace larlitecv {
   }
   
   void BoundaryMuonTaggerAlgo::process2Dtracks( std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
-						const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
-						std::vector< BMTrackCluster3D >& tracks, std::vector<int>& goodlist ) {
+                                                const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
+                                                std::vector< BMTrackCluster3D >& tracks, std::vector<int>& goodlist ) {
 
     std::vector< std::vector<float> > valid_range(3);
     for (int p=0; p<3; p++) {
@@ -380,30 +380,30 @@ namespace larlitecv {
       std::cout << "=============================================" << std::endl;
       std::cout << "PROCESSING TRACK 2D #" << itrack << std::endl;
       for (int p=0; p<3; p++)
-	std::cout << "  plane " << p << " start=(" << track2d.at(p).start.w << "," << track2d.at(p).start.t << ") ";
+        std::cout << "  plane " << p << " start=(" << track2d.at(p).start.w << "," << track2d.at(p).start.t << ") ";
       std::cout << std::endl;
       for (int p=0; p<3; p++)
-	std::cout << "  plane " << p << " end=(" << track2d.at(p).end.w << "," << track2d.at(p).end.t << ") ";
+        std::cout << "  plane " << p << " end=(" << track2d.at(p).end.w << "," << track2d.at(p).end.t << ") ";
       std::cout << std::endl;
-	  
+          
 
       bool issame = false;
       if ( tracks.size()>0 ) {
-	// we check to see if the current track is basically on the same path as a previous track
-	for ( auto const& track3d : tracks ) {
-	  issame = compare2Dtrack( track2d, track3d, img_v.at(0).meta(), 5.0, 5.0 );
-	  if ( issame ) {
-	    break;
-	  }
-	}
+        // we check to see if the current track is basically on the same path as a previous track
+        for ( auto const& track3d : tracks ) {
+          issame = compare2Dtrack( track2d, track3d, img_v.at(0).meta(), 5.0, 5.0 );
+          if ( issame ) {
+            break;
+          }
+        }
       }
       if ( issame ) continue; // to next 2d track
 
       // if different, we process track into 3D
       BMTrackCluster3D track3d = process2Dtrack( track2d, img_v, badchimg_v );
       if ( track3d.path3d.size()==0 ) {
-	std::cout << "error producing this track" << std::endl;
-	continue; // onto next 2d track
+        std::cout << "error producing this track" << std::endl;
+        continue; // onto next 2d track
       }
 
       // save track
@@ -429,7 +429,7 @@ namespace larlitecv {
     for (int n=0; n<fNPMTs; n++) {
       fPMTTree->GetEntry(n);
       for (int i=0; i<3; i++) {
-	pmtpos[femch][i] = pos[i];
+        pmtpos[femch][i] = pos[i];
       }
       //std::cout << "[POS " << femch << "] " << " (" << pmtpos[femch][0] << "," << pmtpos[femch][1] << "," << pmtpos[femch][2] << ")" << std::endl;
     }
@@ -442,8 +442,8 @@ namespace larlitecv {
   }
 
   void BoundaryMuonTaggerAlgo::getClusterEdges( const dbscan::dbPoints& points,  const std::vector< larcv::Image2D >& imgs,
-						const dbscan::dbscanOutput& clout, int idx_cluster,
-						int& idxhit_tmin, int& idxhit_tmax, int& idxhit_wmin, int& idxhit_wmax ) {
+                                                const dbscan::dbscanOutput& clout, int idx_cluster,
+                                                int& idxhit_tmin, int& idxhit_tmax, int& idxhit_wmin, int& idxhit_wmax ) {
     idxhit_tmin = -1;
     idxhit_tmax = -1;
     idxhit_wmin = -1;
@@ -453,7 +453,7 @@ namespace larlitecv {
     double hit_tmax[2] = {1.0e6};
     //double hit_wmin[2];
     //double hit_wmax[2];
-		      
+                      
     // we find the extrema hits in a cluster
     for (int ichit=0; ichit<(int)clout.clusters.at(idx_cluster).size(); ichit++) {
       int hitidx = clout.clusters.at(idx_cluster).at(ichit);
@@ -466,31 +466,31 @@ namespace larlitecv {
 
       // tmin hit
       if ( idxhit_tmin==-1 || hit[1]<hit_tmin[1] ) {
-	idxhit_tmin = hitidx;
-	hit_tmin[0] = hit[0];
-	hit_tmin[1] = hit[1];
+        idxhit_tmin = hitidx;
+        hit_tmin[0] = hit[0];
+        hit_tmin[1] = hit[1];
       }
       // tmax hit
       if ( idxhit_tmax==-1 || hit[1]>hit_tmax[1] ) {
-	idxhit_tmax = hitidx;
-	hit_tmax[0] = hit[0];
-	hit_tmax[1] = hit[1];
+        idxhit_tmax = hitidx;
+        hit_tmax[0] = hit[0];
+        hit_tmax[1] = hit[1];
       }
 //       // wmin hit
 //       if ( idxhit_wmin==-1 || hit[0]<hit_wmin[0] ) {
-// 	hit_wmin[0] = hit[0];
-// 	hit_wmin[1] = hit[1];
+//      hit_wmin[0] = hit[0];
+//      hit_wmin[1] = hit[1];
 //       }
 //       //  wmax hit
 //       if ( idxhit_wmax==-1 || hit[0]>hit_wmin[0] ) {
-// 	hit_wmax[0] = hit[0];
-// 	hit_wmax[1] = hit[1];
+//      hit_wmax[0] = hit[0];
+//      hit_wmax[1] = hit[1];
 //       }
     }//end of loop over hit indices of cluster
   }//end of getClusterEdges
 
   BMTrackCluster3D BoundaryMuonTaggerAlgo::process2Dtrack( std::vector< larlitecv::BMTrackCluster2D >& track2d, 
-							   const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v ) {
+                                                           const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v ) {
     
     // parameters to move to config file at some point
     std::vector< std::vector<float> > valid_range(2);
@@ -518,50 +518,50 @@ namespace larlitecv {
       const BMTrackCluster2D& planetrack = track2d.at(p);
       pathlength[p] = 0.0;
       if ( planetrack.pixelpath.size()<2 ) {
-	isgood[p] = false;
-	//std::cout << "p=" << p << " does not have enough pixels" << std::endl;
-	continue; // skip this plane
+        isgood[p] = false;
+        //std::cout << "p=" << p << " does not have enough pixels" << std::endl;
+        continue; // skip this plane
       }
       // follow the 2d track paths and file path info variables above
       for (int i=1; i<(int)planetrack.pixelpath.size(); i++) {
 
-	std::vector<float> pos1(2,0.0);
-	pos1[0] = planetrack.pixelpath.at(i).X();
-	pos1[1] = planetrack.pixelpath.at(i).Y();
+        std::vector<float> pos1(2,0.0);
+        pos1[0] = planetrack.pixelpath.at(i).X();
+        pos1[1] = planetrack.pixelpath.at(i).Y();
 
-	std::vector<float> pos0(2,0.0);
-	pos0[0] = planetrack.pixelpath.at(i-1).X();
-	pos0[1] = planetrack.pixelpath.at(i-1).Y();
+        std::vector<float> pos0(2,0.0);
+        pos0[0] = planetrack.pixelpath.at(i-1).X();
+        pos0[1] = planetrack.pixelpath.at(i-1).Y();
 
-	float dx = pos1[0]-pos0[0];
-	float dy = pos1[1]-pos0[1];
-	float dist = sqrt( dx*dx + dy*dy );
+        float dx = pos1[0]-pos0[0];
+        float dy = pos1[1]-pos0[1];
+        float dist = sqrt( dx*dx + dy*dy );
 
-	std::vector<float> ndir(2,0.0);
-	ndir[0] = dx/dist;
-	ndir[1] = dy/dist;
-	
-// 	std::cout << "pix " << i << "(" << pos0[0] << "," << pos0[1] << ") -> (" << pos1[0] << "," << pos1[1] << ")"
-// 		  << ". (dx,dy)=(" << dx << "," << dy << ") dist=" << dist << std::endl;
-	
-	if ( i>=2 ) {
-	  std::vector<float> lastdir  = edgedir[p].at(i-2);
-	  float lastcos = lastdir[0]*ndir[0] + ndir[1]*lastdir[1];
-	  if ( lastcos<0.70 ) { // around 45 degrees
-	    // kink. probably bad
-	    // std::cout << "kink found: p=" << p << " lastcos=" << lastcos << " step=" << i << ":"
-	    // 	      << "(" << planetrack.pixelpath.at(i-1).X() << "," << planetrack.pixelpath.at(i-1).Y() << ") -> "
-	    // 	      << "(" << planetrack.pixelpath.at(i).X() << ","<< planetrack.pixelpath.at(i).Y() << "). "
-	    // 	      << " dir: "
-	    // 	      << "(" << lastdir[0] << ", " << lastdir[1] << ") -> "
-	    // 	      << "(" << ndir[0] << "," << ndir[1] << ")" << std::endl;
-	    //isgood[p] = false;
-	  }
-	}
-	edgelength[p].push_back( dist );
-	pathlength[p] += dist;
-	edgedir[p].emplace_back( std::move(ndir) );
-	nodepos[p].emplace_back( std::move(pos1) );
+        std::vector<float> ndir(2,0.0);
+        ndir[0] = dx/dist;
+        ndir[1] = dy/dist;
+        
+//      std::cout << "pix " << i << "(" << pos0[0] << "," << pos0[1] << ") -> (" << pos1[0] << "," << pos1[1] << ")"
+//                << ". (dx,dy)=(" << dx << "," << dy << ") dist=" << dist << std::endl;
+        
+        if ( i>=2 ) {
+          std::vector<float> lastdir  = edgedir[p].at(i-2);
+          float lastcos = lastdir[0]*ndir[0] + ndir[1]*lastdir[1];
+          if ( lastcos<0.70 ) { // around 45 degrees
+            // kink. probably bad
+            // std::cout << "kink found: p=" << p << " lastcos=" << lastcos << " step=" << i << ":"
+            //        << "(" << planetrack.pixelpath.at(i-1).X() << "," << planetrack.pixelpath.at(i-1).Y() << ") -> "
+            //        << "(" << planetrack.pixelpath.at(i).X() << ","<< planetrack.pixelpath.at(i).Y() << "). "
+            //        << " dir: "
+            //        << "(" << lastdir[0] << ", " << lastdir[1] << ") -> "
+            //        << "(" << ndir[0] << "," << ndir[1] << ")" << std::endl;
+            //isgood[p] = false;
+          }
+        }
+        edgelength[p].push_back( dist );
+        pathlength[p] += dist;
+        edgedir[p].emplace_back( std::move(ndir) );
+        nodepos[p].emplace_back( std::move(pos1) );
       }//end of loop over path
       // add end point
       std::vector<float> pos(2,0.0);
@@ -578,10 +578,10 @@ namespace larlitecv {
     float longest_pathlength = 0;
     for (int p=0; p<3; p++) {
       if ( isgood[p] ) { 
-	ngood++;
-	if ( pathlength[p]>longest_pathlength ) {
-	  longest_pathlength = pathlength[p];
-	}
+        ngood++;
+        if ( pathlength[p]>longest_pathlength ) {
+          longest_pathlength = pathlength[p];
+        }
       }
     }
 
@@ -592,14 +592,14 @@ namespace larlitecv {
     if ( ngood==2 ) {
       // clear out path of BMTrackCluster2D from bad plane. we are going to remake it
       for (int p=0; p<3; p++) {
-	if (!isgood[p]) {
-	  BMTrackCluster2D& badtrack = track2d.at(p);
-	  badtrack.pixelpath.clear();
-	  larcv::Pixel2D pixel( badtrack.start.w, badtrack.start.t ); // (X,Y)
-	  //badtrack.pixelpath.emplace_back( std::move(pixel) );
-	  badplane = p;
-	  break;
-	}
+        if (!isgood[p]) {
+          BMTrackCluster2D& badtrack = track2d.at(p);
+          badtrack.pixelpath.clear();
+          larcv::Pixel2D pixel( badtrack.start.w, badtrack.start.t ); // (X,Y)
+          //badtrack.pixelpath.emplace_back( std::move(pixel) );
+          badplane = p;
+          break;
+        }
       }
     }
     
@@ -609,10 +609,10 @@ namespace larlitecv {
     float node_ds[3] = {0, 0, 0 };
           
     // std::cout << "Track with " << nsteps << " steps. number of nodes="
-    // 	      << "(" << nodepos[0].size() << "," << nodepos[1].size() << "," << nodepos[2].size() << ")"
-    // 	      << std::endl;
+    //        << "(" << nodepos[0].size() << "," << nodepos[1].size() << "," << nodepos[2].size() << ")"
+    //        << std::endl;
     for (int istep=0; istep<nsteps; istep++) {
-	
+        
       // get wire at this step
       int imgcol[3] = { -1, -1, -1 };
       int wireid[3] = { -1, -1, -1 };
@@ -620,28 +620,28 @@ namespace larlitecv {
       int ip=0;
       float avetick = 0.0;
       for (int p=0; p<3; p++) {
-	if ( !isgood[p] ) {
-	  continue;
-	}
-	float imgpos[2] = { 0., 0. };
-	for (int v=0; v<2; v++) {
-	  imgpos[v] = nodepos[p].at( current_node[p] )[v] + edgedir[p].at( current_node[p] )[v]*node_ds[v];
-	}
-	imgcol[ip] = (int)imgpos[0];
-	wireid[ip] = (int)imgcol[ip]*img_v.at(p).meta().pixel_width();
-	if ( wireid[ip]<0 ) wireid[ip]=0;
-	if ( wireid[ip]>=(int)larutil::Geometry::GetME()->Nwires(p) ) wireid[ip] = (int)larutil::Geometry::GetME()->Nwires(p)-1;
-	pid[ip] = p;
-	int imgpos_row = (int)imgpos[1];
-	if ( imgpos_row<0 ) imgpos_row = 0;
-	if ( imgpos_row>=(int)img_v.at(p).meta().rows() ) imgpos_row = (int)img_v.at(p).meta().rows()-1;
-	avetick += img_v.at(p).meta().pos_y( imgpos_row );
-	//std::cout << " imgpos[1] p=" << p << ", currentnode=" << current_node[p] << ": " << imgpos[1] << " tick=" << imgpos_row << std::endl;
-	ip++;
+        if ( !isgood[p] ) {
+          continue;
+        }
+        float imgpos[2] = { 0., 0. };
+        for (int v=0; v<2; v++) {
+          imgpos[v] = nodepos[p].at( current_node[p] )[v] + edgedir[p].at( current_node[p] )[v]*node_ds[v];
+        }
+        imgcol[ip] = (int)imgpos[0];
+        wireid[ip] = (int)imgcol[ip]*img_v.at(p).meta().pixel_width();
+        if ( wireid[ip]<0 ) wireid[ip]=0;
+        if ( wireid[ip]>=(int)larutil::Geometry::GetME()->Nwires(p) ) wireid[ip] = (int)larutil::Geometry::GetME()->Nwires(p)-1;
+        pid[ip] = p;
+        int imgpos_row = (int)imgpos[1];
+        if ( imgpos_row<0 ) imgpos_row = 0;
+        if ( imgpos_row>=(int)img_v.at(p).meta().rows() ) imgpos_row = (int)img_v.at(p).meta().rows()-1;
+        avetick += img_v.at(p).meta().pos_y( imgpos_row );
+        //std::cout << " imgpos[1] p=" << p << ", currentnode=" << current_node[p] << ": " << imgpos[1] << " tick=" << imgpos_row << std::endl;
+        ip++;
       }
       if ( ip==0 ) {
-	//std::cout << "no good plane?" << std::endl;
-	continue;
+        //std::cout << "no good plane?" << std::endl;
+        continue;
       }
       avetick /= float(ip);
       //std::cout << "istep=" << istep << " avetick=" << avetick << " ip=" << ip << std::endl;
@@ -650,113 +650,113 @@ namespace larlitecv {
       int crosses = 0;
       std::vector<float> intersection;
       if ( ngood==2 ) {
-	crosses = 0;
-	larcv::UBWireTool::wireIntersection( pid[0], wireid[0], pid[1], wireid[1], intersection, crosses );
-	if ( pid[0]==0 && pid[1]==1 ) pid[2] = 2;
-	else if ( pid[0]==0 && pid[1]==2 ) pid[2] = 1;
-	else if ( pid[0]==1 && pid[1]==2 ) pid[2] = 0;
-	else if ( pid[0]==1 && pid[1]==0 ) pid[2] = 2;
-	else if ( pid[0]==2 && pid[1]==0 ) pid[2] = 1;
-	else if ( pid[0]==2 && pid[1]==1 ) pid[2] = 0;
-	double worldpos[3] = { 0, (double)intersection[1], (double)intersection[0] };
-	wireid[2] = larutil::Geometry::GetME()->WireCoordinate( worldpos, pid[2] );
-	if ( wireid[2]<0 ) wireid[2]=0;
-	imgcol[2] = wireid[2]/img_v.at(0).meta().pixel_width();
-	// we can backfill the missing bad plane
-	larcv::Pixel2D pix( imgcol[2], (int)img_v.at(pid[2]).meta().row( avetick ) );
-	track2d.at( badplane ).pixelpath.emplace_back( std::move(pix) );
+        crosses = 0;
+        larcv::UBWireTool::wireIntersection( pid[0], wireid[0], pid[1], wireid[1], intersection, crosses );
+        if ( pid[0]==0 && pid[1]==1 ) pid[2] = 2;
+        else if ( pid[0]==0 && pid[1]==2 ) pid[2] = 1;
+        else if ( pid[0]==1 && pid[1]==2 ) pid[2] = 0;
+        else if ( pid[0]==1 && pid[1]==0 ) pid[2] = 2;
+        else if ( pid[0]==2 && pid[1]==0 ) pid[2] = 1;
+        else if ( pid[0]==2 && pid[1]==1 ) pid[2] = 0;
+        double worldpos[3] = { 0, (double)intersection[1], (double)intersection[0] };
+        wireid[2] = larutil::Geometry::GetME()->WireCoordinate( worldpos, pid[2] );
+        if ( wireid[2]<0 ) wireid[2]=0;
+        imgcol[2] = wireid[2]/img_v.at(0).meta().pixel_width();
+        // we can backfill the missing bad plane
+        larcv::Pixel2D pix( imgcol[2], (int)img_v.at(pid[2]).meta().row( avetick ) );
+        track2d.at( badplane ).pixelpath.emplace_back( std::move(pix) );
       }
       else if ( ngood==3 ) {
-	crosses = 1;
-// 	std::vector< std::vector<int> > wirelists(3);
-// 	for (int p=0; p<3; p++)
-// 	  wirelists[p].push_back( wireid[p] );
-// 	std::vector< std::vector<int> > intersections3plane;
-// 	std::vector< std::vector<float> > vertex3plane;
-// 	std::vector<float> areas3plane;
-// 	std::vector< std::vector<int> > intersections2plane;
-// 	std::vector< std::vector<float> > vertex2plane; 
-//	larcv::UBWireTool::findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
-	std::vector<int> wirelists(3,0);
-	for (int p=0; p<3; p++) {
-	  wirelists[p] = wireid[p];
-	  if ( wirelists[p]<0 ) wirelists[p] = 0;
-	}
-	std::vector<float> vertex3plane;
-	double tri_area = 0.0;
-	larcv::UBWireTool::wireIntersection( wirelists, intersection, tri_area, crosses );
-	//if ( tri_area>3.0 ) {
-	//std::cout << "warning, large intersection area for wires u=" << wireid[0]  << " v=" << wireid[1] << " y=" << wireid[2] << " area=" << tri_area << std::endl;
-	//}
+        crosses = 1;
+//      std::vector< std::vector<int> > wirelists(3);
+//      for (int p=0; p<3; p++)
+//        wirelists[p].push_back( wireid[p] );
+//      std::vector< std::vector<int> > intersections3plane;
+//      std::vector< std::vector<float> > vertex3plane;
+//      std::vector<float> areas3plane;
+//      std::vector< std::vector<int> > intersections2plane;
+//      std::vector< std::vector<float> > vertex2plane; 
+//      larcv::UBWireTool::findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
+        std::vector<int> wirelists(3,0);
+        for (int p=0; p<3; p++) {
+          wirelists[p] = wireid[p];
+          if ( wirelists[p]<0 ) wirelists[p] = 0;
+        }
+        std::vector<float> vertex3plane;
+        double tri_area = 0.0;
+        larcv::UBWireTool::wireIntersection( wirelists, intersection, tri_area, crosses );
+        //if ( tri_area>3.0 ) {
+        //std::cout << "warning, large intersection area for wires u=" << wireid[0]  << " v=" << wireid[1] << " y=" << wireid[2] << " area=" << tri_area << std::endl;
+        //}
       }
       
       std::vector<double> point3d(3,0.0);
       point3d[0] = (avetick-trig_tick)*0.5*drift_v;
       if ( intersection.size()>=2 ) {
-	point3d[1] = intersection[1];
-	point3d[2] = intersection[0];
+        point3d[1] = intersection[1];
+        point3d[2] = intersection[0];
       }
       
       // now update path variables
       for (int p=0; p<3; p++) {
-	if ( !isgood[p] ) continue;
-	float stepsize = pathlength[p]/float(nsteps);
-	float next_ds = node_ds[p]+stepsize;
-	if ( current_node[p]<(int)edgelength[p].size() ) {
-	  if ( next_ds>edgelength[p].at( current_node[p] ) ) {
-	    node_ds[p] = next_ds-edgelength[p].at( current_node[p] );
-	    current_node[p]++;
-	  }
-	  else {
-	    node_ds[p] = next_ds;
-	  }
-	}
+        if ( !isgood[p] ) continue;
+        float stepsize = pathlength[p]/float(nsteps);
+        float next_ds = node_ds[p]+stepsize;
+        if ( current_node[p]<(int)edgelength[p].size() ) {
+          if ( next_ds>edgelength[p].at( current_node[p] ) ) {
+            node_ds[p] = next_ds-edgelength[p].at( current_node[p] );
+            current_node[p]++;
+          }
+          else {
+            node_ds[p] = next_ds;
+          }
+        }
       }
       
       if ( istep==0 ) {
-	// if first, log data
-	track3d.tick_start = avetick;
-	track3d.row_start  = img_v.at(0).meta().row( track3d.tick_start );
-	track3d.start_wire.resize(3,0);
-	track3d.start3D = point3d;
-	if ( ngood==3 ) {
-	  for (int p=0; p<3; p++) {
-	    track3d.start_wire[p] = wireid[p];
-	  }
-	}
-	else if ( ngood==2 ) {
-	  track3d.start_wire[pid[0]] = wireid[0];
-	  track3d.start_wire[pid[1]] = wireid[1];
-	  track3d.start_wire[pid[2]] = wireid[2];
-	}
+        // if first, log data
+        track3d.tick_start = avetick;
+        track3d.row_start  = img_v.at(0).meta().row( track3d.tick_start );
+        track3d.start_wire.resize(3,0);
+        track3d.start3D = point3d;
+        if ( ngood==3 ) {
+          for (int p=0; p<3; p++) {
+            track3d.start_wire[p] = wireid[p];
+          }
+        }
+        else if ( ngood==2 ) {
+          track3d.start_wire[pid[0]] = wireid[0];
+          track3d.start_wire[pid[1]] = wireid[1];
+          track3d.start_wire[pid[2]] = wireid[2];
+        }
       }
       else if ( istep+1==nsteps ) {
-	// set end info
-	track3d.tick_end = avetick;
-	track3d.row_end  = img_v.at(0).meta().row( track3d.tick_end );
-	track3d.end_wire.resize(3,0);
-	track3d.end3D = point3d;
-	if ( ngood==3 ) {
-	  for (int p=0; p<3; p++) {
-	    track3d.end_wire[p] = wireid[p];
-	  }
-	}
-	else if ( ngood==2 ) {
-	  track3d.end_wire[pid[0]] = wireid[0];
-	  track3d.end_wire[pid[1]] = wireid[1];
-	  track3d.end_wire[pid[2]] = wireid[2];
-	}
+        // set end info
+        track3d.tick_end = avetick;
+        track3d.row_end  = img_v.at(0).meta().row( track3d.tick_end );
+        track3d.end_wire.resize(3,0);
+        track3d.end3D = point3d;
+        if ( ngood==3 ) {
+          for (int p=0; p<3; p++) {
+            track3d.end_wire[p] = wireid[p];
+          }
+        }
+        else if ( ngood==2 ) {
+          track3d.end_wire[pid[0]] = wireid[0];
+          track3d.end_wire[pid[1]] = wireid[1];
+          track3d.end_wire[pid[2]] = wireid[2];
+        }
       }
       
       if ( track3d.path3d.size()==0 || track3d.path3d.back()!=point3d ) {
-	// std::cout << "step=" << istep << " node=(" << current_node[0] << "," << current_node[1] << "," << current_node[2] << ") "
-	// 	  << "tick=" << avetick << " "
-	// 	  << "pos=(" << point3d[0] << "," << point3d[1] << "," << point3d[2] << ") " 
-	// 	  << "(p=" << pid[0] << ", wire=" << wireid[0] << ") + "
-	// 	  << "(p=" << pid[1] << ", wire=" << wireid[1] << ") "
-	// 	  << "(p=" << pid[2] << ", wire=" << wireid[2] << ") "
-	// 	  << "crosses=" << crosses << " (isec=" << intersection.size() << ")" << std::endl;
-	track3d.path3d.emplace_back( std::move( point3d ) );
+        // std::cout << "step=" << istep << " node=(" << current_node[0] << "," << current_node[1] << "," << current_node[2] << ") "
+        //        << "tick=" << avetick << " "
+        //        << "pos=(" << point3d[0] << "," << point3d[1] << "," << point3d[2] << ") " 
+        //        << "(p=" << pid[0] << ", wire=" << wireid[0] << ") + "
+        //        << "(p=" << pid[1] << ", wire=" << wireid[1] << ") "
+        //        << "(p=" << pid[2] << ", wire=" << wireid[2] << ") "
+        //        << "crosses=" << crosses << " (isec=" << intersection.size() << ")" << std::endl;
+        track3d.path3d.emplace_back( std::move( point3d ) );
       }
       
     }//end of loop over steps
@@ -779,9 +779,9 @@ namespace larlitecv {
 
     return track3d;
   }
-					       
+                                               
   bool BoundaryMuonTaggerAlgo::compare2Dtrack( const std::vector< BMTrackCluster2D >& track2d, const BMTrackCluster3D& track3d, const larcv::ImageMeta& meta,
-					       float path_radius_cm, float endpt_radius_cm ) {
+                                               float path_radius_cm, float endpt_radius_cm ) {
     // we get the start and end points of the 2D track
     // we see if they are both close to the trajectory of the 3D track
     // either point must be fruther away than the path_radius value
@@ -806,9 +806,9 @@ namespace larlitecv {
     float distances[3][2];
     for ( int p=0; p<3; p++) {
       if ( track2d.at(p).pixelpath.size()==0 ) {
-	distances[p][0] = -1;
-	distances[p][1] = -1;
-	continue;
+        distances[p][0] = -1;
+        distances[p][1] = -1;
+        continue;
       }
       //std::cout << "testing 2d endpoint p=" << p << "(" << track2d[p].start.w << ", " << track2d[p].start.t << ")" << std::endl;
       float dt = (track2d[p].start.t-track3d.start_endpts[p].t)*pix_rows_to_cm;
@@ -839,8 +839,8 @@ namespace larlitecv {
     for (int p=0; p<3; p++) {
       if ( distances[p][0]<0 ) continue;
       if ( distances[p][0]>endpt_radius_cm || distances[p][1]>endpt_radius_cm )  {
-	allclose = false;
-	break;
+        allclose = false;
+        break;
       }
     }
     if ( allclose ) {
@@ -862,7 +862,7 @@ namespace larlitecv {
     int ngoodplanes = 0;
     for (int p=0; p<3; p++) {
       if ( track2d[p].pixelpath.size()==0 ) {
-	continue;
+        continue;
       }
       ngoodplanes++;
       goodplanes.push_back(p);
@@ -882,13 +882,13 @@ namespace larlitecv {
     // if ( crosses[0]==0 ) {
     //   std::cout << "Start point doesn't make a valid 3D point! start wid=(" << start_wids[0] << "," << start_wids[1];
     //   if ( ngoodplanes==3 )
-    // 	std::cout << "," << start_wids[2];
+    //  std::cout << "," << start_wids[2];
     //   std::cout << ")" << std::endl;
     // }
     // if ( crosses[1]==0 ) {
     //   std::cout << "End point doesn't make a valid 3D point! end wid=(" << end_wids[0] << "," << end_wids[1];
     //   if ( ngoodplanes==3 )
-    // 	std::cout << "," << end_wids[2];
+    //  std::cout << "," << end_wids[2];
     //   std::cout << ")" << std::endl;
     // }
     if ( crosses[0]==0 || crosses[1]==0 )
@@ -910,13 +910,13 @@ namespace larlitecv {
     end3d[2] = end_poszy[0];
 
     // std::cout << "track 2d 3D endpoints: "
-    // 	      << " start=(" << start3d[0] << "," << start3d[1] << "," << start3d[2] << ") "
-    // 	      << " end=(" << end3d[0] << "," << end3d[1] << "," << end3d[2] << ") "
-    // 	      << std::endl;
+    //        << " start=(" << start3d[0] << "," << start3d[1] << "," << start3d[2] << ") "
+    //        << " end=(" << end3d[0] << "," << end3d[1] << "," << end3d[2] << ") "
+    //        << std::endl;
     // std::cout << "track3d 3D endpoints: "
-    // 	      << " start=(" << track3d.path3d.front()[0] << "," << track3d.path3d.front()[1] << "," << track3d.path3d.front()[2] << ") "
-    // 	      << " end=(" << track3d.path3d.back()[0] << "," << track3d.path3d.back()[1] << "," << track3d.path3d.back()[2] << ") "
-    // 	      << std::endl;
+    //        << " start=(" << track3d.path3d.front()[0] << "," << track3d.path3d.front()[1] << "," << track3d.path3d.front()[2] << ") "
+    //        << " end=(" << track3d.path3d.back()[0] << "," << track3d.path3d.back()[1] << "," << track3d.path3d.back()[2] << ") "
+    //        << std::endl;
     
     // ok now that 3d start and end position found, check how close they are to the 3d path
     // we use the geoalgo tools from larlite
@@ -1082,12 +1082,13 @@ namespace larlitecv {
           if ( charge>_config.thresholds.at(0) ) {
              if ( _config.save_endpt_images ) {
               // for optional visualization
-              float prev_val = matchedspacepts.at( pt ).pixel( r, x );
+              float prev_val = matchedspacepts.at( pt ).pixel( r, x ); // detector-space image
               matchedspacepts.at(pt).set_pixel( r, x, prev_val+charge );
-              for (int p=0; p<3; p++) {
-                prev_val = matchedpixels.at(3*pt+p).pixel( r, wirecols[p] );
-                matchedpixels.at(3*pt+p).set_pixel( r, wirecols[p], prev_val+charge );
-              }
+              // we use matchedpixels image for later, when clusters are transferred back to image-space
+              //for (int p=0; p<3; p++) {
+              //  prev_val = matchedpixels.at(3*pt+p).pixel( r, wirecols[p] );
+              //  matchedpixels.at(3*pt+p).set_pixel( r, wirecols[p], prev_val+charge );
+              //}
             }
             // save (x,y) point for clustering
             std::vector<double> pt_combo(2,0.0); // this is (z,y)
@@ -1109,7 +1110,7 @@ namespace larlitecv {
 
   void BoundaryMuonTaggerAlgo::ClusterBoundaryHitsIntoEndpointCandidates( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs, 
     const std::vector< dbscan::dbPoints >& combo_points, const std::vector< std::vector< std::vector<int> > >& combo_cols, 
-    std::vector< std::vector<BoundaryEndPt> >& end_points ) {
+    std::vector< std::vector<BoundaryEndPt> >& end_points, std::vector< larcv::Image2D >& matchedpixels ) {
     // we cluster the combo_points (in detector space) and produce a list of BoundaryEndPt's (a set for each boundary type)
 
     const int nplanes = (int)imgs.size();
@@ -1134,188 +1135,211 @@ namespace larlitecv {
       //ann::ANNAlgo::cleanup();
 
       //std::cout << "  number of clusters: " << clout.clusters.size() << std::endl;
+      // for each cluster we want to place an endpoint in image space
+      // requirements
+      //   1) place each point end point on a pixel with charge. Otherwise cause problems.
+      //   2) each cluster will have an endpoint for each plane
+      //   3) we should pick end points that sit on a cluster of charge in image-space that are similar
+      //   4) 
       for (size_t ic=0; ic<clout.clusters.size(); ic++) {
         // loop over clusters in the real space points
         
         if ( clout.clusters.at(ic).size() >= _config.boundary_cluster_minpixels.at(0) ) {
           //std::cout << "Find the endpoints for cluster pt=" << pt << " id=" << ic << " size=" << clout.clusters.at(ic).size() << std::endl;
 
-          dbscan::dbPoints chargepts[3]; // charge per plane
-          int largest_qpt[3] = {0,0,0};
-          float larget_q[3]  = {0,0,0};
-          // we transfer information from this cluster into image space.  we mark pixels in image space with a hit
-          for (int p=0; p<3; p++) 
-            workspace[p].paint(0.0);
-          
-          // loop through hit in real space cluster. collect pixels in image space to cluster once more.
-          for (size_t ihit=0; ihit<clout.clusters.at(ic).size(); ihit++) {
-            int idxhit = clout.clusters.at(ic).at(ihit);
-            for (size_t p=0; p<3; p++) {
-              int col = combo_cols[pt][idxhit][p]; // get the position in the image for this point
-              // look for charge in neighborhood of this point
-              for (int n=-_config.neighborhoods[p]; n<=_config.neighborhoods[p]; n++) {
-                if ( col+n<0 || col+n>=(int)imgs.at(p).meta().cols() ) continue;
-                float q = imgs.at(p).pixel( (int)combo_points[pt][idxhit][1], col+n );
-                if ( q > _config.thresholds.at(p) ) {
-                  workspace[p].set_pixel( (int)combo_points[pt][idxhit][1], col+n, q );
-                  //              std::vector<double> qpt(2,0.0);
-                  //              qpt[0] = col+n + rand.Uniform();
-//                qpt[1] = combo_points[pt][idxhit][1]+rand.Uniform();
-//                chargepts[p].emplace_back( std::move( qpt ) );
-//                if ( q>larget_q[p] ) {
-//                  largest_qpt[p] = chargepts[p].size()-1;
-//                  larget_q[p] = q;
-//                } 
-                }//if pixel above thresh
-              }// loop over neighborhood
-            }//end of loop over plane
-          }//end of loop over hits in real space
-          
-          // collection charge pts
-          for (size_t p=0; p<3; p++) {
-            for (size_t r=0; r<workspace[p].meta().rows(); r++) {
-              for (size_t c=0; c<workspace[p].meta().cols(); c++) {
-                float q = workspace[p].pixel(r,c);
-                if ( q>0.0 ) {
-                  std::vector<double> qpt(2,0.0);
-                  qpt[0] = c;// + rand.Uniform();
-                  qpt[1] = r;//+rand.Uniform();
-                  chargepts[p].emplace_back( std::move( qpt ) );
-                  if ( q>larget_q[p] ) {
-                    largest_qpt[p] = chargepts[p].size()-1;
-                    larget_q[p] = q;
-                  } 
-                }
-              }
-            }
-          }
-          
-          // define the endpoint
-          std::vector< BoundaryEndPt > endpt_v_min; // at min time of cluster
-          std::vector< BoundaryEndPt > endpt_v_max; // at max time of cluster
-          int end_vote[3] = { 0, 0, 0 }; // votes by each plane for min or max time
-
-          for (size_t p=0; p<3; p++) {
-            // this block is slow. it's the reclustering of the charge!
-            // cluster the charge hits on the plane
-            //std::cout << "  " << chargepts[p].size() << " charge points on plane=" << p << std::endl;
-            if ( (int)chargepts[p].size()< _config.boundary_cluster_minpixels.at(p)+1 ) {
-              // don't have enough here
-              //std::cout << "  not enough to cluster. just make a point from largest charge" << std::endl;
-              BoundaryEndPt endpt( chargepts[p].at( largest_qpt[p] )[1],  chargepts[p].at( largest_qpt[p] )[0], (BoundaryEndPt::BoundaryEnd_t)pt );
-              endpt_v_min.push_back( endpt );
-              endpt_v_max.push_back( endpt );
-              continue;
-            }
-            //for (int iq=0; iq<chargepts[p].size(); iq++)
-            //  std::cout << "  (" << iq << ") " << chargepts[p].at(iq)[0] << ", " << chargepts[p].at(iq)[1] << std::endl;
-            
-            dbscan::dbscanOutput q_clout = dbalgo.scan( chargepts[p], _config.boundary_cluster_minpixels.at(p), _config.boundary_cluster_radius.at(p), false, 0.0 );
-            //ann::ANNAlgo::cleanup();
-            int largest_cluster = -1;
-            int largest_size = 0;
-            for ( size_t icq=0; icq<q_clout.clusters.size(); icq++ ) {
-              if ( largest_cluster<0 || (int)q_clout.clusters.at(icq).size()>largest_size ) {
-                largest_cluster = icq;
-                largest_size = q_clout.clusters.at(icq).size();
-              }
-            }
-
-            int idxhit_tmin, idxhit_tmax, idxhit_wmin, idxhit_wmax;
-            getClusterEdges( chargepts[p], imgs, q_clout, largest_cluster, idxhit_tmin, idxhit_tmax, idxhit_wmin, idxhit_wmax );
-
-            // the end points form a line, we follow outward on those lines to see which one is more likely the end of the track
-            float pos[2][2] = { { (float)chargepts[p].at( idxhit_tmin )[0], (float)chargepts[p].at( idxhit_tmin )[1] },
-                                { (float)chargepts[p].at( idxhit_tmax )[0], (float)chargepts[p].at( idxhit_tmax )[1] } };
-            float dir[2] = { pos[1][0]-pos[0][0], pos[1][1]-pos[0][1] };
-            float norm = 0;
-            for (int i=0; i<2; i++) {
-              norm += dir[i]*dir[i];
-            }
-            norm = sqrt(norm);
-            for (int i=0; i<2; i++)
-              dir[i] /= norm;
-            int nsteps[2] = { 0, 0 }; // steps before no more charge
-            int nzeros[2] = { 0, 0 };
-
-            if ( pt==0 || pt==1 ) {
-              // if top and bottom, perform voting system
-              for (int j=0; j<2; j++) {
-                for (int i=0; i<40; i++) {
-                  if ( nzeros[j]>3 ) break; // cut it off
-                  int r = pos[j][1] + (2*j-1)*dir[1]*i;
-                  int c = pos[j][0] + (2*j-1)*dir[0]*i;
-                  if ( r<2 || r>=(int)imgs.at(p).meta().rows()-2 || c<2 || c>=(int)imgs.at(p).meta().cols()-2 )
-                    break;
-                  int npixs = 0;
-                  for ( int dr=-2; dr<=2; dr++) {
-                    for (int dc=-2; dc<=2; dc++) {
-                      if ( imgs.at(p).pixel( r+dr, c+dc )> _config.thresholds.at(p) 
-                           || badchs.at(p).pixel( r+dr, c+dc ) > 0 )
-                        npixs++;
-                    }
-                  }
-                  if (npixs>0) {
-                    nsteps[j]++;
-                    nzeros[j] = 0;
-                  }
-                  else {
-                    nzeros[j]++;
-                  }
-                }//end of loop over steps
-              }//end of loop over min/max
-            }
-            else {
-              // end points are upsteam, downstream. we rig the votes and pick the end point closest to the edge
-              if ( pt==2 ) {
-                // upstream
-                if ( p==2 ) {
-                  if ( pos[0][0] < pos[1][0] ) 
-                    nsteps[1] = 40;
-                  else
-                    nsteps[0] = 40;
-                }
-              }
-              if ( pt==3 ) {
-                // downstream
-                if ( p==2 ) {
-                  if ( pos[0][0] > pos[1][0] ) 
-                    nsteps[1] = 40;
-                  else
-                    nsteps[0] = 40;
-                }
-              }
-            }//end of if point end type = 3 or 4
-
-            // std::cout << "endpt_type=" << pt << " plane=" << p << "chargepts=" << chargepts[p].size()
-            //        << " (" << imgs.at(p).meta().pos_x( (int)pos[0][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[0][1] ) << ") "
-            //        << "vs (" << imgs.at(p).meta().pos_x( (int)pos[1][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[1][1] ) << "): "
-            //        << "nsteps[0]=" << nsteps[0] << " vs. nsteps[1]=" << nsteps[1]
-            //        << std::endl;
-            
-            BoundaryEndPt endpt_min( (int)pos[0][1], (int)pos[0][0], (BoundaryEndPt::BoundaryEnd_t)pt );
-            endpt_min.dir[0] = -dir[0];
-            endpt_min.dir[1] = -dir[1];
-            endpt_v_min.emplace_back( endpt_min );
-            BoundaryEndPt endpt_max( (int)pos[1][1], (int)pos[1][0], (BoundaryEndPt::BoundaryEnd_t)pt );
-            endpt_max.dir[0] = dir[0];
-            endpt_max.dir[1] = dir[1];
-            endpt_v_max.emplace_back( endpt_max );
-            
-            // vote for the end point
-            end_vote[p] = nsteps[0]-nsteps[1];
-          }//end of loop over plane
-          // store it
-          int totvote = 0;
-          for (int p=0; p<3; p++) totvote += end_vote[p];
-          if ( totvote<0 )
-            end_points.emplace_back( std::move(endpt_v_min) );
-          else
-            end_points.emplace_back( std::move(endpt_v_max) );
+          const dbscan::dbCluster& detspace_cluster = clout.clusters.at(ic);
+          std::vector< BoundaryEndPt > endpt_v = DefineEndpointFromBoundaryCluster( (BoundaryMuonTaggerAlgo::Crossings_t)pt, detspace_cluster, imgs, badchs, 
+          	combo_points.at(pt), combo_cols.at(pt), matchedpixels );
+          end_points.emplace_back( std::move(endpt_v) );
           
         }//end of if cluster size is large enough
       }//end of cluster loop
     }//end of boundary point type
   }//end of clustering function
+
+  std::vector< BoundaryEndPt > BoundaryMuonTaggerAlgo::DefineEndpointFromBoundaryCluster( const BoundaryMuonTaggerAlgo::Crossings_t crossing_type, 
+    const dbscan::dbCluster& detspace_cluster, 
+    const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,
+    const dbscan::dbPoints& combo_points, const std::vector< std::vector<int> >& combo_cols, std::vector<larcv::Image2D>& matchedpixels ) {
+
+    std::vector< BoundaryEndPt > endpt_v; 
+
+    const int nplanes = (int)imgs.size();
+    const int ncrossings = BoundaryMuonTaggerAlgo::kNumCrossings;
+
+    dbscan::dbPoints chargepts[3]; // charge per plane
+    int largest_qpt[3] = {0,0,0};
+    float larget_q[3]  = {0,0,0};
+
+    // we transfer information from this cluster into image space.  we mark pixels in image space with a hit
+    std::vector< larcv::Image2D > workspace;
+    for (int p=0; p<nplanes; p++) {
+      workspace.push_back( larcv::Image2D( imgs.at(p).meta() ) );
+      workspace.back().paint(0.0);
+    }    
+
+    // loop through hit in real space cluster. collect pixels in image space to cluster once more.
+    for (size_t ihit=0; ihit<detspace_cluster.size(); ihit++) {
+      int idxhit = detspace_cluster.at(ihit);
+      for (size_t p=0; p<3; p++) {
+        int col = combo_cols[idxhit][p]; // get the position in the image for this point
+        // look for charge in neighborhood of this point
+        for (int n=-_config.neighborhoods[p]; n<=_config.neighborhoods[p]; n++) {
+          if ( col+n<0 || col+n>=(int)imgs.at(p).meta().cols() ) continue;
+          float q = imgs.at(p).pixel( (int)combo_points[idxhit][1], col+n );
+          if ( q > _config.thresholds.at(p) ) {
+            workspace[p].set_pixel( (int)combo_points[idxhit][1], col+n, q );
+            if ( _config.save_endpt_images )
+              matchedpixels.at(nplanes*crossing_type+p).set_pixel( (int)combo_points[idxhit][1], col+n, 255.0 );
+          }//if pixel above thresh
+        }// loop over neighborhood
+      }//end of loop over plane
+    }//end of loop over hits in real space
+    
+    // collection charge pts
+    for (size_t p=0; p<3; p++) {
+      for (size_t r=0; r<workspace[p].meta().rows(); r++) {
+    	for (size_t c=0; c<workspace[p].meta().cols(); c++) {
+    	  float q = workspace[p].pixel(r,c);
+    	  if ( q>0.0 ) {
+    	    std::vector<double> qpt(2,0.0);
+            qpt[0] = c;// + rand.Uniform();
+            qpt[1] = r;//+rand.Uniform();
+            chargepts[p].emplace_back( std::move( qpt ) );
+            if ( q>larget_q[p] ) {
+              largest_qpt[p] = chargepts[p].size()-1;
+              larget_q[p] = q;
+            } 
+          }
+        }
+      }
+    }
+    
+    // define the endpoint
+    std::vector< BoundaryEndPt > endpt_v_min; // at min time of cluster
+    std::vector< BoundaryEndPt > endpt_v_max; // at max time of cluster
+    int end_vote[3] = { 0, 0, 0 }; // votes by each plane for min or max time
+    dbscan::DBSCANAlgo dbalgo;
+
+    for (size_t p=0; p<3; p++) {
+      // this block is slow. it's the reclustering of the charge!
+      // cluster the charge hits on the plane
+      //std::cout << "  " << chargepts[p].size() << " charge points on plane=" << p << std::endl;
+      if ( (int)chargepts[p].size()< _config.boundary_cluster_minpixels.at(p)+1 ) {
+        // don't have enough here
+        //std::cout << "  not enough to cluster. just make a point from largest charge" << std::endl;
+    	BoundaryEndPt endpt( chargepts[p].at( largest_qpt[p] )[1],  chargepts[p].at( largest_qpt[p] )[0], (BoundaryEndPt::BoundaryEnd_t)crossing_type );
+    	endpt_v_min.push_back( endpt );
+    	endpt_v_max.push_back( endpt );
+    	continue;
+      }
+      //for (int iq=0; iq<chargepts[p].size(); iq++)
+      //  std::cout << "  (" << iq << ") " << chargepts[p].at(iq)[0] << ", " << chargepts[p].at(iq)[1] << std::endl;
+
+      dbscan::dbscanOutput q_clout = dbalgo.scan( chargepts[p], _config.boundary_cluster_minpixels.at(p), _config.boundary_cluster_radius.at(p), false, 0.0 );
+      //ann::ANNAlgo::cleanup();
+      int largest_cluster = -1;
+      int largest_size = 0;
+      for ( size_t icq=0; icq<q_clout.clusters.size(); icq++ ) {
+    	if ( largest_cluster<0 || (int)q_clout.clusters.at(icq).size()>largest_size ) {
+    	      largest_cluster = icq;
+    	      largest_size = q_clout.clusters.at(icq).size();
+    	}
+      }
+
+      int idxhit_tmin, idxhit_tmax, idxhit_wmin, idxhit_wmax;
+      getClusterEdges( chargepts[p], imgs, q_clout, largest_cluster, idxhit_tmin, idxhit_tmax, idxhit_wmin, idxhit_wmax );
+
+      // the end points form a line, we follow outward on those lines to see which one is more likely the end of the track
+      float pos[2][2] = { { (float)chargepts[p].at( idxhit_tmin )[0], (float)chargepts[p].at( idxhit_tmin )[1] },
+    			  { (float)chargepts[p].at( idxhit_tmax )[0], (float)chargepts[p].at( idxhit_tmax )[1] } };
+      float dir[2] = { pos[1][0]-pos[0][0], pos[1][1]-pos[0][1] };
+      float norm = 0;
+      for (int i=0; i<2; i++) {
+    	norm += dir[i]*dir[i];
+      }
+      norm = sqrt(norm);
+      for (int i=0; i<2; i++)
+    	dir[i] /= norm;
+      int nsteps[2] = { 0, 0 }; // steps before no more charge
+      int nzeros[2] = { 0, 0 };
+
+      if ( crossing_type==BoundaryMuonTaggerAlgo::top || crossing_type==BoundaryMuonTaggerAlgo::bot ) {
+        // if top and bottom, perform voting system
+      	for (int j=0; j<2; j++) {
+      	  for (int i=0; i<40; i++) {
+            if ( nzeros[j]>3 ) break; // cut it off
+            int r = pos[j][1] + (2*j-1)*dir[1]*i;
+            int c = pos[j][0] + (2*j-1)*dir[0]*i;
+            if ( r<2 || r>=(int)imgs.at(p).meta().rows()-2 || c<2 || c>=(int)imgs.at(p).meta().cols()-2 )
+              break;
+            int npixs = 0;
+            for ( int dr=-2; dr<=2; dr++) {
+              for (int dc=-2; dc<=2; dc++) {
+            	if ( imgs.at(p).pixel( r+dr, c+dc )> _config.thresholds.at(p) 
+            	      || badchs.at(p).pixel( r+dr, c+dc ) > 0 )
+            	  npixs++;
+              }
+            }
+            if (npixs>0) {
+              nsteps[j]++;
+              nzeros[j] = 0;
+            }
+            else {
+              nzeros[j]++;
+            }
+          }//end of loop over steps
+        }//end of loop over min/max
+      }
+      else {
+        // end points are upsteam, downstream. we rig the votes and pick the end point closest to the edge
+      	if ( crossing_type==BoundaryMuonTaggerAlgo::upstream ) {
+          // upstream
+      	  if ( p==2 ) {
+      	    if ( pos[0][0] < pos[1][0] ) 
+      	      nsteps[1] = 40;
+      	    else
+      	      nsteps[0] = 40;
+      	  }
+       	}
+      	if ( crossing_type==BoundaryMuonTaggerAlgo::downstream ) {
+          // downstream
+      	  if ( p==2 ) {
+      	    if ( pos[0][0] > pos[1][0] ) 
+      	      nsteps[1] = 40;
+      	    else
+      	      nsteps[0] = 40;
+      	  }
+      	}
+      }//end of if point end type = 3 or 4
+
+      // std::cout << "endpt_type=" << pt << " plane=" << p << "chargepts=" << chargepts[p].size()
+      //        << " (" << imgs.at(p).meta().pos_x( (int)pos[0][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[0][1] ) << ") "
+      //        << "vs (" << imgs.at(p).meta().pos_x( (int)pos[1][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[1][1] ) << "): "
+      //        << "nsteps[0]=" << nsteps[0] << " vs. nsteps[1]=" << nsteps[1]
+      //        << std::endl;
+      
+      BoundaryEndPt endpt_min( (int)pos[0][1], (int)pos[0][0], (BoundaryEndPt::BoundaryEnd_t)crossing_type );
+      endpt_min.dir[0] = -dir[0];
+      endpt_min.dir[1] = -dir[1];
+      endpt_v_min.emplace_back( endpt_min );
+      BoundaryEndPt endpt_max( (int)pos[1][1], (int)pos[1][0], (BoundaryEndPt::BoundaryEnd_t)crossing_type );
+      endpt_max.dir[0] = dir[0];
+      endpt_max.dir[1] = dir[1];
+      endpt_v_max.emplace_back( endpt_max );
+      
+      // vote for the end point
+      end_vote[p] = nsteps[0]-nsteps[1];
+    }//end of loop over plane
+    // store it
+    int totvote = 0;
+    for (int p=0; p<3; p++) totvote += end_vote[p];
+    if ( totvote<0 )
+      endpt_v = endpt_v_min;
+    else
+      endpt_v = endpt_v_max;
+    
+    return endpt_v;
+  }//end of end point definition
 
 }//end of namespace
