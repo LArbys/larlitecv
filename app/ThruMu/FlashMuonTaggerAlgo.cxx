@@ -153,38 +153,48 @@ namespace larlitecv {
           dbscan::dbscanOutput plane_dbscan_output      = dbalgo.scan( hits.at(p), 5, 5.0, false, 0.0 );
           std::vector<ClusterInfo_t> plane_cluster_info = analyzeClusters( plane_dbscan_output, hits.at(p), tpc_imgs.at(p), row_target, p, 5 );
           for ( auto& info : plane_cluster_info ) {
-	    if ( fConfig.verbosity<1)
-  	      std::cout << " plane=" << p << " flash-cluster: (w,t)=(" << tpc_imgs.at(p).meta().pos_x(info.col) << "," << tpc_imgs.at(p).meta().pos_y(info.row) << ")"
-            	<< " hit-rmax=" << info.hits_rmax_boundary;
+            if ( fConfig.verbosity<1) {
+              std::cout << " plane=" << p << " flash-cluster: (w,t)=(" << tpc_imgs.at(p).meta().pos_x(info.col) << "," << tpc_imgs.at(p).meta().pos_y(info.row) << ")"
+                << " hit-rmax=" << info.hits_rmax_boundary;
               if ( info.hits_rmax_boundary ) 
-              	std::cout << " (" << tpc_imgs.at(p).meta().pos_x(info.col_max) << "," << tpc_imgs.at(p).meta().pos_y(info.row_max) << ")";
+                std::cout << " (" << tpc_imgs.at(p).meta().pos_x(info.col_max) << "," << tpc_imgs.at(p).meta().pos_y(info.row_max) << ")";
               else
-              	std::cout << " (,)";
+                std::cout << " (,)";
               std::cout << " hit-rmin=" << info.hits_rmin_boundary;
               if ( info.hits_rmin_boundary ) 
-              	std::cout << " (" << tpc_imgs.at(p).meta().pos_x(info.col_min) << "," << tpc_imgs.at(p).meta().pos_y(info.row_min) << ")";
+                std::cout << " (" << tpc_imgs.at(p).meta().pos_x(info.col_min) << "," << tpc_imgs.at(p).meta().pos_y(info.row_min) << ")";
               else
-              	std::cout << " (,)";
+                std::cout << " (,)";
               std::cout << std::endl;
+            }
           }
           dbscan_output.emplace_back( std::move(plane_dbscan_output) );
           cluster_info.emplace_back( std::move(plane_cluster_info) );
         }
 
-	std::vector< std::vector<BoundaryEndPt> > endpts_v;
+        std::vector< std::vector<BoundaryEndPt> > endpts_v;
         std::vector< std::vector<ClusterInfo_t> > accepted_cluster_matches;        
-	findPlaneMatchedClusters( cluster_info, tpc_imgs, fConfig.max_triarea, z_range, y_range, endpts_v, accepted_cluster_matches );
+        findPlaneMatchedClusters( cluster_info, tpc_imgs, fConfig.max_triarea, z_range, y_range, endpts_v, accepted_cluster_matches );
+        std::cout << "number of plane-matched clusters: " << accepted_cluster_matches.size() << std::endl;
+        std::cout << "number of endpts: " << endpts_v.size() << std::endl;
 
-	// transfer to output container
+        // now we try to remove false positives
+        std::vector< int > passing_clusters;                
+        filterClusters( accepted_cluster_matches, tpc_imgs, 20, 20, 20, passing_clusters );
+
+        // transfer to output container
         if ( fConfig.verbosity<2 )
           std::cout << "Generated End Points" << std::endl;
-        for ( auto& intersection : endpts_v ) {
+        for (int idx_cluster=0; idx_cluster<(int)passing_clusters.size(); idx_cluster++ ) {
+          if ( passing_clusters.at(idx_cluster)==0 ) continue;
+          std::vector<BoundaryEndPt>& intersection = endpts_v.at(idx_cluster);
+
           std::cout << "  (" << tpc_imgs.at(0).meta().pos_x(intersection[0].w) 
             << "," << tpc_imgs.at(1).meta().pos_x(intersection[1].w)
             << "," << tpc_imgs.at(2).meta().pos_x(intersection[2].w) << ")" 
             << std::endl;
           for ( auto& plane_pt : intersection )
-	    plane_pt.type = point_type;
+            plane_pt.type = point_type;
           trackendpts.emplace_back( std::move( intersection ) );
         }
         /*
@@ -688,7 +698,7 @@ namespace larlitecv {
             info.col_min = c;
           }          
         }
-	if ( r==row_target ) {
+        if ( r==row_target ) {
           if ( info.q<0 || q>info.q ) {
             info.q = q;
             max_hitidx = hitidx;
@@ -698,7 +708,7 @@ namespace larlitecv {
         }
       }
       if ( info.col>=0 )
-      	output.emplace_back( std::move(info) );
+        output.emplace_back( std::move(info) );
     }
 
     return output;
@@ -797,7 +807,7 @@ namespace larlitecv {
 
       // ok, how did we do?
       if ( !has_max_match && !has_min_match ) {
-      	continue;
+        continue;
       }
       int nboundary_matches = 0;
       if ( has_max_match ) nboundary_matches++;
@@ -805,21 +815,151 @@ namespace larlitecv {
 
       // we accept this combination
       if ( fConfig.verbosity<1 )
-      	std::cout << "  accepted endpt: comboidx=(" << combo[0] << "," << combo[1] << "," << combo[2] << ") wires=(";
+        std::cout << "  accepted endpt: comboidx=(" << combo[0] << "," << combo[1] << "," << combo[2] << ") wires=(";
       std::vector< BoundaryEndPt > endpt_v;
+      std::vector< ClusterInfo_t > info_copy_v;
       for ( int p=0; p<nplanes; p++ ) {
-	const ClusterInfo_t& info = cluster_info.at(p).at( combo[p] );
+        const ClusterInfo_t& info = cluster_info.at(p).at( combo[p] );
         if ( fConfig.verbosity<1)
-	  std::cout << img_v.at(p).meta().pos_x( info.col ) << ",";
-      	BoundaryEndPt endpt( info.row, info.col );
+          std::cout << img_v.at(p).meta().pos_x( info.col ) << ",";
+        BoundaryEndPt endpt( info.row, info.col );
         endpt_v.emplace_back( std::move(endpt) );
+        info_copy_v.push_back( info );
       }
       if ( fConfig.verbosity<1 )
-      	std::cout << ") nboundary_matches=" << nboundary_matches << std::endl;
+        std::cout << ") nboundary_matches=" << nboundary_matches << std::endl;
 
       endpts_v.emplace_back( std::move(endpt_v) );
+      accepted_clusters.emplace_back( std::move(info_copy_v) );
     }
   }
+
+  void FlashMuonTaggerAlgo::filterClusters( const std::vector< std::vector< ClusterInfo_t > >& accepted_cluster_matches, 
+    const std::vector<larcv::Image2D>& img_v, const int rmax_window, const int rmin_window, const int col_width,
+    std::vector< int >& cluster_passed ) {
+    // we want to remove false positive flash-end detections.
+    // this means removing flash-tags that occur in the middle of a track.
+    // such tags have the consequence of causing many multiple tracks, greatly inflatingn the number of aStar searchs
+    // (though in principle, these repeate 3D tracks can be removed/merged -- but let's try to get rid of them here)
+    cluster_passed.resize( accepted_cluster_matches.size(), 0 );
+
+    int idx_cluster = 0;
+    for ( auto const& info_v : accepted_cluster_matches ) {
+      // to determine if track end, we do something very simple:
+      // we define a window around the cluster pt in all planes
+      // within the window we collect charge and cluster.
+      // we find the extrema of all the points
+      // the extrema tells us whether to check the horizontally of vertically
+      // does both or only one extrema reach the end?
+      // if only one, it passes
+      // if both, it fails as being midtrack
+
+      const int nplanes = (int)img_v.size();
+      int row = info_v.front().row; // clusters on each plane should have same row
+      // define the window
+      int row_start = row - rmin_window;
+      int row_end   = row + rmax_window;
+
+      dbscan::DBSCANAlgo algo;
+      struct ClusterExtrema_t {
+        std::vector<int> l; // left-most point
+        std::vector<int> r; // right-most point
+        std::vector<int> t; // top-most point
+        std::vector<int> b; // bottom-most point
+        ClusterExtrema_t() {
+          l.resize(2,0);
+          r.resize(2,0);
+          t.resize(2,0);
+          b.resize(2,0);
+        };
+      };
+
+      // collect hits in neighborhood
+      std::vector<int> boundaries_reached(nplanes,0);
+
+      for (int p=0; p<nplanes;p++) {
+        dbscan::dbPoints planepts;
+        int col = info_v.at(p).col;
+        int col_start = col-col_width;
+        int col_end   = col+col_width;
+        for ( int r=row_start; r<=row_end; r++ ) {
+          if ( r<0 || r>=img_v.at(p).meta().rows() ) continue;
+          for (int c=col_start; c<=col_end; c++ ) {
+            if ( c<0 || c>=img_v.at(p).meta().cols() ) continue;
+
+            if ( img_v.at(p).pixel(r,c)>fConfig.pixel_value_threshold.at(p) ) {
+              std::vector<double> hit(2);
+              hit[0] = c;
+              hit[1] = r;
+              planepts.emplace_back( std::move(hit) );
+            }
+
+          }
+        }
+        dbscan::dbscanOutput clout = algo.scan( planepts, 3, 5.0, false, 0.0 );
+        std::vector<double> centerpt(2);
+        centerpt[0] = col;
+        centerpt[1] = row;
+        int matching_cluster = clout.findMatchingCluster( centerpt, planepts, 3.0 );
+        std::cout << "matching_cluster: " << matching_cluster << std::endl;
+        int cluster_size = clout.clusters.at(matching_cluster).size();
+        if ( cluster_size==0 ) {
+          throw std::runtime_error("previous established cluster now missing?");
+        }
+
+        // initialize extrema search
+        ClusterExtrema_t extrema;
+        extrema.l[0] = extrema.r[0] = extrema.t[0] = extrema.b[0] = col;
+        extrema.l[1] = extrema.r[1] = extrema.t[1] = extrema.b[1] = row;
+
+        for ( int ihit=0; ihit<cluster_size; ihit++) {
+          int hitidx = clout.clusters.at(matching_cluster).at(ihit);
+          const std::vector<double>& hit = planepts.at(hitidx);
+          if ( hit[0]<extrema.l[0]) {
+            extrema.l[0] = hit[0];
+            extrema.l[1] = hit[1];
+          }
+          if (hit[0]>extrema.r[0]) {
+            extrema.r[0] = hit[0];
+            extrema.r[1] = hit[1];
+          }
+          if (hit[1]>extrema.t[1]) {
+            extrema.t[0] = hit[0];
+            extrema.t[1] = hit[1];
+          }
+          if (hit[1]<extrema.b[1]) {
+            extrema.b[0] = hit[0];
+            extrema.b[1] = hit[1];
+          }
+        }
+
+        int num_boundaries_reached = 0;
+        if ( extrema.l[0]<=col_start ) num_boundaries_reached++;
+        if ( extrema.r[0]>=col_end   ) num_boundaries_reached++;
+        if ( extrema.b[1]<=row_start ) num_boundaries_reached++;
+        if ( extrema.t[1]>=row_end   ) num_boundaries_reached++;
+
+        boundaries_reached[p] = num_boundaries_reached;
+
+      }//end of plane loop
+
+      int nplanes_with_crossing_cluster = 0;
+      for (int p=0; p<nplanes; p++) {
+        if ( boundaries_reached[p]>=2 ) nplanes_with_crossing_cluster++;
+      }
+
+      if ( nplanes_with_crossing_cluster<=1 ) {
+        // only keep these
+        cluster_passed[idx_cluster] = 1;
+      }
+      std::cout << "filter cluster#" << idx_cluster << " tick=" << img_v.at(0).meta().pos_y(row) 
+      	<< " cols=(" << info_v[0].col << "," << info_v[1].col << "," << info_v[2].col << ")"
+      	<< " planes with crossing cluster=" << nplanes_with_crossing_cluster
+      	<< std::endl;
+      idx_cluster++;
+    }//end of cluster loop
+
+  }// end of function
 
   bool FlashMuonTaggerAlgo::findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
                                                 std::vector< std::vector< BoundaryEndPt > >& trackendpts ) {

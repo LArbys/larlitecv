@@ -100,6 +100,9 @@ namespace larlitecv {
       const float max_triarea, const std::vector<float>& z_range, const std::vector<float>& y_range, std::vector< std::vector<BoundaryEndPt> >& endpts_v,
       std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& accepted_clusters );
 
+    void filterClusters( const std::vector< std::vector< ClusterInfo_t > >& accepted_cluster_matches, 
+      const std::vector<larcv::Image2D>& img_v, const int rmax_window, const int rmin_window, const int col_width, std::vector< int >& cluster_passed );
+
 
     void loadGeoInfo();
 
