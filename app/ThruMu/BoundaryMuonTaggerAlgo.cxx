@@ -1461,12 +1461,12 @@ namespace larlitecv {
         wids[p]      = sorted_imagespace_pixels[p][plane_idx[p]].col;
         plane_row[p] = sorted_imagespace_pixels[p][plane_idx[p]].row;
       }
-      std::cout << "current_row=" << current_row 
-       << " plane_idx's=[" 
-       << " " << plane_idx[0] << "/" << sorted_imagespace_pixels[0].size() << "r=" << sorted_imagespace_pixels[0][plane_idx[0]].row << ","
-       << " " << plane_idx[1] << "/" << sorted_imagespace_pixels[1].size() << "r=" << sorted_imagespace_pixels[1][plane_idx[1]].row << ","
-       << " " << plane_idx[2] << "/" << sorted_imagespace_pixels[2].size() << "r=" << sorted_imagespace_pixels[2][plane_idx[2]].row << "]" 
-       << std::endl;                         
+      // std::cout << "current_row=" << current_row 
+      //  << " plane_idx's=[" 
+      //  << " " << plane_idx[0] << "/" << sorted_imagespace_pixels[0].size() << "r=" << sorted_imagespace_pixels[0][plane_idx[0]].row << ","
+      //  << " " << plane_idx[1] << "/" << sorted_imagespace_pixels[1].size() << "r=" << sorted_imagespace_pixels[1][plane_idx[1]].row << ","
+      //  << " " << plane_idx[2] << "/" << sorted_imagespace_pixels[2].size() << "r=" << sorted_imagespace_pixels[2][plane_idx[2]].row << "]" 
+      //  << std::endl;                         
 
       // are they the same row?
       int smallest_row = -1;
@@ -1477,7 +1477,7 @@ namespace larlitecv {
       }
       if (smallest_row>current_row) {
       	current_row = smallest_row;
-        std::cout << " -- out of sync. move to next." << std::endl;
+        //std::cout << " -- out of sync. move to next." << std::endl;
         continue; // look again for an alignment
       }
 
@@ -1494,13 +1494,13 @@ namespace larlitecv {
         else if ( crossing_type==bot ) thisdwall = poszy[1] + 117.0;
         else if ( crossing_type==upstream ) thisdwall = poszy[0];
         else if ( crossing_type==downstream ) thisdwall = 1040-poszy[0];
-	std::cout << "  -- valid point dwall= " << 	thisdwall << std::endl;
+	//std::cout << "  -- valid point dwall= " << 	thisdwall << std::endl;
         if ( best_dwall<0 || thisdwall<best_dwall ) {
 	  best_dwall = thisdwall;
           best_row = current_row;
           best_cols = wids;
           best_triarea = triarea;
-          std::cout << "  -- update." << std::endl;
+          //std::cout << "  -- update." << std::endl;
         }
       }
 
@@ -1537,14 +1537,14 @@ namespace larlitecv {
     
     // we have defined an image-space cluster of pixels on each plane in chargepts 
     // we have the min and max row and charge for this cluster on all three planes
-    std::cout << "Candidate Endpt(type=" << crossing_type << ")"
-	    << " min ticks=(" << meta.pos_y(max_row[0]) << "," << meta.pos_y(max_row[1]) << "," << meta.pos_y(max_row[2]) << ") "
-      	    << " max_rows=(" <<  meta.pos_y(min_row[0]) << "," << meta.pos_y(min_row[1]) << "," << meta.pos_y(min_row[2]) << ") "
-            << " endpt-dwall=" << best_dwall
-            << " endpt-tick=" << meta.pos_y(best_row)
-            << " endpt-cols=" << best_cols[0] << "," << best_cols[1] << "," << best_cols[2] << ") "
-            << " best-tri=" << best_triarea
-            << std::endl;
+    // std::cout << "Candidate Endpt(type=" << crossing_type << ")"
+    //         << " min ticks=(" << meta.pos_y(max_row[0]) << "," << meta.pos_y(max_row[1]) << "," << meta.pos_y(max_row[2]) << ") "
+    //         << " max_rows=(" <<  meta.pos_y(min_row[0]) << "," << meta.pos_y(min_row[1]) << "," << meta.pos_y(min_row[2]) << ") "
+    //         << " endpt-dwall=" << best_dwall
+    //         << " endpt-tick=" << meta.pos_y(best_row)
+    //         << " endpt-cols=" << best_cols[0] << "," << best_cols[1] << "," << best_cols[2] << ") "
+    //         << " best-tri=" << best_triarea
+    //         << std::endl;
 
 
     // create the end point

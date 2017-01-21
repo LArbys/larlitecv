@@ -84,6 +84,7 @@ int main( int nargs, char** argv ) {
   larlitecv::FlashMuonTaggerAlgo imgends_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kOutOfImage );
   larlitecv::FlashMuonTaggerConfig flashtagger_cfg;
   flashtagger_cfg.pixel_value_threshold        = flashtagger_pset.get< std::vector<float> >( "ChargeThreshold" ); // one for each plane
+  flashtagger_cfg.search_row_radius            = flashtagger_pset.get< int >( "SearchRowRadius" ); // one for each plane
   flashtagger_cfg.clustering_time_neighborhood = flashtagger_pset.get< std::vector<int> >( "ClusteringTimeWindow" );
   flashtagger_cfg.clustering_wire_neighborhood = flashtagger_pset.get< std::vector<int> >( "ClusteringWireWindow" );
   flashtagger_cfg.clustering_minpoints         = flashtagger_pset.get< std::vector<int> >( "ClusteringMinPoints" );
@@ -94,6 +95,9 @@ int main( int nargs, char** argv ) {
   flashtagger_cfg.usec_per_tick                = flashtagger_pset.get< float >( "MicrosecondsPerTick", 0.5 );
   flashtagger_cfg.drift_distance               = flashtagger_pset.get< float >( "DriftDistance", 250.0 );
   flashtagger_cfg.drift_velocity               = flashtagger_pset.get< float >( "DriftVelocity", 0.114 );
+  flashtagger_cfg.flash_zrange_extension       = flashtagger_pset.get< float >( "FlashZRangeExtension", 1.1 );
+  flashtagger_cfg.max_triarea                  = flashtagger_pset.get< float >( "MaxTriArea", 10.0 );
+  flashtagger_cfg.max_triarea_tight            = flashtagger_pset.get< float >( "MaxTriAreaTight", 1.0 );
   anode_flash_tagger.configure( flashtagger_cfg );
   cathode_flash_tagger.configure(flashtagger_cfg);
   imgends_flash_tagger.configure(flashtagger_cfg);
