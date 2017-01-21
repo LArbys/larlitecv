@@ -1403,7 +1403,8 @@ namespace larlitecv {
         for (int n=-neighborhood; n<=neighborhood; n++) {
           if ( col+n<0 || col+n>=(int)imgs.at(p).meta().cols() ) continue;
           float q = imgs.at(p).pixel( (int)combo_points[idxhit][1], col+n );
-          if ( q > _config.thresholds.at(p) && workspace[p].pixel(row,col+n)==0 ) {
+          float badchq = badchs.at(p).pixel( (int)combo_points[idxhit][1], col+n );
+          if ( ( q > _config.thresholds.at(p) || (badchq>0 && n==0) ) && workspace[p].pixel(row,col+n)==0 ) {
             // define charge point in image space. jiggle col,row because ANN fails if points on top one another
             std::vector<double> imagespacept(2);
             imagespacept[0] = double(col+n) + 0.1*rand.Uniform();
@@ -1449,12 +1450,18 @@ namespace larlitecv {
     float best_dwall = -1;
     float best_triarea = -1;
     bool more_combos = true;
+
+    std::cout << "Start combo search" << std::endl;
+
     while ( more_combos ) {
       // go to pixel in each plane that is at least this row
       std::vector<int> wids(nplanes);
       std::vector<int> plane_row(nplanes,0);
+      int num_empty_planes = 0;
       for (int p=0; p<nplanes; p++) {
       	// keep moving up pixel list until we find a pixel that is same row or further
+        std::cout << "in combo with plane_idx=" << plane_idx[p] << " number of image-space pixels=" << sorted_imagespace_pixels.at(p).size() << std::endl;
+
       	while ( current_row > sorted_imagespace_pixels[p][plane_idx[p]].row && plane_idx[p]<sorted_imagespace_pixels.at(p).size() ) {
           plane_idx[p]++;
         }

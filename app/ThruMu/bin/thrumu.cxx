@@ -76,6 +76,7 @@ int main( int nargs, char** argv ) {
   sidetagger_cfg.astar_thresholds = sidetagger_pset.get< std::vector<float> >( "AStarThresholds" );
   sidetagger_cfg.astar_neighborhood = sidetagger_pset.get< std::vector<int> >( "AStarNeighborhood" );
   sidetagger_cfg.save_endpt_images = sidetagger_pset.get<bool>("SaveMatchImages");
+  sidetagger_cfg.hitsearch_uses_badchs = sidetagger_pset.get<bool>("UseBadChannels");
   sidetagger.configure(sidetagger_cfg);
 
   // flash-tagger
