@@ -24,7 +24,6 @@ namespace larlitecv {
     // ------
     //  trackendpts: list of vector of end pts. each (inner vector) is point on each plane.
     const int nplanes = tpc_imgs.size();
-    trackendpts.clear();
     
     if ( nplanes==0 )
       return false;
@@ -50,7 +49,7 @@ namespace larlitecv {
         }
         else if ( fSearchMode==kCathode ) {
           flash_tick = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
-          tick_target = flash_tick + fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+180.0;
+          tick_target = flash_tick + fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+240.0;
           point_type = BoundaryEndPt::kCathode;          
           modename = "cathode";
         }
@@ -121,16 +120,16 @@ namespace larlitecv {
                     << " qtot= " << qtot
                     << " z_range=[" << z_range[0] << "," << z_range[1] << "] "
                     << " w_range=[" << int(z_range[0]/0.3/meta.pixel_width()) << "," << int(z_range[1]/0.3/meta.pixel_width()) << "] "
-                    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+240.0 << " ticks"
+                    << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+200.0 << " ticks"
                     << std::endl;
         }
         
-        // we find track ends on all three planes
+        // first we make clusters in the neighborhood of the target_row
         std::vector<dbscan::dbPoints> hits;
         for (int p=0; p<nplanes; p++) {
           const larcv::Image2D& img = tpc_imgs.at(p);
           dbscan::dbPoints planehits;
-          for (int drow=-10; drow<=10; drow++) {
+          for (int drow=-20; drow<=20; drow++) {
             int r_current = row_target + drow;
             if ( r_current<0 || r_current>=(int)meta.rows() )continue;
             for (int c=0; c<(int)meta.cols(); c++) {
@@ -145,7 +144,7 @@ namespace larlitecv {
           hits.emplace_back( std::move(planehits) );
         }
         
-        // we cluster hits consistent with the flash
+        // on each plane, separately, we cluster hits consistent with the flash
         std::vector<dbscan::dbscanOutput> dbscan_output; 
         std::vector< std::vector<ClusterInfo_t> > cluster_info;
         for (int p=0; p<nplanes; p++) {
@@ -172,9 +171,10 @@ namespace larlitecv {
           cluster_info.emplace_back( std::move(plane_cluster_info) );
         }
 
+        // now we match up clusters from across the 3 planes
         std::vector< std::vector<BoundaryEndPt> > endpts_v;
         std::vector< std::vector<ClusterInfo_t> > accepted_cluster_matches;        
-        findPlaneMatchedClusters( cluster_info, tpc_imgs, fConfig.max_triarea, z_range, y_range, endpts_v, accepted_cluster_matches );
+        findPlaneMatchedClusters( cluster_info, tpc_imgs, badch_imgs, fConfig.max_triarea, z_range, y_range, endpts_v, accepted_cluster_matches );
         std::cout << "number of plane-matched clusters: " << accepted_cluster_matches.size() << std::endl;
         std::cout << "number of endpts: " << endpts_v.size() << std::endl;
 
@@ -197,254 +197,7 @@ namespace larlitecv {
             plane_pt.type = point_type;
           trackendpts.emplace_back( std::move( intersection ) );
         }
-        /*
-        // now we loop through the clusters, and form track points on each plane
-        // so that we define 'end points' on each plane        
-        std::vector< std::vector<BoundaryEndPt> > endpts;        
-        for ( int p=0; p<nplanes; p++ ) {
-          const dbscan::dbscanOutput& plane_cluster_info = cluster_info.at(p);
-          
-          // for (int ic=0; ic<(int)plane_cluster_info.clusters.size(); ic++) {
-          //   BoundaryEndPt endpt;
-          //   bool foundend = findClusterEnds( plane_cluster_info.clusters.at(ic), hits.at(p), ic, row_target, p, meta, endpt );
-          //   if ( foundend ) endpts[p]->emplace_back( endpt );
-          // }
-          
-          std::vector<BoundaryEndPt> plane_endpts;
-          defineClusterPositions( plane_cluster_info, hits.at(p), row_target, p, point_type, tpc_imgs.at(p), plane_endpts );
-          endpts.emplace_back( std::move(plane_endpts) );
-          if (fConfig.verbosity<1 )
-            std::cout << "  flashmuontaggeralgo: plane " << p << " clusters: " << plane_cluster_info.clusters.size() << " endpoints=" << endpts[p].size() << std::endl;
-        }
 
-        // generate 3 plane intersections from clusters
-        std::vector< std::vector<BoundaryEndPt> > intersections3plane = generate3PlaneIntersections( endpts, fConfig.max_triarea, tpc_imgs, z_range, y_range );
-
-        // transfer to output container
-        if ( fConfig.verbosity<2 )
-          std::cout << "Generated End Points" << std::endl;
-        for ( auto& intersection : intersections3plane ) {
-          std::cout << "  (" << tpc_imgs.at(0).meta().pos_x(intersection[0].w) 
-            << "," << tpc_imgs.at(1).meta().pos_x(intersection[1].w)
-            << "," << tpc_imgs.at(2).meta().pos_x(intersection[2].w) << ")" 
-            << std::endl;
-          trackendpts.emplace_back( std::move( intersection ) );
-        }
-        */        
-
-        /*
-        // now that we have end points for each cluster, we ID position of charge deposition in (Y,Z) and check if consistent with the flash
-        std::vector< std::vector<int> > wirelists(3);
-        std::vector< std::map<int,int> > wirelist_endpt_idx(3); // map from wid to endpt index
-        std::vector< std::vector<float> > valid_range(2);
-        valid_range[0] = z_range;
-        valid_range[1] = y_range;
-        for (int ip=0; ip<3; ip++) {
-          for (int ipt=0; ipt<(int)endpts[ip].size(); ipt++) {
-            const BoundaryEndPt& endpt = endpts[ip].at(ipt);
-            int wid = meta.pos_x(endpt.w);
-            wirelists.at(ip).push_back( wid ); 
-            wirelist_endpt_idx.at(ip).insert( std::pair<int,int>(wid,ipt) );
-          }
-        }
-        
-        // get intersections
-        std::vector< std::vector<int> > intersections3plane;
-        std::vector< std::vector<float> > vertex3plane;
-        std::vector<float> areas3plane;
-        std::vector< std::vector<int> > intersections2plane;
-        std::vector< std::vector<float> > vertex2plane;
-        
-        ::larcv::UBWireTool::findWireIntersections( wirelists, valid_range, intersections3plane, vertex3plane, areas3plane, intersections2plane, vertex2plane );
-
-        if ( fConfig.verbosity<1 ) {
-          std::cout << " RAW INTERSECTIONS" << std::endl;
-          std::cout << " 2 plane intersections: " << std::endl;
-          for (int ii=0; ii<(int)intersections2plane.size(); ii++) {
-            std::cout << "   (" << intersections2plane.at(ii).at(0) << ","
-                    << intersections2plane.at(ii).at(1) << ","
-                    << intersections2plane.at(ii).at(2) << ")"
-                    << " vertex (z,y)=(" << vertex2plane.at(ii).at(0) << ", " << vertex2plane.at(ii).at(1) << ")" << std::endl;
-          }
-          
-          std::cout << " 3 plane intersections:" << std::endl;
-          for (int ii=0 ; ii<(int)intersections3plane.size(); ii++) {
-            std::cout << "   (" << intersections3plane.at(ii).at(0) << ","
-                    << intersections3plane.at(ii).at(1) << ","
-                    << intersections3plane.at(ii).at(2) << ") "
-                    << " vertex (z,y)=(" << vertex3plane.at(ii).at(0) << ", " << vertex3plane.at(ii).at(1) << ")"
-                    << "tri-area-score=" << areas3plane.at(ii) << std::endl;
-          }
-        }
-
-        // now we go through and find our best match(es)
-        int max_flash_combos = 3;
-        int ncombos = 0;
-        std::vector< int > final_combos_idx;
-
-        // ========================================================================
-        // SORT 3 PLANE COMBINATIONS
-        // sort indices by area
-        struct p3matches_t {
-          int idx;
-          float score;
-        };
-        struct mycompare_t {
-          bool operator() (p3matches_t l, p3matches_t r) {
-            if ( l.score<r.score ) return true;
-            return false;
-          };
-        } mycompare;
-
-        std::vector< p3matches_t > sortable3plane;
-        for (int ii=0; ii<(int)intersections3plane.size(); ii++) {
-          p3matches_t combo;
-          combo.idx = ii;
-          combo.score = areas3plane.at(ii);
-          sortable3plane.emplace_back( combo );
-        }
-        std::sort( sortable3plane.begin(), sortable3plane.end(), mycompare );
-
-        // go through combos and pick out matches
-        std::set<int> used_wid[3]; // used to mark wid's that are used up
-        for (int ii=0; ii<(int)sortable3plane.size(); ii++) {
-          const p3matches_t& combo = sortable3plane.at(ii);
-          const std::vector<int>& wire_combo = intersections3plane.at( combo.idx );
-          bool valid_combo = true;
-//        for (int iw=0; iw<wire_combo.size(); iw++) {
-//          int wid = wire_combo.at(iw);
-//          if ( used_wid[iw].find( wid )!=used_wid[iw].end() ) {
-//            // wire already used
-//            valid_combo = false;
-//            break;
-//          }
-//        }
-          if ( !valid_combo || combo.score>fConfig.max_triarea )
-            continue; // do not accept
-          
-          if ( ncombos>=max_flash_combos && combo.score>fConfig.max_triarea_tight )
-            continue; // only accept more than the max unless its a really good match
-          
-          // valid combo. now invalid these wires
-          for (int iw=0; iw<(int)wire_combo.size(); iw++) {
-            int wid = wire_combo.at(iw);
-            used_wid[iw].insert( wid );
-          }
-          
-          final_combos_idx.push_back( combo.idx ); // copy combo
-          ncombos++;
-        }
-
-        // =================================================================================================
-        // SORT 2 PLANE COMBINATIONS: add in flash combinations where missing end point is in badch regions
-        for ( int ii=0; ii<(int)intersections2plane.size(); ii++) {
-          // find the missing one
-          int missing_plane = -1;
-          for (int ip=0; ip<3; ip++) {
-            if ( intersections2plane.at(ii).at(ip)==-1 ) {
-              missing_plane = ip;
-              break;
-            }
-          }
-          // get two plane intersection vertex
-          std::vector<double> vert(3,0.0);
-          vert[1] = vertex2plane.at(ii).at(1);
-          vert[2] = vertex2plane.at(ii).at(0);
-          float wireco = ::larutil::Geometry::GetME()->WireCoordinate( vert, missing_plane );
-          // is it near a missing wire?
-          int wirecol = (int)wireco/meta.pixel_width();
-          bool missing_in_badch = false;
-          for (int n=-3;n<=3;n++) {
-            int col_ = wirecol+n;
-            if ( col_<0 || col_>=(int)meta.cols() ) continue;
-            if ( badch_imgs.at(missing_plane).pixel(0,col_)>0 ){
-              missing_in_badch = true;
-              break;
-            }
-          }
-          if ( missing_in_badch ) {
-            
-            // add to 3 plane intersections
-            std::vector<int> intersect3(3);
-            for (int ip=0; ip<3; ip++)
-              intersect3[ip] = intersections2plane.at(ii).at(ip);
-            intersect3[missing_plane] = (int)wireco;
-            int min_totdiff = 10000;
-            for (int jj=0; jj<(int)intersections3plane.size(); jj++) {
-              int totdiff = 0;
-              for (int ip=0; ip<3; ip++)
-                totdiff += abs( intersections3plane.at(jj).at(ip)-intersect3.at(ip) );
-              if (totdiff<min_totdiff)
-                min_totdiff = totdiff;
-            }
-            if ( min_totdiff>=5 ) {
-              //std::cout << "  adding 2-plane intersection+badch wire into 3 plane intersections: "
-              //<< "(" << intersect3[0] << "," << intersect3[1] << "," << intersect3[2] << ")" << std::endl;
-              std::vector<float> fvertzy(2,0.0);
-              fvertzy[0] = vertex2plane.at(ii).at(0);
-              fvertzy[1] = vertex2plane.at(ii).at(1);
-              int idx = intersections3plane.size();
-              intersections3plane.emplace_back( std::move(intersect3) );
-              vertex3plane.emplace_back( std::move(fvertzy) );
-              areas3plane.push_back(0.0);
-              final_combos_idx.push_back(idx);
-
-              // add wire map entry if needed
-              int wid = meta.pixel_width()*wirecol;
-              if ( wirelist_endpt_idx.at(missing_plane).find( wid )==wirelist_endpt_idx.at(missing_plane).end() ) {
-                wirelists.at(missing_plane).push_back( wid );
-                
-                BoundaryEndPt endpt( row_target, (int)wirecol);
-                int idx_endpt = endpts[missing_plane].size();
-                endpts[missing_plane].emplace_back( std::move(endpt) );
-                wirelist_endpt_idx.at(missing_plane).insert( std::pair<int,int>(wid,idx_endpt) );
-              }
-            }
-          }
-        }
-        
-
-        // =================================================================================================
-        // FINAL 3 PLANE COMBOS. FILL TRACK END POINTS CONTAINER WITH RESULTS
-        if (fConfig.verbosity<2 )
-          std::cout << "Final 3-plane combos" << std::endl;
-        for (int ii=0 ; ii<(int)final_combos_idx.size(); ii++) {
-          int idx = final_combos_idx.at(ii);
-          std::vector<int> endptidx(3,-1);
-          for (int ip=0; ip<nplanes; ip++) {
-            int wid = intersections3plane.at(idx).at(ip);
-            auto it_endpt = wirelist_endpt_idx.at(ip).find( wid );
-            if ( it_endpt!=wirelist_endpt_idx.at(ip).end() ) {
-              endptidx[ip] = it_endpt->second;
-            }
-          }
-          if (fConfig.verbosity<2 ) {
-            std::cout << "   (" << intersections3plane.at(idx).at(0) << ","
-                      << intersections3plane.at(idx).at(1) << ","
-                      << intersections3plane.at(idx).at(2) << ") "
-                      << " endpt=(" << endptidx[0] << "," << endptidx[1] << "," << endptidx[2] << ") "
-                      << " vertex (z,y)=(" << vertex3plane.at(idx).at(0) << ", " << vertex3plane.at(idx).at(1) << ")"
-                      << " score=" << areas3plane.at(idx) << std::endl;
-          }
-
-          std::vector< BoundaryEndPt > endpt_v;
-          for (int ip=0; ip<nplanes; ip++) {
-            int eidx = endptidx.at(ip); // end point index
-            larlitecv::BoundaryEndPt endpt = endpts[ip].at(eidx);
-            if ( fSearchMode==kAnode )
-              endpt.type = larlitecv::BoundaryEndPt::kAnode;
-            else if ( fSearchMode==kCathode )
-              endpt.type = larlitecv::BoundaryEndPt::kCathode;
-            else if ( fSearchMode==kOutOfImage ) // makes no sense here
-              endpt.type = larlitecv::BoundaryEndPt::kImageEnd;
-            endpt_v.emplace_back( std::move( endpt ) );
-          }//end of loop over planes
-          // place into output container
-
-          trackendpts.emplace_back( std::move( endpt_v ) );
-        }
-        */
-        
       }//end of opflashes loop
     }//end of opflashsets
 
@@ -586,155 +339,33 @@ namespace larlitecv {
     }
   }
 
-  std::vector< std::vector<BoundaryEndPt> > FlashMuonTaggerAlgo::generate3PlaneIntersections( const std::vector< std::vector<BoundaryEndPt> >&endptset_v, 
-    const float max_triarea, const std::vector<larcv::Image2D>& img_v, const std::vector<float>& z_range, const std::vector<float>& y_range ) {
+  void FlashMuonTaggerAlgo::generate3PlaneIntersections(  const std::vector< std::vector< ClusterInfo_t > >& cluster_info, const std::vector<larcv::Image2D>& img_v, 
+    const std::vector<float>& z_range, const std::vector<float>& y_range, const float max_triarea,
+    std::vector< std::vector<BoundaryEndPt> >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,
+    std::vector< std::vector<int> >& cluster_used ) {
+    // input
+    //  vector< vector<cluster_info> >:  list of cluster info for each plane
+    //  vector< image2d >: list of images, 1 for each plane
+    // output
+    //  vector< vector<BoundaryEndPt> > : list of plane-matched end-pts. inner vector has 3 endpts each, one for each plane.
+    //  vector< vector<ClusterInfo_t> > : list of plane-matched cluster info. mirrors above. inner vector has 3 info objects each, one for each plane
 
-     if ( fConfig.verbosity<1){
-        std::cout << "  generate 3-plane intersections within "
-                << " z-range=[" << z_range[0] << "," << z_range[1] << "]" 
-                << " y-range=[" << y_range[0] << "," << y_range[1] << "]" 
-                << std::endl;           
-     }
-
-    // we try all combinations of 3 planes.  factorial expansion...
-    std::vector<int> numpts(endptset_v.size());
-    for (int p=0; p<(int)endptset_v.size(); p++) {
-      numpts[p] = (int)endptset_v.at(p).size();
-    }
-    // dont feel like writing something that generates combinatorics, going to assume 3 planes
-    std::vector< std::vector<int> > combos;
-    for (int p1=0; p1<numpts[0]; p1++) {
-      for (int p2=0; p2<numpts[1]; p2++) {
-        for ( int p3=0; p3<numpts[2]; p3++ ) {
-          std::vector<int> combo(3);
-          combo[0] = p1;
-          combo[1] = p2;
-          combo[2] = p3;
-          combos.emplace_back( std::move(combo) );
-        }
-      }
-    }
-
-    std::vector< std::vector<BoundaryEndPt> > output;
-    for ( auto const& combo : combos ) {
-      // get the wire ids for each combo
-      std::vector<int> wid(endptset_v.size());
-      for ( int p=0; p<3; p++) {
-        wid[p] = img_v.at(p).meta().pos_x( endptset_v.at(p).at(combo[p]).w );
-      }
-      int crosses = 0;
-      std::vector<float> poszy;
-      double triangle_area;
-      larcv::UBWireTool::wireIntersection( wid, poszy, triangle_area, crosses );
-      if ( fConfig.verbosity<1)
-        std::cout << "  candidate combo (" << wid[0] << "," << wid[1] << "," << wid[2] << ") "
-                << " tri-area=" << triangle_area 
-                << " poszy=(" << poszy[0] << "," << poszy[1] << ")"
-                << " crosses=" << crosses 
-                << std::endl;
-      if ( crosses==1 && triangle_area < max_triarea 
-            && z_range[0]<=poszy[0] && poszy[0]<=z_range[1] && y_range[0]<=poszy[1] && poszy[1]<=y_range[1] ) {
-        std::vector<BoundaryEndPt> endpt_v;
-        for (int p=0; p<3; p++) {
-          endpt_v.push_back( endptset_v.at(p).at(combo[p]) );
-        }
-        output.emplace_back( std::move(endpt_v) );
-      }
-    }
-    return output;
-  }
-
-  std::vector<FlashMuonTaggerAlgo::ClusterInfo_t> FlashMuonTaggerAlgo::analyzeClusters( const dbscan::dbscanOutput& dbscan_output, 
-    const dbscan::dbPoints& hits, const larcv::Image2D& img, const int row_target, const int plane, const int row_radius ) {
-
-    std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > output;
-
-    int rmax_boundary = row_target+row_radius;
-    int rmin_boundary = row_target-row_radius;
-    if ( rmax_boundary>=img.meta().rows() ) rmax_boundary = img.meta().rows()-1;
-    if ( rmin_boundary<0 ) rmin_boundary = 0;
-
-    // for each cluster we grab some info
-    for ( int ic=0; ic<(int)dbscan_output.clusters.size(); ic++ ) {
-      const dbscan::dbCluster&  cluster = dbscan_output.clusters.at(ic);
-      // make a ClusterInfo object for this
-      ClusterInfo_t info;
-      info.plane = plane;
-      info.cluster_idx = ic;
-      info.hits_rmin_boundary = 0;
-      info.hits_rmax_boundary = 0;
-      info.ntime_ends = 0;
-      info.row = -1;
-      info.col = -1;
-      info.q = -1;
-      info.row_min = -1;
-      info.col_min = -1;
-      info.q_min = -1;
-      info.row_max = -1;
-      info.col_max = -1;
-      info.q_max = -1;
-      info.indead_region = false;
-      info.npixels = (int)cluster.size();
-      int max_hitidx = -1;
-      for ( int ih=0; ih<cluster.size(); ih++ ) {
-        int hitidx = cluster.at(ih);
-        const std::vector<double>& pixel = hits.at(hitidx);
-        int r = (int)pixel[1];
-        int c = (int)pixel[0];
-        float q = img.pixel(r,c);        
-        if ( r==rmax_boundary ) {
-          info.hits_rmax_boundary = 1;
-          if ( info.q_max<0 || info.q_max<q ) {
-            info.q_max = q;
-            info.row_max = r;
-            info.col_max = c;
-          }
-        }
-        if ( r==rmin_boundary ) {
-          info.hits_rmin_boundary = 1;
-          if ( info.q_min<0 || info.q_min>q ) {
-            info.q_min = q;
-            info.row_min = r;
-            info.col_min = c;
-          }          
-        }
-        if ( r==row_target ) {
-          if ( info.q<0 || q>info.q ) {
-            info.q = q;
-            max_hitidx = hitidx;
-            info.row = r;
-            info.col = c;
-          }
-        }
-      }
-      if ( info.col>=0 )
-        output.emplace_back( std::move(info) );
-    }
-
-    return output;
-  }
-
-  void FlashMuonTaggerAlgo::findPlaneMatchedClusters( const std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& cluster_info, 
-    const std::vector<larcv::Image2D>& img_v, const float max_triarea, const std::vector<float>& z_range, const std::vector<float>& y_range, 
-    std::vector< std::vector<BoundaryEndPt> >& endpts_v, std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& accepted_clusters ) {
-    // we match clusters across plane using some markers
-    //  1) consistent 2D position for the center
-    //  2) if one of the t-boundaries are 2D consistent
-    //  3) for cluster with no t-boundary crossings but matches in center and has a number of pixels in Y (horizontal muon) 
-
-    // generate 3 plane combinations
+     // generate 3 plane combinations
     if ( fConfig.verbosity<1){
-      std::cout << "  generate 3-plane intersections within "
+      std::cout << " ** generate 3-plane intersections within "
                 << " z-range=[" << z_range[0] << "," << z_range[1] << "]" 
-                << " y-range=[" << y_range[0] << "," << y_range[1] << "]" 
+                << " y-range=[" << y_range[0] << "," << y_range[1] << "] **" 
                 << std::endl;           
     }
     const int nplanes = (int)img_v.size();
 
     // we try all combinations of 3 planes.  factorial expansion...
     std::vector<int> numpts(nplanes);
+    cluster_used.clear();
+    cluster_used.resize(nplanes);
     for (int p=0; p<nplanes; p++) {
       numpts[p] = (int)cluster_info.at(p).size();
+      cluster_used[p].resize( numpts[p], 0);
     }
     // dont feel like writing something that generates combinatorics, going to assume 3 planes
     std::vector< std::vector<int> > combos;
@@ -780,7 +411,6 @@ namespace larlitecv {
       double triarea_max;
       if ( has_max_match ) {
         larcv::UBWireTool::wireIntersection( wid_max, poszy_max, triarea_max, crosses );
-        std::cout << "  test max boundary: triarea=" << triarea_max << std::endl;
         if ( crosses==0 || triarea_max>max_triarea )
           has_max_match = false;
       }
@@ -800,7 +430,6 @@ namespace larlitecv {
       double triarea_min;
       if ( has_min_match ) {
         larcv::UBWireTool::wireIntersection( wid_min, poszy_min, triarea_min, crosses );
-        std::cout << "  test min boundary: triarea=" << triarea_min << std::endl;        
         if ( crosses==0 || triarea_min>max_triarea )
           has_min_match = false;
       }
@@ -815,11 +444,12 @@ namespace larlitecv {
 
       // we accept this combination
       if ( fConfig.verbosity<1 )
-        std::cout << "  accepted endpt: comboidx=(" << combo[0] << "," << combo[1] << "," << combo[2] << ") wires=(";
+        std::cout << "  accepted 3-plane endpt: comboidx=(" << combo[0] << "," << combo[1] << "," << combo[2] << ") wires=(";
       std::vector< BoundaryEndPt > endpt_v;
       std::vector< ClusterInfo_t > info_copy_v;
       for ( int p=0; p<nplanes; p++ ) {
         const ClusterInfo_t& info = cluster_info.at(p).at( combo[p] );
+        cluster_used[p][combo[p]] = 1;
         if ( fConfig.verbosity<1)
           std::cout << img_v.at(p).meta().pos_x( info.col ) << ",";
         BoundaryEndPt endpt( info.row, info.col );
@@ -827,11 +457,206 @@ namespace larlitecv {
         info_copy_v.push_back( info );
       }
       if ( fConfig.verbosity<1 )
-        std::cout << ") nboundary_matches=" << nboundary_matches << std::endl;
+        std::cout << ") nboundary_matches=" << nboundary_matches << " max=" << triarea_max <<  " min=" << triarea_min << std::endl;
 
       endpts_v.emplace_back( std::move(endpt_v) );
       accepted_clusters.emplace_back( std::move(info_copy_v) );
     }
+  }
+
+  
+  void FlashMuonTaggerAlgo::generate2PlaneIntersections( const std::vector< std::vector< ClusterInfo_t > >& cluster_info, 
+    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+    const std::vector<float>& z_range, const std::vector<float>& y_range, const float max_triarea,
+    std::vector< std::vector<BoundaryEndPt> >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,
+    std::vector< std::vector<int> >& cluster_used ) {
+
+    if ( fConfig.verbosity<1){
+      std::cout << "  generate 3-plane intersections within "
+                << " z-range=[" << z_range[0] << "," << z_range[1] << "]" 
+                << " y-range=[" << y_range[0] << "," << y_range[1] << "]" 
+                << std::endl;           
+    }
+
+    // we try all combinations of 2 planes.  factorial expansion...
+    const int nplanes = img_v.size();
+    std::vector<int> numpts(nplanes);
+    for (int p=0; p<nplanes; p++) {
+      numpts[p] = (int)cluster_info.at(p).size();
+    }
+    // find 2 plane combinations + dead ch
+    std::vector< std::vector<int> > combos;
+
+    std::vector< std::vector<ClusterInfo_t> > proposed_clusters;
+    std::vector< std::vector<BoundaryEndPt> > proposed_endpts;
+
+    for (int p1=0; p1<nplanes; p1++) {
+      for (int p2=p1+1; p2<nplanes; p2++) {
+
+        for ( int endpt1=0; endpt1<numpts[p1]; endpt1++) {
+          // check if this endpt is already in use
+          if ( cluster_used[p1][endpt1]==1 ) continue;
+
+          for ( int endpt2=0; endpt2<numpts[p2]; endpt2++ ) {
+            // check if this is also in use
+            if ( cluster_used[p2][endpt2]==1 ) continue;
+
+            // OK, lets see what wire we have
+            int wid1 = img_v.at(p1).meta().pos_x( cluster_info[p1][endpt1].col );
+            int wid2 = img_v.at(p2).meta().pos_x( cluster_info[p2][endpt2].col );
+
+            std::vector<float> poszy;
+            int crosses;
+            int otherplane;
+            int otherwire;
+            larcv::UBWireTool::getMissingWireAndPlane( p1, wid1, p2, wid2, otherplane, otherwire, poszy, crosses );
+
+            int badch_state = 0;
+            if ( crosses>0 && otherwire>=0 && otherplane>=0 )
+              badch_state = badch_v.at(otherplane).pixel( cluster_info[p1][endpt1].row, img_v.at(otherplane).meta().col(otherwire) );
+
+            std::cout << "p1=" << p1 << " wid1=" << wid1
+              << " p2=" << p2 << " wid2=" << wid2 
+              << " other plane=" << otherplane << " other wire=" << otherwire << " badch=" << badch_state
+              << std::endl;
+
+            // is there an intersection?
+            if ( crosses==0 )
+              continue;
+
+            // is this wire in a badch region?
+            if ( badch_v.at(otherplane).pixel( cluster_info[p1][endpt1].row, img_v.at(otherplane).meta().col(otherwire) )==0 ) {
+              // not a badch move on
+              continue;
+            }
+
+            // we test the good planes to see if they have also have a match away from the flash point
+
+
+            // if so, define the combo
+            ClusterInfo_t badch_info;
+            badch_info.plane = otherplane;
+            badch_info.indead_region = true;
+            badch_info.row = cluster_info[p1][endpt1].row;
+            badch_info.col = img_v.at(otherplane).meta().col(otherwire);
+            std::vector< ClusterInfo_t > info_v(nplanes);
+            info_v[p1] = cluster_info[p1][endpt1];
+            info_v[p2] = cluster_info[p2][endpt2];
+            info_v[otherplane] = badch_info;
+            cluster_used[p1][endpt1] = 1;
+            cluster_used[p2][endpt2] = 1;
+
+            std::vector< BoundaryEndPt > endpts;
+            for ( int p=0; p<nplanes; p++ ) {
+              const ClusterInfo_t& info = info_v.at(p);
+              BoundaryEndPt endpt( info.row, info.col );
+              endpts.emplace_back( std::move(endpt) );
+            }
+
+            proposed_endpts.emplace_back( std::move(endpts) );
+            proposed_clusters.emplace_back( std::move(info_v) );
+
+
+            break; // we already matched endpt1, so break this loop
+          }//end of loop over endpt2
+        }
+      }
+    }
+
+    for ( int idx=0; idx<(int)proposed_clusters.size(); idx++ ) {
+      // for the clusters that was found, we do the same type of check as the 3-plane matches
+      accepted_clusters.emplace_back( std::move(proposed_clusters.at(idx)) );
+      endpts_v.emplace_back( std::move(proposed_endpts.at(idx)) );
+    }
+
+  }
+
+  std::vector<FlashMuonTaggerAlgo::ClusterInfo_t> FlashMuonTaggerAlgo::analyzeClusters( const dbscan::dbscanOutput& dbscan_output, 
+    const dbscan::dbPoints& hits, const larcv::Image2D& img, const int row_target, const int plane, const int row_radius ) {
+
+    std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > output;
+
+    int rmax_boundary = row_target+row_radius;
+    int rmin_boundary = row_target-row_radius;
+    if ( rmax_boundary>=img.meta().rows() ) rmax_boundary = img.meta().rows()-1;
+    if ( rmin_boundary<0 ) rmin_boundary = 0;
+
+    // for each cluster we grab some info
+    std::cout << "number of cluster on plane=" << plane << ": " << dbscan_output.clusters.size() << std::endl;
+    for ( int ic=0; ic<(int)dbscan_output.clusters.size(); ic++ ) {
+      const dbscan::dbCluster&  cluster = dbscan_output.clusters.at(ic);
+      // make a ClusterInfo object for this
+      ClusterInfo_t info;
+      info.plane = plane;
+      info.cluster_idx = ic;
+      info.hits_rmin_boundary = 0;
+      info.hits_rmax_boundary = 0;
+      info.ntime_ends = 0;
+      info.row = -1;
+      info.col = -1;
+      info.q = -1;
+      info.row_min = -1;
+      info.col_min = -1;
+      info.q_min = -1;
+      info.row_max = -1;
+      info.col_max = -1;
+      info.q_max = -1;
+      info.indead_region = false;
+      info.npixels = (int)cluster.size();
+      int max_hitidx = -1;
+      for ( int ih=0; ih<cluster.size(); ih++ ) {
+        int hitidx = cluster.at(ih);
+        const std::vector<double>& pixel = hits.at(hitidx);
+        int r = (int)pixel[1];
+        int c = (int)pixel[0];
+        float q = img.pixel(r,c);        
+        if ( r==rmax_boundary ) {
+          info.hits_rmax_boundary = 1;
+          if ( info.q_max<0 || info.q_max<q ) {
+            info.q_max = q;
+            info.row_max = r;
+            info.col_max = c;
+          }
+        }
+        if ( r==rmin_boundary ) {
+          info.hits_rmin_boundary = 1;
+          if ( info.q_min<0 || info.q_min<q ) {
+            info.q_min = q;
+            info.row_min = r;
+            info.col_min = c;
+          }          
+        }
+        if ( r==row_target ) {
+          if ( info.q<0 || info.q<q ) {
+            info.q = q;
+            max_hitidx = hitidx;
+            info.row = r;
+            info.col = c;
+          }
+        }
+      }
+      if ( max_hitidx>=0 )
+        output.emplace_back( std::move(info) );
+    }
+
+    return output;
+  }
+
+  void FlashMuonTaggerAlgo::findPlaneMatchedClusters( const std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& cluster_info, 
+    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+    const float max_triarea, const std::vector<float>& z_range, const std::vector<float>& y_range, 
+    std::vector< std::vector<BoundaryEndPt> >& endpts_v, std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& accepted_clusters ) {
+    // we match clusters across plane using some markers
+    //  1) consistent 2D position for the center
+    //  2) if one of the t-boundaries are 2D consistent
+    //  3) for cluster with no t-boundary crossings but matches in center and has a number of pixels in Y (horizontal muon) 
+
+    // generate 3 plane combinations
+    std::vector< std::vector<int> > cluster_used_for3planematch;
+    generate3PlaneIntersections( cluster_info, img_v, z_range, y_range, max_triarea, endpts_v, accepted_clusters, cluster_used_for3planematch );
+
+    // if remaining clusters, look for 2 plane combinations + dead channels
+    generate2PlaneIntersections( cluster_info, img_v, badch_v, z_range, y_range, max_triarea, endpts_v, accepted_clusters, cluster_used_for3planematch );
   }
 
   void FlashMuonTaggerAlgo::filterClusters( const std::vector< std::vector< ClusterInfo_t > >& accepted_cluster_matches, 
@@ -859,6 +684,8 @@ namespace larlitecv {
       // define the window
       int row_start = row - rmin_window;
       int row_end   = row + rmax_window;
+      if ( row_start<0 ) row_start = 0;
+      if ( row_end>=img_v.at(0).meta().rows() ) row_end = img_v.at(0).meta().rows()-1;
 
       dbscan::DBSCANAlgo algo;
       struct ClusterExtrema_t {
@@ -876,12 +703,21 @@ namespace larlitecv {
 
       // collect hits in neighborhood
       std::vector<int> boundaries_reached(nplanes,0);
+      int reached_tick_top = 0;
+      int reached_tick_bot = 0;
 
       for (int p=0; p<nplanes;p++) {
+
+        if ( info_v.at(p).indead_region==true )
+          continue;
+
         dbscan::dbPoints planepts;
         int col = info_v.at(p).col;
         int col_start = col-col_width;
         int col_end   = col+col_width;
+        if ( col_start<0 ) col_start=0;
+        if ( col_end>=img_v.at(p).meta().cols()) col_end = img_v.at(p).meta().cols()-1;
+
         for ( int r=row_start; r<=row_end; r++ ) {
           if ( r<0 || r>=img_v.at(p).meta().rows() ) continue;
           for (int c=col_start; c<=col_end; c++ ) {
@@ -901,7 +737,6 @@ namespace larlitecv {
         centerpt[0] = col;
         centerpt[1] = row;
         int matching_cluster = clout.findMatchingCluster( centerpt, planepts, 3.0 );
-        std::cout << "matching_cluster: " << matching_cluster << std::endl;
         int cluster_size = clout.clusters.at(matching_cluster).size();
         if ( cluster_size==0 ) {
           throw std::runtime_error("previous established cluster now missing?");
@@ -931,31 +766,58 @@ namespace larlitecv {
             extrema.b[0] = hit[0];
             extrema.b[1] = hit[1];
           }
-        }
+        } // loop over hits
 
         int num_boundaries_reached = 0;
-        if ( extrema.l[0]<=col_start ) num_boundaries_reached++;
-        if ( extrema.r[0]>=col_end   ) num_boundaries_reached++;
-        if ( extrema.b[1]<=row_start ) num_boundaries_reached++;
-        if ( extrema.t[1]>=row_end   ) num_boundaries_reached++;
+        if ( extrema.b[1]<=row_start ) {
+          num_boundaries_reached++;
+          reached_tick_top++;
+        }
+        else if ( (extrema.l[0]<=col_start && extrema.l[1]<row && extrema.l[1]>row_start ) 
+          || (extrema.r[0]>=col_end && extrema.r[1]<row && extrema.r[1]>row_start) ) {
+          num_boundaries_reached++;
+          reached_tick_top++;
+        }
+
+        if ( extrema.t[1]>=row_end   ) {
+          num_boundaries_reached++;
+          reached_tick_bot++;
+        }
+        else if ( (extrema.l[0]<=col_start && extrema.l[1]>row && extrema.r[1]<row_end) || (extrema.r[0]>=col_end && extrema.r[1]>row && extrema.r[1]<row_end) ) {
+          num_boundaries_reached++;
+          reached_tick_bot++;
+        }
 
         boundaries_reached[p] = num_boundaries_reached;
+        std::cout << "  plane=" << p << " tick-top extreme=" << img_v.at(p).meta().pos_y(extrema.b[1]) << " <= row_top=" << img_v.at(p).meta().pos_y(row_start) << std::endl;
+        std::cout << "  plane=" << p << " tick-bot extreme=" << img_v.at(p).meta().pos_y(extrema.t[1]) << " >= row_bot=" << img_v.at(p).meta().pos_y(row_end) << std::endl;        
+        std::cout << "  plane=" << p << " tick-lft extreme=" << img_v.at(p).meta().pos_y(extrema.l[1]) 
+          << " ; col=" << img_v.at(p).meta().pos_x(extrema.l[0]) << " >= " << col_start << std::endl;
+        std::cout << "  plane=" << p << " tick-rgt extreme=" << img_v.at(p).meta().pos_y(extrema.r[1]) 
+          << " ; col=" << img_v.at(p).meta().pos_x(extrema.r[0]) << " <= " << col_end << std::endl;        
 
       }//end of plane loop
+
 
       int nplanes_with_crossing_cluster = 0;
       for (int p=0; p<nplanes; p++) {
         if ( boundaries_reached[p]>=2 ) nplanes_with_crossing_cluster++;
       }
 
-      if ( nplanes_with_crossing_cluster<=1 ) {
-        // only keep these
-        cluster_passed[idx_cluster] = 1;
+      if ( nplanes_with_crossing_cluster<=1 || fSearchMode==kOutOfImage ) {
+        // conditions for passing
+        if ( (fSearchMode==kCathode || (fSearchMode==kOutOfImage && fOutOfImageMode==kFront) ) && reached_tick_bot>=2 )
+          cluster_passed[idx_cluster] = 1;
+        else if ( (fSearchMode==kAnode || (fSearchMode==kOutOfImage && fOutOfImageMode==kBack)) && reached_tick_top>=2 )
+          cluster_passed[idx_cluster] = 1;
       }
       std::cout << "filter cluster#" << idx_cluster << " tick=" << img_v.at(0).meta().pos_y(row) 
-      	<< " cols=(" << info_v[0].col << "," << info_v[1].col << "," << info_v[2].col << ")"
-      	<< " planes with crossing cluster=" << nplanes_with_crossing_cluster
-      	<< std::endl;
+        << " cols=(" << info_v[0].col << "," << info_v[1].col << "," << info_v[2].col << ")"
+        << " [planes with crossing cluster]=" << nplanes_with_crossing_cluster
+        << " [planes reached top tick]=" << reached_tick_top
+        << " [planes reached bot tick]=" << reached_tick_bot
+        << " [cluster_passed]=" << cluster_passed[idx_cluster]
+        << std::endl;
       idx_cluster++;
     }//end of cluster loop
 
@@ -970,16 +832,28 @@ namespace larlitecv {
     }
     
     // we build fake flashes to pass into findTrackEnds
-    larlite::event_opflash* faux_flashes = new larlite::event_opflash;
+    
     std::vector<double> dummy(32,0.);
-    larlite::opflash img_begin( 2400.0+36, 0, 0, 0, dummy ); // make this config pars
+
+    larlite::event_opflash* faux_flash_front = new larlite::event_opflash;
+    larlite::opflash img_begin( 2415.0, 0, 0, 0, dummy );    
+    faux_flash_front->emplace_back( img_begin );
+    std::vector< larlite::event_opflash* > faux_flash_front_v;    
+    faux_flash_front_v.push_back( faux_flash_front );
+    fOutOfImageMode = kFront;
+    bool results = flashMatchTrackEnds( faux_flash_front_v, tpc_imgs, badch_imgs, trackendpts );
+
+    larlite::event_opflash* faux_flash_back = new larlite::event_opflash;        
     larlite::opflash img_end( 2400.0+6048-36, 0, 0, 0, dummy ); // make this config pars
-    faux_flashes->emplace_back( img_begin );
-    faux_flashes->emplace_back( img_end );
-    std::vector< larlite::event_opflash* > faux_flashes_v;
-    faux_flashes_v.push_back( faux_flashes );
-    bool results = flashMatchTrackEnds( faux_flashes_v, tpc_imgs, badch_imgs, trackendpts );
-    delete faux_flashes;
+    faux_flash_back->emplace_back( img_end );
+    std::vector< larlite::event_opflash* > faux_flash_back_v;    
+    faux_flash_back_v.push_back( faux_flash_back );
+    fOutOfImageMode = kBack;
+    results = flashMatchTrackEnds( faux_flash_back_v, tpc_imgs, badch_imgs, trackendpts );
+
+    delete faux_flash_back;
+    delete faux_flash_front;
+
     return results;
   }  
   

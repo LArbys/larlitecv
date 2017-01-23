@@ -46,9 +46,11 @@ namespace larlitecv {
   public:
     
     typedef enum { kAnode, kCathode, kOutOfImage } SearchMode_t;
+    typedef enum { kFront, kBack, kNotSet } OutOfImage_t;
 
     FlashMuonTaggerAlgo( SearchMode_t mode_) {
       fSearchMode = mode_;
+      fOutOfImageMode = kNotSet;
       fconfigured = false;
       loadGeoInfo();
     };
@@ -83,6 +85,7 @@ namespace larlitecv {
   protected:
     
     SearchMode_t fSearchMode;
+    OutOfImage_t fOutOfImageMode;
     bool fconfigured;
     FlashMuonTaggerConfig fConfig;
     
@@ -90,18 +93,31 @@ namespace larlitecv {
     bool findClusterEnds( const dbscan::dbscanOutput& clout, const dbscan::dbPoints& winpoints, 
 			  const int clusterid, const int row_target, const int plane, const larcv::ImageMeta& meta,
 			  BoundaryEndPt& endpt );
+
     void defineClusterPositions( const dbscan::dbscanOutput& clout, const dbscan::dbPoints& winpoints, const int row_target, 
                                  const int plane, const int point_type, const larcv::Image2D& img, std::vector<BoundaryEndPt>& endpt_v );
-    std::vector< std::vector<BoundaryEndPt> > generate3PlaneIntersections( const std::vector< std::vector<BoundaryEndPt> >& endptset_v, 
-      const float max_triarea, const std::vector<larcv::Image2D>& img_v, const std::vector<float>& z_range, const std::vector<float>& y_range );
+
     std::vector<FlashMuonTaggerAlgo::ClusterInfo_t> analyzeClusters( const dbscan::dbscanOutput& dbscan_output, 
       const dbscan::dbPoints& hits, const larcv::Image2D& img, const int row_target, const int plane, const int row_radius );
-    void findPlaneMatchedClusters( const std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& cluster_info, const std::vector<larcv::Image2D>& img_v,
+
+    void findPlaneMatchedClusters( const std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& cluster_info, 
+      const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
       const float max_triarea, const std::vector<float>& z_range, const std::vector<float>& y_range, std::vector< std::vector<BoundaryEndPt> >& endpts_v,
       std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& accepted_clusters );
 
+    void generate3PlaneIntersections(  const std::vector< std::vector< ClusterInfo_t > >& cluster_info, const std::vector<larcv::Image2D>& img_v, 
+      const std::vector<float>& z_range, const std::vector<float>& y_range, const float max_triarea,
+      std::vector< std::vector<BoundaryEndPt> >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,  std::vector< std::vector<int> >& cluster_used );
+
+    void generate2PlaneIntersections( const std::vector< std::vector< ClusterInfo_t > >& cluster_info, 
+      const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+      const std::vector<float>& z_range, const std::vector<float>& y_range, const float max_triarea,
+      std::vector< std::vector<BoundaryEndPt> >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,
+      std::vector< std::vector<int> >& cluster_used );
+
+
     void filterClusters( const std::vector< std::vector< ClusterInfo_t > >& accepted_cluster_matches, 
-      const std::vector<larcv::Image2D>& img_v, const int rmax_window, const int rmin_window, const int col_width, std::vector< int >& cluster_passed );
+      const std::vector<larcv::Image2D>& img_v, const int rmax_window, const int rmin_window, const int col_width, std::vector< int >& cluster_passed );    
 
 
     void loadGeoInfo();

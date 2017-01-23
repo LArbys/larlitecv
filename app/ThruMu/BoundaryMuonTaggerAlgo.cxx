@@ -55,7 +55,7 @@ namespace larlitecv {
 
     std::cout << "BoundaryMuonTaggerAlgo::searchforboundarypixels3D" << std::endl;
 
-    const int ncrossings = BoundaryMuonTaggerAlgo::kNumCrossings; // 4, it's 4
+    const int ncrossings = (int)BoundaryMuonTaggerAlgo::kNumCrossings; // 4, it's 4
     const int nplanes = (int)imgs.size();
     clock_t begin_time = clock();
 
@@ -64,7 +64,7 @@ namespace larlitecv {
       return kErr_NotConfigured;
     }
     
-    if ( imgs.size()<3 ) {
+    if ( nplanes<3 ) {
       std::cout << "[BOUNDARY MUON TAGGER ALGO ERROR] Expecting 3 planes currently." << std::endl;
       return kErr_BadInput;
     }
@@ -83,7 +83,7 @@ namespace larlitecv {
         larcv::Image2D matchimage( meta );
         matchimage.paint(0.0);
         matchedspacepts.emplace_back( std::move(matchimage) );
-        for (int p=0; p<3; p++) {
+        for (int p=0; p<nplanes; p++) {
           larcv::Image2D matchimage2( imgs.at(p).meta() );
           matchimage2.paint(0.0);
           matchedpixels.emplace_back( std::move(matchimage2) );
@@ -94,8 +94,7 @@ namespace larlitecv {
     // storage for boundary combinations
     std::vector< dbscan::dbPoints > combo_points(ncrossings); // these points are in detector space
     std::vector< std::vector< std::vector<int> > > combo_cols(ncrossings); // [ncrossings][number of combos][column combination]
-    float tot_hit_collecting = 0;
-    CollectCandidateBoundaryPixels( imgs, badchs, combo_points, combo_cols, matchedpixels, matchedspacepts );
+    CollectCandidateBoundaryPixels( imgs, badchs, combo_points, combo_cols, matchedspacepts );
     int total_combos = 0;
     for ( auto& combo_col : combo_cols ) {
       total_combos += combo_col.size();
@@ -104,8 +103,33 @@ namespace larlitecv {
 
     // cluster each boundary type pixel (cluster of points in detector space)
     clock_t begin_clustering = clock();
-    ClusterBoundaryHitsIntoEndpointCandidates( imgs, badchs, combo_points, combo_cols, end_points, matchedpixels );
+    std::vector< std::vector<BoundaryEndPt> > candidate_endpts;
+    ClusterBoundaryHitsIntoEndpointCandidates( imgs, badchs, combo_points, combo_cols, candidate_endpts, matchedpixels );
     float elapsed_clustering = float( clock()-begin_clustering )/CLOCKS_PER_SEC;
+
+
+    for ( int endpt_idx=0; endpt_idx<(int)candidate_endpts.size(); endpt_idx++ ) {
+      end_points.emplace_back( std::move( candidate_endpts.at(endpt_idx) ) );
+    }
+
+    // generate the meta data we will use to filter end points
+    //std::vector< std::vector<ClusterExtrema_t> > candidate_metadata; 
+    //int rmax_window = 10;
+    //int rmin_window = 10;
+    //int col_window  = 10;
+    //GenerateEndPointMetaData( candidate_endpts, imgs, rmax_window, rmin_window, col_window, candidate_metadata );
+
+    //std::vector<int> passes_check;
+    //CheckClusterExtrema(  candidate_endpts, candidate_metadata, imgs, passes_check);
+
+    //std::vector< int > cluster_passed;
+    //SelectOnlyTrackEnds( candidate_endpts, imgs, 10, 10, 20, cluster_passed );
+
+    //for ( int endpt_idx=0; endpt_idx<(int)candidate_endpts.size(); endpt_idx++ ) {
+    //  if ( cluster_passed[endpt_idx]>=0 )
+    //    end_points.emplace_back( std::move( candidate_endpts.at(endpt_idx) ) );
+    //}
+    
     
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "boundary pixel search took " << elapsed_secs << " secs" << std::endl;
@@ -440,54 +464,6 @@ namespace larlitecv {
     matchalgo_loose = new larlitecv::BoundaryMatchAlgo( larlitecv::BoundaryMatchArrays::kLoose );
     
   }
-
-  void BoundaryMuonTaggerAlgo::getClusterEdges( const dbscan::dbPoints& points,  const std::vector< larcv::Image2D >& imgs,
-                                                const dbscan::dbscanOutput& clout, int idx_cluster,
-                                                int& idxhit_tmin, int& idxhit_tmax, int& idxhit_wmin, int& idxhit_wmax ) {
-    idxhit_tmin = -1;
-    idxhit_tmax = -1;
-    idxhit_wmin = -1;
-    idxhit_wmax = -1;
-
-    double hit_tmin[2] = {1.0e6};
-    double hit_tmax[2] = {1.0e6};
-    //double hit_wmin[2];
-    //double hit_wmax[2];
-                      
-    // we find the extrema hits in a cluster
-    for (int ichit=0; ichit<(int)clout.clusters.at(idx_cluster).size(); ichit++) {
-      int hitidx = clout.clusters.at(idx_cluster).at(ichit);
-      const std::vector<double>& hit = points.at(hitidx);
-      //float hit_z = hit.at(0);
-      //int ycol    = cols.at(2);
-      //int row     = (int)hit.at(1);
-
-      //if ( imgs.at(2).pixel( row, ycol )<10.0 ) continue;
-
-      // tmin hit
-      if ( idxhit_tmin==-1 || hit[1]<hit_tmin[1] ) {
-        idxhit_tmin = hitidx;
-        hit_tmin[0] = hit[0];
-        hit_tmin[1] = hit[1];
-      }
-      // tmax hit
-      if ( idxhit_tmax==-1 || hit[1]>hit_tmax[1] ) {
-        idxhit_tmax = hitidx;
-        hit_tmax[0] = hit[0];
-        hit_tmax[1] = hit[1];
-      }
-//       // wmin hit
-//       if ( idxhit_wmin==-1 || hit[0]<hit_wmin[0] ) {
-//      hit_wmin[0] = hit[0];
-//      hit_wmin[1] = hit[1];
-//       }
-//       //  wmax hit
-//       if ( idxhit_wmax==-1 || hit[0]>hit_wmin[0] ) {
-//      hit_wmax[0] = hit[0];
-//      hit_wmax[1] = hit[1];
-//       }
-    }//end of loop over hit indices of cluster
-  }//end of getClusterEdges
 
   BMTrackCluster3D BoundaryMuonTaggerAlgo::process2Dtrack( std::vector< larlitecv::BMTrackCluster2D >& track2d, 
                                                            const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v ) {
@@ -937,7 +913,7 @@ namespace larlitecv {
 
   void BoundaryMuonTaggerAlgo::CollectCandidateBoundaryPixels( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,
     std::vector< dbscan::dbPoints >& combo_points, std::vector< std::vector< std::vector<int> > >& combo_cols,
-    std::vector< larcv::Image2D>& matchedpixels, std::vector< larcv::Image2D >& matchedspacepts ) {
+    std::vector< larcv::Image2D >& matchedspacepts ) {
     // goal of this method is to search the images for pixels consistent with boundary crossings
     // (U,V,Y) combinations that meet at the edges of the detector are stored in class attributes matchalgo_loose, matchalgo_tight
     // for each row in the image, we send in information about which columns have charge above it
@@ -980,7 +956,6 @@ namespace larlitecv {
     }
 
     // misc. trackers
-    float tot_hit_collecting = 0;
     int total_combos = 0;
 
     // now loop over over the time of the images
@@ -1110,7 +1085,8 @@ namespace larlitecv {
 
   void BoundaryMuonTaggerAlgo::ClusterBoundaryHitsIntoEndpointCandidates( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs, 
     const std::vector< dbscan::dbPoints >& combo_points, const std::vector< std::vector< std::vector<int> > >& combo_cols, 
-    std::vector< std::vector<BoundaryEndPt> >& end_points, std::vector< larcv::Image2D >& matchedpixels ) {
+    std::vector< std::vector<BoundaryEndPt> >& end_points,
+    std::vector< larcv::Image2D >& matchedpixels ) {
     // we cluster the combo_points (in detector space) and produce a list of BoundaryEndPt's (a set for each boundary type)
 
     const int nplanes = (int)imgs.size();
@@ -1144,21 +1120,20 @@ namespace larlitecv {
       for (size_t ic=0; ic<clout.clusters.size(); ic++) {
         // loop over clusters in the real space points
         
-        if ( clout.clusters.at(ic).size() >= _config.boundary_cluster_minpixels.at(0) ) {
+        if ( (int)clout.clusters.at(ic).size() >= _config.boundary_cluster_minpixels.at(0) ) {
           //std::cout << "Find the endpoints for cluster pt=" << pt << " id=" << ic << " size=" << clout.clusters.at(ic).size() << std::endl;
 
           const dbscan::dbCluster& detspace_cluster = clout.clusters.at(ic);
-          //std::vector< BoundaryEndPt > endpt_v = DefineEndpointFromBoundaryCluster( (BoundaryMuonTaggerAlgo::Crossings_t)pt, detspace_cluster, imgs, badchs, 
-          //      combo_points.at(pt), combo_cols.at(pt), matchedpixels );
-          std::vector< BoundaryEndPt > endpt_v = DefineEndpointFromBoundaryClusterV2( (BoundaryMuonTaggerAlgo::Crossings_t)pt, detspace_cluster, imgs, badchs, 
+          std::vector< BoundaryEndPt > endpt_v = DefineEndpointFromBoundaryCluster( (BoundaryMuonTaggerAlgo::Crossings_t)pt, detspace_cluster, imgs, badchs, 
                 combo_points.at(pt), combo_cols.at(pt), matchedpixels );
 
           if (nplanes==(int)endpt_v.size())
-	    end_points.emplace_back( std::move(endpt_v) );
+            end_points.emplace_back( std::move(endpt_v) );
           
         }//end of if cluster size is large enough
       }//end of cluster loop
     }//end of boundary point type
+
   }//end of clustering function
 
   std::vector< BoundaryEndPt > BoundaryMuonTaggerAlgo::DefineEndpointFromBoundaryCluster( const BoundaryMuonTaggerAlgo::Crossings_t crossing_type, 
@@ -1166,195 +1141,7 @@ namespace larlitecv {
     const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,
     const dbscan::dbPoints& combo_points, const std::vector< std::vector<int> >& combo_cols, std::vector<larcv::Image2D>& matchedpixels ) {
 
-    std::vector< BoundaryEndPt > endpt_v; 
-
     const int nplanes = (int)imgs.size();
-    const int ncrossings = BoundaryMuonTaggerAlgo::kNumCrossings;
-
-    dbscan::dbPoints chargepts[3]; // charge per plane
-    int largest_qpt[3] = {0,0,0};
-    float larget_q[3]  = {0,0,0};
-
-    // we transfer information from this cluster into image space.  we mark pixels in image space with a hit
-    std::vector< larcv::Image2D > workspace;
-    for (int p=0; p<nplanes; p++) {
-      workspace.push_back( larcv::Image2D( imgs.at(p).meta() ) );
-      workspace.back().paint(0.0);
-    }    
-
-    // loop through hit in real space cluster. collect pixels in image space to cluster once more.
-    for (size_t ihit=0; ihit<detspace_cluster.size(); ihit++) {
-      int idxhit = detspace_cluster.at(ihit);
-      for (size_t p=0; p<3; p++) {
-        int col = combo_cols[idxhit][p]; // get the position in the image for this point
-        // look for charge in neighborhood of this point
-        for (int n=-_config.neighborhoods[p]; n<=_config.neighborhoods[p]; n++) {
-          if ( col+n<0 || col+n>=(int)imgs.at(p).meta().cols() ) continue;
-          float q = imgs.at(p).pixel( (int)combo_points[idxhit][1], col+n );
-          if ( q > _config.thresholds.at(p) ) {
-            workspace[p].set_pixel( (int)combo_points[idxhit][1], col+n, q );
-            if ( _config.save_endpt_images )
-              matchedpixels.at(nplanes*crossing_type+p).set_pixel( (int)combo_points[idxhit][1], col+n, 255.0 );
-          }//if pixel above thresh
-        }// loop over neighborhood
-      }//end of loop over plane
-    }//end of loop over hits in real space
-    
-    // collection charge pts
-    for (size_t p=0; p<3; p++) {
-      for (size_t r=0; r<workspace[p].meta().rows(); r++) {
-    	for (size_t c=0; c<workspace[p].meta().cols(); c++) {
-    	  float q = workspace[p].pixel(r,c);
-    	  if ( q>0.0 ) {
-    	    std::vector<double> qpt(2,0.0);
-            qpt[0] = c;// + rand.Uniform();
-            qpt[1] = r;//+rand.Uniform();
-            chargepts[p].emplace_back( std::move( qpt ) );
-            if ( q>larget_q[p] ) {
-              largest_qpt[p] = chargepts[p].size()-1;
-              larget_q[p] = q;
-            } 
-          }
-        }
-      }
-    }
-    
-    // define the endpoint
-    std::vector< BoundaryEndPt > endpt_v_min; // at min time of cluster
-    std::vector< BoundaryEndPt > endpt_v_max; // at max time of cluster
-    int end_vote[3] = { 0, 0, 0 }; // votes by each plane for min or max time
-    dbscan::DBSCANAlgo dbalgo;
-
-    for (size_t p=0; p<3; p++) {
-      // this block is slow. it's the reclustering of the charge!
-      // cluster the charge hits on the plane
-      //std::cout << "  " << chargepts[p].size() << " charge points on plane=" << p << std::endl;
-      if ( (int)chargepts[p].size()< _config.boundary_cluster_minpixels.at(p)+1 ) {
-        // don't have enough here
-        //std::cout << "  not enough to cluster. just make a point from largest charge" << std::endl;
-    	BoundaryEndPt endpt( chargepts[p].at( largest_qpt[p] )[1],  chargepts[p].at( largest_qpt[p] )[0], (BoundaryEndPt::BoundaryEnd_t)crossing_type );
-    	endpt_v_min.push_back( endpt );
-    	endpt_v_max.push_back( endpt );
-    	continue;
-      }
-      //for (int iq=0; iq<chargepts[p].size(); iq++)
-      //  std::cout << "  (" << iq << ") " << chargepts[p].at(iq)[0] << ", " << chargepts[p].at(iq)[1] << std::endl;
-
-      dbscan::dbscanOutput q_clout = dbalgo.scan( chargepts[p], _config.boundary_cluster_minpixels.at(p), _config.boundary_cluster_radius.at(p), false, 0.0 );
-      //ann::ANNAlgo::cleanup();
-      int largest_cluster = -1;
-      int largest_size = 0;
-      for ( size_t icq=0; icq<q_clout.clusters.size(); icq++ ) {
-    	if ( largest_cluster<0 || (int)q_clout.clusters.at(icq).size()>largest_size ) {
-    	      largest_cluster = icq;
-    	      largest_size = q_clout.clusters.at(icq).size();
-    	}
-      }
-
-      int idxhit_tmin, idxhit_tmax, idxhit_wmin, idxhit_wmax;
-      getClusterEdges( chargepts[p], imgs, q_clout, largest_cluster, idxhit_tmin, idxhit_tmax, idxhit_wmin, idxhit_wmax );
-
-      // the end points form a line, we follow outward on those lines to see which one is more likely the end of the track
-      float pos[2][2] = { { (float)chargepts[p].at( idxhit_tmin )[0], (float)chargepts[p].at( idxhit_tmin )[1] },
-    			  { (float)chargepts[p].at( idxhit_tmax )[0], (float)chargepts[p].at( idxhit_tmax )[1] } };
-      float dir[2] = { pos[1][0]-pos[0][0], pos[1][1]-pos[0][1] };
-      float norm = 0;
-      for (int i=0; i<2; i++) {
-    	norm += dir[i]*dir[i];
-      }
-      norm = sqrt(norm);
-      for (int i=0; i<2; i++)
-    	dir[i] /= norm;
-      int nsteps[2] = { 0, 0 }; // steps before no more charge
-      int nzeros[2] = { 0, 0 };
-
-      if ( crossing_type==BoundaryMuonTaggerAlgo::top || crossing_type==BoundaryMuonTaggerAlgo::bot ) {
-        // if top and bottom, perform voting system
-      	for (int j=0; j<2; j++) {
-      	  for (int i=0; i<40; i++) {
-            if ( nzeros[j]>3 ) break; // cut it off
-            int r = pos[j][1] + (2*j-1)*dir[1]*i;
-            int c = pos[j][0] + (2*j-1)*dir[0]*i;
-            if ( r<2 || r>=(int)imgs.at(p).meta().rows()-2 || c<2 || c>=(int)imgs.at(p).meta().cols()-2 )
-              break;
-            int npixs = 0;
-            for ( int dr=-2; dr<=2; dr++) {
-              for (int dc=-2; dc<=2; dc++) {
-            	if ( imgs.at(p).pixel( r+dr, c+dc )> _config.thresholds.at(p) 
-            	      || badchs.at(p).pixel( r+dr, c+dc ) > 0 )
-            	  npixs++;
-              }
-            }
-            if (npixs>0) {
-              nsteps[j]++;
-              nzeros[j] = 0;
-            }
-            else {
-              nzeros[j]++;
-            }
-          }//end of loop over steps
-        }//end of loop over min/max
-      }
-      else {
-        // end points are upsteam, downstream. we rig the votes and pick the end point closest to the edge
-      	if ( crossing_type==BoundaryMuonTaggerAlgo::upstream ) {
-          // upstream
-      	  if ( p==2 ) {
-      	    if ( pos[0][0] < pos[1][0] ) 
-      	      nsteps[1] = 40;
-      	    else
-      	      nsteps[0] = 40;
-      	  }
-       	}
-      	if ( crossing_type==BoundaryMuonTaggerAlgo::downstream ) {
-          // downstream
-      	  if ( p==2 ) {
-      	    if ( pos[0][0] > pos[1][0] ) 
-      	      nsteps[1] = 40;
-      	    else
-      	      nsteps[0] = 40;
-      	  }
-      	}
-      }//end of if point end type = 3 or 4
-
-      // std::cout << "endpt_type=" << pt << " plane=" << p << "chargepts=" << chargepts[p].size()
-      //        << " (" << imgs.at(p).meta().pos_x( (int)pos[0][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[0][1] ) << ") "
-      //        << "vs (" << imgs.at(p).meta().pos_x( (int)pos[1][0] ) << "," << imgs.at(p).meta().pos_y( (int)pos[1][1] ) << "): "
-      //        << "nsteps[0]=" << nsteps[0] << " vs. nsteps[1]=" << nsteps[1]
-      //        << std::endl;
-      
-      BoundaryEndPt endpt_min( (int)pos[0][1], (int)pos[0][0], (BoundaryEndPt::BoundaryEnd_t)crossing_type );
-      endpt_min.dir[0] = -dir[0];
-      endpt_min.dir[1] = -dir[1];
-      endpt_v_min.emplace_back( endpt_min );
-      BoundaryEndPt endpt_max( (int)pos[1][1], (int)pos[1][0], (BoundaryEndPt::BoundaryEnd_t)crossing_type );
-      endpt_max.dir[0] = dir[0];
-      endpt_max.dir[1] = dir[1];
-      endpt_v_max.emplace_back( endpt_max );
-      
-      // vote for the end point
-      end_vote[p] = nsteps[0]-nsteps[1];
-    }//end of loop over plane
-    // store it
-    int totvote = 0;
-    for (int p=0; p<3; p++) totvote += end_vote[p];
-    if ( totvote<0 )
-      endpt_v = endpt_v_min;
-    else
-      endpt_v = endpt_v_max;
-    
-    return endpt_v;
-  }//end of end point definition
-
-
-  std::vector< BoundaryEndPt > BoundaryMuonTaggerAlgo::DefineEndpointFromBoundaryClusterV2( const BoundaryMuonTaggerAlgo::Crossings_t crossing_type, 
-    const dbscan::dbCluster& detspace_cluster, 
-    const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,
-    const dbscan::dbPoints& combo_points, const std::vector< std::vector<int> >& combo_cols, std::vector<larcv::Image2D>& matchedpixels ) {
-
-    const int nplanes = (int)imgs.size();
-    const int ncrossings = BoundaryMuonTaggerAlgo::kNumCrossings;
-    const larcv::ImageMeta& meta = imgs.at(0).meta();
 
     // we transfer information from this cluster into image space.  we mark pixels in image space with a hit
     std::vector< larcv::Image2D > workspace;
@@ -1380,10 +1167,10 @@ namespace larlitecv {
     };
     struct PixelSorter_t {
       bool operator()(PixelPt_t lhs, PixelPt_t rhs) {
-      	if ( lhs.row<rhs.row ) return true;
-      	else if ( lhs.row==rhs.row ) {
-      	  if ( lhs.q<rhs.q) return true;
-      	}
+        if ( lhs.row<rhs.row ) return true;
+        else if ( lhs.row==rhs.row ) {
+          if ( lhs.q<rhs.q) return true;
+        }
         return false;
       };
     } my_sorter;
@@ -1391,8 +1178,8 @@ namespace larlitecv {
 
     for (size_t ihit=0; ihit<detspace_cluster.size(); ihit++) {
       int idxhit = detspace_cluster.at(ihit);
-      for (size_t p=0; p<3; p++) {
-      	int row = combo_points[idxhit][1];
+      for (int p=0; p<nplanes; p++) {
+        int row = combo_points[idxhit][1];
         if ( abs_min_row<0 || row<abs_min_row )
           abs_min_row = row;
         if ( abs_max_row<0 || row>abs_max_row )
@@ -1402,8 +1189,8 @@ namespace larlitecv {
         int neighborhood = _config.neighborhoods[p]*_config.type_modifier[(int)crossing_type];
         for (int n=-neighborhood; n<=neighborhood; n++) {
           if ( col+n<0 || col+n>=(int)imgs.at(p).meta().cols() ) continue;
-          float q = imgs.at(p).pixel( (int)combo_points[idxhit][1], col+n );
           float badchq = badchs.at(p).pixel( (int)combo_points[idxhit][1], col+n );
+          float q      = imgs.at(p).pixel( (int)combo_points[idxhit][1], col+n );          
           if ( ( q > _config.thresholds.at(p) || (badchq>0 && n==0) ) && workspace[p].pixel(row,col+n)==0 ) {
             // define charge point in image space. jiggle col,row because ANN fails if points on top one another
             std::vector<double> imagespacept(2);
@@ -1418,7 +1205,7 @@ namespace larlitecv {
 
             // set max or min row
             if ( min_row[p]==-1 || min_row[p]>row)
-	      min_row[p] = row;
+              min_row[p] = row;
             if ( max_row[p]==-1 || max_row[p]<row )
               max_row[p] = row;
 
@@ -1448,26 +1235,29 @@ namespace larlitecv {
     int best_row = 0;
     std::vector<int> best_cols(3,0);
     float best_dwall = -1;
-    float best_triarea = -1;
     bool more_combos = true;
 
-    std::cout << "Start combo search" << std::endl;
+    //std::cout << "Start combo search" << std::endl;
 
     while ( more_combos ) {
       // go to pixel in each plane that is at least this row
       std::vector<int> wids(nplanes);
       std::vector<int> plane_row(nplanes,0);
-      int num_empty_planes = 0;
       for (int p=0; p<nplanes; p++) {
-      	// keep moving up pixel list until we find a pixel that is same row or further
-        std::cout << "in combo with plane_idx=" << plane_idx[p] << " number of image-space pixels=" << sorted_imagespace_pixels.at(p).size() << std::endl;
+        // keep moving up pixel list until we find a pixel that is same row or further
+        //std::cout << "in combo with plane_idx=" << plane_idx[p] << " number of image-space pixels=" << sorted_imagespace_pixels.at(p).size() << std::endl;
 
-      	while ( current_row > sorted_imagespace_pixels[p][plane_idx[p]].row && plane_idx[p]<sorted_imagespace_pixels.at(p).size() ) {
+        while ( plane_idx[p]+1<(int)sorted_imagespace_pixels.at(p).size() && current_row > sorted_imagespace_pixels[p][plane_idx[p]].row  ) {
           plane_idx[p]++;
         }
-        wids[p]      = sorted_imagespace_pixels[p][plane_idx[p]].col;
-        plane_row[p] = sorted_imagespace_pixels[p][plane_idx[p]].row;
+        if ( plane_idx[p]<sorted_imagespace_pixels.at(p).size() ) {
+          wids[p]      = sorted_imagespace_pixels[p][plane_idx[p]].col;
+          plane_row[p] = sorted_imagespace_pixels[p][plane_idx[p]].row;
+        }
       }
+      if ( wids[0]==0 && wids[1]==0 && wids[2]==0 )
+        break; // empty sorted pixels. this is a garbage cluster
+
       // std::cout << "current_row=" << current_row 
       //  << " plane_idx's=[" 
       //  << " " << plane_idx[0] << "/" << sorted_imagespace_pixels[0].size() << "r=" << sorted_imagespace_pixels[0][plane_idx[0]].row << ","
@@ -1478,12 +1268,12 @@ namespace larlitecv {
       // are they the same row?
       int smallest_row = -1;
       for ( int p=0; p<nplanes; p++) {
-      	if ( smallest_row<0 || plane_row[p]<smallest_row ) {
+        if ( smallest_row<0 || plane_row[p]<smallest_row ) {
           smallest_row = plane_row[p];
         }
       }
       if (smallest_row>current_row) {
-      	current_row = smallest_row;
+        current_row = smallest_row;
         //std::cout << " -- out of sync. move to next." << std::endl;
         continue; // look again for an alignment
       }
@@ -1495,18 +1285,17 @@ namespace larlitecv {
       larcv::UBWireTool::wireIntersection( wids, poszy, triarea, crosses );
 
       if ( crosses==1 && triarea<1 ) {
-      	// good intersection. find dwall
+        // good intersection. find dwall
         float thisdwall = 0.;
         if ( crossing_type==top ) thisdwall = 117.0-poszy[1];
         else if ( crossing_type==bot ) thisdwall = poszy[1] + 117.0;
         else if ( crossing_type==upstream ) thisdwall = poszy[0];
         else if ( crossing_type==downstream ) thisdwall = 1040-poszy[0];
-	//std::cout << "  -- valid point dwall= " << 	thisdwall << std::endl;
+        //std::cout << "  -- valid point dwall= " <<    thisdwall << std::endl;
         if ( best_dwall<0 || thisdwall<best_dwall ) {
-	  best_dwall = thisdwall;
+          best_dwall = thisdwall;
           best_row = current_row;
           best_cols = wids;
-          best_triarea = triarea;
           //std::cout << "  -- update." << std::endl;
         }
       }
@@ -1515,7 +1304,7 @@ namespace larlitecv {
       // the one with the most remaining pixels at this current row i guess
       std::vector<int> num_remaining(nplanes,0);
       for ( int p=0; p<nplanes; p++) {
-	for (int idx=plane_idx[p]+1; idx<sorted_imagespace_pixels[p].size(); idx++) {
+        for (int idx=plane_idx[p]+1; idx<(int)sorted_imagespace_pixels[p].size(); idx++) {
           if ( sorted_imagespace_pixels[p][idx].row==current_row ) num_remaining[p]++;
           else if ( sorted_imagespace_pixels[p][idx].row>current_row ) break;
         }
@@ -1524,7 +1313,7 @@ namespace larlitecv {
       int increment_p = 0;
       int max_remaining = num_remaining[0];
       for (int p=1; p<nplanes; p++) {
-      	if ( num_remaining[p]>max_remaining) {
+        if ( num_remaining[p]>max_remaining) {
           increment_p = p;
           max_remaining = num_remaining[p];
         }
@@ -1532,9 +1321,9 @@ namespace larlitecv {
 
       plane_idx[increment_p]++;
       for (int p=0; p<nplanes; p++){
-      	if ( plane_idx[p]<sorted_imagespace_pixels[p].size()  ) {
+        if ( plane_idx[p]<(int)sorted_imagespace_pixels[p].size()  ) {
           if ( sorted_imagespace_pixels[p][plane_idx[p]].row>current_row )
-	    current_row = sorted_imagespace_pixels[p][plane_idx[p]].row;
+            current_row = sorted_imagespace_pixels[p][plane_idx[p]].row;
         }
         else {
           more_combos = false;
@@ -1556,11 +1345,304 @@ namespace larlitecv {
 
     // create the end point
     std::vector< BoundaryEndPt > endpt_v; 
+
+    if ( best_row==0 && best_cols[0]==0 && best_cols[1]==0 && best_cols[2]==0 )
+      return endpt_v; // return empty container
+
     for ( int p=0; p<nplanes; p++)  {
       BoundaryEndPt endpt(best_row,best_cols[p], (BoundaryEndPt::BoundaryEnd_t)crossing_type );
       endpt_v.emplace_back( std::move(endpt) );
     }
     return endpt_v;
   }//end of end point definition
+
+  void BoundaryMuonTaggerAlgo::GenerateEndPointMetaData( const std::vector< std::vector< BoundaryEndPt > >& endpts, const std::vector<larcv::Image2D>& img_v,
+    const int rmax_window, const int rmin_window, const int col_window, 
+    std::vector< std::vector<ClusterExtrema_t> >& candidate_metadata ) {
+
+    const int nplanes = (int)img_v.size();
+
+    for ( auto const& endpt_v : endpts ) {
+      // we want to grab some meta data about the end point
+      // we want to cluster the pixels inside a window around the end point
+
+      int row = endpt_v.front().t; // clusters on each plane should have same row
+      // define the window
+      int row_start = row - rmin_window;
+      int row_end   = row + rmax_window;
+
+      dbscan::DBSCANAlgo algo;
+
+      // goals on each plane:
+      // 1) collect hits in neighborhood
+      // 2) see if cluster connects end point and window boundaries
+      // 2) somehow need to track if end point is surrounded by badchs      
+
+      // we collect the following for each plane (later can be part of struct)
+      std::vector<dbscan::dbscanOutput> clout_v;
+      std::vector<dbscan::dbPoints> hits_v;
+      std::vector<ClusterExtrema_t> extrema_v;
+
+      for (int p=0; p<nplanes;p++) {
+        dbscan::dbPoints planepts;
+        int col = endpt_v.at(p).w;
+        int col_start = col-col_window;
+        int col_end   = col+col_window;
+        for ( int r=row_start; r<=row_end; r++ ) {
+          if ( r<0 || r>=(int)img_v.at(p).meta().rows() ) continue;
+          for (int c=col_start; c<=col_end; c++ ) {
+            if ( c<0 || c>=(int)img_v.at(p).meta().cols() ) continue;
+
+            if ( img_v.at(p).pixel(r,c)>_config.thresholds.at(p) ) {
+              std::vector<double> hit(2);
+              hit[0] = c;
+              hit[1] = r;
+              planepts.emplace_back( std::move(hit) );
+            }
+
+          }
+        }
+        dbscan::dbscanOutput clout = algo.scan( planepts, 3, 5.0, false, 0.0 );
+        std::vector<double> centerpt(2);
+        centerpt[0] = col;
+        centerpt[1] = row;
+        int matching_cluster = clout.findMatchingCluster( centerpt, planepts, 3.0 );
+
+        // initialize extrema search
+        std::vector<ClusterExtrema_t> cl_extrema;
+        for (int ic=0; ic<(int)clout.clusters.size();ic++) {
+          ClusterExtrema_t extrema;
+          GetClusterExtrema( clout.clusters.at(ic), planepts, extrema );
+          cl_extrema.emplace_back( std::move(extrema) );
+        }
+
+        // fill the output
+        if ( matching_cluster>=0 ) {
+          cl_extrema.at(matching_cluster).filled = 1;
+          extrema_v.emplace_back( std::move(cl_extrema.at(matching_cluster)) );
+        }
+        else {
+          // create empty extreme struct
+          ClusterExtrema_t empty;
+          extrema_v.emplace_back( std::move(empty) );
+        }
+
+        clout_v.emplace_back( std::move(clout) );
+        hits_v.emplace_back( std::move(planepts) );
+      }//end of plane loop to gather information
+
+      candidate_metadata.emplace_back( std::move(extrema_v) );
+    }//end of loop over end points
+  }
+
+  void BoundaryMuonTaggerAlgo::CheckClusterExtrema(  const std::vector< std::vector< BoundaryEndPt > >& endpts, 
+    const std::vector< std::vector<ClusterExtrema_t> >& candidate_metadata, const std::vector<larcv::Image2D>& img_v,
+    std::vector<int>& passes_check ) {
+    // we we see if we can match cluster extrema for 2 of 3 planes.
+    // this is to ID clusters that have been put on completely different tracks
+
+    const larcv::ImageMeta& meta = img_v.at(0).meta();
+
+    for ( int idx_endpt=0; idx_endpt<(int)endpts.size(); idx_endpt++ ) {
+      const std::vector< BoundaryEndPt >& endpt_v = endpts.at(idx_endpt);
+      const std::vector< ClusterExtrema_t >& endpt_metadata_v = candidate_metadata.at(idx_endpt);
+      std::vector<int> wids_top( endpts.size() );
+      std::vector<int> wids_bot( endpts.size() );
+      int nfilled = 0;
+      for (int p=0; p<(int)endpt_v.size(); p++) {
+        if ( endpt_metadata_v.at(p).filled==1 ) {
+          wids_top[p] = img_v.at(p).meta().pos_x( endpt_metadata_v.at(p).t[0] );
+          wids_bot[p] = img_v.at(p).meta().pos_x( endpt_metadata_v.at(p).b[0] );        
+          nfilled++;
+        }
+      }
+      if ( nfilled==3 ) {
+        int crosses_t = 0;
+        std::vector<float> poszy_t(2);
+        double tri_t = 0;
+        larcv::UBWireTool::wireIntersection( wids_top, poszy_t, tri_t, crosses_t );
+
+        int crosses_b = 0;
+        std::vector<float> poszy_b(2);
+        double tri_b = 0;
+        larcv::UBWireTool::wireIntersection( wids_bot, poszy_b, tri_b, crosses_t );
+
+        std::cout << "EndPt #" << idx_endpt << " tick=" << meta.pos_y( endpt_v.at(0).t )  << " cols=(" << endpt_v.at(0).w << "," << endpt_v.at(1).w << "," << endpt_v.at(2).w << ")"
+          << " top-intersection area=" << tri_t << " bot-intersection area=" << tri_b << std::endl;
+      }
+      else {
+        std::cout << "EndPt #" << idx_endpt << " tick=" << meta.pos_y( endpt_v.at(0).t )  << " cols=(" << endpt_v.at(0).w << "," << endpt_v.at(1).w << "," << endpt_v.at(2).w << ")"
+          << " only has charge on " << nfilled << " planes" << std::endl;
+      }
+    }
+  }
+
+  void BoundaryMuonTaggerAlgo::SelectOnlyTrackEnds( const std::vector< std::vector< BoundaryEndPt > >& endpts, 
+    const std::vector<larcv::Image2D>& img_v, const int rmax_window, const int rmin_window, const int col_width,
+    std::vector< int >& cluster_passed ) {
+    // we want to remove false positive flash-end detections.
+    // this means removing flash-tags that occur in the middle of a track.
+    // such tags have the consequence of causing many multiple tracks, greatly inflatingn the number of aStar searchs
+    // (though in principle, these repeate 3D tracks can be removed/merged -- but let's try to get rid of them here)
+
+    // we store pass/fail tag here
+    cluster_passed.resize( endpts.size(), 0 );
+
+    int idx_cluster = 0;
+    for ( auto const& endpt_v : endpts ) {
+      // to determine if track end, we do something very simple:
+      // we define a window around the cluster pt in all planes
+      // within the window we collect charge and cluster.
+      // we find the extrema of all the points
+      // the extrema tells us whether to check the horizontally of vertically
+      // does both or only one extrema reach the end?
+      // if only one, it passes
+      // if both, it fails as being midtrack
+
+      const int nplanes = (int)img_v.size();
+      int row = endpt_v.front().t; // clusters on each plane should have same row
+      // define the window
+      int row_start = row - rmin_window;
+      int row_end   = row + rmax_window;
+
+      dbscan::DBSCANAlgo algo;
+
+      // goals on each plane:
+      // 1) collect hits in neighborhood
+      // 2) see if cluster connects end point and window boundaries
+      // 2) somehow need to track if end point is surrounded by badchs      
+
+      std::vector<dbscan::dbscanOutput> clout_v;
+      std::vector<dbscan::dbPoints> hits_v;
+      std::vector<int> matching_cluster_v;
+      std::vector<std::vector<ClusterExtrema_t>> extrema_v;
+
+      for (int p=0; p<nplanes;p++) {
+        dbscan::dbPoints planepts;
+        int col = endpt_v.at(p).w;
+        int col_start = col-col_width;
+        int col_end   = col+col_width;
+        for ( int r=row_start; r<=row_end; r++ ) {
+          if ( r<0 || r>=(int)img_v.at(p).meta().rows() ) continue;
+          for (int c=col_start; c<=col_end; c++ ) {
+            if ( c<0 || c>=(int)img_v.at(p).meta().cols() ) continue;
+
+            if ( img_v.at(p).pixel(r,c)>_config.thresholds.at(p) ) {
+              std::vector<double> hit(2);
+              hit[0] = c;
+              hit[1] = r;
+              planepts.emplace_back( std::move(hit) );
+            }
+
+          }
+        }
+        dbscan::dbscanOutput clout = algo.scan( planepts, 3, 5.0, false, 0.0 );
+        std::vector<double> centerpt(2);
+        centerpt[0] = col;
+        centerpt[1] = row;
+        int matching_cluster = clout.findMatchingCluster( centerpt, planepts, 3.0 );
+
+        // initialize extrema search
+        std::vector<ClusterExtrema_t> cl_extrema;
+        for (int ic=0; ic<(int)clout.clusters.size();ic++) {
+          ClusterExtrema_t extrema;
+          GetClusterExtrema( clout.clusters.at(ic), planepts, extrema );
+          cl_extrema.emplace_back( std::move(extrema) );
+        }
+        clout_v.emplace_back( std::move(clout) );
+        hits_v.emplace_back( std::move(planepts) );
+        matching_cluster_v.push_back(matching_cluster);
+        extrema_v.emplace_back( std::move(cl_extrema) );
+      }//end of plane loop to gather information
+
+      // now that we have the info we want
+      // we try to see if we can connect the central cluster to the ends of the window
+      std::vector<int> boundaries_reached(nplanes,0);
+      std::vector<int> reached_by_badchs(nplanes,0); 
+      int num_no_cluster = 0;
+
+      for (int p=0; p<nplanes; p++) {
+        int num_boundaries_reached = 0;
+        int col = endpt_v.at(p).w;
+        int col_start = col-col_width;
+        int col_end   = col+col_width;
+        if ( col_start<0 ) col_start = 0;
+        if ( col_end>=img_v.at(p).meta().cols()) col_end = img_v.at(p).meta().cols()-1;
+        if ( matching_cluster_v.at(p)<0) {
+          std::cout << "  cluster #" << idx_cluster << " no cluster on plane=" << p << std::endl;
+          num_no_cluster++;
+          continue;
+        }
+
+        // first check the simplest thing. Does the central cluster reach the ends of the window?
+        ClusterExtrema_t& extrema = extrema_v.at( p ).at( matching_cluster_v.at(p) );
+        if ( extrema.l[0]<=col_start ) num_boundaries_reached++;
+        if ( extrema.r[0]>=col_end   ) num_boundaries_reached++;
+        if ( extrema.b[1]<=row_start ) num_boundaries_reached++;
+        if ( extrema.t[1]>=row_end   ) num_boundaries_reached++;
+
+        boundaries_reached[p] = num_boundaries_reached;
+
+        std::cout << "  cluster #" << idx_cluster << " extrema: "
+          <<  " top=(" << img_v.at(p).meta().pos_y(extrema.t[1]) << ") vs row_start=" << img_v.at(p).meta().pos_y(row_end)
+          <<  " bot=(" << img_v.at(p).meta().pos_y(extrema.b[1]) << ") vs row_end=" << img_v.at(p).meta().pos_y(row_start)
+          <<  " left=("  << img_v.at(p).meta().pos_x(extrema.l[0]) << ") vs col_start=" << img_v.at(p).meta().pos_x(col_start)
+          <<  " right=(" << img_v.at(p).meta().pos_x(extrema.r[0]) << ") vs col_end=" << img_v.at(p).meta().pos_x(col_end)
+          <<  " boundaries reached=" << num_boundaries_reached
+          << std::endl;                  
+
+        // otherwise, we try to follow cluster to the ends of the boundary
+        // bool end_reached = false;
+        // implement this later
+
+      }//end of plane loop
+
+      int nplanes_with_crossing_cluster = 0;
+      for (int p=0; p<nplanes; p++) {
+        if ( boundaries_reached[p]>=2 ) nplanes_with_crossing_cluster++;
+      }
+
+      if ( nplanes_with_crossing_cluster<=1 && num_no_cluster<2 ) {
+        // only keep these
+        cluster_passed[idx_cluster] = 1;
+      }
+      std::cout << "filter cluster#" << idx_cluster << " tick=" << img_v.at(0).meta().pos_y(row) 
+        << " cols=(" << endpt_v[0].w << "," << endpt_v[1].w << "," << endpt_v[2].w << ")"
+        << " planes with no cluster=" << num_no_cluster
+        << " planes with crossing cluster=" << nplanes_with_crossing_cluster
+        << std::endl;
+      idx_cluster++;
+    }//end of cluster loop
+
+  }// end of functionn
+
+    void  BoundaryMuonTaggerAlgo::GetClusterExtrema( const dbscan::dbCluster& cluster, const dbscan::dbPoints& hits, ClusterExtrema_t& extrema ) {
+   
+
+    extrema.l[0] = extrema.r[0] = extrema.t[0] = extrema.b[0] = hits.at( cluster.front() )[0];
+    extrema.l[1] = extrema.r[1] = extrema.t[1] = extrema.b[1] = hits.at( cluster.front() )[1];
+
+    for ( int ihit=0; ihit<(int)cluster.size(); ihit++) {
+      int hitidx = cluster.at(ihit);
+      const std::vector<double>& hit = hits.at(hitidx);
+      if ( hit[0]<extrema.l[0]) {
+        extrema.l[0] = hit[0];
+        extrema.l[1] = hit[1];
+      }
+      if (hit[0]>extrema.r[0]) {
+        extrema.r[0] = hit[0];
+        extrema.r[1] = hit[1];
+      }
+      if (hit[1]>extrema.t[1]) {
+        extrema.t[0] = hit[0];
+        extrema.t[1] = hit[1];
+      }
+      if (hit[1]<extrema.b[1]) {
+        extrema.b[0] = hit[0];
+        extrema.b[1] = hit[1];
+      }
+    }
+
+  }
 
 }//end of namespace
