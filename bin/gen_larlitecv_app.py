@@ -26,26 +26,14 @@ FMWK_HEADERS = LinkDef.h
 HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 
 # Include your header file location
-# include options for this package
-INCFLAGS  = -g -I.                       #Include itself
-INCFLAGS += $(shell larcv-config --includes) 
-INCFLAGS += $(shell larcv-config --includes)/../app
-INCFLAGS += $(shell larlite-config --includes)
-INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool
-INCFLAGS += $(shell larlite-config --includes)/../UserDev/SelectionTool
-# example of adding in additional, non-core larlite packages
-#INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool/GeoAlgo
-#INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool/FhiclLite
-INCFLAGS += $(shell larlitecv-config --includes)
-
+# and include compiler options for this package
 CXXFLAGS += -I. $(shell root-config --cflags) -g
-
-#CXXFLAGS += $(shell larlite-config --includes)
-#CXXFLAGS += $(shell larlite-config --includes)/../UserDev
-#CXXFLAGS += $(shell larcv-config --includes)
-#CXXFLAGS += $(shell larcv-config --includes)/../app
-#CXXFLAGS += $(shell larlitecv-config --includes)
-#CXXFLAGS += $(shell larlitecv-config --includes)/../app
+CXXFLAGS += $(shell larlite-config --includes)
+CXXFLAGS += $(shell larlite-config --includes)/../UserDev
+CXXFLAGS += $(shell larcv-config --includes)
+CXXFLAGS += $(shell larcv-config --includes)/../app
+CXXFLAGS += $(shell larlitecv-config --includes)
+CXXFLAGS += $(shell larlitecv-config --includes)/../app
 
 # platform-specific options
 OSNAME          = $(shell uname -s)
