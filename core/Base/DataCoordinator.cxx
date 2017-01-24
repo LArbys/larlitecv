@@ -234,13 +234,13 @@ namespace larlitecv {
       assert(false);
     }
 
-    for ( int i=0; i<readonlyvars.size(); i++ ) {
+    for ( size_t i=0; i<readonlyvars.size(); i++ ) {
       std::string rdvar  = readonlyvars.at(i);
       larlite::data::DataType_t datat = get_enum_fromstring( rdvar );
       if ( datat!=larlite::data::kUndefined ) ioman.set_data_to_read( datat, readonlyname.at(i) );
     }
 
-    for ( int i=0; i<writeonlyvars.size(); i++ ) {
+    for ( size_t i=0; i<writeonlyvars.size(); i++ ) {
       std::string rdvar  = writeonlyvars.at(i);
       larlite::data::DataType_t datat = get_enum_fromstring( rdvar );
       if ( datat!=larlite::data::kUndefined ) ioman.set_data_to_write( datat, writeonlyname.at(i) );
