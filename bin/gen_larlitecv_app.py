@@ -60,7 +60,7 @@ pkg_clean:
 all: $(PROGRAMS)
 
 $(PROGRAMS):
-	make --directory=../..
+	make --directory=$LARLITECV_BASEDIR
 	@echo '<<compiling' $@'>>'
 	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS)
 	@rm -rf *.dSYM
