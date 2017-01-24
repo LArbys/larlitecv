@@ -2,7 +2,10 @@
 import os,sys
 
 # makes minimial app
-
+if len(sys.argv)!=2:
+    print "usage: make_new_larlitecv_app.py [app name]"
+    sys.exit(-1)
+    
 appname = sys.argv[1]
 
 print "Will generate an app in the app folder with name: ",appname
