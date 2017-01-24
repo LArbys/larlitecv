@@ -4,6 +4,7 @@
 #include <vector>
 
 // larcv
+#include "Base/PSet.h"
 #include "DataFormat/Image2D.h"
 #include "DataFormat/Pixel2D.h"
 #include "DataFormat/EventPixel2D.h"
@@ -22,6 +23,10 @@ namespace larlitecv {
     int row_tag_neighborhood;
     int col_tag_neighborhood;
   };
+
+
+  StopMuFilterSpacePointsConfig MakeStopMuFilterSpacePointsConfig( larcv::PSet pset );
+  
 
   class StopMuFilterSpacePoints {
 

@@ -409,11 +409,11 @@ namespace larlitecv {
       crosses = 0;
       std::vector<float> poszy_max;
       double triarea_max;
-      if ( has_max_match ) {
-        larcv::UBWireTool::wireIntersection( wid_max, poszy_max, triarea_max, crosses );
-        if ( crosses==0 || triarea_max>max_triarea )
-          has_max_match = false;
-      }
+      //if ( has_max_match ) {
+      //  larcv::UBWireTool::wireIntersection( wid_max, poszy_max, triarea_max, crosses );
+      //  if ( crosses==0 || triarea_max>max_triarea )
+      //    has_max_match = false;
+      //}
 
       bool has_min_match = true;
       std::vector<int> wid_min(nplanes);
@@ -428,11 +428,11 @@ namespace larlitecv {
       crosses = 0;
       std::vector<float> poszy_min;
       double triarea_min;
-      if ( has_min_match ) {
-        larcv::UBWireTool::wireIntersection( wid_min, poszy_min, triarea_min, crosses );
-        if ( crosses==0 || triarea_min>max_triarea )
-          has_min_match = false;
-      }
+      //if ( has_min_match ) {
+      //  larcv::UBWireTool::wireIntersection( wid_min, poszy_min, triarea_min, crosses );
+      //  if ( crosses==0 || triarea_min>max_triarea )
+      //    has_min_match = false;
+      //}
 
       // ok, how did we do?
       if ( !has_max_match && !has_min_match ) {
@@ -512,7 +512,7 @@ namespace larlitecv {
             larcv::UBWireTool::getMissingWireAndPlane( p1, wid1, p2, wid2, otherplane, otherwire, poszy, crosses );
 
             int badch_state = 0;
-            if ( crosses>0 && otherwire>=0 && otherplane>=0 )
+            if ( crosses>0 && otherwire>=0 && otherplane>=0 && otherwire<img_v.at(otherplane).meta().max_x() )
               badch_state = badch_v.at(otherplane).pixel( cluster_info[p1][endpt1].row, img_v.at(otherplane).meta().col(otherwire) );
 
             std::cout << "p1=" << p1 << " wid1=" << wid1
@@ -525,7 +525,7 @@ namespace larlitecv {
               continue;
 
             // is this wire in a badch region?
-            if ( badch_v.at(otherplane).pixel( cluster_info[p1][endpt1].row, img_v.at(otherplane).meta().col(otherwire) )==0 ) {
+            if ( badch_state== 0 ) {
               // not a badch move on
               continue;
             }
@@ -737,6 +737,9 @@ namespace larlitecv {
         centerpt[0] = col;
         centerpt[1] = row;
         int matching_cluster = clout.findMatchingCluster( centerpt, planepts, 3.0 );
+        if ( matching_cluster<0 )
+          continue;
+
         int cluster_size = clout.clusters.at(matching_cluster).size();
         if ( cluster_size==0 ) {
           throw std::runtime_error("previous established cluster now missing?");

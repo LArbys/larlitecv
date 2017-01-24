@@ -43,22 +43,41 @@
 int main( int nargs, char** argv ) {
   std::cout << "Test the stop mu tracker." << std::endl;
 
+  if ( nargs!=4 && nargs!=2) {
+    std::cout << "Usage:" << std::endl;
+    std::cout << "./stopmu [config file] [larcv input filelist] [larlite input filelist]" << std::endl;
+    std::cout << " -- or -- " << std::endl;
+    std::cout << "./stopmu [configfile with input filelists specified]" << std::endl;
+    return 0;
+  }
+  
+
   // config file
-  std::string cfg_file = "stopmu.cfg";
+  std::string cfg_file         = argv[1];
+ 
   // configuration parameters
   larcv::PSet cfg = larcv::CreatePSetFromFile( cfg_file );
   larcv::PSet stopmu_cfg = cfg.get<larcv::PSet>("StopMu");
 
   // --------------------------------------------
   // load data
-  std::string flist_larcv   = stopmu_cfg.get<std::string>("LArCVInputList");
-  std::string flist_larlite = stopmu_cfg.get<std::string>("LArLiteInputList");
+  std::string flist_larcv;  
+  std::string flist_larlite;
+  if ( nargs==2 ) {
+    flist_larcv   = stopmu_cfg.get<std::string>("LArCVInputList");
+    flist_larlite = stopmu_cfg.get<std::string>("LArLiteInputList");
+  }
+  else if ( nargs==4 ) {
+    flist_larcv = argv[2];
+    flist_larlite = argv[3];
+  }
+  else {
+    std::cout << "wrong number of arguments." << std::endl;
+    return 0;
+  }
   
-  // data coordinator: load an example data file
+  // data coordinator setup
   larlitecv::DataCoordinator dataco;
-  //dataco.add_inputfile( "output_larcv_testextbnb_001.root", "larcv" );
-  //dataco.add_inputfile( "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/thrumu_testmcbnbcosmic_signalnumu.root","larcv");
-  //dataco.add_inputfile( "output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" );
   dataco.set_filelist( flist_larcv,   "larcv" );
   dataco.set_filelist( flist_larlite, "larlite" );
   dataco.configure( cfg_file, "StorageManager", "IOManager", "StopMu" );
@@ -68,13 +87,8 @@ int main( int nargs, char** argv ) {
   // Instatiate Algos
     
   // filter out end points we are unlikely to be interested in: duplicates and those already used as thru-mu end points
-  larlitecv::StopMuFilterSpacePointsConfig stopmu_filter_cfg;
-  stopmu_filter_cfg.filter_thrumu_by_tag = true;
-  stopmu_filter_cfg.duplicate_radius_cm = 20.0;
-  stopmu_filter_cfg.pixel_threshold = 10.0;
-  stopmu_filter_cfg.track_width_pixels = 5;
-  stopmu_filter_cfg.row_tag_neighborhood = 10;
-  stopmu_filter_cfg.col_tag_neighborhood = 10;
+  larcv::PSet stopmu_filter_pset = stopmu_cfg.get<larcv::PSet>( "StopMuSpacePointsFilter" );
+  larlitecv::StopMuFilterSpacePointsConfig stopmu_filter_cfg = larlitecv::MakeStopMuFilterSpacePointsConfigFromPSet( stopmu_filter_pset );
   larlitecv::StopMuFilterSpacePoints stopmu_filterpts(stopmu_filter_cfg);
 
   larlitecv::StopMuTrackerConfig stopmu_tracker_config;

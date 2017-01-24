@@ -91,7 +91,9 @@ namespace larlitecv {
       }
     }
     
-    // storage for boundary combinations
+    // storage for boundary combination
+    clock_t begin_pixel_search = clock();
+    std::cout << "Begin Boundary Pixel Search..." << std::endl;
     std::vector< dbscan::dbPoints > combo_points(ncrossings); // these points are in detector space
     std::vector< std::vector< std::vector<int> > > combo_cols(ncrossings); // [ncrossings][number of combos][column combination]
     CollectCandidateBoundaryPixels( imgs, badchs, combo_points, combo_cols, matchedspacepts );
@@ -99,13 +101,16 @@ namespace larlitecv {
     for ( auto& combo_col : combo_cols ) {
       total_combos += combo_col.size();
     }
-    float elapsed_hitsearch = float( clock()-begin_time )/CLOCKS_PER_SEC;
+    float elapsed_hitsearch = float( clock()-begin_pixel_search )/CLOCKS_PER_SEC;
+    std::cout << "... hit search time: " << elapsed_hitsearch << " secs" << std::endl;
 
     // cluster each boundary type pixel (cluster of points in detector space)
     clock_t begin_clustering = clock();
+    std::cout << "Begin Clustering..." << std::endl;
     std::vector< std::vector<BoundaryEndPt> > candidate_endpts;
     ClusterBoundaryHitsIntoEndpointCandidates( imgs, badchs, combo_points, combo_cols, candidate_endpts, matchedpixels );
     float elapsed_clustering = float( clock()-begin_clustering )/CLOCKS_PER_SEC;
+    std::cout << "... clustering time: " << elapsed_clustering << " secs" << std::endl;
 
 
     for ( int endpt_idx=0; endpt_idx<(int)candidate_endpts.size(); endpt_idx++ ) {
@@ -964,6 +969,7 @@ namespace larlitecv {
       // Find boundary combos using search algo
       //std::vector< int > hits[3];
       int nhits[nplanes];
+      //std::cout << "start r="<< r << std::endl;
       for (int p=0; p<nplanes; p++) {
         // for given row, we mark which columns have pixels above threshold.
         // we mark that column but also -neighborhoods and +neighboorhood columns around the central pixel
@@ -972,7 +978,7 @@ namespace larlitecv {
         memset( hits[p].data(), 0, sizeof(int)*hits[p].size() ); // clear hit marker with an old-fashion C-method
         const larcv::Image2D& img = imgs.at(p);
         //const larcv::Image2D& badchimg = badchs.at(p);
-        for (size_t c=0; c<meta.cols(); c++) {
+        for (int c=0; c<(int)meta.cols(); c++) {
           int wid = dsfactor*c;
           float val = img.pixel( r, c );
           int lastcol = -1;
@@ -989,11 +995,12 @@ namespace larlitecv {
           else if ( _config.hitsearch_uses_badchs && badchs.at(p).pixel( r, c )>0 ) {
             // use badchs. can toggle off/on as this increases false positive rate bigly
             hits[p][wid] = 1;
+            lastcol = c;
           }
           // because we mark columns that are +neighboorhood from current column, we can skip
           // to the last column-1 (end of loop will apply +1) to speed up slightly
-          if ( lastcol>=0 && lastcol<(int)meta.cols() )
-            c = lastcol-1;
+          //if ( lastcol>=0 && lastcol<(int)meta.cols() && lastcol+1>c )
+          //  c = lastcol-1;
         }
       }//end of plane loop
       // time this hit collecting
