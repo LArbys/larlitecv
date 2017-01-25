@@ -10,7 +10,7 @@ namespace larlitecv {
                                                     float thresh, bool use_bad_chs ) {
     
     if ( verbose<=1 )
-      std::cout << "[[ASTAR DIR ALGO START: going from (c,r)=(" << start_col << "," << start_row << ") to (" << goal_col << "," << goal_row << ")" << std::endl;
+      std::cout << "[[ASTAR DIR ALGO START: going from (c,r)=(" << start_col << "," << start_row << ") to (" << goal_col << "," << goal_row << ") ]]" << std::endl;
 
     const larcv::ImageMeta& meta = img.meta();
 
@@ -111,8 +111,8 @@ namespace larlitecv {
       openset.sort();
 
       if ( verbose>1 ) {
-      	std::cout << "update on sets: " << std::endl;
-      	std::cout << " openset: " << std::endl;
+        std::cout << "update on sets: " << std::endl;
+        std::cout << " openset: " << std::endl;
         for ( auto node : openset ) 
           std::cout << "  * (" << meta.pos_x(node->col+min_c) << "," << meta.pos_y(node->row+min_r) << ") fscore=" << node->fscore << " gscore=" << node->gscore << std::endl;
         std::cout << " nodes in closedset: " << closedset.size() << std::endl;
@@ -138,15 +138,15 @@ namespace larlitecv {
       closedset.sort();
       current = closedset.back();
       if ( verbose>0)
-	std::cout << "could not reach goal. best node: " 
-  	    	  << " (" << meta.pos_x( current->col + min_c ) << "," << meta.pos_y( current->row+min_r) << ")"
+        std::cout << "could not reach goal. best node: " 
+                  << " (" << meta.pos_x( current->col + min_c ) << "," << meta.pos_y( current->row+min_r) << ")"
                   << " fscore=" << current->fscore << std::endl;
     }
     path = makeRecoPath( start, current, min_r, min_c, path_completed );
 
     // clean up
     if ( verbose>0 )
-	std::cout << "clean up" << std::endl;
+        std::cout << "clean up" << std::endl;
     for ( auto it_node : position_lookup ) {
       delete it_node.second;
     }
@@ -249,7 +249,7 @@ namespace larlitecv {
           neighbor_node->prev = current;
           neighbor_node->fscore = fscore;
           neighbor_node->gscore = gscore;
-	  neighbor_node->dir2d = dir2d;
+          neighbor_node->dir2d = dir2d;
           number_updates++;
         }
         else {
@@ -276,7 +276,7 @@ namespace larlitecv {
     AStarDirNode* past = current;
     for (int inode=0; inode<3; inode++) {
       if ( past->prev!=NULL)
-	past = current->prev;
+        past = current->prev;
     }
     std::vector<float> pastdir(2,0.0);
     pastdir[0] = current->col - past->col;
@@ -321,7 +321,7 @@ namespace larlitecv {
         if ( !foundgoodch ) continue;
 
         if ( verbose>1 )
-	  std::cout << "stepped into badch=" <<  meta.pos_x( c_neigh+min_c ) << " and jumped to goodch=" << meta.pos_x( gapch ) << std::endl;
+          std::cout << "stepped into badch=" <<  meta.pos_x( c_neigh+min_c ) << " and jumped to goodch=" << meta.pos_x( gapch ) << std::endl;
 
         // we create nodes in this channel, within the window
         for ( int rgap=0; rgap<(int)meta.rows(); rgap++ ) {
@@ -341,8 +341,8 @@ namespace larlitecv {
               position_lookup.insert( std::pair<PixPos_t,AStarDirNode*>( pos, gap_node ) );
               openset.addnode( gap_node );
               if ( verbose>1 )
-	        std::cout << "created node (" << meta.pos_x( gapch ) << "," << meta.pos_y( rgap ) << ") "
-  	            	  << "local=(" << cgap_win << "," << rgap_win << ") from badch crossing." << std::endl;
+                std::cout << "created node (" << meta.pos_x( gapch ) << "," << meta.pos_y( rgap ) << ") "
+                          << "local=(" << cgap_win << "," << rgap_win << ") from badch crossing." << std::endl;
               number_badch_nodes_created++;
             }
             else {
@@ -364,8 +364,9 @@ namespace larlitecv {
               cosine = 1.0;
 
             // we add the distance*(1-cosine)*0.5 score to the gscore
-            //float penalty = norm_dist2node*0.5*(1.0-cosine);
-	    float penalty = norm_dist2node;
+            //float penalty = norm_dist2node*0.5*(1.0-cosine)*10.0;
+            float penalty = norm_dist2node*norm_dist2node*(1.0-cosine);
+            //float penalty = norm_dist2node;
             float gscore = current->gscore + norm_dist2node + penalty;
             float hscore = sqrt( (goal->col-gap_node->col)*(goal->col-gap_node->col) + (goal->row-gap_node->row)*(goal->row-gap_node->row) );
             float fscore = gscore + hscore;
@@ -373,9 +374,9 @@ namespace larlitecv {
             if ( gap_node->fscore==0 || gap_node->fscore>fscore ) {
               // we update this node
               if ( verbose>1 )
-               	std::cout << "updating node (" << meta.pos_x( gapch ) << "," << meta.pos_y( rgap ) << ") from badch crossing: " 
- 	  	  << " current-f=" << gap_node->fscore << " f-update=" << fscore << " gap-penalty=" << penalty << " cosine=" << cosine
-  	          << std::endl;
+                std::cout << "updating node (" << meta.pos_x( gapch ) << "," << meta.pos_y( rgap ) << ") from badch crossing: " 
+                  << " current-f=" << gap_node->fscore << " f-update=" << fscore << " gap-penalty=" << penalty << " cosine=" << cosine
+                  << std::endl;
               gap_node->fscore = fscore;
               gap_node->gscore = gscore;
               gap_node->prev = current;    
@@ -391,12 +392,12 @@ namespace larlitecv {
       std::cout << "number of bad channel updates: " << number_badch_updates << std::endl;
       std::cout << "number of bad channel nodes created: " << number_badch_nodes_created << std::endl;    
       if ( number_badch_nodes_created>0 && verbose>2)
-      	std::cin.get();
+        std::cin.get();
     }
   }
 
   std::vector<AStarDirNode> AStarDirAlgo::makeRecoPath( AStarDirNode* start, AStarDirNode* goal, int origin_row, int origin_col, bool& path_completed ) {
-                                                      						
+                                                                                                
     path_completed = true;
     std::vector<AStarDirNode> path;
     AStarDirNode* current = goal;
@@ -407,7 +408,7 @@ namespace larlitecv {
       path.emplace_back(std::move(translated));
       current = current->prev;
       if ( current==NULL )
-      	break;
+        break;
     }
     if ( current==NULL || *current!=*start ) {
       path_completed = false;
@@ -436,16 +437,16 @@ namespace larlitecv {
     img.paint(0.0);
     for ( int r=0; r<win_r; r++ ) {
       for (int c=0; c<win_c; c++ ) {
-      	PixPos_t pos(c,r);
-      	auto it = position_lookup.find( pos );
-      	if ( it!=position_lookup.end() ) {
+        PixPos_t pos(c,r);
+        auto it = position_lookup.find( pos );
+        if ( it!=position_lookup.end() ) {
           if ( score_name=="fscore" )
-	    img.set_pixel(r,c,(*it).second->fscore);
-	  else if ( score_name=="gscore" )
-	    img.set_pixel(r,c,(*it).second->gscore);
+            img.set_pixel(r,c,(*it).second->fscore);
+          else if ( score_name=="gscore" )
+            img.set_pixel(r,c,(*it).second->gscore);
           else
             throw std::runtime_error("unrecognized score to visualize");
-      	}
+        }
       }
     }
     return img;

@@ -13,7 +13,6 @@
 // larcv
 #include "UBWireTool/UBWireTool.h"
 
-#include "AStarGridAlgo.h"
 #include "AStarDirAlgo.h"
 #include "BoundaryEndPt.h"
 #include "BoundaryIntersectionAlgo.h"
@@ -374,33 +373,7 @@ namespace larlitecv {
     algo.setVerbose(0);
     algo.setBadChImage( badchimg );
     std::vector<larlitecv::AStarDirNode> path = algo.findpath( img, start_pt.t, start_pt.w, end_pt.t, end_pt.w, 
-                                                              astar_config.astar_threshold.at((int)img.meta().plane()), true );
-
-    /*
-    // OLD: AStarGridAlgo
-    larlitecv::AStarAlgoConfig astar_config;
-    astar_config.astar_threshold    = _config.astar_thresholds;
-    astar_config.astar_neighborhood = _config.astar_neighborhood;
-    astar_config.astar_start_padding = start_pad;
-    astar_config.astar_end_padding   = end_pad;
-    larlitecv::AStarGridAlgo algo( astar_config );
-    algo.setVerbose(verbose);
-    algo.setBadChImage(badchimg);
-
-    larlitecv::AStarNode start( start_pt.w, start_pt.t );
-    larlitecv::AStarNode goal( end_pt.w, end_pt.t );
-    
-    BMTrackCluster2D track2d;
-    track2d.start = start_pt;
-    track2d.end   = end_pt;
-    track2d.pixelpath.clear();
-
-    if ( abs(start.row-goal.row)>820 ) { // make this a parameter 
-      return track2d; // empty track
-    }
-    
-    std::vector< larlitecv::AStarNode > path = algo.findpath( img, start.row, start.col, goal.row, goal.col, 5.0, use_badchs );
-    */
+                                                              astar_config.astar_threshold.at((int)img.meta().plane()), false );
 
     for ( auto& node : path ) {
       larcv::Pixel2D pixel( node.col, node.row );
