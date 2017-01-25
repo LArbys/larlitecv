@@ -28,6 +28,10 @@
 #pragma link C++ class larlitecv::AStarSet+;
 #pragma link C++ class larlitecv::AStarAlgoConfig+;
 #pragma link C++ class larlitecv::AStarGridAlgo+;
+#pragma link C++ class larlitecv::AStarDirNode+;
+#pragma link C++ class std::vector< larlitecv::AStarDirNode >+;
+#pragma link C++ class larlitecv::AStarDirAlgoConfig+;
+#pragma link C++ class larlitecv::AStarDirAlgo+;
 //ADD_NEW_CLASS ... do not change this line
 #endif
 
