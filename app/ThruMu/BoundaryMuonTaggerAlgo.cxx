@@ -14,6 +14,7 @@
 #include "UBWireTool/UBWireTool.h"
 
 #include "AStarGridAlgo.h"
+#include "AStarDirAlgo.h"
 #include "BoundaryEndPt.h"
 #include "BoundaryIntersectionAlgo.h"
 #include "LineRegionTest.h"
@@ -354,7 +355,29 @@ namespace larlitecv {
     //  start_pad: radius around starting point where we will include all hits in case not start point directly on track
     //  end_pad:   radius around ending point where we will include all hits in case end point not directly on track
 
-    
+    BMTrackCluster2D track2d;
+    track2d.start = start_pt;
+    track2d.end   = end_pt;
+    track2d.pixelpath.clear();
+    if ( abs(start_pt.t-end_pt.t)>820 ) { // make this a parameter 
+      return track2d; // empty track
+    }
+
+    // Run AStarDirAlgo
+    larlitecv::AStarDirAlgoConfig astar_config;
+    astar_config.astar_threshold     = _config.astar_thresholds;
+    astar_config.astar_neighborhood  = _config.astar_neighborhood;
+    astar_config.astar_start_padding = start_pad;
+    astar_config.astar_end_padding   = end_pad;
+    astar_config.image_padding = 20;
+    larlitecv::AStarDirAlgo algo( astar_config );
+    algo.setVerbose(0);
+    algo.setBadChImage( badchimg );
+    std::vector<larlitecv::AStarDirNode> path = algo.findpath( img, start_pt.t, start_pt.w, end_pt.t, end_pt.w, 
+                                                              astar_config.astar_threshold.at((int)img.meta().plane()), true );
+
+    /*
+    // OLD: AStarGridAlgo
     larlitecv::AStarAlgoConfig astar_config;
     astar_config.astar_threshold    = _config.astar_thresholds;
     astar_config.astar_neighborhood = _config.astar_neighborhood;
@@ -377,6 +400,8 @@ namespace larlitecv {
     }
     
     std::vector< larlitecv::AStarNode > path = algo.findpath( img, start.row, start.col, goal.row, goal.col, 5.0, use_badchs );
+    */
+
     for ( auto& node : path ) {
       larcv::Pixel2D pixel( node.col, node.row );
       if ( node.row<0 || node.row>=(int)img.meta().rows() || node.col<0 || node.col>=(int)img.meta().cols() ) continue;
