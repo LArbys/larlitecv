@@ -11,6 +11,7 @@
 #include "dbscan/DBSCANAlgo.h"
 #include "UBWireTool/WireData.h"
 
+#include "ConfigBoundaryMuonTaggerAlgo.h"
 #include "BoundaryMatchArrays.h"
 #include "BoundaryMatchAlgo.h"
 #include "BoundaryEndPt.h"
@@ -18,43 +19,6 @@
 #include "BMTrackCluster3D.h"
 
 namespace larlitecv {
-
-  class ConfigBoundaryMuonTaggerAlgo {
-    // container for boundary muon tagger algo configuration parameters.
-    // fill them anyway you can
-      
-
-  public:
-    ConfigBoundaryMuonTaggerAlgo() {
-      // defaults
-      save_endpt_images = false; 
-      hitsearch_uses_badchs = false;
-      ticks_per_full_drift = 4650;
-      type_modifier.resize(4,1.0);
-      type_modifier[2] = 0.5;
-      type_modifier[3] = 0.5;
-    };
-    ~ConfigBoundaryMuonTaggerAlgo() {};
-
-    bool checkOK() { return true; }; // dummy for now
-
-  public:
-
-    std::vector<float> emptych_thresh; ///< pixel thresholds below which if wire stays, it is marked as empty (value per plane)
-    std::vector<float> thresholds;    ///< pixel threshold to count as a hit
-    std::vector<int>   neighborhoods; ///< columns before and after to check for hits
-    std::vector<int>   edge_win_wires; ///
-    std::vector<int>   edge_win_times;
-    std::vector<float> edge_win_hitthresh;
-    std::vector<int>   boundary_cluster_minpixels; ///< min number of pixels for dbscan clustering of boundary pixels
-    std::vector<float>   boundary_cluster_radius;    ///< nearest neighbor radius for dbscan clustering of boundary pixels
-    std::vector<float> astar_thresholds; //< passed to astar config
-    std::vector<int>   astar_neighborhood; //< passed to astar config
-    bool save_endpt_images;
-    bool hitsearch_uses_badchs;
-    int ticks_per_full_drift;
-    std::vector<float> type_modifier;
-  };
 
   class BoundaryMuonTaggerAlgo {
     // the algo

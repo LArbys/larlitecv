@@ -64,41 +64,41 @@ int main( int nargs, char** argv ) {
   // Configure Algorithms
   // side-tagger
   larlitecv::BoundaryMuonTaggerAlgo sidetagger;
-  larlitecv::ConfigBoundaryMuonTaggerAlgo sidetagger_cfg;
-  sidetagger_cfg.neighborhoods  = sidetagger_pset.get< std::vector<int> >("Neighborhoods");
-  sidetagger_cfg.thresholds     = sidetagger_pset.get< std::vector<float> >( "Thresholds" );
-  sidetagger_cfg.emptych_thresh = sidetagger_pset.get< std::vector<float> >( "EmptyChannelThrehsold" );
-  sidetagger_cfg.edge_win_wires = sidetagger_pset.get< std::vector<int> >( "EdgeWinWires" );
-  sidetagger_cfg.edge_win_times = sidetagger_pset.get< std::vector<int> >( "EdgeWinTimes" );
-  sidetagger_cfg.edge_win_hitthresh = sidetagger_pset.get< std::vector<float> >( "EdgeWinHitThreshold" );
-  sidetagger_cfg.boundary_cluster_minpixels = sidetagger_pset.get< std::vector<int> >( "BoundaryClusterMinPixels" );
-  sidetagger_cfg.boundary_cluster_radius    = sidetagger_pset.get< std::vector<float> >( "BoundaryClusterRadius" );
-  sidetagger_cfg.astar_thresholds = sidetagger_pset.get< std::vector<float> >( "AStarThresholds" );
-  sidetagger_cfg.astar_neighborhood = sidetagger_pset.get< std::vector<int> >( "AStarNeighborhood" );
-  sidetagger_cfg.save_endpt_images = sidetagger_pset.get<bool>("SaveMatchImages");
-  sidetagger_cfg.hitsearch_uses_badchs = sidetagger_pset.get<bool>("UseBadChannels");
+  larlitecv::ConfigBoundaryMuonTaggerAlgo sidetagger_cfg = larlitecv::MakeConfigBoundaryMuonTaggerAlgoFromPSet( sidetagger_pset );
+  // sidetagger_cfg.neighborhoods  = sidetagger_pset.get< std::vector<int> >("Neighborhoods");
+  // sidetagger_cfg.thresholds     = sidetagger_pset.get< std::vector<float> >( "Thresholds" );
+  // sidetagger_cfg.emptych_thresh = sidetagger_pset.get< std::vector<float> >( "EmptyChannelThrehsold" );
+  // sidetagger_cfg.edge_win_wires = sidetagger_pset.get< std::vector<int> >( "EdgeWinWires" );
+  // sidetagger_cfg.edge_win_times = sidetagger_pset.get< std::vector<int> >( "EdgeWinTimes" );
+  // sidetagger_cfg.edge_win_hitthresh = sidetagger_pset.get< std::vector<float> >( "EdgeWinHitThreshold" );
+  // sidetagger_cfg.boundary_cluster_minpixels = sidetagger_pset.get< std::vector<int> >( "BoundaryClusterMinPixels" );
+  // sidetagger_cfg.boundary_cluster_radius    = sidetagger_pset.get< std::vector<float> >( "BoundaryClusterRadius" );
+  // sidetagger_cfg.astar_thresholds = sidetagger_pset.get< std::vector<float> >( "AStarThresholds" );
+  // sidetagger_cfg.astar_neighborhood = sidetagger_pset.get< std::vector<int> >( "AStarNeighborhood" );
+  // sidetagger_cfg.save_endpt_images = sidetagger_pset.get<bool>("SaveMatchImages");
+  // sidetagger_cfg.hitsearch_uses_badchs = sidetagger_pset.get<bool>("UseBadChannels");
   sidetagger.configure(sidetagger_cfg);
 
   // flash-tagger
   larlitecv::FlashMuonTaggerAlgo anode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kAnode );
   larlitecv::FlashMuonTaggerAlgo cathode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kCathode );
   larlitecv::FlashMuonTaggerAlgo imgends_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kOutOfImage );
-  larlitecv::FlashMuonTaggerConfig flashtagger_cfg;
-  flashtagger_cfg.pixel_value_threshold        = flashtagger_pset.get< std::vector<float> >( "ChargeThreshold" ); // one for each plane
-  flashtagger_cfg.search_row_radius            = flashtagger_pset.get< int >( "SearchRowRadius" ); // one for each plane
-  flashtagger_cfg.clustering_time_neighborhood = flashtagger_pset.get< std::vector<int> >( "ClusteringTimeWindow" );
-  flashtagger_cfg.clustering_wire_neighborhood = flashtagger_pset.get< std::vector<int> >( "ClusteringWireWindow" );
-  flashtagger_cfg.clustering_minpoints         = flashtagger_pset.get< std::vector<int> >( "ClusteringMinPoints" );
-  flashtagger_cfg.clustering_radius            = flashtagger_pset.get< std::vector<double> >( "ClusteringRadius" );
-  flashtagger_cfg.endpoint_time_neighborhood   = flashtagger_pset.get< std::vector<int> >( "EndpointTimeNeighborhood" );
-  flashtagger_cfg.verbosity                    = flashtagger_pset.get< int >( "Verbosity", 2 );
-  flashtagger_cfg.trigger_tick                 = flashtagger_pset.get< float >( "TriggerTick", 3200.0 );
-  flashtagger_cfg.usec_per_tick                = flashtagger_pset.get< float >( "MicrosecondsPerTick", 0.5 );
-  flashtagger_cfg.drift_distance               = flashtagger_pset.get< float >( "DriftDistance", 250.0 );
-  flashtagger_cfg.drift_velocity               = flashtagger_pset.get< float >( "DriftVelocity", 0.114 );
-  flashtagger_cfg.flash_zrange_extension       = flashtagger_pset.get< float >( "FlashZRangeExtension", 1.1 );
-  flashtagger_cfg.max_triarea                  = flashtagger_pset.get< float >( "MaxTriArea", 10.0 );
-  flashtagger_cfg.max_triarea_tight            = flashtagger_pset.get< float >( "MaxTriAreaTight", 1.0 );
+  larlitecv::FlashMuonTaggerConfig flashtagger_cfg = larlitecv::MakeFlashMuonTaggerConfigFromPSet( flashtagger_pset );
+  // flashtagger_cfg.pixel_value_threshold        = flashtagger_pset.get< std::vector<float> >( "ChargeThreshold" ); // one for each plane
+  // flashtagger_cfg.search_row_radius            = flashtagger_pset.get< int >( "SearchRowRadius" ); // one for each plane
+  // flashtagger_cfg.clustering_time_neighborhood = flashtagger_pset.get< std::vector<int> >( "ClusteringTimeWindow" );
+  // flashtagger_cfg.clustering_wire_neighborhood = flashtagger_pset.get< std::vector<int> >( "ClusteringWireWindow" );
+  // flashtagger_cfg.clustering_minpoints         = flashtagger_pset.get< std::vector<int> >( "ClusteringMinPoints" );
+  // flashtagger_cfg.clustering_radius            = flashtagger_pset.get< std::vector<double> >( "ClusteringRadius" );
+  // flashtagger_cfg.endpoint_time_neighborhood   = flashtagger_pset.get< std::vector<int> >( "EndpointTimeNeighborhood" );
+  // flashtagger_cfg.verbosity                    = flashtagger_pset.get< int >( "Verbosity", 2 );
+  // flashtagger_cfg.trigger_tick                 = flashtagger_pset.get< float >( "TriggerTick", 3200.0 );
+  // flashtagger_cfg.usec_per_tick                = flashtagger_pset.get< float >( "MicrosecondsPerTick", 0.5 );
+  // flashtagger_cfg.drift_distance               = flashtagger_pset.get< float >( "DriftDistance", 250.0 );
+  // flashtagger_cfg.drift_velocity               = flashtagger_pset.get< float >( "DriftVelocity", 0.114 );
+  // flashtagger_cfg.flash_zrange_extension       = flashtagger_pset.get< float >( "FlashZRangeExtension", 1.1 );
+  // flashtagger_cfg.max_triarea                  = flashtagger_pset.get< float >( "MaxTriArea", 10.0 );
+  // flashtagger_cfg.max_triarea_tight            = flashtagger_pset.get< float >( "MaxTriAreaTight", 1.0 );
   anode_flash_tagger.configure( flashtagger_cfg );
   cathode_flash_tagger.configure(flashtagger_cfg);
   imgends_flash_tagger.configure(flashtagger_cfg);
