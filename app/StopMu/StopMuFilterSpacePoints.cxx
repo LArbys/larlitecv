@@ -13,14 +13,14 @@
 namespace larlitecv {
 
   StopMuFilterSpacePointsConfig MakeStopMuFilterSpacePointsConfig( larcv::PSet pset ) {
-    StopMuFilterSpacePointsConfig cfg;
+    StopMuFilterSpacePointsConfig stopmu_filter_cfg;
     stopmu_filter_cfg.filter_thrumu_by_tag = pset.get<bool>("FilterThruByTag");
     stopmu_filter_cfg.duplicate_radius_cm  = pset.get<float>("DuplicateRadiuscm");
     stopmu_filter_cfg.pixel_threshold      = pset.get<float>("PixelThreshold");
     stopmu_filter_cfg.track_width_pixels   = pset.get<int>("TrackLabelingPixelWidth");
     stopmu_filter_cfg.row_tag_neighborhood = pset.get<int>("TagRowNeighborhood");
     stopmu_filter_cfg.col_tag_neighborhood = pset.get<int>("TagColNeighbothood");
-    return cfg;
+    return stopmu_filter_cfg;
   }
   
   StopMuFilterSpacePoints::StopMuFilterSpacePoints( const StopMuFilterSpacePointsConfig& config  ) {
