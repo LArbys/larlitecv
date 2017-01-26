@@ -1206,8 +1206,9 @@ namespace larlitecv {
             chargepts[p].push_back( imagespacept );
             // mark this pixel as used
             workspace[p].set_pixel( row, col+n, 10.0 );
-            if ( _config.save_endpt_images )
+            if ( _config.save_endpt_images ) {
               matchedpixels.at(nplanes*crossing_type+p).set_pixel( (int)combo_points[idxhit][1], col+n, 255.0 );
+            }
 
             // set max or min row
             if ( min_row[p]==-1 || min_row[p]>row)
@@ -1241,6 +1242,7 @@ namespace larlitecv {
     int best_row = 0;
     std::vector<int> best_cols(3,0);
     float best_dwall = -1;
+    std::vector<float> best_poszy(2,0.0);
     bool more_combos = true;
 
     //std::cout << "Start combo search" << std::endl;
@@ -1302,6 +1304,7 @@ namespace larlitecv {
           best_dwall = thisdwall;
           best_row = current_row;
           best_cols = wids;
+          best_poszy = poszy;
           //std::cout << "  -- update." << std::endl;
         }
       }
@@ -1362,6 +1365,7 @@ namespace larlitecv {
       endpt_v.emplace_back( std::move(endpt) );
     }
     BoundarySpacePoint spacepoint( CrossingToBoundaryEnd(crossing_type), std::move(endpt_v) );
+    spacepoint.setZY( best_poszy[0], best_poszy[1] );
     return spacepoint;
   }//end of end point definition
 

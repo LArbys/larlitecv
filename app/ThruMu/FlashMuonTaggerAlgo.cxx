@@ -28,6 +28,9 @@ namespace larlitecv {
     if ( nplanes==0 )
       return false;
     
+    if ( fConfig.verbosity<2 )
+      std::cout << "Begin FlashMuonTaggerAlgo::flashMatchTrackEnds [verbsity=" << fConfig.verbosity << "]" << std::endl;
+
     // get a meta
     const larcv::ImageMeta& meta = tpc_imgs.at(0).meta();
     
@@ -110,7 +113,7 @@ namespace larlitecv {
         
         int row_target = meta.row( tick_target );
         
-        if ( fConfig.verbosity<1 ) {
+        if ( fConfig.verbosity<2 ) {
           std::cout << "============================================================================================" << std::endl;
           std::cout << "[Opflash search] " << modename << " mode" << std::endl;
           std::cout << "  opflash: "
@@ -175,8 +178,10 @@ namespace larlitecv {
         std::vector< BoundarySpacePoint > endpts_v;
         std::vector< std::vector<ClusterInfo_t> > accepted_cluster_matches;        
         findPlaneMatchedClusters( cluster_info, tpc_imgs, badch_imgs, fConfig.max_triarea, z_range, y_range, endpts_v, accepted_cluster_matches );
-        std::cout << "number of plane-matched clusters: " << accepted_cluster_matches.size() << std::endl;
-        std::cout << "number of endpts: " << endpts_v.size() << std::endl;
+        if ( fConfig.verbosity<2 ) {
+          std::cout << "number of plane-matched clusters: " << accepted_cluster_matches.size() << std::endl;
+          std::cout << "number of endpts: " << endpts_v.size() << std::endl;
+        }
 
         // now we try to remove false positives
         std::vector< int > passing_clusters;                
@@ -483,10 +488,12 @@ namespace larlitecv {
             if ( crosses>0 && otherwire>=0 && otherplane>=0 && otherwire<img_v.at(otherplane).meta().max_x() )
               badch_state = badch_v.at(otherplane).pixel( cluster_info[p1][endpt1].row, img_v.at(otherplane).meta().col(otherwire) );
 
-            std::cout << "p1=" << p1 << " wid1=" << wid1
-              << " p2=" << p2 << " wid2=" << wid2 
-              << " other plane=" << otherplane << " other wire=" << otherwire << " badch=" << badch_state
-              << std::endl;
+            if (fConfig.verbosity<1 ) {
+              std::cout << "p1=" << p1 << " wid1=" << wid1
+                << " p2=" << p2 << " wid2=" << wid2 
+                << " other plane=" << otherplane << " other wire=" << otherwire << " badch=" << badch_state
+                << std::endl;
+            }
 
             // is there an intersection?
             if ( crosses==0 )
@@ -552,7 +559,7 @@ namespace larlitecv {
     if ( rmin_boundary<0 ) rmin_boundary = 0;
 
     // for each cluster we grab some info
-    std::cout << "number of cluster on plane=" << plane << ": " << dbscan_output.clusters.size() << std::endl;
+    //std::cout << "number of cluster on plane=" << plane << ": " << dbscan_output.clusters.size() << std::endl;
     for ( int ic=0; ic<(int)dbscan_output.clusters.size(); ic++ ) {
       const dbscan::dbCluster&  cluster = dbscan_output.clusters.at(ic);
       // make a ClusterInfo object for this
@@ -729,12 +736,14 @@ namespace larlitecv {
         }
 
         boundaries_reached[p] = num_boundaries_reached;
-        std::cout << "  plane=" << p << " tick-top extreme=" << img_v.at(p).meta().pos_y(extrema.bottommost()[1]) << " <= row_top=" << img_v.at(p).meta().pos_y(row_start) << std::endl;
-        std::cout << "  plane=" << p << " tick-bot extreme=" << img_v.at(p).meta().pos_y(extrema.topmost()[1]) << " >= row_bot=" << img_v.at(p).meta().pos_y(row_end) << std::endl;        
-        std::cout << "  plane=" << p << " tick-lft extreme=" << img_v.at(p).meta().pos_y(extrema.leftmost()[1]) 
-          << " ; col=" << img_v.at(p).meta().pos_x(extrema.leftmost()[0]) << " >= " << col_start << std::endl;
-        std::cout << "  plane=" << p << " tick-rgt extreme=" << img_v.at(p).meta().pos_y(extrema.rightmost()[1]) 
-          << " ; col=" << img_v.at(p).meta().pos_x(extrema.rightmost()[0]) << " <= " << col_end << std::endl;        
+        if ( fConfig.verbosity<1 ) {
+          std::cout << "  plane=" << p << " tick-top extreme=" << img_v.at(p).meta().pos_y(extrema.bottommost()[1]) << " <= row_top=" << img_v.at(p).meta().pos_y(row_start) << std::endl;
+          std::cout << "  plane=" << p << " tick-bot extreme=" << img_v.at(p).meta().pos_y(extrema.topmost()[1]) << " >= row_bot=" << img_v.at(p).meta().pos_y(row_end) << std::endl;        
+          std::cout << "  plane=" << p << " tick-lft extreme=" << img_v.at(p).meta().pos_y(extrema.leftmost()[1]) 
+            << " ; col=" << img_v.at(p).meta().pos_x(extrema.leftmost()[0]) << " >= " << col_start << std::endl;
+          std::cout << "  plane=" << p << " tick-rgt extreme=" << img_v.at(p).meta().pos_y(extrema.rightmost()[1]) 
+            << " ; col=" << img_v.at(p).meta().pos_x(extrema.rightmost()[0]) << " <= " << col_end << std::endl;        
+        }
 
       }//end of plane loop
 
@@ -751,13 +760,15 @@ namespace larlitecv {
         else if ( (fSearchMode==kAnode || (fSearchMode==kOutOfImage && fOutOfImageMode==kBack)) && reached_tick_top>=2 )
           cluster_passed[idx_cluster] = 1;
       }
-      std::cout << "filter cluster#" << idx_cluster << " tick=" << img_v.at(0).meta().pos_y(row) 
-        << " cols=(" << info_v[0].col << "," << info_v[1].col << "," << info_v[2].col << ")"
-        << " [planes with crossing cluster]=" << nplanes_with_crossing_cluster
-        << " [planes reached top tick]=" << reached_tick_top
-        << " [planes reached bot tick]=" << reached_tick_bot
-        << " [cluster_passed]=" << cluster_passed[idx_cluster]
-        << std::endl;
+      if ( fConfig.verbosity<1 ) {
+        std::cout << "filter cluster#" << idx_cluster << " tick=" << img_v.at(0).meta().pos_y(row) 
+          << " cols=(" << info_v[0].col << "," << info_v[1].col << "," << info_v[2].col << ")"
+          << " [planes with crossing cluster]=" << nplanes_with_crossing_cluster
+          << " [planes reached top tick]=" << reached_tick_top
+          << " [planes reached bot tick]=" << reached_tick_bot
+          << " [cluster_passed]=" << cluster_passed[idx_cluster]
+          << std::endl;
+      }
       idx_cluster++;
     }//end of cluster loop
 

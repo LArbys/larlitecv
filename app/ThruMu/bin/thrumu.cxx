@@ -26,6 +26,7 @@
 #include "ThruMu/FlashMuonTaggerAlgo.h"
 #include "ThruMu/BoundarySpacePoint.h"
 #include "ThruMu/BoundaryEndPt.h"
+#include "ThruMu/EndPointFilter.h"
 #include "ThruMu/EmptyChannelAlgo.h"
 
 
@@ -76,6 +77,9 @@ int main( int nargs, char** argv ) {
   anode_flash_tagger.configure( flashtagger_cfg );
   cathode_flash_tagger.configure(flashtagger_cfg);
   imgends_flash_tagger.configure(flashtagger_cfg);
+
+  // end point filter algo
+  larlitecv::EndPointFilter endptfilter;
 
   // other parameters 
   int max_endpts_to_process = bmt.get<int>("MaxEndPointsToProcess"); // safety valve
@@ -237,11 +241,26 @@ int main( int nargs, char** argv ) {
       all_endpoints.push_back( pts );
     }
 
+    // filter end points
+    std::vector<int> endpoint_passes;
+    endptfilter.removeBoundaryAndFlashDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );
+    endptfilter.removeSameBoundaryDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );
+    endptfilter.removeDiffBoundaryDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );    
+
+    // remove the filtered end points
+
+    std::vector< const larlitecv::BoundarySpacePoint* > filtered_endpoints;
+    for ( size_t idx=0; idx<endpoint_passes.size(); idx++ ) {
+      if ( endpoint_passes.at(idx)==1 ) {
+        filtered_endpoints.push_back( all_endpoints.at(idx) );
+      }
+    }
+
     // ------------------------------------------------------------------------------------------//
     // Check that the number of end points is not excessive
     bool runtracker = true;
-    if ( (int)all_endpoints.size()>max_endpts_to_process ) {
-      std::cout << "The number of total end points is excessive: " << all_endpoints.size() << ". The event is probably too busy." << std::endl;
+    if ( (int)filtered_endpoints.size()>max_endpts_to_process ) {
+      std::cout << "The number of total end points is excessive: " << filtered_endpoints.size() << ". The event is probably too busy." << std::endl;
       runtracker = false;
       continue;
     }
@@ -250,7 +269,7 @@ int main( int nargs, char** argv ) {
     // Form 2D tracks on each plane from boundary points
     std::vector< std::vector< larlitecv::BMTrackCluster2D > > trackclusters;
     if (runtracker) {
-      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, all_endpoints, trackclusters );
+      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, filtered_endpoints, trackclusters );
     }
 
     // ------------------------------------------------------------------------------------------//

@@ -32,7 +32,7 @@ namespace larlitecv {
 	  	const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, std::vector<int>& endpoint_passes );
 
 	  bool areEndPointsNearbyAndOnSameCluster( const larlitecv::BoundaryEndPt& pta, const larlitecv::BoundaryEndPt& ptb, 
-	  	const larcv::Image2D& img, const larcv::Image2D& badch, const float radius_cm, dbscan::dbPoints& opt_cluster );
+	  	const larcv::Image2D& img, const larcv::Image2D& badch, const float radius_cm, bool return_cluster, dbscan::dbPoints& opt_cluster );
 
 
 
