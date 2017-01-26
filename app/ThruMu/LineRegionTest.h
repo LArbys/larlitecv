@@ -7,6 +7,7 @@
 
 #include "DataFormat/Image2D.h"
 #include "BoundaryEndPt.h"
+#include "BoundarySpacePoint.h"
 #include "BMTrackCluster2D.h"
 
 namespace larlitecv {
@@ -26,7 +27,7 @@ namespace larlitecv {
       };
     virtual  ~LineRegionTest() {};
 
-    virtual bool test( const std::vector<BoundaryEndPt>& start_v, const std::vector<BoundaryEndPt>& end_v,
+    virtual bool test( const BoundarySpacePoint& start_v, const BoundarySpacePoint& end_v,
                        const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
                        std::vector< BMTrackCluster2D >* opt_track2d=NULL );
     int fRegionWidth;

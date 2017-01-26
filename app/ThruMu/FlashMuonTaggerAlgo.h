@@ -13,7 +13,9 @@
 #include "dbscan/DBSCANAlgo.h"
 
 // larlitecv header
+#include "BoundaryMuonTaggerTypes.h"
 #include "BoundaryEndPt.h"
+#include "BoundarySpacePoint.h"
 #include "FlashMuonTaggerConfig.h"
 
 namespace larlitecv {
@@ -34,6 +36,7 @@ namespace larlitecv {
     virtual ~FlashMuonTaggerAlgo() {};
     
     struct ClusterInfo_t {
+      // this needs to inherit from ClusterExtrema at some point.
       int plane; //< plane it was found on
       int cluster_idx; //< index of the cluster in the dbscan output
       int hits_rmin_boundary;
@@ -53,11 +56,15 @@ namespace larlitecv {
     };    
 
     void configure( const FlashMuonTaggerConfig& config_ ) { fConfig=config_; fconfigured = true; };
+
     bool flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const std::vector<larcv::Image2D>& tpc_imgs,
 			      const std::vector<larcv::Image2D>& badch_imgs,
-			      std::vector< std::vector< BoundaryEndPt > >& trackendpts );
+			      std::vector< BoundarySpacePoint >& trackendpts );
+
     bool findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-			     std::vector< std::vector< BoundaryEndPt > >& trackendpts );
+			     std::vector< BoundarySpacePoint >& trackendpts );
+
+    BoundaryEnd_t SearchModeToEndType( SearchMode_t mode );
     
   protected:
     
@@ -71,25 +78,23 @@ namespace larlitecv {
 			  const int clusterid, const int row_target, const int plane, const larcv::ImageMeta& meta,
 			  BoundaryEndPt& endpt );
 
-    void defineClusterPositions( const dbscan::dbscanOutput& clout, const dbscan::dbPoints& winpoints, const int row_target, 
-                                 const int plane, const int point_type, const larcv::Image2D& img, std::vector<BoundaryEndPt>& endpt_v );
-
     std::vector<FlashMuonTaggerAlgo::ClusterInfo_t> analyzeClusters( const dbscan::dbscanOutput& dbscan_output, 
       const dbscan::dbPoints& hits, const larcv::Image2D& img, const int row_target, const int plane, const int row_radius );
 
     void findPlaneMatchedClusters( const std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& cluster_info, 
       const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
-      const float max_triarea, const std::vector<float>& z_range, const std::vector<float>& y_range, std::vector< std::vector<BoundaryEndPt> >& endpts_v,
+      const float max_triarea, const std::vector<float>& z_range, const std::vector<float>& y_range, std::vector< BoundarySpacePoint >& endpts_v,
       std::vector< std::vector< FlashMuonTaggerAlgo::ClusterInfo_t > >& accepted_clusters );
 
     void generate3PlaneIntersections(  const std::vector< std::vector< ClusterInfo_t > >& cluster_info, const std::vector<larcv::Image2D>& img_v, 
       const std::vector<float>& z_range, const std::vector<float>& y_range, const float max_triarea,
-      std::vector< std::vector<BoundaryEndPt> >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,  std::vector< std::vector<int> >& cluster_used );
+      std::vector< BoundarySpacePoint >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,  
+      std::vector< std::vector<int> >& cluster_used );
 
     void generate2PlaneIntersections( const std::vector< std::vector< ClusterInfo_t > >& cluster_info, 
       const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
-      const std::vector<float>& z_range, const std::vector<float>& y_range, const float max_triarea,
-      std::vector< std::vector<BoundaryEndPt> >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,
+      const std::vector<float>& z_range, const std::vector<float>& y_range,
+      std::vector< BoundarySpacePoint >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,
       std::vector< std::vector<int> >& cluster_used );
 
 

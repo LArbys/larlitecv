@@ -13,6 +13,7 @@
 #pragma link C++ class larlitecv::BoundaryMatchArrays+;
 #pragma link C++ class larlitecv::ConfigBoundaryMuonTaggerAlgo+;
 #pragma link C++ class larlitecv::BoundaryEndPt+;
+#pragma link C++ class larlitecv::BoundarySpacePoint+;
 #pragma link C++ class larlitecv::BMTrackCluster2D+;
 #pragma link C++ class larlitecv::BMTrackCluster3D+;
 #pragma link C++ class larlitecv::EmptyChannelAlgo+;
@@ -22,6 +23,7 @@
 #pragma link C++ class larlitecv::FlashMuonTaggerConfig+;
 #pragma link C++ class larlitecv::FlashMuonTaggerAlgo+;
 #pragma link C++ class std::vector< larlitecv::BoundaryEndPt >+;
+#pragma link C++ class std::vector< larlitecv::BoundarySpacePoint >+;
 #pragma link C++ class larlitecv::AStarNode+;
 #pragma link C++ class std::vector< larlitecv::AStarNode >+;
 #pragma link C++ class std::priority_queue< larlitecv::AStarNode >+;

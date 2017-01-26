@@ -43,7 +43,7 @@ namespace larlitecv {
       turn_cost_discrete=0;
       id = -1;
       previd = -1;
-      dir2d = dir2d;
+      dir2d = dir2d_;
       closed = false;
       prev = NULL;
     };

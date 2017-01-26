@@ -5,7 +5,7 @@
 
 namespace larlitecv {
 
-  bool LineRegionTest::test( const std::vector<BoundaryEndPt>& start_v, const std::vector<BoundaryEndPt>& end_v,
+  bool LineRegionTest::test( const BoundarySpacePoint& start_v, const BoundarySpacePoint& end_v,
 			     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
 			     std::vector< BMTrackCluster2D >* opt_track2d ) {
     // simply make a line through the end points
@@ -14,8 +14,8 @@ namespace larlitecv {
     bool pass_plane[3] = {false, false, false};
     for (int p=0; p<3; p++) {
       // get direction between start and end
-      float dir[2] = { (float)(end_v.at(p).w-start_v.at(p).w), (float)(end_v.at(p).t-start_v.at(p).t) };
-      int gap[2] = { (int)(end_v.at(p).w-start_v.at(p).w), (int)(end_v.at(p).t-start_v.at(p).t) };
+      float dir[2] = { (float)(end_v.at(p).col-start_v.at(p).col), (float)(end_v.at(p).row-start_v.at(p).row) };
+      int gap[2] =   { (int)(end_v.at(p).row-start_v.at(p).row), (int)(end_v.at(p).row-start_v.at(p).row) };
       // determine which image dimension we loop over and which one we define a region over
       int loopidx = 0; // loop over wire (assuming wire direction component bigger)
       int regionidx = 1; // check regions over time
@@ -43,12 +43,12 @@ namespace larlitecv {
       int ncheck = 0;
       float last_pos[2] = { 0., 0.}; // (c,r)
       if ( opt_track2d!=NULL ) {
-	larcv::Pixel2D node( start_v.at(p).w, start_v.at(p).t );
+	larcv::Pixel2D node( start_v.at(p).getcol(), start_v.at(p).getrow() );
 	node.Intensity(0);
 	opt_track2d->at(p).pixelpath.emplace_back( std::move(node) );
       }
       for (int istep=1; istep<nsteps; istep++) {
-	int pos[2] =  { (int)(start_v.at(p).w + istep*stepsize[0]), (int)(start_v.at(p).t + istep*stepsize[1]) };
+	int pos[2] =  { (int)(start_v.at(p).getcol() + istep*stepsize[0]), (int)(start_v.at(p).getrow() + istep*stepsize[1]) };
 	if ( verbose_debug )
 	  std::cout << "LRT step=" << istep << " pos=(" << pos[0] << "," << pos[1] << ")";
 	if ( pos[0]<0 ||  pos[0]>=(int)img_v.at(p).meta().cols() || pos[1]<0 || pos[1]>=(int)img_v.at(p).meta().rows() )  {
@@ -143,7 +143,7 @@ namespace larlitecv {
       }//end of loopover steps
       
       if ( opt_track2d!=NULL ) {
-	larcv::Pixel2D node( end_v.at(p).w, end_v.at(p).t );
+	larcv::Pixel2D node( end_v.at(p).getcol(), end_v.at(p).getrow() );
 	node.Intensity(0);
 	opt_track2d->at(p).pixelpath.emplace_back( std::move(node) );
       }

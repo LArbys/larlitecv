@@ -2,7 +2,9 @@
 #define __BM_TRACK_CLUSTER_3D__
 
 #include <vector>
+#include "BoundaryMuonTaggerTypes.h"
 #include "BoundaryEndPt.h"
+#include "BoundarySpacePoint.h"
 #include "BMTrackCluster2D.h"
 
 namespace larlitecv {
@@ -21,10 +23,10 @@ namespace larlitecv {
     std::vector<int> end_wire;
     std::vector<double> start3D;
     std::vector<double> end3D;
-    std::vector< BoundaryEndPt > start_endpts;
-    std::vector< BoundaryEndPt > end_endpts;
-    BoundaryEndPt::BoundaryEnd_t start_type;
-    BoundaryEndPt::BoundaryEnd_t end_type;
+    BoundarySpacePoint start_endpts;
+    BoundarySpacePoint end_endpts;
+    BoundaryEnd_t start_type;
+    BoundaryEnd_t end_type;
     std::vector< BMTrackCluster2D > plane_paths;
     std::vector< std::vector<double> > path3d;
     int track2d_index;
