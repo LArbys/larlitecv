@@ -17,7 +17,7 @@ namespace larlitecv {
     
     const larcv::ImageMeta& meta = img_v.front().meta();
 
-    if ( verbose<=1 )
+    if ( verbose>0 )
       std::cout << "[[ASTAR 3D ALGO START]]" << std::endl;
 
     // turn image pixel coordinates into a 3D start and goal point
@@ -63,7 +63,9 @@ namespace larlitecv {
     cm_per_pixel[2] = cm_per_col;
 
     // we set t0 to be 0 on the lattice
-    float tick0 = ( meta.pos_y(start_row) > meta.pos_y(goal_row) ) ? meta.pos_y(start_row) : meta.pos_y(goal_row); // why the largest row? image2d is time-reversed
+    float tick0 = ( meta.pos_y(start_row) < meta.pos_y(goal_row) ) ? meta.pos_y(start_row) : meta.pos_y(goal_row); 
+    float y0    = ( startpos[1] < goalpos[1] )  ? startpos[1] : goalpos[1];
+    float z0    = ( startpos[2] < goalpos[2] )  ? startpos[2] : goalpos[2];
 
     // now we define the lattice the search will go over
     std::vector<int> lattice_widths(3);
@@ -77,30 +79,56 @@ namespace larlitecv {
 
     // define the origin of the lattice in detector space
     std::vector<float> origin_lattice(3);
-    origin_lattice[0] = tick0 -_config.lattice_padding*meta.pixel_height(); // in ticks
-    origin_lattice[1] = startpos[1] - _config.lattice_padding*cm_per_col;   // in cm
-    origin_lattice[2] = startpos[2] - _config.lattice_padding*cm_per_col;   // in cm
+    origin_lattice[0] = tick0 -_config.lattice_padding*cm_per_pixel[0]; // in ticks
+    origin_lattice[1] = y0 - _config.lattice_padding*cm_per_col;   // in cm
+    origin_lattice[2] = z0 - _config.lattice_padding*cm_per_col;   // in cm
+
+    std::vector<float> max_lattice(3,0);
+    for (int i=0; i<3; i++)
+      max_lattice[i] = origin_lattice[i] + lattice_widths[i]*cm_per_pixel[i];
 
     // finally make the lattice
     Lattice lattice( origin_lattice, lattice_widths, cm_per_pixel );
+    if ( verbose>1 ) {
+      std::cout << "Defining Lattice" << std::endl;
+      std::cout << "origin: (" << origin_lattice[0] << "," << origin_lattice[1] << "," << origin_lattice[2] << ")" << std::endl;
+      std::cout << "max-range: (" << max_lattice[0] << "," << max_lattice[1] << "," << max_lattice[2] << ")" << std::endl;
+      std::cout << "number of nodes per dimension: (" << lattice_widths[0] << "," << lattice_widths[1] << "," << lattice_widths[2] << ")" << std::endl;
+    }
 
     // we now make some definitions
-    
     AStar3DNodePtrList openset;
     AStar3DNodePtrList closedset;
 
     // make the target node (window coorindates)
     AStar3DNode* goal = lattice.getNode( goalpos );
+    if ( goal==nullptr) {
+      A3DPixPos_t goalnode = lattice.getNodePos( goalpos );
+      std::cout << "goal=(" << goalpos[0] << "," << goalpos[1] << "," << goalpos[2] << ") "
+        << "node->(" << goalnode[0] << "," << goalnode[1] << "," << goalnode[2] << ")" << std::endl;
+      throw std::runtime_error("Was not able to produce a valid goal node.");
+    }
+    else
+      std::cout << "Goal Node: " << goal->str() << std::endl;
 
     // make starting node (window coordinates)
     AStar3DNode* start = lattice.getNode( startpos );
-    start->gscore = 0.0;
-    start->fscore = 0.0;
+    if ( start==nullptr) {
+      A3DPixPos_t startnode = lattice.getNodePos( startpos );
+      std::cout << "start=(" << startpos[0] << "," << startpos[1] << "," << startpos[2] << ") "
+        << "node->(" << startnode[0] << "," << startnode[1] << "," << startnode[2] << ")" << std::endl;
+      throw std::runtime_error("Was not able to produce a valid start node.");
+    }
+    else
+      std::cout << "Start Node: " << start->str() << std::endl;      
+
     // start fscore gets set to the heuristic
-    for (int i=0; i<3; i++ ) {
+    for (int i=1; i<3; i++ ) {
       float di= goalpos[i]-startpos[i];
       start->fscore += di*di;
     }
+    float dt = (goalpos[0]-startpos[0])*cm_per_tick;
+    start->fscore += dt*dt;
     start->fscore = sqrt(start->fscore);
 
     // set the start direction to heads towards the goal
@@ -114,6 +142,7 @@ namespace larlitecv {
     
     if ( verbose>0 ) {
       std::cout << "start astar algo." << std::endl;
+      std::cout << "neighborhood sizes: " << _config.astar_neighborhood[0] << "," << _config.astar_neighborhood[1] << "," << _config.astar_neighborhood[2] << std::endl;
     }
 
     int nsteps = -1;
@@ -124,7 +153,7 @@ namespace larlitecv {
       openset.pop_back();
       nsteps++;
       if ( verbose>2 || (verbose>0 && nsteps%100==0) ) {
-        std::cout << "step=" << nsteps << ": get current node [ " << current->str() << " ] "
+        std::cout << "step=" << nsteps << ": get current node " << current->str() << ". "
                   << "number of remaining nodes in openset=" << openset.size() << std::endl;
       }
 
@@ -148,17 +177,18 @@ namespace larlitecv {
 
       if ( verbose>1 ) {
         std::cout << "update on sets: " << std::endl;
-        std::cout << " openset: " << std::endl;
+        std::cout << " in open openset: " << openset.size() << std::endl;
         //for ( auto node : openset ) 
-        //  std::cout << "  * (" << meta.pos_x(node->col+min_c) << "," << meta.pos_y(node->row+min_r) << ") fscore=" << node->fscore << " gscore=" << node->gscore << std::endl;
+        //  std::cout << "  " << node->str() << " g=" << node->gscore << std::endl;
         std::cout << " nodes in closedset: " << closedset.size() << std::endl;
       }
           
 
-      if ( verbose>1 && nsteps%100==0 ) {
+      if ( verbose>3 && nsteps%100==0 ) {
         std::cout << "[enter] to continue." << std::endl;
-        //std::cin.get();
+        std::cin.get();
       }
+      std::cin.get();      
 
     }//end of while loop
 
@@ -180,6 +210,12 @@ namespace larlitecv {
     }
 
     path = makeRecoPath( start, current, path_completed );
+
+    std::cout << "nsteps: " << nsteps << std::endl;
+    std::cout << "path length: " << path.size() << std::endl;
+    for ( auto& node : path ) {
+      std::cout << " " << node.str() << std::endl;
+    }
 
 
     return path;
@@ -215,6 +251,8 @@ namespace larlitecv {
         }
       }
     }
+    if ( verbose>1 )
+      std::cout << "number of lattice points to check: " << neighborhood_points.size() << std::endl;
 
     // get image position of start and end
     int start_row;
@@ -223,12 +261,13 @@ namespace larlitecv {
     std::vector<int> goal_cols;
     bool within_image = true;
     lattice.getImageCoordinates( start->nodeid, img_v.front().meta(), start_row, start_cols, within_image );
-    lattice.getImageCoordinates( goal->nodeid, img_v.front().meta(), goal_row, goal_cols, within_image );   
+    lattice.getImageCoordinates( goal->nodeid, img_v.front().meta(), goal_row, goal_cols, within_image );  
 
     // get detector position for current node
     std::vector<float> current_tyz = lattice.getPos( current->nodeid );
     // we'll need the goal detector position as well
     std::vector<float> goal_tyz    = lattice.getPos( goal->nodeid );
+    std::cout << "eval. neighbors around " << (*current).str() << " -> goal=" << (*goal).str() << std::endl;
 
     for ( auto const& latticept : neighborhood_points ) {
 
@@ -237,7 +276,7 @@ namespace larlitecv {
       // turn this lattice point into a position in the images
       std::vector<float> tyz = lattice.getPos( latticept );
 
-      if ( tyz[0]<img_v.front().meta().min_y() || tyz[0]>=img_v.front().meta().max_y() ) {
+      if ( tyz[0]<=img_v.front().meta().min_y() || tyz[0]>=img_v.front().meta().max_y() ) {
         continue; /// not within image
       }
 
@@ -245,6 +284,13 @@ namespace larlitecv {
       std::vector<int> cols(nplanes,0);
       bool within_image = true;
       lattice.getImageCoordinates( latticept, img_v.front().meta(), row, cols, within_image );
+
+      if ( verbose>2 ) {
+        std::cout << " lattice pt (" << latticept[0] << "," << latticept[1] << "," << latticept[2] << ") "
+          << "img pos: (r=" << row << "," << cols[0] << "," << cols[1] << "," << cols[2] << ") "
+          << "within_image=" << within_image << std::endl;
+      }
+ 
       if ( !within_image ) continue;
 
       bool within_pad = false; // allowed region to allow start point to get onto a track (in case of mistakes by endpoint tagger)
@@ -266,6 +312,7 @@ namespace larlitecv {
             isgoal = false;
             break;
           }
+        }
       }
 
       int nplanes_abovethreshold_or_bad = 0;
@@ -287,6 +334,7 @@ namespace larlitecv {
       AStar3DNode* neighbor_node = lattice.getNode( latticept );
       if ( neighbor_node==nullptr )
         continue;
+      //std::cout << " define neighbor node: " << neighbor_node->str() << ", inopenset=" << neighbor_node->inopenset << " closed=" << neighbor_node->closed << std::endl;
 
       if ( neighbor_node->closed )
         continue; // don't reevaluate a closed node
@@ -310,7 +358,7 @@ namespace larlitecv {
       // calculate heuristic score (distance of node to goal node)
       float hscore = 0.;
       for (int i=1; i<3; i++) {
-        float dx = neighbor_tyz[i] - goal_tyz[i];
+        float dx = (neighbor_tyz[i] - goal_tyz[i]);
         hscore += dx*dx;
       }
       dt = ( neighbor_tyz[0] - goal_tyz[0] )*cm_per_tick;
@@ -335,7 +383,6 @@ namespace larlitecv {
       else {
         if ( verbose>2 )
           std::cout << "  this neighbor already on better path. current-f=" << neighbor_node->fscore << " < proposed-f=" << fscore << std::endl;
-        }
       }
     }//end of neighbor node position loop
 
@@ -615,7 +662,7 @@ namespace larlitecv {
 
     std::vector<float> tyz = getPos( nodeid );
 
-    if ( tyz[0]<meta.min_y() || tyz[0]>=meta.max_y() ) {
+    if ( tyz[0]<=meta.min_y() || tyz[0]>=meta.max_y() ) {
       within_image = false;
       return;
     }
@@ -626,25 +673,25 @@ namespace larlitecv {
     for ( int p=0; p<3; p++ ) {
       Double_t xyz[3] { (tyz[0]-3200)*0.5*0.110, tyz[1], tyz[2] }; // (x doesn't matter really)
       wid[p] = larutil::Geometry::GetME()->WireCoordinate( xyz, p );
-      if ( wid[p]<meta.min_x() || wid[p]>=meta.max_x() ) {
+      if ( wid[p]<=meta.min_x() || wid[p]>=meta.max_x() ) {
         within_image = false;
         return;
       }
       cols[p] = meta.col(wid[p]);
     }
-    row = meta.pos_y(tyz[0]);
+    row = meta.row(tyz[0]);
     return;
   }
   
   void Lattice::cleanup () {
 
-    std::cout << "Lattice::cleanup" << std::endl;
+    std::cout << "Lattice::cleanup";
 
     for ( auto &it : *this ) {
       delete it.second;
       it.second = nullptr;
     }
-
+    std::cout << "... done." << std::endl;
     clear();
 
   }

@@ -335,11 +335,11 @@ namespace larlitecv {
         // we create nodes in this channel, within the window
         for (int ncol=0; ncol<2; ncol++) {
           // we check ncol more goodchs than just the one over the gap because often that one is not super reliable
-	  for ( int rgap=0; rgap<(int)meta.rows(); rgap++ ) {
-  	    if ( rgap-min_r<0 || rgap-min_r>=win_r ) continue;//outside the window
+          for ( int rgap=0; rgap<(int)meta.rows(); rgap++ ) {
+            if ( rgap-min_r<0 || rgap-min_r>=win_r ) continue;//outside the window
             if ( gapch+ncol*dcol<0 || gapch+ncol*dcol>=(int)meta.cols()) continue;
-    	    if ( img.pixel( rgap, gapch+ncol*dcol )>_config.astar_threshold.at((int)meta.plane()) 
-      	      || ( (rgap-min_r)==goal->row && (gapch+ncol*dcol-min_c)==goal->col ) ) {
+            if ( img.pixel( rgap, gapch+ncol*dcol )>_config.astar_threshold.at((int)meta.plane()) 
+              || ( (rgap-min_r)==goal->row && (gapch+ncol*dcol-min_c)==goal->col ) ) {
               // either the pixel is above threshold, or is THE GOAL. if so, evaluate this node.
 
               int rgap_win = rgap-min_r;
@@ -350,52 +350,52 @@ namespace larlitecv {
               PixPos_t pos(cgap_win,rgap_win);
               auto it = position_lookup.find(pos);
               if ( it==position_lookup.end()) {
-           	// make new node
-           	gap_node = new AStarDirNode( cgap_win, rgap_win, std::vector<float>(2,0.0) );
-           	position_lookup.insert( std::pair<PixPos_t,AStarDirNode*>( pos, gap_node ) );
-            	openset.addnode( gap_node );
-              	if ( verbose>1 )
+                // make new node
+                gap_node = new AStarDirNode( cgap_win, rgap_win, std::vector<float>(2,0.0) );
+                position_lookup.insert( std::pair<PixPos_t,AStarDirNode*>( pos, gap_node ) );
+                openset.addnode( gap_node );
+                if ( verbose>1 )
                   std::cout << "created node (" << meta.pos_x( gapch+ncol*dcol ) << "," << meta.pos_y( rgap ) << ") "
                     << "local=(" << cgap_win << "," << rgap_win << ") from badch crossing." << std::endl;
-              	  number_badch_nodes_created++;
-            	}
-            	else {
-              	  gap_node = (*it).second;
-            	}
+                  number_badch_nodes_created++;
+                }
+                else {
+                  gap_node = (*it).second;
+                }
 
-            	if ( gap_node==NULL || gap_node->closed==true ) continue;
+                if ( gap_node==NULL || gap_node->closed==true ) continue;
 
-            	// evaluate this node
-            	std::vector<float> dir2node(2,0.0);
-            	dir2node[0] = gap_node->col-current->col;
-            	dir2node[1] = gap_node->row-current->row;
-            	float norm_dist2node = sqrt( dir2node[0]*dir2node[0] + dir2node[1]*dir2node[1] );
-            	dir2node[0] /= norm_dist2node;
-            	dir2node[1] /= norm_dist2node;
+                // evaluate this node
+                std::vector<float> dir2node(2,0.0);
+                dir2node[0] = gap_node->col-current->col;
+                dir2node[1] = gap_node->row-current->row;
+                float norm_dist2node = sqrt( dir2node[0]*dir2node[0] + dir2node[1]*dir2node[1] );
+                dir2node[0] /= norm_dist2node;
+                dir2node[1] /= norm_dist2node;
 
-            	float cosine = dir2node[0]*pastdir[0] + dir2node[1]*pastdir[1];
-            	if ( normpast==0 )
-              	cosine = 0.0;
+                float cosine = dir2node[0]*pastdir[0] + dir2node[1]*pastdir[1];
+                if ( normpast==0 )
+                cosine = 0.0;
 
-            	// we add the distance*(1-cosine)*0.5 score to the gscore
-            	//float penalty = norm_dist2node*0.5*(1.0-cosine)*10.0;
-	    	float penalty = norm_dist2node*norm_dist2node*0.5*(1.0-cosine);
-            	//float penalty = norm_dist2node;
-            	float gscore = current->gscore + norm_dist2node + penalty;
-            	float hscore = sqrt( (goal->col-gap_node->col)*(goal->col-gap_node->col) + (goal->row-gap_node->row)*(goal->row-gap_node->row) );
-            	float fscore = gscore + hscore;
+                // we add the distance*(1-cosine)*0.5 score to the gscore
+                //float penalty = norm_dist2node*0.5*(1.0-cosine)*10.0;
+                float penalty = norm_dist2node*norm_dist2node*0.5*(1.0-cosine);
+                //float penalty = norm_dist2node;
+                float gscore = current->gscore + norm_dist2node + penalty;
+                float hscore = sqrt( (goal->col-gap_node->col)*(goal->col-gap_node->col) + (goal->row-gap_node->row)*(goal->row-gap_node->row) );
+                float fscore = gscore + hscore;
 
-            	if ( gap_node->fscore==0 || gap_node->fscore>fscore ) {
-              	// we update this node
-              	if ( verbose>1 )
-                	std::cout << "updating node (" << meta.pos_x( gapch ) << "," << meta.pos_y( rgap ) << ") from badch crossing: " 
-                  	<< " current-f=" << gap_node->fscore << " f-update=" << fscore << " gap-penalty=" << penalty << " cosine=" << cosine
-                  	<< std::endl;
-              	gap_node->fscore = fscore;
-              	gap_node->gscore = gscore;
-              	gap_node->prev = current;    
-              	gap_node->dir2d = dir2node;
-              	number_badch_updates++;            
+                if ( gap_node->fscore==0 || gap_node->fscore>fscore ) {
+                // we update this node
+                if ( verbose>1 )
+                        std::cout << "updating node (" << meta.pos_x( gapch ) << "," << meta.pos_y( rgap ) << ") from badch crossing: " 
+                        << " current-f=" << gap_node->fscore << " f-update=" << fscore << " gap-penalty=" << penalty << " cosine=" << cosine
+                        << std::endl;
+                gap_node->fscore = fscore;
+                gap_node->gscore = gscore;
+                gap_node->prev = current;    
+                gap_node->dir2d = dir2node;
+                number_badch_updates++;            
               }
 
             }

@@ -107,10 +107,10 @@ namespace larlitecv {
       return false;
     };
 
-    std::string str() { 
+    std::string str() const { 
       std::stringstream ss;
-      ss << "[ node=(" << u << "," << v << "," << w << ") "
-      	 << " (tick,y,z) = (" << tyz[0] << "," << tyz[1] << "," << tyz[2] << ") "
+      ss << "[node=(" << u << "," << v << "," << w << ") "
+      	 << "tyz=(" << tyz[0] << "," << tyz[1] << "," << tyz[2] << ") "
       	 << "f=" << fscore << "]";
       return ss.str();
     }
@@ -127,7 +127,8 @@ namespace larlitecv {
       m_widths = widths;
       m_cm_per_pixel = pixel_lengths;
     }
-    virtual ~Lattice() { cleanup(); };
+    //virtual ~Lattice() { cleanup(); };
+		virtual ~Lattice() {};    
 
     A3DPixPos_t getNodePos( const std::vector<float>& pos );
     std::vector<float> getPos( const int u, const int v, const int w);
