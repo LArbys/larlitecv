@@ -12,10 +12,18 @@ ioman.read_entry(0)
 ev_img   = ioman.get_data( larcv.kProductImage2D, "modimgs" )
 ev_badchs = ioman.get_data( larcv.kProductImage2D, "gapchs" )
 
-start_tick = 5634
-end_tick   = 3876
-start_wires = [731,1398,1456]
-end_wires   = [1795,1124,2246]
+# example where one track needs to get fixed
+#start_tick = 5634
+#end_tick   = 3876
+#start_wires = [731,1398,1456]
+#end_wires   = [1795,1124,2246]
+
+start_tick = 3978
+end_tick   = 2418
+start_wires = [633,1295,1257]
+end_wires   = [1171,838,1337]
+
+# example where end point is in dead region
 use_bad_chs = False
 
 # setup algo
@@ -31,7 +39,6 @@ algo.setVerbose(0)
 
 # get data
 meta = ev_img.Image2DArray().at(2).meta()
-badchs = ev_badchs.Image2DArray().at(2)
 
 paths = []
 fimgs = []
@@ -45,8 +52,8 @@ for p in range(0,3):
 	gimg = algo.getScoreImages().at(1)
 	print "plane %d path size: %d"%(p,path.size()	)
 	paths.append(path)
-	fimgs.append(fimg)
-	gimgs.append(gimg)
+	fimgs.append(larcv.Image2D(fimg))
+	gimgs.append(larcv.Image2D(gimg))
 
 
 # fill fscore image
@@ -96,14 +103,18 @@ for p in range(0,3):
 
 	himg = rt.TH2D("himg_p%d"%(p),"himg", nxbins, low_wire, low_wire+meta.pixel_width()*nxbins, nybins, low_tick, low_tick + meta.pixel_height()*nybins )
 
+	badchs = ev_badchs.Image2DArray().at(p)	
 	for x in range(0,nxbins):
 		for y in range(0,nybins):
 			col = meta.col( himg.GetXaxis().GetBinLowEdge(x+1) )
 			row = meta.row( himg.GetYaxis().GetBinLowEdge(y+1) )
 			val = ev_img.Image2DArray().at(p).pixel( row, col )
-			himg.SetBinContent( x+1, y+1, val )
 			if badchs.pixel(row,col)>0:
-				himg.SetBinContent(x+1,y+1,-10.0)
+				himg.SetBinContent(x+1,y+1,-50.0)
+				continue			
+			if val<10:
+				continue
+			himg.SetBinContent( x+1, y+1, val )
 	himgs.append(himg)
 
 # make path graphs

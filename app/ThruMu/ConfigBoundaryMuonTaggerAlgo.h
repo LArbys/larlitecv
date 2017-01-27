@@ -36,6 +36,7 @@ namespace larlitecv {
     bool hitsearch_uses_badchs;
     int ticks_per_full_drift;
     std::vector<float> type_modifier;
+    int verbosity;
 
     void setdefaults();
     

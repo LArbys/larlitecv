@@ -161,8 +161,8 @@ namespace larlitecv {
     const clock_t begin_time = clock();
     std::vector<int> modimg(nendpts,0);
 
-    // track tests
-    LineRegionTest lrt( 30, 0.9, 5.0 );
+    // track tests: acts as a first filter. is there enouguh charge in between the start and end point?
+    LineRegionTest lrt( 30, 0.9, 5.0 ); 
 
 
     for (int i=0; i<nendpts; i++) {
@@ -170,25 +170,27 @@ namespace larlitecv {
         const BoundarySpacePoint& pts_a = *(spacepts[i]);
         const BoundarySpacePoint& pts_b = *(spacepts[j]);
 
-        if ( pts_a.at(0).type==pts_b.at(0).type ) continue; // don't connect same type
+        if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
         npossible++;
-        //std::cout << "[ path-finding for endpoints (" << i << "," << j << ") "
-        //        << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
-
-        /*
-        for (int p=0; p<3; p++) {
-          int col_a = pts_a.at(p).w;
-          int row_a = pts_a.at(p).t;
-          int col_b = pts_b.at(p).w;
-          int row_b = pts_b.at(p).t;
-          std::cout << "  plane=" << p << ": "
+        
+        if ( _config.verbosity>1 ) {
+          std::cout << "[ path-finding for endpoints (" << i << "," << j << ") "
+                  << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
+        
+          for (int p=0; p<3; p++) {
+            int col_a = pts_a.at(p).col;
+            int row_a = pts_a.at(p).row;
+            int col_b = pts_b.at(p).col;
+            int row_b = pts_b.at(p).row;
+             std::cout << "  plane=" << p << ": "
                     << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
                     << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
                     << std::endl;           
+          }
         }
-        */
+        
 
-        // don't try to connect points that can't be due to drift time
+        // don't try to connect points that are further apart in time than a full drift window
         bool within_drift = true;
         for (int p=0; p<3; p++) {
           int row_a = pts_a.at(p).row;
@@ -198,7 +200,8 @@ namespace larlitecv {
           }
         }
         if ( !within_drift ) {
-          //std::cout << "time separation longer than drift window" << std::endl;
+          if ( _config.verbosity>1 )
+            std::cout << "  time separation longer than drift window" << std::endl;
           continue;
         }
         //use test heuristic to see if we should run astar
@@ -210,9 +213,11 @@ namespace larlitecv {
 //        lrt.verbose_debug = false;
         std::vector< BMTrackCluster2D > test_track(3);
         bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
-        //std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
+        if ( _config.verbosity>1 )
+          std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
         if ( !shallwe ) { 
-          //std::cout << "failed heuristic." << std::endl;
+          if ( _config.verbosity>1 )
+            std::cout << "  failed heuristic." << std::endl;
           continue; // we shant
         }
         //check max deviation from straight line
@@ -242,9 +247,14 @@ namespace larlitecv {
           // book keeping
           track.start_pix_idx = i;
           track.end_pix_idx = j;
-          //std::cout << "  p=" << p << " (" << track.start.w << "," << track.start.t << ") "
-          //        << " -> (" << track.end.w << "," << track.end.t << "): pathsize=" << track.pixelpath.size() << std::endl;
+          if ( _config.verbosity>1 ) {
+            std::cout << "  p=" << p 
+              << " (" << img_v.at(p).meta().pos_x(track.start.col) << "," << img_v.at(p).meta().pos_y(track.start.row) << ") "
+              << " -> (" << img_v.at(p).meta().pos_x(track.end.col) << "," << img_v.at(p).meta().pos_y(track.end.row) << "): "
+              << " pathsize=" << track.pixelpath.size() << std::endl;
+          }
           if ( track.pixelpath.size()>3 ) ncompleted++;
+
           planetracks.emplace_back( std::move( track ) );
         }
         
@@ -256,7 +266,7 @@ namespace larlitecv {
     }//loop over pt a
     
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
-    std::cout << "total paths searched: " << ntotsearched << " of " << npossible << " possible combinrations. time=" << elapsed_secs << " secs" << std::endl;
+    std::cout << "total paths searched: " << ntotsearched << " of " << npossible << " possible combinations. time=" << elapsed_secs << " secs" << std::endl;
     
     return 0;
   }

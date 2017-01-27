@@ -468,11 +468,11 @@ namespace larlitecv {
 
         for ( int endpt1=0; endpt1<numpts[p1]; endpt1++) {
           // check if this endpt is already in use
-          if ( cluster_used[p1][endpt1]==1 ) continue;
+          //if ( cluster_used[p1][endpt1]==1 ) continue;
 
           for ( int endpt2=0; endpt2<numpts[p2]; endpt2++ ) {
             // check if this is also in use
-            if ( cluster_used[p2][endpt2]==1 ) continue;
+            //if ( cluster_used[p2][endpt2]==1 ) continue;
 
             // OK, lets see what wire we have
             int wid1 = img_v.at(p1).meta().pos_x( cluster_info[p1][endpt1].col );
