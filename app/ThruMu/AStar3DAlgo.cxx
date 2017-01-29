@@ -87,18 +87,32 @@ namespace larlitecv {
     for (int i=0; i<3; i++)
       max_lattice[i] = origin_lattice[i] + lattice_widths[i]*cm_per_pixel[i];
 
+    // get the imagemetas for each plane so we can package them for the lattice
+    std::vector< const larcv::ImageMeta* > meta_v;
+    for ( size_t p=0; p<img_v.size(); p++) {
+      const larcv::ImageMeta* ptr_meta = &(img_v.at(p).meta());
+      meta_v.push_back( ptr_meta );
+    }
+
+    // reserve enough space for half full occupancy
+    size_t max_nelements = (size_t)lattice_widths[0]*lattice_widths[1]*lattice_widths[2];
+
     // finally make the lattice
-    Lattice lattice( origin_lattice, lattice_widths, cm_per_pixel );
+    Lattice lattice( origin_lattice, lattice_widths, cm_per_pixel, meta_v );
     if ( verbose>1 ) {
       std::cout << "Defining Lattice" << std::endl;
       std::cout << "origin: (" << origin_lattice[0] << "," << origin_lattice[1] << "," << origin_lattice[2] << ")" << std::endl;
       std::cout << "max-range: (" << max_lattice[0] << "," << max_lattice[1] << "," << max_lattice[2] << ")" << std::endl;
       std::cout << "number of nodes per dimension: (" << lattice_widths[0] << "," << lattice_widths[1] << "," << lattice_widths[2] << ")" << std::endl;
+      std::cout << "max elements: " << max_nelements << std::endl;
     }
+    //lattice.reserve(max_nelements);
 
     // we now make some definitions
     AStar3DNodePtrList openset;
     AStar3DNodePtrList closedset;
+    openset.reserve(max_nelements);
+    closedset.reserve(max_nelements);
 
     // make the target node (window coorindates)
     AStar3DNode* goal = lattice.getNode( goalpos );
@@ -145,12 +159,16 @@ namespace larlitecv {
       std::cout << "neighborhood sizes: " << _config.astar_neighborhood[0] << "," << _config.astar_neighborhood[1] << "," << _config.astar_neighborhood[2] << std::endl;
     }
 
+    std::cin.get();
+
     int nsteps = -1;
     AStar3DNode* current = NULL;
     while ( openset.size()>0 ) {
       // get current
-      current = openset.back();
-      openset.pop_back();
+      do {
+        current = openset.back();
+        openset.pop_back();
+      } while ( current->closed );
       nsteps++;
       if ( verbose>2 || (verbose>0 && nsteps%100==0) ) {
         std::cout << "step=" << nsteps << ": get current node " << current->str() << ". "
@@ -176,7 +194,7 @@ namespace larlitecv {
       openset.sort();
 
       if ( verbose>1 ) {
-        std::cout << "update on sets: " << std::endl;
+        std::cout << "step=" << nsteps << ": get current node " << current->str() << ". " << std::endl;
         std::cout << " in open openset: " << openset.size() << std::endl;
         //for ( auto node : openset ) 
         //  std::cout << "  " << node->str() << " g=" << node->gscore << std::endl;
@@ -185,10 +203,10 @@ namespace larlitecv {
           
 
       if ( verbose>3 && nsteps%100==0 ) {
-        std::cout << "[enter] to continue." << std::endl;
+        std::cout << "step " << nsteps << ". [enter] to continue." << std::endl;
         std::cin.get();
       }
-      std::cin.get();      
+      //std::cin.get();      
 
     }//end of while loop
 
@@ -226,15 +244,10 @@ namespace larlitecv {
     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
     AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice ) {
 
-
     const A3DPixPos_t& center = current->nodeid;
-    const int nplanes = img_v.size();
-    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]
 
     int number_updates=0;
 
-    // make a list of lattice points we have to evaluate
-    std::vector<A3DPixPos_t> neighborhood_points;
     for (int du=-_config.astar_neighborhood[0]; du<=_config.astar_neighborhood[0]; du++) {
       for (int dv=-_config.astar_neighborhood[1]; dv<=_config.astar_neighborhood[1]; dv++) {
         for (int dw=-_config.astar_neighborhood[2]; dw<=_config.astar_neighborhood[2]; dw++) {
@@ -247,147 +260,138 @@ namespace larlitecv {
             continue;
 
           A3DPixPos_t evalme( u, v, w);
-          neighborhood_points.emplace_back( std::move(evalme) );
+          bool updated = evaluteLatticePoint( evalme, current, start, goal, img_v, badch_v, openset, closedset, lattice );
+          if ( updated )
+            number_updates++;
         }
       }
     }
-    if ( verbose>1 )
-      std::cout << "number of lattice points to check: " << neighborhood_points.size() << std::endl;
-
-    // get image position of start and end
-    int start_row;
-    std::vector<int> start_cols;
-    int goal_row;
-    std::vector<int> goal_cols;
-    bool within_image = true;
-    lattice.getImageCoordinates( start->nodeid, img_v.front().meta(), start_row, start_cols, within_image );
-    lattice.getImageCoordinates( goal->nodeid, img_v.front().meta(), goal_row, goal_cols, within_image );  
-
-    // get detector position for current node
-    std::vector<float> current_tyz = lattice.getPos( current->nodeid );
-    // we'll need the goal detector position as well
-    std::vector<float> goal_tyz    = lattice.getPos( goal->nodeid );
-    std::cout << "eval. neighbors around " << (*current).str() << " -> goal=" << (*goal).str() << std::endl;
-
-    for ( auto const& latticept : neighborhood_points ) {
-
-      // get detector coordinates for this lattice point
-
-      // turn this lattice point into a position in the images
-      std::vector<float> tyz = lattice.getPos( latticept );
-
-      if ( tyz[0]<=img_v.front().meta().min_y() || tyz[0]>=img_v.front().meta().max_y() ) {
-        continue; /// not within image
-      }
-
-      int row;
-      std::vector<int> cols(nplanes,0);
-      bool within_image = true;
-      lattice.getImageCoordinates( latticept, img_v.front().meta(), row, cols, within_image );
-
-      if ( verbose>2 ) {
-        std::cout << " lattice pt (" << latticept[0] << "," << latticept[1] << "," << latticept[2] << ") "
-          << "img pos: (r=" << row << "," << cols[0] << "," << cols[1] << "," << cols[2] << ") "
-          << "within_image=" << within_image << std::endl;
-      }
- 
-      if ( !within_image ) continue;
-
-      bool within_pad = false; // allowed region to allow start point to get onto a track (in case of mistakes by endpoint tagger)
-      if ( abs(row-start_row)<_config.astar_start_padding ) within_pad = true;
-      for (int p=0; p<nplanes; p++) {
-        if ( abs( cols[p]-start_cols[p])<_config.astar_start_padding ) within_pad = true;
-      }
-
-
-      // is this neighbor the goal? we need to know so we can always include it as a possible landing point, even if in badch region.
-      bool isgoal = true;
-      if ( row!=goal_row ) {
-        isgoal = false;
-      }
-      else {
-        //have to check cols too
-        for (int p=0; p<nplanes; p++) {
-          if ( goal_cols[p]!=cols[p] ) {
-            isgoal = false;
-            break;
-          }
-        }
-      }
-
-      int nplanes_abovethreshold_or_bad = 0;
-      int nplanes_bad = 0;
-      for (int p=0; p<nplanes; p++){
-        if ( img_v.at(p).pixel( row, cols[p] )>_config.astar_threshold[p] ) {
-          nplanes_abovethreshold_or_bad++;
-        }
-        else if ( badch_v.at(p).pixel(row,cols[p])>0 ) {
-          nplanes_abovethreshold_or_bad++;
-          nplanes_bad++;
-        }
-      }
-          
-      // the criteria for NOT evaluating this node
-      if ( !within_pad && !isgoal && ( nplanes_abovethreshold_or_bad<3 || nplanes_bad>1 ) )
-        continue; // skip if below threshold
-          
-      AStar3DNode* neighbor_node = lattice.getNode( latticept );
-      if ( neighbor_node==nullptr )
-        continue;
-      //std::cout << " define neighbor node: " << neighbor_node->str() << ", inopenset=" << neighbor_node->inopenset << " closed=" << neighbor_node->closed << std::endl;
-
-      if ( neighbor_node->closed )
-        continue; // don't reevaluate a closed node
-      else if ( !neighbor_node->closed  && !neighbor_node->inopenset )
-        openset.addnode( neighbor_node ); // add to openset if not on closed set nor is already on openset
-
-
-      // define the jump cost for this node
-      // first get the diff vector from here to current node
-      float jump_cost = 0.;
-      std::vector<float> neighbor_tyz = lattice.getPos( latticept );
-      for (int i=1; i<3; i++) {
-        float dx = neighbor_tyz[i] - current_tyz[i];
-        jump_cost += dx*dx;
-      }
-      float dt = ( neighbor_tyz[0]-current_tyz[0] )*cm_per_tick;
-      jump_cost += dt*dt;
-      jump_cost = sqrt(jump_cost);
-
-      
-      // calculate heuristic score (distance of node to goal node)
-      float hscore = 0.;
-      for (int i=1; i<3; i++) {
-        float dx = (neighbor_tyz[i] - goal_tyz[i]);
-        hscore += dx*dx;
-      }
-      dt = ( neighbor_tyz[0] - goal_tyz[0] )*cm_per_tick;
-      hscore += dt*dt;
-      hscore = sqrt(hscore);
-
-      float gscore = current->gscore + jump_cost;
-      float fscore = gscore + hscore;
-
-      // is this gscore better than the current one (or is it unassigned?)
-      if ( neighbor_node->fscore==0 || (neighbor_node->fscore>0 && neighbor_node->fscore>fscore )) {
-        // update the neighbor to follow this path
-        if ( verbose>2 )
-        std::cout << "  updating neighbor to with better path: from f=" << neighbor_node->fscore << " g=" << neighbor_node->gscore 
-                  << " to f=" << fscore << " g=" << gscore << std::endl;
-        neighbor_node->prev = current;
-        neighbor_node->fscore = fscore;
-        neighbor_node->gscore = gscore;
-        //neighbor_node->dir3d = dir3d; not implemented yet
-        number_updates++;
-      }
-      else {
-        if ( verbose>2 )
-          std::cout << "  this neighbor already on better path. current-f=" << neighbor_node->fscore << " < proposed-f=" << fscore << std::endl;
-      }
-    }//end of neighbor node position loop
 
     if ( verbose>1 )
       std::cout << "number of node updates: " << number_updates << std::endl;
+  }
+
+  bool AStar3DAlgo::evaluteLatticePoint( const A3DPixPos_t& latticept, AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
+    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+    AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice ) {
+    // returns true if updated, false if not
+
+    const int nplanes = img_v.size();
+
+    AStar3DNode* neighbor_node = lattice.getNode( latticept );
+    if ( neighbor_node==nullptr ) {
+      std::stringstream ss;
+      ss << " lattice pt (" << latticept[0] << "," << latticept[1] << "," << latticept[2] << ") node is NULL" << std::endl;
+      std::cout << ss.str() << std::endl;
+      std::runtime_error( ss.str() );
+      return false;
+    }
+
+    if ( verbose>3 ) {
+      std::cout << " lattice pt (" << latticept[0] << "," << latticept[1] << "," << latticept[2] << ") "
+        << "img pos: (r=" << neighbor_node->row << "," << neighbor_node->cols[0] << "," << neighbor_node->cols[1] << "," << neighbor_node->cols[2] << ") "
+        << "within_image=" << neighbor_node->within_image << " closed=" << neighbor_node->closed << std::endl;
+    }
+
+    if ( neighbor_node->closed )
+      return false; // don't reevaluate a closed node
+ 
+    if ( !neighbor_node->within_image )  {
+      neighbor_node->closed = true;
+      closedset.addnode(neighbor_node);
+      return false; // clearly not worth evaluating
+    }
+
+    bool within_pad = false; // allowed region to allow start point to get onto a track (in case of mistakes by endpoint tagger)
+    // let's have the lattest provide this designation, so we don't have to waste time here
+    if ( abs(neighbor_node->row - start->row)<_config.astar_start_padding ) within_pad = true;
+    for (int p=0; p<nplanes; p++) {
+      if ( abs( neighbor_node->cols[p] - start->cols[p])<_config.astar_start_padding ) within_pad = true;
+    }
+
+    // is this neighbor the goal? we need to know so we can always include it as a possible landing point, even if in badch region.
+    bool isgoal = true;
+    if ( neighbor_node->row!=goal->row ) {
+      isgoal = false;
+    }
+    else {
+      //have to check cols too
+      for (int p=0; p<nplanes; p++) {
+        if ( goal->cols[p]!=neighbor_node->cols[p] ) {
+          isgoal = false;
+          break;
+        }
+      }
+    }
+
+    int nplanes_abovethreshold_or_bad = 0;
+    int nplanes_bad = 0;
+    for (int p=0; p<nplanes; p++){
+      if ( img_v.at(p).pixel( neighbor_node->row, neighbor_node->cols[p] )>_config.astar_threshold[p] ) {
+        nplanes_abovethreshold_or_bad++;
+      }
+      else if ( badch_v.at(p).pixel(neighbor_node->row,neighbor_node->cols[p])>0 ) {
+        nplanes_abovethreshold_or_bad++;
+        nplanes_bad++;
+      }
+    }
+          
+    // the criteria for NOT evaluating this node
+    if ( !within_pad && !isgoal && ( nplanes_abovethreshold_or_bad<3 || nplanes_bad>1 ) ) {
+      neighbor_node->closed = true; // we close this node as its not allowed
+      closedset.addnode( neighbor_node);
+      return false; // skip if below threshold
+    }
+          
+
+    if ( !neighbor_node->inopenset )
+      openset.addnode( neighbor_node ); // add to openset if not on closed set nor is already on openset
+
+
+    // define the jump cost for this node
+    // first get the diff vector from here to current node
+    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]    
+    float jump_cost = 0.;
+    for (int i=1; i<3; i++) {
+      float dx = neighbor_node->tyz[i] - current->tyz[i];
+      jump_cost += dx*dx;
+    }
+    float dt = ( neighbor_node->tyz[0]-current->tyz[0] )*cm_per_tick;
+    jump_cost += dt*dt;
+    jump_cost = sqrt(jump_cost);
+
+      
+    // calculate heuristic score (distance of node to goal node)
+    float hscore = 0.;
+    for (int i=1; i<3; i++) {
+      float dx = (neighbor_node->tyz[i] - goal->tyz[i]);
+      hscore += dx*dx;
+    }
+    dt = ( neighbor_node->tyz[0] - goal->tyz[0] )*cm_per_tick;
+    hscore += dt*dt;
+    hscore = sqrt(hscore);
+
+    float gscore = current->gscore + jump_cost;
+    float fscore = 0.95*gscore + hscore;
+
+    // is this gscore better than the current one (or is it unassigned?)
+    if ( neighbor_node->fscore==0 || neighbor_node->fscore>fscore ) {
+      // update the neighbor to follow this path
+      if ( verbose>2 )
+        std::cout << "  updating neighbor to with better path: from f=" << neighbor_node->fscore << " g=" << neighbor_node->gscore 
+                  << " to f=" << fscore << " g=" << gscore << std::endl;
+      neighbor_node->prev = current;
+      neighbor_node->fscore = fscore;
+      neighbor_node->gscore = gscore;
+      //neighbor_node->dir3d = dir3d; not implemented yet
+      return true;
+    }
+    else {
+      if ( verbose>3 )
+        std::cout << "  this neighbor already on better path. current-f=" << neighbor_node->fscore << " < proposed-f=" << fscore << std::endl;
+    }    
+
+    return false;
   }
 
   /*
@@ -605,9 +609,14 @@ namespace larlitecv {
     AStar3DNode* node = nullptr;
 
     if ( it_node==end() ) {
-      // create a node
+      // [[ create a node ]]
+      // get the detector coordinates (tick, y, z)
       std::vector<float> tyz = getPos( nodeid );
+      // create the node
       node = new AStar3DNode( nodeid[0], nodeid[1], nodeid[2], tyz );
+      // get the image coordinates
+      getImageCoordinates( nodeid, node->row, node->cols, node->within_image );
+      // put it into the map
       insert( a3dpos_pair_t(nodeid,node) );
     }
     else {
@@ -655,14 +664,14 @@ namespace larlitecv {
     return pos;
   }
 
-  void Lattice::getImageCoordinates( const A3DPixPos_t& nodeid, const larcv::ImageMeta& meta, int& row, std::vector<int>& cols, bool& within_image ) {
+  void Lattice::getImageCoordinates( const A3DPixPos_t& nodeid, int& row, std::vector<int>& cols, bool& within_image ) {
     // turn this lattice point into a position in the images
     row = 0;
     cols.resize(3,0);
 
     std::vector<float> tyz = getPos( nodeid );
 
-    if ( tyz[0]<=meta.min_y() || tyz[0]>=meta.max_y() ) {
+    if ( tyz[0]<=m_meta_v.front()->min_y() || tyz[0]>=m_meta_v.front()->max_y() ) {
       within_image = false;
       return;
     }
@@ -673,13 +682,13 @@ namespace larlitecv {
     for ( int p=0; p<3; p++ ) {
       Double_t xyz[3] { (tyz[0]-3200)*0.5*0.110, tyz[1], tyz[2] }; // (x doesn't matter really)
       wid[p] = larutil::Geometry::GetME()->WireCoordinate( xyz, p );
-      if ( wid[p]<=meta.min_x() || wid[p]>=meta.max_x() ) {
+      if ( wid[p]<=m_meta_v.at(p)->min_x() || wid[p]>=m_meta_v.at(p)->max_x() ) {
         within_image = false;
         return;
       }
-      cols[p] = meta.col(wid[p]);
+      cols[p] = m_meta_v.at(p)->col(wid[p]);
     }
-    row = meta.row(tyz[0]);
+    row = m_meta_v.front()->row(tyz[0]);
     return;
   }
   

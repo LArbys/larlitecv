@@ -47,6 +47,8 @@ namespace larlitecv {
       dir3d.resize(3,0.0);
       tyz.resize(3,0.0);
       prev = NULL;
+      row = 0;
+      within_image=false;
     };
     AStar3DNode( int u_, int v_, int w_, std::vector<float> tyz_ ) { 
       u = u_; 
@@ -57,11 +59,13 @@ namespace larlitecv {
       nodeid[2] = w;
       fscore=0.0;
       gscore=0.0;
+      within_image=false;
       dir3d.resize(3,0);
       tyz = tyz_;
       closed = false;
       inopenset = false;
       prev = NULL;
+      row = 0;
     };
     AStar3DNode( const AStar3DNode& src ) {
       u = src.u;
@@ -73,8 +77,11 @@ namespace larlitecv {
       dir3d = src.dir3d;
       tyz = src.tyz;
       closed = src.closed;
+      within_image = src.within_image;
       inopenset = src.inopenset;
       prev = src.prev;
+      row = src.row;
+      cols = src.cols;
     };
     virtual ~AStar3DNode() {};
 
@@ -87,6 +94,9 @@ namespace larlitecv {
 
     std::vector<float> dir3d;
     std::vector<float> tyz; // (tick, y, z) in detector coordinates
+    int row;
+    std::vector<int> cols;
+    bool within_image;
     bool inopenset;
     bool closed;
     AStar3DNode* prev;
@@ -122,13 +132,14 @@ namespace larlitecv {
 
   class Lattice : public std::map< A3DPixPos_t, AStar3DNode* > {
   public:
-    Lattice( const std::vector<float>& origin, const std::vector<int>& widths, const std::vector<float>& pixel_lengths ) {
+    Lattice( const std::vector<float>& origin, const std::vector<int>& widths, const std::vector<float>& pixel_lengths, 
+    	const std::vector<const larcv::ImageMeta* >& meta_v ) {
       m_origin = origin;
       m_widths = widths;
       m_cm_per_pixel = pixel_lengths;
+      m_meta_v = meta_v;
     }
-    //virtual ~Lattice() { cleanup(); };
-		virtual ~Lattice() {};    
+    virtual ~Lattice() { cleanup(); };
 
     A3DPixPos_t getNodePos( const std::vector<float>& pos );
     std::vector<float> getPos( const int u, const int v, const int w);
@@ -136,17 +147,26 @@ namespace larlitecv {
     AStar3DNode* getNode( const std::vector<float>& pos );
     AStar3DNode* getNode( const int u, const int v, const int w);
     AStar3DNode* getNode( const A3DPixPos_t& nodeid );
-    void getImageCoordinates( const A3DPixPos_t& nodeid, const larcv::ImageMeta& meta, int& row, std::vector<int>& cols, bool& within_image );
+    void getImageCoordinates( const A3DPixPos_t& nodeid, int& row, std::vector<int>& cols, bool& within_image );
   
     const std::vector<int>& widths() const { return m_widths; }
     const std::vector<float>& origin() const { return m_origin; }
     const std::vector<float>& pixel_len() const { return m_cm_per_pixel; }    
+
+    void setStartNodeWithPadding( AStar3DNode* start, const std::vector<int>& start_padding );
 
   protected:
 
     std::vector<float> m_origin;
     std::vector<int> m_widths;
     std::vector<float> m_cm_per_pixel;
+    std::vector< const larcv::ImageMeta* > m_meta_v;
+
+    // start padding
+    AStar3DNode* m_start_node;
+    A3DPixPos_t  m_start_nodeid;
+    std::vector<int> m_start_padding;
+    bool fCheckStartPadding;
 
     void cleanup(); // destroy nodes allocated on the heap
 
@@ -180,7 +200,7 @@ namespace larlitecv {
     void addnode( AStar3DNode* elem ) {
     	elem->inopenset = true;
       push_back( elem );
-      sort();
+      //sort();
     }
 
   };
@@ -219,6 +239,10 @@ namespace larlitecv {
 	  std::vector<AStar3DNode> makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed );  
 
 	  void evaluateNeighborNodes( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
+    	const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+    	AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice );
+
+	  bool evaluteLatticePoint( const A3DPixPos_t& latticept, AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
 	    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
   	  AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice );
 
