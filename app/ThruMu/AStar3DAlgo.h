@@ -17,6 +17,7 @@ Uses Image2D to hold image.
 #include <algorithm>
 #include <string>
 #include <sstream>
+#include <array>
 
 #include "DataFormat/Image2D.h"
 
@@ -49,6 +50,8 @@ namespace larlitecv {
       prev = NULL;
       row = 0;
       within_image=false;
+      pixval.resize(3,0.0);
+      badchnode = false;
     };
     AStar3DNode( int u_, int v_, int w_, std::vector<float> tyz_ ) { 
       u = u_; 
@@ -66,6 +69,8 @@ namespace larlitecv {
       inopenset = false;
       prev = NULL;
       row = 0;
+      pixval.resize(3,0.0);
+      badchnode = false;
     };
     AStar3DNode( const AStar3DNode& src ) {
       u = src.u;
@@ -82,6 +87,8 @@ namespace larlitecv {
       prev = src.prev;
       row = src.row;
       cols = src.cols;
+      pixval = src.pixval;
+      badchnode = src.badchnode;
     };
     virtual ~AStar3DNode() {};
 
@@ -96,9 +103,11 @@ namespace larlitecv {
     std::vector<float> tyz; // (tick, y, z) in detector coordinates
     int row;
     std::vector<int> cols;
+    std::vector<float> pixval;
     bool within_image;
     bool inopenset;
     bool closed;
+    bool badchnode; // tag if its a badch node
     AStar3DNode* prev;
 
     bool operator <(const AStar3DNode& rhs ) const {
@@ -121,7 +130,9 @@ namespace larlitecv {
       std::stringstream ss;
       ss << "[node=(" << u << "," << v << "," << w << ") "
       	 << "tyz=(" << tyz[0] << "," << tyz[1] << "," << tyz[2] << ") "
-      	 << "f=" << fscore << "]";
+      	 << "f=" << fscore << " "
+      	 << "g=" << gscore << " "
+      	 << "]";
       return ss.str();
     }
 
@@ -192,10 +203,21 @@ namespace larlitecv {
       };
     } m_thecomparator;
 
+    struct dirnodeptr_compare_hscore_t {
+      bool operator() (const AStar3DNode* lhs, const AStar3DNode* rhs ) const {
+        if ( lhs->fscore-lhs->gscore > rhs->fscore-rhs->gscore )
+          return true;
+        return false;
+      };
+    } m_the_hscore_comparator;
+
     public:
     void sort() {
       std::sort(this->begin(),this->end(), m_thecomparator);
     }
+    void sort_by_hscore() {
+      std::sort(this->begin(),this->end(), m_the_hscore_comparator);
+    }    
 
     void addnode( AStar3DNode* elem ) {
     	elem->inopenset = true;
@@ -219,6 +241,8 @@ namespace larlitecv {
     int astar_start_padding;
     int astar_end_padding;
     int lattice_padding;
+    bool accept_badch_nodes;
+    int min_nplanes_w_hitpixel;
 
   };
 
@@ -234,7 +258,7 @@ namespace larlitecv {
     void setVerbose( int v ) { verbose = v; };
 
 	  std::vector<AStar3DNode> findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
-	  	const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols  );
+	  	const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached );
 
 	  std::vector<AStar3DNode> makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed );  
 

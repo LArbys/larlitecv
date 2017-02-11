@@ -41,23 +41,33 @@ namespace larlitecv {
   public:
     
     void configure( ConfigBoundaryMuonTaggerAlgo& cfg ) { _config = cfg; };
+
     void run();
+
     int searchforboundarypixels3D( const std::vector< larcv::Image2D >& imgs, // original image
-				   const std::vector< larcv::Image2D >& badchs, // image with bad channels marked
-				   std::vector< BoundarySpacePoint >& end_points, ///list of end point triples
-				   std::vector< larcv::Image2D >& boundarypixelimgs, // pixels consistent with boundary hits
-				   std::vector< larcv::Image2D >& boundaryspaceptsimgs ); // points in real-space consistent with boundary hits
+                                   const std::vector< larcv::Image2D >& badchs, // image with bad channels marked
+                                   std::vector< BoundarySpacePoint >& end_points, ///list of end point triples
+                                   std::vector< larcv::Image2D >& boundarypixelimgs, // pixels consistent with boundary hits
+                                   std::vector< larcv::Image2D >& boundaryspaceptsimgs ); // points in real-space consistent with boundary hits
+
     int makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
-			     const std::vector< const BoundarySpacePoint* >& spacepts,
-			     std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters );
+                             const std::vector< const BoundarySpacePoint* >& spacepts,
+                             std::vector< larlitecv::BMTrackCluster3D >& trackclusters );
+
     int markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
-				    const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters, std::vector<int>& goodlist,
-				    std::vector<larcv::Image2D>& markedimgs );
+                                    const std::vector< larlitecv::BMTrackCluster3D >& trackclusters, std::vector<int>& goodlist,
+                                    std::vector<larcv::Image2D>& markedimgs );
+
     BMTrackCluster2D runAstar( const BoundaryEndPt& start, const BoundaryEndPt& end, const larcv::Image2D& img, const larcv::Image2D& badchimg,
-			       int start_pad, int end_pad, int verbose=0, bool use_badchs=false );
+                               int start_pad, int end_pad, int verbose=0, bool use_badchs=false );
+
+    BMTrackCluster3D runAstar3D( const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt, 
+        const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+        const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v, bool& goal_reached );
+
     void process2Dtracks( std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
-			  const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
-			  std::vector< BMTrackCluster3D >& tracks, std::vector<int>& goodlist );
+                          const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
+                          std::vector< BMTrackCluster3D >& tracks, std::vector<int>& goodlist );
 
     BoundaryEnd_t CrossingToBoundaryEnd( Crossings_t cross ) { return (BoundaryEnd_t)cross; }; // should be a switch, but I am lazy.
 
@@ -76,9 +86,9 @@ namespace larlitecv {
     BoundaryMatchAlgo* matchalgo_loose;
     
     BMTrackCluster3D process2Dtrack( std::vector< larlitecv::BMTrackCluster2D >& track2d, 
-				     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v );
+                                     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v );
     bool compare2Dtrack( const std::vector< BMTrackCluster2D >& track2d, const BMTrackCluster3D& track3d, const larcv::ImageMeta& meta,
-			 float path_radius_cm, float endpt_radius_cm );
+                         float path_radius_cm, float endpt_radius_cm );
 
     void CollectCandidateBoundaryPixels( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,
       std::vector< dbscan::dbPoints >& combo_points, std::vector< std::vector< std::vector<int> > >& combo_cols,

@@ -8,12 +8,14 @@
 
 // larlite
 #include "LArUtil/Geometry.h"
+#include "LArUtil/LArProperties.h"
 #include "GeoAlgo.h"
 
 // larcv
 #include "UBWireTool/UBWireTool.h"
 
 #include "AStarDirAlgo.h"
+#include "AStar3DAlgo.h"
 #include "BoundaryEndPt.h"
 #include "BoundaryIntersectionAlgo.h"
 #include "LineRegionTest.h"
@@ -148,7 +150,7 @@ namespace larlitecv {
 
   int BoundaryMuonTaggerAlgo::makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
                                                    const std::vector< const BoundarySpacePoint* >& spacepts,
-                                                   std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters ) {
+                                                   std::vector< larlitecv::BMTrackCluster3D >& trackclusters ) {
     
     // wrap references into a struct so i can treat them more like an array
     // the order matches the order in BoundaryEnd_t enum
@@ -164,6 +166,18 @@ namespace larlitecv {
     // track tests: acts as a first filter. is there enouguh charge in between the start and end point?
     LineRegionTest lrt( 30, 0.9, 5.0 ); 
 
+    // compress images for AStar3D
+    std::vector< larcv::Image2D > img_compressed_v;
+    std::vector< larcv::Image2D > badch_compressed_v;
+    int downsampling_factor = 4;
+    for (int p=0; p<3; p++) {
+      larcv::Image2D img_compressed( img_v.at(p) );
+      larcv::Image2D badch_compressed( badchimg_v.at(p) );
+      img_compressed.compress( img_v.at(p).meta().rows()/downsampling_factor, img_v.at(p).meta().cols()/downsampling_factor );
+      badch_compressed.compress( img_v.at(p).meta().rows()/downsampling_factor, img_v.at(p).meta().cols()/downsampling_factor );
+      img_compressed_v.emplace_back( std::move(img_compressed) );
+      badch_compressed_v.emplace_back( std::move(badch_compressed) );
+    }
 
     for (int i=0; i<nendpts; i++) {
       for (int j=i+1; j<nendpts; j++) {
@@ -233,6 +247,7 @@ namespace larlitecv {
         }
         
 
+        /*
         std::vector< BMTrackCluster2D > planetracks;
         int ncompleted = 0;
         for (size_t p=0; p<3; p++) {
@@ -257,22 +272,29 @@ namespace larlitecv {
 
           planetracks.emplace_back( std::move( track ) );
         }
-        
-        if ( ncompleted>=2 ) {
-          trackclusters.emplace_back( std::move(planetracks) );
+        */
+
+        bool goal_reached = false;
+        BMTrackCluster3D track3d = runAstar3D( pts_a, pts_b, img_v, badchimg_v, img_compressed_v, badch_compressed_v, goal_reached );
+        std::vector< BMTrackCluster2D >& planetracks = track3d.plane_paths;
+
+        if ( goal_reached ) {
+          trackclusters.emplace_back( std::move(track3d) );
         }
+
         ntotsearched++;
       }//loop over pt b
     }//loop over pt a
     
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "total paths searched: " << ntotsearched << " of " << npossible << " possible combinations. time=" << elapsed_secs << " secs" << std::endl;
+    std::cout << "number of tracks created: " << trackclusters.size() << std::endl;
     
     return 0;
   }
 
   int BoundaryMuonTaggerAlgo::markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
-                                                          const std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters,
+                                                          const std::vector< larlitecv::BMTrackCluster3D >& tracks,
                                                           std::vector<int>& goodlist, std::vector<larcv::Image2D>& markedimgs ) {
     std::vector< larcv::Image2D > workspace;
     for (auto &img : imgs ) {
@@ -283,11 +305,13 @@ namespace larlitecv {
       markedimgs.emplace_back( std::move(markedimg) );
     }
 
-    for ( int itrack=0; itrack<(int)trackclusters.size(); itrack++ ) {
+    for ( int itrack=0; itrack<(int)tracks.size(); itrack++ ) {
     
       if ( goodlist.at(itrack)==0 ) continue;
       
-      const std::vector< larlitecv::BMTrackCluster2D >& tracks2d = trackclusters.at(itrack);
+      const BMTrackCluster3D& track3d = tracks.at(itrack);
+
+      const std::vector< larlitecv::BMTrackCluster2D >& tracks2d = track3d.plane_paths;
       
       float frac_marked[imgs.size()];
       for ( auto &img : imgs ) {
@@ -379,6 +403,7 @@ namespace larlitecv {
     astar_config.astar_start_padding = start_pad;
     astar_config.astar_end_padding   = end_pad;
     astar_config.image_padding = 20;
+
     larlitecv::AStarDirAlgo algo( astar_config );
     algo.setVerbose(verbose);
     algo.setBadChImage( badchimg );
@@ -392,8 +417,136 @@ namespace larlitecv {
       track2d.pixelpath += pixel; // uniary operator!
     }
     return track2d;
+  }  
+ 
+  BMTrackCluster3D BoundaryMuonTaggerAlgo::runAstar3D( const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt, 
+        const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+        const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v,
+        bool& goal_reached ) {
+
+    // This wraps/interfaces with the AStar algorithm on our image. runs one start to end check.
+    // inputs
+    // ------
+    //  start: starting boundary point
+    //  end: ending boundary point
+    //  img: image with charge deposition we will follow
+    //  start_pad: radius around starting point where we will include all hits in case not start point directly on track
+    //  end_pad:   radius around ending point where we will include all hits in case end point not directly on track
+
+    BMTrackCluster3D track3d;
+
+    // Run AStar3DAlgo
+
+    // configure
+    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]    
+    larlitecv::AStar3DAlgoConfig astar_config;
+    astar_config.astar_threshold.resize(3,0);
+    astar_config.astar_threshold[0] = 100.0;
+    astar_config.astar_threshold[1] = 100.0;
+    astar_config.astar_threshold[2] = 150.0;
+    astar_config.astar_neighborhood.resize(3,6);
+    astar_config.astar_start_padding = 3;
+    astar_config.astar_end_padding   = 3;
+    astar_config.lattice_padding = 10;
+    astar_config.accept_badch_nodes = true;
+    astar_config.min_nplanes_w_hitpixel = 3;
+
+    // fill track3d data
+    track3d.start_type = start_pt.type();
+    track3d.end_type   = end_pt.type();    
+    track3d.row_start = start_pt.front().row;
+    track3d.row_end   = end_pt.front().row;
+    track3d.tick_start = img_v.front().meta().pos_y( track3d.row_start );
+    track3d.tick_end   = img_v.front().meta().pos_y( track3d.row_end );
+    track3d.start_wire.resize(3,0);
+    track3d.end_wire.resize(3,0);
+    track3d.start3D.resize(3,0);
+    track3d.end3D.resize(3,0);
+    for (int i=0; i<3; i++) {
+      track3d.start3D[i] = start_pt.pos()[i];
+      track3d.end3D[i] = end_pt.pos()[i];
+    }
+
+    // collect meta/translate start/goal tick/wires to row/col in compressed image
+    std::vector< const larcv::ImageMeta* > meta_compressed_v;
+    std::vector<int> start_cols(img_compressed_v.size(),0);
+    std::vector<int> start_rows(img_compressed_v.size(),0);
+    std::vector<int> goal_cols(img_compressed_v.size(),0);
+    std::vector<int> goal_rows(img_compressed_v.size(),0);    
+
+    for (size_t p=0; p<img_compressed_v.size(); p++) {
+
+      // get start/end point informatio in compressed image
+      const larcv::ImageMeta* ptr_meta = &(img_compressed_v.at(p).meta());
+
+      const larlitecv::BoundaryEndPt& start_endpt = start_pt.at(p);
+      start_rows[p] =  ptr_meta->row( img_v.at(p).meta().pos_y( start_endpt.row ) );
+      start_cols[p] =  ptr_meta->col( img_v.at(p).meta().pos_x( start_endpt.col ) );
+
+      const larlitecv::BoundaryEndPt& goal_endpt  = end_pt.at(p);
+      goal_rows[p]  =  ptr_meta->row( img_v.at(p).meta().pos_y( goal_endpt.row ) );
+      goal_cols[p]  =  ptr_meta->col( img_v.at(p).meta().pos_x( goal_endpt.col ) );
+
+      // make container for track2d info
+      BMTrackCluster2D track2d;
+      track2d.start = start_endpt;
+      track2d.end   = goal_endpt;
+      track2d.plane = (int)p;
+      track3d.plane_paths.emplace_back( std::move(track2d) );
+
+      meta_compressed_v.push_back( ptr_meta );
+    }
+
+
+    larlitecv::AStar3DAlgo algo( astar_config );
+    std::vector<larlitecv::AStar3DNode> path;
+    algo.setVerbose(0);
+    int goalhit = 0;
+    try {
+      path = algo.findpath( img_compressed_v, badch_compressed_v,
+        start_rows.front(), goal_rows.front(), start_cols, goal_cols, goalhit );
+      if ( goalhit==1 )
+        goal_reached = true;
+    }
+    catch (const std::exception& e) {
+      std::cout << "exception running astar3dalgo::findpath: " << e.what() << std::endl;
+      return track3d; // return empty track
+    }
+
+    for ( auto& node : path ) {
+      for ( size_t p=0; p<img_v.size(); p++) {
+
+        int compressed_tick = img_compressed_v.at(p).meta().pos_y(node.row);
+        if ( compressed_tick<img_v.at(p).meta().min_y() ) 
+          compressed_tick = img_v.at(p).meta().min_y()+0.1;
+        else if ( compressed_tick>=img_v.at(p).meta().max_y() ) 
+          compressed_tick = img_v.at(p).meta().max_y()-0.1;
+        int row = img_v.at(p).meta().row( compressed_tick );
+
+        int compressed_wire  = img_compressed_v.at(p).meta().pos_x(node.cols.at(p));
+        if (compressed_wire<img_v.at(p).meta().min_x()) 
+          compressed_wire = img_v.at(p).meta().min_x()+0.1;
+        else if ( compressed_wire>=img_v.at(p).meta().max_x()) 
+          compressed_wire = img_v.at(p).meta().max_x()-0.1;
+        int col = img_v.at(p).meta().col( compressed_wire );
+
+        BMTrackCluster2D& track2d = track3d.plane_paths.at(p);
+        larcv::Pixel2D pixel( col, row ); // back in original image space
+        pixel.Intensity( (int)start_pt.type() );
+        track2d.pixelpath += pixel;
+
+      }
+      // define xyz position for node
+      std::vector<double> pos3d(3);      
+      for (int i=1; i<3; i++){
+        pos3d[i] = node.tyz[i];
+      }
+      pos3d[0] = (node.tyz[0]-3200)*cm_per_tick;
+      track3d.path3d.emplace_back( std::move(pos3d) );
+    }
+    return track3d;
   }
-  
+
   void BoundaryMuonTaggerAlgo::process2Dtracks( std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
                                                 const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
                                                 std::vector< BMTrackCluster3D >& tracks, std::vector<int>& goodlist ) {
@@ -946,14 +1099,14 @@ namespace larlitecv {
     
     // we save col number of pixels above threshold in each plane with this vector.
     // it is the size of the neighborhood we'll look at. _config.neighborhoods defines the radius.
-    std::vector<int> abovethresh[nplanes]; 
+    std::vector< std::vector<int> > abovethresh(nplanes); 
     for (int p=0; p<nplanes; p++) {
       abovethresh[p].resize( 2*_config.neighborhoods.at(p)+1, 0 );
     }
 
     // reserve space for hit vector. marks the clumns where hits occur for a given a row.
     // we have one for each plane;
-    std::vector< int > hits[nplanes];
+    std::vector< std::vector< int > > hits(nplanes);
     for (int p=0; p<nplanes; p++ ) {
       hits[p].resize( meta.cols() );
     }

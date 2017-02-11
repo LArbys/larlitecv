@@ -150,7 +150,9 @@ int main( int nargs, char** argv ) {
 
     // ------------------------------------------------------------------------------------------//
     // LABEL GAP CHANNELS
-    std::vector< larcv::Image2D> gapchimgs_v = emptyalgo.findMissingBadChs( event_imgs->Image2DArray(), badchimgs, 5, 16 );
+    //int maxgap = 16;
+    int maxgap = 200;
+    std::vector< larcv::Image2D> gapchimgs_v = emptyalgo.findMissingBadChs( event_imgs->Image2DArray(), badchimgs, 5, maxgap );
     // combine with badchs
     for ( size_t p=0; p<badchimgs.size(); p++ ) {
       larcv::Image2D& gapchimg = gapchimgs_v.at(p);
@@ -245,7 +247,7 @@ int main( int nargs, char** argv ) {
     std::vector<int> endpoint_passes;
     endptfilter.removeBoundaryAndFlashDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );
     endptfilter.removeSameBoundaryDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );
-    endptfilter.removeDiffBoundaryDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );    
+    //endptfilter.removeDiffBoundaryDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );    
 
     // remove the filtered end points
 
@@ -267,47 +269,16 @@ int main( int nargs, char** argv ) {
 
     // ------------------------------------------------------------------------------------------//
     // Form 2D tracks on each plane from boundary points
-    std::vector< std::vector< larlitecv::BMTrackCluster2D > > trackclusters;
+    std::vector< larlitecv::BMTrackCluster3D > tracks3d;
     if (runtracker) {
-      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, filtered_endpoints, trackclusters );
+      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, filtered_endpoints, tracks3d );
     }
 
     // ------------------------------------------------------------------------------------------//
     // Filter 2D tracks and form 3D tracks
     
-    std::vector< larlitecv::BMTrackCluster3D > tracks3d;
-    std::vector<int> goodlist;
-    sidetagger.process2Dtracks( trackclusters, imgs, gapchimgs_v, tracks3d, goodlist );
-
-    // boring booking. we now want to mark which pixel2d objects were used up
-    // booking was post-hoc, so it's really hacky and fragile
-    for (size_t itrack2d=0; itrack2d<trackclusters.size(); itrack2d++) {
-      if ( goodlist.at(itrack2d)==1 ) {
-        // track2d was used
-
-        // now mark pixels as used
-        // assumes that filled in order of top:bot:upstream:downstream:anode:cathode:imgends
-        int idx_a = trackclusters.at(itrack2d).at(0).start_pix_idx;
-        for ( int iendpt_type=0; iendpt_type<(int)boundary_endpt_usedtag.size(); iendpt_type++ ) {
-          // does the index of pixel-A indicate pixel is of type: iendpt_type
-          if ( idx_a<(int)boundary_endpt_usedtag.at(iendpt_type).size() ) {
-            boundary_endpt_usedtag.at(iendpt_type).at( idx_a ) = 1;
-            break;
-          }
-          idx_a -= (int)boundary_endpt_usedtag.at(iendpt_type).size();
-        }
-
-        int idx_b = trackclusters.at(itrack2d).at(0).end_pix_idx;
-        for ( int iendpt_type=0; iendpt_type<(int)boundary_endpt_usedtag.size(); iendpt_type++ ) {
-          // does the index of pixel-A indicate pixel is of type: iendpt_type
-          if ( idx_b<(int)boundary_endpt_usedtag.at(iendpt_type).size() ) {
-            boundary_endpt_usedtag.at(iendpt_type).at( idx_b ) = 1;
-            break;
-          }
-          idx_b -= (int)boundary_endpt_usedtag.at(iendpt_type).size();
-        }
-      }
-    }
+    std::vector<int> goodlist( tracks3d.size(), 1);
+    //sidetagger.process2Dtracks( trackclusters, imgs, gapchimgs_v, tracks3d, goodlist );
     
     std::cout << "[NUMBER OF POST-PROCESSED 3D TRAJECTORIES: " << tracks3d.size() << "]" << std::endl;
 
@@ -315,7 +286,7 @@ int main( int nargs, char** argv ) {
 
 
     std::vector< larcv::Image2D > markedimgs;
-    sidetagger.markImageWithTrackClusters( imgs, gapchimgs_v, trackclusters, goodlist, markedimgs );
+    sidetagger.markImageWithTrackClusters( imgs, gapchimgs_v, tracks3d, goodlist, markedimgs );
 
     // ------------------------------------------------------------------------------------------//
     // SAVE OUTPUT //
@@ -427,14 +398,13 @@ int main( int nargs, char** argv ) {
     // save 2D track objects filtered by good 3d tracks
     larcv::EventPixel2D* ev_tracks2d = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumu2d" );
     for (int i3d=0; i3d<(int)tracks3d.size(); i3d++) {
-      const larlitecv::BMTrackCluster3D& track3d = tracks3d.at(i3d);
-      if ( goodlist.at( track3d.track2d_index )==0 ) continue;
-      std::vector< larlitecv::BMTrackCluster2D >& trackcluster2d = trackclusters.at(track3d.track2d_index);
-      std::cout << "Save revised track cluster #" << track3d.track2d_index << std::endl;
+      larlitecv::BMTrackCluster3D& track3d = tracks3d.at(i3d);
+      if ( goodlist.at( i3d )==0 ) continue;
+      std::vector< larlitecv::BMTrackCluster2D >& trackcluster2d = track3d.plane_paths;
       for (int p=0; p<3; p++) {
         larlitecv::BMTrackCluster2D& track = trackcluster2d.at(p);
         larcv::Pixel2DCluster cluster;
-        std::swap( cluster, track.pixelpath );
+        std::swap( cluster, track.pixelpath ); // ok to do this, because we will not use these pixels again
         std::cout << " plane=" << p << " track. length=" << cluster.size() << std::endl;
         ev_tracks2d->Emplace( (larcv::PlaneID_t)p, std::move(cluster) );
       }
@@ -445,8 +415,9 @@ int main( int nargs, char** argv ) {
     
     // convert BMTrackCluster3D to larlite::track
     int id = 0;
-    for ( auto const& track3d : tracks3d ) {
-      if ( goodlist.at( track3d.track2d_index )==0 ) continue;
+    for ( int itrack=0; itrack<(int)tracks3d.size(); itrack++ ) {
+      const larlitecv::BMTrackCluster3D& track3d = tracks3d.at(itrack);
+      if ( goodlist.at( id )==0 ) continue;
       larlite::track lltrack;
       lltrack.set_track_id( id );
       int istep = 0;
@@ -462,7 +433,7 @@ int main( int nargs, char** argv ) {
           lltrack.add_direction( dir );
         }
       }
-      std::cout <<  "storing 3D track (track2d_index=" << track3d.track2d_index << ") with " << lltrack.NumberTrajectoryPoints() << " trajectory points" << std::endl;
+      std::cout <<  "storing 3D track with " << lltrack.NumberTrajectoryPoints() << " trajectory points" << std::endl;
       ev_tracks->emplace_back( std::move(lltrack) );
     }
 
