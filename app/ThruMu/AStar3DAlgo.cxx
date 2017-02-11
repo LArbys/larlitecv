@@ -21,7 +21,13 @@ namespace larlitecv {
     cfg.lattice_padding        = pset.get< int >( "LatticePadding" );
     cfg.accept_badch_nodes     = pset.get< bool >( "AcceptBadChannelNodes" );
     cfg.min_nplanes_w_hitpixel = pset.get< int >( "MinNumPlanesWithHitPixel" );
-    
+    cfg.restrict_path          = pset.get< bool >( "RestrictPath", false );
+    if ( cfg.restrict_path ) {
+      cfg.path_restriction_radius = pset.get<float>("PathRestrictionRadius");
+    }
+    else
+      cfg.path_restriction_radius = pset.get<float>("PathRestrictionRadius",0.0);
+
     return cfg;
   }
 
@@ -397,6 +403,12 @@ namespace larlitecv {
       closedset.addnode( neighbor_node );
       return false;
     }
+    if ( _config.restrict_path && _config.path_restriction_radius<distanceFromCentralLine( start->tyz, goal->tyz, neighbor_node->tyz ) ) {
+      neighbor_node->closed = true;
+      closedset.addnode( neighbor_node );
+      return false;
+    }
+
           
     // is this a badch node?
     if ( nplanes_bad>=1 || nplanes_abovethreshold_or_bad<3 )
@@ -446,9 +458,8 @@ namespace larlitecv {
       for (int i=0; i<3; i++) {
         dcos += dir1[i]*dir2[i];
       }
-      curvature_cost = fabs(0.5*(1-dcos));
-
-      jump_cost += exp(curvature_cost);
+      curvature_cost = exp(10*fabs(0.5*(1-dcos)));
+      jump_cost *= curvature_cost;
     }
 
       
@@ -464,6 +475,7 @@ namespace larlitecv {
 
     float gscore = current->gscore + jump_cost;
     float fscore = gscore + hscore;
+    float kscore = curvature_cost;
 
     // is this gscore better than the current one (or is it unassigned?)
     if ( neighbor_node->fscore==0 || neighbor_node->fscore>fscore ) {
@@ -474,6 +486,7 @@ namespace larlitecv {
       neighbor_node->prev = current;
       neighbor_node->fscore = fscore;
       neighbor_node->gscore = gscore;
+      neighbor_node->kscore = kscore;
       neighbor_node->pixval = pixval;
       //neighbor_node->dir3d = dir3d; not implemented yet
       return true;
@@ -684,6 +697,48 @@ namespace larlitecv {
     return img;
   }
   */
+
+  float AStar3DAlgo::distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz ) {
+    // returns the shortest distance of the test point from the line segment between the start and end points
+    // the coordinate system is in (tick, Y, Z)
+    // will return a value in cm
+    // stole formular from: http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
+    float norm12 = 0;    
+    std::vector<float> dir10( start_tyz.size(), 0.0 );
+    std::vector<float> dir20( start_tyz.size(), 0.0 );
+    std::vector<float> dir12( start_tyz.size(), 0.0 );
+    for (size_t i=0; i<start_tyz.size(); i++) {
+      dir10[i] = start_tyz.at(i) - testpt_tyz.at(i);
+      dir20[i] = end_tyz.at(i)   - testpt_tyz.at(i);
+      dir12[i] = end_tyz.at(i)   - start_tyz.at(i);
+      if (i==0) {
+        dir10[0] *= ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]        
+        dir20[0] *= ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]        
+        dir12[0] *= ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]                        
+      }
+      norm12 += dir12[i]*dir12[i];      
+    }
+    norm12 = sqrt(norm12);
+    if ( norm12==0 ) {
+      throw std::runtime_error("AStar3DAlgo::distanceFromCentralLine[error] start and end point are the same. calculation undefined.");
+    }
+
+
+    // dir01 x dir02
+    std::vector<float> dirX(dir10.size(),0.0);
+    dirX[0] = dir10[1]*dir20[2] - dir10[2]*dir20[1];
+    dirX[1] = dir10[2]*dir20[0] - dir10[0]*dir20[2];
+    dirX[2] = dir10[0]*dir20[1] - dir10[1]*dir20[0];
+    float normX = 0.;
+    for (size_t i=0; i<dirX.size(); i++) {
+      normX += dirX[i]*dirX[i];
+    }
+    normX = sqrt(normX);
+
+    float dist = normX/norm12;
+    return dist;
+  }
+
 
   // =========================================================================================================
   // LATTICE METHODS

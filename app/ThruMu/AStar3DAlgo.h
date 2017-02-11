@@ -44,7 +44,7 @@ namespace larlitecv {
   public:
     AStar3DNode() {
       u = v = w = 0;
-      fscore=gscore=0.0;
+      fscore=gscore=kscore=0.0;
       closed = false;
       inopenset = false;
       dir3d.resize(3,0.0);
@@ -64,6 +64,7 @@ namespace larlitecv {
       nodeid[2] = w;
       fscore=0.0;
       gscore=0.0;
+      kscore=0.0;
       within_image=false;
       dir3d.resize(3,0);
       tyz = tyz_;
@@ -81,6 +82,7 @@ namespace larlitecv {
       nodeid = src.nodeid;
       fscore = src.fscore;
       gscore = src.gscore;
+      kscore = src.kscore;
       dir3d = src.dir3d;
       tyz = src.tyz;
       closed = src.closed;
@@ -100,6 +102,7 @@ namespace larlitecv {
     A3DPixPos_t nodeid; // latice position key
     float fscore; // score of path: past path + to goal heuristic
     float gscore; // past path score
+    float kscore; // curvature penalty
 
     std::vector<float> dir3d;
     std::vector<float> tyz; // (tick, y, z) in detector coordinates
@@ -134,6 +137,7 @@ namespace larlitecv {
       	 << "tyz=(" << tyz[0] << "," << tyz[1] << "," << tyz[2] << ") "
       	 << "f=" << fscore << " "
       	 << "g=" << gscore << " "
+      	 << "k=" << kscore << " "
       	 << "]";
       return ss.str();
     }
@@ -245,6 +249,8 @@ namespace larlitecv {
     int lattice_padding;
     bool accept_badch_nodes;
     int min_nplanes_w_hitpixel;
+    bool restrict_path; // restrict the path to be within some distance from the straigh line path
+    float path_restriction_radius; // max distance path can deviate from straight line
 
     static AStar3DAlgoConfig MakeFromPSet( const larcv::PSet& pset );
 
@@ -274,6 +280,7 @@ namespace larlitecv {
 	    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
   	  AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice );
 
+	  float distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz );
 
     // larcv::Image2D visualizeScores( std::string score_name, const larcv::Image2D& orig_img, 
     //   const int min_c, const int min_r, const int win_c, const int win_r, 

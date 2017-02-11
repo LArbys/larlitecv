@@ -314,8 +314,8 @@ namespace larlitecv {
 
           if ( track_made ) {
             // if we made a good track, we mark the end points as used. we also tag the path through the image
-            space_point_used.at(i) = true;
-            space_point_used.at(j) = true;
+            //space_point_used.at(i) = true;
+            //space_point_used.at(j) = true;
             markImageWithTrack( img_v, badchimg_v, track3d, tagged_v );
             trackclusters.emplace_back( std::move(track3d) );
           }
