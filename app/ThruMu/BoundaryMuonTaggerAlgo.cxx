@@ -151,10 +151,8 @@ namespace larlitecv {
   int BoundaryMuonTaggerAlgo::makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
                                                    const std::vector< const BoundarySpacePoint* >& spacepts,
                                                    std::vector< larlitecv::BMTrackCluster3D >& trackclusters ) {
-    
-    // wrap references into a struct so i can treat them more like an array
-    // the order matches the order in BoundaryEnd_t enum
-    int nendpts = (int)spacepts.size();
+    // This method takes in the list of boundaryspacepoints and pairs them up in order to try to find through-going muons
+        int nendpts = (int)spacepts.size();
 
     // pair up containers
     int ntotsearched = 0;
@@ -164,7 +162,7 @@ namespace larlitecv {
     std::vector<int> modimg(nendpts,0);
 
     // track tests: acts as a first filter. is there enouguh charge in between the start and end point?
-    LineRegionTest lrt( 30, 0.9, 5.0 ); 
+    LineRegionTest lrt( 30, 0.9, 5.0 ); // (region width, pass threshold, pixel threshold)
 
     // compress images for AStar3D
     std::vector< larcv::Image2D > img_compressed_v;
@@ -179,112 +177,151 @@ namespace larlitecv {
       badch_compressed_v.emplace_back( std::move(badch_compressed) );
     }
 
-    for (int i=0; i<nendpts; i++) {
-      for (int j=i+1; j<nendpts; j++) {
-        const BoundarySpacePoint& pts_a = *(spacepts[i]);
-        const BoundarySpacePoint& pts_b = *(spacepts[j]);
+    // Do multiple passes in trying to make 3D tracks
+    const int NumPasses = 2;
+    // passes
+    // (1) straight line fitter
+    // (2) A* on remainder
 
-        if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
-        npossible++;
-        
-        if ( _config.verbosity>1 ) {
-          std::cout << "[ path-finding for endpoints (" << i << "," << j << ") "
-                  << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
-        
-          for (int p=0; p<3; p++) {
-            int col_a = pts_a.at(p).col;
-            int row_a = pts_a.at(p).row;
-            int col_b = pts_b.at(p).col;
-            int row_b = pts_b.at(p).row;
-             std::cout << "  plane=" << p << ": "
-                    << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
-                    << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
-                    << std::endl;           
-          }
-        }
-        
+    // make a vector of bools to tag end points that have already been used to find a track
+    std::vector<bool> space_point_used( spacepts.size(), false );
+    // we make blank images to tag pixels that have been assigned to a track
+    std::vector< larcv::Image2D > tagged_v;
+    for (int p=0; p<(int)img_v.size(); p++) {
+      larcv::Image2D tagged( img_v.at(p).meta() );
+      tagged.paint(0.0);
+      tagged_v.emplace_back( std::move(tagged) );
+    }
 
-        // don't try to connect points that are further apart in time than a full drift window
-        bool within_drift = true;
-        for (int p=0; p<3; p++) {
-          int row_a = pts_a.at(p).row;
-          int row_b = pts_b.at(p).row;
-          if ( fabs( img_v.at(p).meta().pos_y( row_b )-img_v.at(p).meta().pos_y( row_a ) )>_config.ticks_per_full_drift ) { // ticks
-            within_drift = false;
-          }
-        }
-        if ( !within_drift ) {
-          if ( _config.verbosity>1 )
-            std::cout << "  time separation longer than drift window" << std::endl;
-          continue;
-        }
-        //use test heuristic to see if we should run astar
-        //bool shallwe = passTrackTest( pts_a, pts_b, img_v, badchimg_v );
-        // for debugging specific tracks
-//      if ( i==19 && j==30 )
-//        lrt.verbose_debug = true;
-//      else
-//        lrt.verbose_debug = false;
-        std::vector< BMTrackCluster2D > test_track(3);
-        bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
-        if ( _config.verbosity>1 )
-          std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
-        if ( !shallwe ) { 
-          if ( _config.verbosity>1 )
-            std::cout << "  failed heuristic." << std::endl;
-          continue; // we shant
-        }
-        //check max deviation from straight line
-        for (size_t p=0; p<3; p++) {
-          int maxdev = -1;
-          const BMTrackCluster2D& ttrack = test_track.at(p);
-          for (size_t ipix=0; ipix<ttrack.pixelpath.size(); ipix++) {
-            if ( maxdev < (int)fabs(ttrack.pixelpath.at(ipix).Intensity()) ) {
-              maxdev = (int)fabs(ttrack.pixelpath.at(ipix).Intensity());
+    // do the track-finding passes
+    for (int pass=0; pass<NumPasses; pass++) {
+      for (int i=0; i<nendpts; i++) {
+        if ( space_point_used.at(i) ) continue;
+        const BoundarySpacePoint& pts_a = *(spacepts[i]);        
+        for (int j=i+1; j<nendpts; j++) {
+          if ( space_point_used.at(j)) continue;
+          const BoundarySpacePoint& pts_b = *(spacepts[j]);
+
+          if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
+          npossible++;
+          
+          if ( _config.verbosity>1 ) {
+            std::cout << "[ Pass " << pass << ": path-finding for endpoints (" << i << "," << j << ") "
+                      << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
+        
+           for (int p=0; p<3; p++) {
+              int col_a = pts_a.at(p).col;
+              int row_a = pts_a.at(p).row;
+              int col_b = pts_b.at(p).col;
+              int row_b = pts_b.at(p).row;
+              std::cout << "  plane=" << p << ": "
+                        << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
+                        << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
+                        << std::endl;           
             }
           }
-          //std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
-        }
         
 
-        /*
-        std::vector< BMTrackCluster2D > planetracks;
-        int ncompleted = 0;
-        for (size_t p=0; p<3; p++) {
-//        std::cout << "  plane=" << p << ": "
-//                  << " (c,r): (" << pts_a.at(p).w << "," << pts_a.at(p).t << ") ->"
-//                  << " (" << pts_b.at(p).w << "," << pts_b.at(p).t << "), "
-//                  << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
-//                  << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
-//                  << std::endl;
-          
-          BMTrackCluster2D track = runAstar( pts_a.at(p), pts_b.at(p), img_v.at(p), badchimg_v.at(p), 5, 5, 0, true );
-          // book keeping
-          track.start_pix_idx = i;
-          track.end_pix_idx = j;
-          if ( _config.verbosity>1 ) {
-            std::cout << "  p=" << p 
-              << " (" << img_v.at(p).meta().pos_x(track.start.col) << "," << img_v.at(p).meta().pos_y(track.start.row) << ") "
-              << " -> (" << img_v.at(p).meta().pos_x(track.end.col) << "," << img_v.at(p).meta().pos_y(track.end.row) << "): "
-              << " pathsize=" << track.pixelpath.size() << std::endl;
+          // don't try to connect points that are further apart in time than a full drift window
+          bool within_drift = true;
+          for (int p=0; p<3; p++) {
+            int row_a = pts_a.at(p).row;
+            int row_b = pts_b.at(p).row;
+            if ( fabs( img_v.at(p).meta().pos_y( row_b )-img_v.at(p).meta().pos_y( row_a ) )>_config.ticks_per_full_drift ) { // ticks
+              within_drift = false;
+            }
           }
-          if ( track.pixelpath.size()>3 ) ncompleted++;
+          if ( !within_drift ) {
+            if ( _config.verbosity>1 )
+              std::cout << "  time separation longer than drift window" << std::endl;
+            continue;
+          }
 
-          planetracks.emplace_back( std::move( track ) );
-        }
-        */
+          // ====================================================================================
+          // PASSES
+          BMTrackCluster3D track3d;
+          bool track_made = false;
+          if ( pass==0 ) {
+            // straight line fitter (Chris)
+          }
+          else if ( pass==1 ) {
+            // A* star
 
-        bool goal_reached = false;
-        BMTrackCluster3D track3d = runAstar3D( pts_a, pts_b, img_v, badchimg_v, img_compressed_v, badch_compressed_v, goal_reached );
-        std::vector< BMTrackCluster2D >& planetracks = track3d.plane_paths;
+            // because this can be an expensive algorithm we use test heuristic to see if we should run astar
+            //bool shallwe = passTrackTest( pts_a, pts_b, img_v, badchimg_v );
+            // for debugging specific tracks
 
-        if ( goal_reached ) {
-          trackclusters.emplace_back( std::move(track3d) );
-        }
+            std::vector< BMTrackCluster2D > test_track(3);
+            bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
+            if ( _config.verbosity>1 )
+              std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
+            if ( !shallwe ) { 
+              if ( _config.verbosity>1 )
+                std::cout << "  failed heuristic." << std::endl;
+              continue; // we shant
+            }
+            //check max deviation from straight line
+            for (size_t p=0; p<3; p++) {
+              int maxdev = -1;
+              const BMTrackCluster2D& ttrack = test_track.at(p);
+              for (size_t ipix=0; ipix<ttrack.pixelpath.size(); ipix++) {
+                if ( maxdev < (int)fabs(ttrack.pixelpath.at(ipix).Intensity()) ) {
+                  maxdev = (int)fabs(ttrack.pixelpath.at(ipix).Intensity());
+                }
+              }
+              //std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
+            }
+        
+            /*
+            // OLD AStar done on each plane individually
+            std::vector< BMTrackCluster2D > planetracks;
+            int ncompleted = 0;
+            for (size_t p=0; p<3; p++) {
+              std::cout << "  plane=" << p << ": "
+                        << " (c,r): (" << pts_a.at(p).w << "," << pts_a.at(p).t << ") ->"
+                        << " (" << pts_b.at(p).w << "," << pts_b.at(p).t << "), "
+                        << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
+                        << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
+                        << std::endl;
+            
+              // old 2D astar
+              BMTrackCluster2D track = runAstar( pts_a.at(p), pts_b.at(p), img_v.at(p), badchimg_v.at(p), 5, 5, 0, true );
+              // book keeping
+              track.start_pix_idx = i;
+              track.end_pix_idx = j;
+              if ( _config.verbosity>1 ) {
+                std::cout << "  p=" << p 
+                          << " (" << img_v.at(p).meta().pos_x(track.start.col) << "," << img_v.at(p).meta().pos_y(track.start.row) << ") "
+                          << " -> (" << img_v.at(p).meta().pos_x(track.end.col) << "," << img_v.at(p).meta().pos_y(track.end.row) << "): "
+                          << " pathsize=" << track.pixelpath.size() << std::endl;
+              }
+              if ( track.pixelpath.size()>3 ) ncompleted++;
+            }
+            */
 
-        ntotsearched++;
-      }//loop over pt b
-    }//loop over pt a
+            // 3D A* path-finding
+            bool goal_reached = false;
+            track3d = runAstar3D( pts_a, pts_b, img_v, badchimg_v, img_compressed_v, badch_compressed_v, goal_reached );
+            std::vector< BMTrackCluster2D >& planetracks = track3d.plane_paths;
+
+            if ( goal_reached ) {
+              track_made = true;
+            }
+          } //end of pass 2 (a*)
+          // ====================================================================================
+
+          ntotsearched++;          
+
+          if ( track_made ) {
+            // if we made a good track, we mark the end points as used. we also tag the path through the image
+            space_point_used.at(i) = true;
+            space_point_used.at(j) = true;
+            markImageWithTrack( img_v, badchimg_v, track3d, tagged_v );
+            trackclusters.emplace_back( std::move(track3d) );
+          }
+        }//loop over pt b
+      }//loop over pt a
+    }//end of loop over passes
     
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "total paths searched: " << ntotsearched << " of " << npossible << " possible combinations. time=" << elapsed_secs << " secs" << std::endl;
@@ -296,82 +333,53 @@ namespace larlitecv {
   int BoundaryMuonTaggerAlgo::markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
                                                           const std::vector< larlitecv::BMTrackCluster3D >& tracks,
                                                           std::vector<int>& goodlist, std::vector<larcv::Image2D>& markedimgs ) {
-    std::vector< larcv::Image2D > workspace;
-    for (auto &img : imgs ) {
-      larcv::Image2D ws( img.meta() );
-      workspace.emplace_back( std::move(ws) );
-      larcv::Image2D markedimg( img.meta() );
-      markedimg.paint(0.0);
-      markedimgs.emplace_back( std::move(markedimg) );
-    }
-
     for ( int itrack=0; itrack<(int)tracks.size(); itrack++ ) {
+      if ( goodlist.at(itrack)==false ) continue;
+      markImageWithTrack( imgs, badchimgs, tracks.at(itrack), markedimgs );
+    }
     
-      if ( goodlist.at(itrack)==0 ) continue;
-      
-      const BMTrackCluster3D& track3d = tracks.at(itrack);
+    return 0;
+  }
 
-      const std::vector< larlitecv::BMTrackCluster2D >& tracks2d = track3d.plane_paths;
-      
-      float frac_marked[imgs.size()];
-      for ( auto &img : imgs ) {
-        const larcv::ImageMeta& meta = img.meta();
-        int plane = (int)meta.plane();
-        workspace.at(img.meta().plane()).paint(0.0);
-        frac_marked[plane] = 0.;
+  int BoundaryMuonTaggerAlgo::markImageWithTrack( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+                                                  const larlitecv::BMTrackCluster3D& track3d, std::vector<larcv::Image2D>& markedimgs ) {
 
-        const larlitecv::BMTrackCluster2D& track = tracks2d.at(plane);
-        int nmarked = 0;
-
-        for ( auto &pixel : track.pixelpath ) {
-          int col = pixel.X();
-          int row = pixel.Y();
-          bool foundcharge = false;
-          for ( int dc=-_config.astar_neighborhood.at(plane); dc<=_config.astar_neighborhood.at(plane); dc++ ) {
-            for ( int dr=-_config.astar_neighborhood.at(plane); dr<=_config.astar_neighborhood.at(plane); dr++ ) {
-              int r = row+dr;
-              int c = col+dc;
-              if ( r<0 || r>=(int)meta.rows() ) continue;
-              if ( c<0 || c>=(int)meta.cols() ) continue;
-              float val = img.pixel( r, c );
-              if ( val>_config.thresholds.at(plane) || badchimgs.at(plane).pixel(r,c)>0 ) {
-                workspace.at(plane).set_pixel( r, c, 100.0 );
-                foundcharge = true;
-              }
-            }
-          }
-          if ( foundcharge ) nmarked++;
-        }//end of pixel list
-        
-        frac_marked[plane] = float(nmarked)/float(track.pixelpath.size());
-        
-      }//end of planetracks
-
-      bool goodtrack = true;
-      //std::cout << "fraction of path has charge (or badch): ";
-      for (size_t p=0; p<3; p++) {
-        //std::cout << "p=" << p << ": " << frac_marked[p] << "    ";
-        if ( frac_marked[p]<0.9 )
-          goodtrack = false;
+    if ( markedimgs.size()==0 ) {
+      for (auto &img : imgs ) {
+        larcv::Image2D markedimg( img.meta() );
+        markedimg.paint(0.0);
+        markedimgs.emplace_back( std::move(markedimg) );
       }
-      //std::cout << std::endl;
+    }
+      
+    const std::vector< larlitecv::BMTrackCluster2D >& tracks2d = track3d.plane_paths;
+    
+    for ( int p=0; p<(int)imgs.size(); p++ ) {
+      const larcv::Image2D& img = imgs.at(p);
+      const larcv::ImageMeta& meta = img.meta();
+      int plane = (int)meta.plane();
 
-      if ( goodtrack ) {
-        for (size_t p=0; p<3; p++) {
-          for (size_t row=0; row<imgs.at(p).meta().rows(); row++) {
-            for (size_t col=0; col<imgs.at(p).meta().cols(); col++) {
-              if ( workspace.at(p).pixel(row,col)>0 ) {
-                markedimgs.at(p).set_pixel( row, col, 255 );
-              }
+      const larlitecv::BMTrackCluster2D& track = tracks2d.at(plane);
+
+      for ( auto &pixel : track.pixelpath ) {
+        int col = pixel.X();
+        int row = pixel.Y();
+        bool foundcharge = false;
+        for ( int dc=-_config.astar_neighborhood.at(plane); dc<=_config.astar_neighborhood.at(plane); dc++ ) {
+          for ( int dr=-_config.astar_neighborhood.at(plane); dr<=_config.astar_neighborhood.at(plane); dr++ ) {
+            int r = row+dr;
+            int c = col+dc;
+            if ( r<0 || r>=(int)meta.rows() ) continue;
+            if ( c<0 || c>=(int)meta.cols() ) continue;
+            float val = img.pixel( r, c );
+            if ( val>_config.thresholds.at(plane) || badchimgs.at(plane).pixel(r,c)>0 ) {
+              markedimgs.at(p).set_pixel(row,col,255);
             }
           }
         }
-      }//end of if good track
-      else {
-        // mark as rejected
-        goodlist.at(itrack) = 0; 
-      }
-    } // end of loop over all tracks
+      }//end of pixel list
+
+    }//end of img loop
     
     return 0;
   }
@@ -439,7 +447,8 @@ namespace larlitecv {
 
     // configure
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]    
-    larlitecv::AStar3DAlgoConfig astar_config;
+    const larlitecv::AStar3DAlgoConfig& astar_config = _config.getAStarConfig();
+    /*
     astar_config.astar_threshold.resize(3,0);
     astar_config.astar_threshold[0] = 100.0;
     astar_config.astar_threshold[1] = 100.0;
@@ -450,6 +459,7 @@ namespace larlitecv {
     astar_config.lattice_padding = 10;
     astar_config.accept_badch_nodes = true;
     astar_config.min_nplanes_w_hitpixel = 3;
+    */
 
     // fill track3d data
     track3d.start_type = start_pt.type();

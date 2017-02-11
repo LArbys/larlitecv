@@ -10,7 +10,7 @@ rt.gStyle.SetOptStat(0)
 ioman = larcv.IOManager( larcv.IOManager.kREAD );
 ioman.add_in_file( "bin/output_larcv_testextbnb_run00.root" );
 ioman.initialize()
-ioman.read_entry(0)
+ioman.read_entry(2)
 ev_img   = ioman.get_data( larcv.kProductImage2D, "modimgs" )
 ev_badchs = ioman.get_data( larcv.kProductImage2D, "gapchs" )
 img_v   = ev_img.Image2DArray()
@@ -90,6 +90,11 @@ end_wires   = [696,34,60]
 #end_tick = 4644
 #end_wires = [1954,1290,2573]
 
+start_tick = 4884
+start_wires = [465,1122,913]
+end_tick = 6282
+end_wires = [851,247,426]
+
 # example of spurious connection
 #start_tick = 6762
 #start_wires = [1061,414,802]
@@ -98,13 +103,18 @@ end_wires   = [696,34,60]
 #end_tick = 6054
 #end_wires = [565,1220,1114]
 
+#start_tick = 7176
+#start_wires = [339,1008,675]
+#end_tick = 8046
+#end_wires = [866,206,398]
+
 # example where end point is in dead region
 use_bad_chs = False
 
 # setup algo
 config  = larlitecv.AStar3DAlgoConfig()
 config.accept_badch_nodes = True;
-config.astar_threshold.resize(3,100.0)
+config.astar_threshold.resize(3,50.0)
 config.astar_threshold[2] = 150.0
 config.astar_neighborhood.resize(3,6)
 config.astar_start_padding = 3

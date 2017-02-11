@@ -19,7 +19,9 @@ Uses Image2D to hold image.
 #include <sstream>
 #include <array>
 
+// larcv
 #include "DataFormat/Image2D.h"
+#include "Base/PSet.h"
 
 namespace larlitecv {
 
@@ -243,6 +245,8 @@ namespace larlitecv {
     int lattice_padding;
     bool accept_badch_nodes;
     int min_nplanes_w_hitpixel;
+
+    static AStar3DAlgoConfig MakeFromPSet( const larcv::PSet& pset );
 
   };
 

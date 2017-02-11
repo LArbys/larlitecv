@@ -27,7 +27,7 @@ include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 # Add your program below with a space after the previous one.
 # This makefile compiles all binaries specified below.
-PROGRAMS = thrumu analyze process_track2d
+PROGRAMS = thrumu analyze
 
 all: $(PROGRAMS)
 

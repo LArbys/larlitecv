@@ -5,6 +5,7 @@
 
 // larcv
 #include "Base/PSet.h"
+#include "AStar3DAlgo.h"
 
 namespace larlitecv {
 
@@ -18,7 +19,8 @@ namespace larlitecv {
       // defaults
       setdefaults();
     };
-    ~ConfigBoundaryMuonTaggerAlgo() {};
+    ~ConfigBoundaryMuonTaggerAlgo() {
+    };
 
     bool checkOK() { return true; }; // dummy for now
     
@@ -37,8 +39,10 @@ namespace larlitecv {
     int ticks_per_full_drift;
     std::vector<float> type_modifier;
     int verbosity;
+    AStar3DAlgoConfig astar_cfg;
 
     void setdefaults();
+    const AStar3DAlgoConfig& getAStarConfig() { return astar_cfg; };
     
   };
 

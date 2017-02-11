@@ -58,6 +58,9 @@ namespace larlitecv {
                                     const std::vector< larlitecv::BMTrackCluster3D >& trackclusters, std::vector<int>& goodlist,
                                     std::vector<larcv::Image2D>& markedimgs );
 
+    int markImageWithTrack( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+                            const larlitecv::BMTrackCluster3D& track3d, std::vector<larcv::Image2D>& markedimgs );
+
     BMTrackCluster2D runAstar( const BoundaryEndPt& start, const BoundaryEndPt& end, const larcv::Image2D& img, const larcv::Image2D& badchimg,
                                int start_pad, int end_pad, int verbose=0, bool use_badchs=false );
 

@@ -22,7 +22,6 @@ namespace larlitecv {
     astar_thresholds.resize(3,10.0);
     astar_neighborhood.resize(3,10.0);
     verbosity = 0;
-    
   }
 
   ConfigBoundaryMuonTaggerAlgo MakeConfigBoundaryMuonTaggerAlgoFromPSet( const larcv::PSet& pset ) {
@@ -42,6 +41,7 @@ namespace larlitecv {
     config.hitsearch_uses_badchs      = pset.get<bool>("UseBadChannels",true);
     config.ticks_per_full_drift       = pset.get<float>("TicksPerFullDrift",4650.0);
     config.verbosity                  = pset.get<int>("Verbosity",0);
+    config.astar_cfg = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pset.get< larcv::PSet >( "AStarConfig" ) );
     
     return config;
   }

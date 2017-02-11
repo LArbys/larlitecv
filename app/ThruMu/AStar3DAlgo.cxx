@@ -11,7 +11,21 @@
 
 namespace larlitecv {
 
-  
+  AStar3DAlgoConfig AStar3DAlgoConfig::MakeFromPSet( const larcv::PSet& pset ) {
+    AStar3DAlgoConfig cfg;
+
+    cfg.astar_threshold        = pset.get< std::vector<float> >( "PixelThresholds" );
+    cfg.astar_neighborhood     = pset.get< std::vector<int> >( "NeighborhoodSize" );
+    cfg.astar_start_padding    = pset.get< int >( "StartPadding" );
+    cfg.astar_end_padding      = pset.get< int >( "EndPadding" );
+    cfg.lattice_padding        = pset.get< int >( "LatticePadding" );
+    cfg.accept_badch_nodes     = pset.get< bool >( "AcceptBadChannelNodes" );
+    cfg.min_nplanes_w_hitpixel = pset.get< int >( "MinNumPlanesWithHitPixel" );
+    
+    return cfg;
+  }
+
+
   std::vector<AStar3DNode> AStar3DAlgo::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
     const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached  ) {
     
