@@ -32,7 +32,7 @@ namespace larlitecv {
   }
 
 
-  std::vector<AStar3DNode> AStar3DAlgo::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+  std::vector<AStar3DNode> AStar3DAlgo::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
     const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached  ) {
     
     const larcv::ImageMeta& meta = img_v.front().meta();
@@ -67,11 +67,11 @@ namespace larlitecv {
     goalpos[1] = poszy_goal[1];
     goalpos[2] = poszy_goal[0];
 
-    if ( start_tri>5 || goal_tri>5 ) {      
-      std::cout << "start wires provided (" << start_wids[0] << "," << start_wids[1] << "," << start_wids[1] << ") tri=" << start_tri << std::endl;
-      std::cout << "goal wires provided (" << goal_wids[0] << "," << goal_wids[1] << "," << goal_wids[1] << ") tri=" << goal_tri << std::endl;
-      throw std::runtime_error("AStar3DAlgo::findpath[error] start or goal point not a good 3D space point.");
-    }
+    //if ( start_tri>5 || goal_tri>5 ) {      
+    //  std::cout << "start wires provided (" << start_wids[0] << "," << start_wids[1] << "," << start_wids[1] << ") tri=" << start_tri << std::endl;
+    //  std::cout << "goal wires provided (" << goal_wids[0] << "," << goal_wids[1] << "," << goal_wids[1] << ") tri=" << goal_tri << std::endl;
+    //  throw std::runtime_error("AStar3DAlgo::findpath[error] start or goal point not a good 3D space point.");
+    //}
 
     // next, define the lattice
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]
@@ -203,7 +203,7 @@ namespace larlitecv {
       }
 
       // scan through neighors, and ID the candidate successor node
-      evaluateNeighborNodes( current, start, goal, img_v, badch_v, openset, closedset, lattice );
+      evaluateNeighborNodes( current, start, goal, img_v, badch_v, tagged_v, openset, closedset, lattice );
       //evaluateBadChNeighbors( current, start, goal, openset, closedset, 1, 
       //  min_c, min_r, win_c, win_r, img, meta, use_bad_chs, position_lookup );
 
@@ -277,7 +277,7 @@ namespace larlitecv {
 
 
   void AStar3DAlgo::evaluateNeighborNodes( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
-    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
     AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice ) {
 
     const A3DPixPos_t& center = current->nodeid;
@@ -296,7 +296,7 @@ namespace larlitecv {
             continue;
 
           A3DPixPos_t evalme( u, v, w);
-          bool updated = evaluteLatticePoint( evalme, current, start, goal, img_v, badch_v, openset, closedset, lattice );
+          bool updated = evaluteLatticePoint( evalme, current, start, goal, img_v, badch_v, tagged_v, openset, closedset, lattice );
           if ( updated )
             number_updates++;
         }
@@ -308,7 +308,7 @@ namespace larlitecv {
   }
 
   bool AStar3DAlgo::evaluteLatticePoint( const A3DPixPos_t& latticept, AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
-    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
     AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice ) {
     // returns true if updated, false if not
 
@@ -409,7 +409,12 @@ namespace larlitecv {
       return false;
     }
 
-          
+    // is the node in a previously thrumu-tagged track
+    // int nplanes_wtagged = 0;
+    // for (int p=0; p<nplanes; p++) {
+    // }
+    // bool istagged_pixel = false;
+
     // is this a badch node?
     if ( nplanes_bad>=1 || nplanes_abovethreshold_or_bad<3 )
       neighbor_node->badchnode = true;
@@ -417,6 +422,19 @@ namespace larlitecv {
     if ( !neighbor_node->inopenset )
       openset.addnode( neighbor_node ); // add to openset if not on closed set nor is already on openset
 
+    // how many past nodes in a row are bad?
+    int npast_badnodes = 0;
+    AStar3DNode* anode = current;
+    for (int ipast=0; ipast<5; ipast++) {
+      if ( anode->badchnode )
+        npast_badnodes++;
+      else
+        break;
+      if ( anode->prev!=nullptr )
+        anode = anode->prev;
+      else
+        break;
+    }
 
     // define the jump cost for this node
     // first get the diff vector from here to current node
@@ -478,8 +496,8 @@ namespace larlitecv {
     float kscore = curvature_cost;
 
     // is this gscore better than the current one (or is it unassigned?)
-    if ( neighbor_node->fscore==0 || neighbor_node->fscore>fscore ) {
-      // update the neighbor to follow this path
+    if ( (neighbor_node->fscore==0 || neighbor_node->fscore>fscore) && npast_badnodes<10) {
+      // update the neighbor to follow this path 
       if ( verbose>2 )
         std::cout << "  updating neighbor to with better path: from f=" << neighbor_node->fscore << " g=" << neighbor_node->gscore 
                   << " to f=" << fscore << " g=" << gscore << std::endl;

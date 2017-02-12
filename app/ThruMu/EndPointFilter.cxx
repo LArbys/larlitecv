@@ -126,7 +126,7 @@ namespace larlitecv {
 	  				const BoundaryEndPt& endpt_a = sp_a.at(p);
   					const BoundaryEndPt& endpt_b = sp_b.at(p);
 	  				dbscan::dbPoints cluster_hits;
-  					if ( areEndPointsNearbyAndOnSameCluster( endpt_a, endpt_b, img_v.at(p), badch_v.at(p), 20.0, false, cluster_hits ) ) {
+  					if ( areEndPointsNearbyAndOnSameCluster( endpt_a, endpt_b, img_v.at(p), badch_v.at(p), 10.0, false, cluster_hits ) ) {
 	  					opt_clusters.emplace_back( std::move(cluster_hits) );	
   						planes_on_same_endpt++;
   					}

@@ -42,10 +42,10 @@ badch_v = gapchimgs_v
 #end_wires   = [1171,838,1337]
 
 # track that has to bend and not jump using bad channels
-start_tick  = 3348
-end_tick    = 2412
-start_wires = [202,477,11]
-end_wires   = [696,34,60]
+#start_tick  = 3348
+#end_tick    = 2412
+#start_wires = [202,477,11]
+#end_wires   = [696,34,60]
 
 # example of spinning its wheels for a long time on a false path that passes heuristic
 # plane 2 is good path. plane 0 is full of badchs, plane 1 has no path
@@ -64,6 +64,19 @@ end_wires   = [696,34,60]
 #end_tick = 5046
 #start_wires = [1689,1085,2101]
 #end_wires   = [1272,1670,2269]
+
+# path that crosses a large dead-channel gap 
+#start_tick  = 4578
+#start_wires = [239,894,463]
+#end_tick    = 5730
+#end_wires   = [1090,490,907]
+
+# snakes through dead channels
+#start_tick = 3792
+#start_wires = [702,1295,1329]
+#end_tick = 3090
+#end_wires = [868,1106,1302]
+
 # ==============================================
 
 # ENTRY 1
@@ -72,10 +85,16 @@ end_wires   = [696,34,60]
 #start_wires = [1001,1597,1928]
 #end_wires   = [1618,1015,1960]
 
+# only major track that is missed
 #start_tick = 3606
 #start_wires = [555,1210,1097]
 #end_tick = 5568
-#end_wires = [1039,708,1062]
+#end_wires = [1039,708,1070]
+
+#start_tick = 3540
+#start_wires = [514,1053,896]
+#end_tick = 5568
+#end_wires = [1039,708,1070]
 
 # ==============================================
 
@@ -90,10 +109,10 @@ end_wires   = [696,34,60]
 #end_tick = 4644
 #end_wires = [1954,1290,2573]
 
-start_tick = 4884
-start_wires = [465,1122,913]
-end_tick = 6282
-end_wires = [851,247,426]
+#start_tick = 4884
+#start_wires = [465,1122,913]
+#end_tick = 6282
+#end_wires = [851,247,426]
 
 # example of spurious connection
 #start_tick = 6762
@@ -102,6 +121,12 @@ end_wires = [851,247,426]
 #end_wires = [585,1092,1005] # bad ending
 #end_tick = 6054
 #end_wires = [565,1220,1114]
+
+start_tick  = 6054
+start_wires = [565,1220,1114]
+end_tick = 6762
+end_wires = [1061,414,802]
+
 
 #start_tick = 7176
 #start_wires = [339,1008,675]
@@ -115,27 +140,37 @@ use_bad_chs = False
 config  = larlitecv.AStar3DAlgoConfig()
 config.accept_badch_nodes = True;
 config.astar_threshold.resize(3,50.0)
-config.astar_threshold[2] = 150.0
+config.astar_threshold[2] = 50.0
 config.astar_neighborhood.resize(3,6)
 config.astar_start_padding = 3
 config.astar_end_padding = 3
 config.lattice_padding = 10
 config.min_nplanes_w_hitpixel = 3
+config.restrict_path = True
+config.path_restriction_radius = 30.0
+
 compress_factor = 4
 
 algo = larlitecv.AStar3DAlgo( config )
 algo.setVerbose(2)
 
 # attempt compress until under 100 per dimension
-img_compress_v   = std.vector("larcv::Image2D")()
-badch_compress_v = std.vector("larcv::Image2D")()
+img_compress_v    = std.vector("larcv::Image2D")()
+badch_compress_v  = std.vector("larcv::Image2D")()
+tagged_v          = std.vector("larcv::Image2D")()
+tagged_compress_v = std.vector("larcv::Image2D")()
 for p in range(0,3):
 	img_cpy   = larcv.Image2D( img_v.at(p) )
 	badch_cpy = larcv.Image2D( badch_v.at(p) )
+	tag_cpy   = larcv.Image2D( img_v.at(p).meta() )
+	tag_cpy.paint(0)
+	tagged_v.push_back( tag_cpy )
 	img_cpy.compress( img_v.at(p).meta().rows()/compress_factor, img_v.at(p).meta().cols()/compress_factor )
 	badch_cpy.compress( img_v.at(p).meta().rows()/compress_factor, img_v.at(p).meta().cols()/compress_factor )	
+	tag_cpy.compress( img_v.at(p).meta().rows()/compress_factor, img_v.at(p).meta().cols()/compress_factor )	
 	img_compress_v.push_back( img_cpy )
 	badch_compress_v.push_back( badch_cpy )
+	tagged_compress_v.push_back( tag_cpy )
 
 meta_compress = img_compress_v.front().meta()
 
@@ -153,7 +188,7 @@ badch_v = badch_compress_v
 meta = meta_compress
 goal_reached = rt.Long(0)
 
-path = algo.findpath( img_compress_v, badch_compress_v, start_row, end_row, start_cols, end_cols, goal_reached )
+path = algo.findpath( img_compress_v, badch_compress_v, tagged_compress_v, start_row, end_row, start_cols, end_cols, goal_reached )
 
 print "pathsize=",path.size()
 

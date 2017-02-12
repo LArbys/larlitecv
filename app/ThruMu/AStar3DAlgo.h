@@ -267,17 +267,17 @@ namespace larlitecv {
     
     void setVerbose( int v ) { verbose = v; };
 
-	  std::vector<AStar3DNode> findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+	  std::vector<AStar3DNode> findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
 	  	const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached );
 
 	  std::vector<AStar3DNode> makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed );  
 
 	  void evaluateNeighborNodes( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
-    	const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+    	const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
     	AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice );
 
 	  bool evaluteLatticePoint( const A3DPixPos_t& latticept, AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
-	    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+	    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
   	  AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice );
 
 	  float distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz );

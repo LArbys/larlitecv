@@ -66,8 +66,9 @@ namespace larlitecv {
                                int start_pad, int end_pad, int verbose=0, bool use_badchs=false );
 
     BMTrackCluster3D runAstar3D( const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt, 
-        const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
-        const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v, bool& goal_reached );
+        const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+        const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v, const std::vector<larcv::Image2D>& tagged_compressed_v,
+        bool& goal_reached );
 
     void process2Dtracks( std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
                           const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
