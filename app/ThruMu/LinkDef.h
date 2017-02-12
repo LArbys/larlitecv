@@ -42,6 +42,8 @@
 #pragma link C++ class larlitecv::AStar3DAlgoConfig+;
 #pragma link C++ class larlitecv::AStar3DAlgo+;
 
+#pragma link C++ class larlitecv::BezierCurve+;
+
 //ADD_NEW_CLASS ... do not change this line
 #endif
 
