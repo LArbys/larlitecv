@@ -21,6 +21,7 @@ namespace larlitecv {
     boundary_cluster_radius.resize(3,10);
     astar_thresholds.resize(3,10.0);
     astar_neighborhood.resize(3,10.0);
+    tag_neighborhood.resize(3,2);
     verbosity = 0;
   }
 
@@ -37,6 +38,7 @@ namespace larlitecv {
     config.boundary_cluster_radius    = pset.get< std::vector<float> >( "BoundaryClusterRadius" );
     config.astar_thresholds           = pset.get< std::vector<float> >( "AStarThresholds" );
     config.astar_neighborhood         = pset.get< std::vector<int> >( "AStarNeighborhood" );
+    config.tag_neighborhood           = pset.get< std::vector<int> >("TaggingNeighborhood");    
     config.save_endpt_images          = pset.get<bool>("SaveMatchImages",false);
     config.hitsearch_uses_badchs      = pset.get<bool>("UseBadChannels",true);
     config.ticks_per_full_drift       = pset.get<float>("TicksPerFullDrift",4650.0);

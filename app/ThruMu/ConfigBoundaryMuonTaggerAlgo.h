@@ -34,6 +34,7 @@ namespace larlitecv {
     std::vector<float>   boundary_cluster_radius;    ///< nearest neighbor radius for dbscan clustering of boundary pixels
     std::vector<float> astar_thresholds; //< passed to astar config
     std::vector<int>   astar_neighborhood; //< passed to astar config
+    std::vector<int>   tag_neighborhood; //< neighborhood around track path that will be tagged as thrumu
     bool save_endpt_images;
     bool hitsearch_uses_badchs;
     int ticks_per_full_drift;

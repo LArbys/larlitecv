@@ -150,9 +150,10 @@ namespace larlitecv {
 
   int BoundaryMuonTaggerAlgo::makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
                                                    const std::vector< const BoundarySpacePoint* >& spacepts,
-                                                   std::vector< larlitecv::BMTrackCluster3D >& trackclusters ) {
+                                                   std::vector< larlitecv::BMTrackCluster3D >& trackclusters, 
+                                                   std::vector< larcv::Image2D >& tagged_v ) {
     // This method takes in the list of boundaryspacepoints and pairs them up in order to try to find through-going muons
-        int nendpts = (int)spacepts.size();
+    int nendpts = (int)spacepts.size();
 
     // pair up containers
     int ntotsearched = 0;
@@ -186,15 +187,27 @@ namespace larlitecv {
     // make a vector of bools to tag end points that have already been used to find a track
     std::vector<bool> space_point_used( spacepts.size(), false );
     // we make blank images to tag pixels that have been assigned to a track
-    std::vector< larcv::Image2D > tagged_v;
-    for (int p=0; p<(int)img_v.size(); p++) {
-      larcv::Image2D tagged( img_v.at(p).meta() );
-      tagged.paint(0.0);
-      tagged_v.emplace_back( std::move(tagged) );
+    if ( tagged_v.size()!=img_v.size() ) {
+      tagged_v.clear();
+      for (int p=0; p<(int)img_v.size(); p++) {
+        larcv::Image2D tagged( img_v.at(p).meta() );
+        tagged.paint(0.0);
+        tagged_v.emplace_back( std::move(tagged) );
+      }
     }
 
     // do the track-finding passes
     for (int pass=0; pass<NumPasses; pass++) {
+
+
+      // for each pass, we continue tag the images
+      std::vector< larcv::Image2D > pass_tagged_v;
+      for (size_t p=0; p<img_v.size(); p++ ) {
+        larcv::Image2D tagged( img_v.at(p).meta() );
+        tagged.paint(0.0);
+        pass_tagged_v.emplace_back( std::move(tagged) );
+      }
+
       for (int i=0; i<nendpts; i++) {
         if ( space_point_used.at(i) ) continue;
         const BoundarySpacePoint& pts_a = *(spacepts[i]);        
@@ -316,11 +329,20 @@ namespace larlitecv {
             // if we made a good track, we mark the end points as used. we also tag the path through the image
             //space_point_used.at(i) = true;
             //space_point_used.at(j) = true;
-            markImageWithTrack( img_v, badchimg_v, track3d, tagged_v );
+            markImageWithTrack( img_v, badchimg_v, track3d, pass_tagged_v );
             trackclusters.emplace_back( std::move(track3d) );
           }
         }//loop over pt b
       }//loop over pt a
+
+      // merge tagged images from this pass to final tagged images
+      for (size_t p=0; p<tagged_v.size(); p++ ) {
+        larcv::Image2D& final_tagged = tagged_v.at(p);
+        larcv::Image2D& pass_tagged  = pass_tagged_v.at(p);
+        final_tagged += pass_tagged;
+        final_tagged.binary_threshold( 1, 0, 255 );
+      }
+
     }//end of loop over passes
     
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
@@ -361,23 +383,54 @@ namespace larlitecv {
 
       const larlitecv::BMTrackCluster2D& track = tracks2d.at(plane);
 
-      for ( auto &pixel : track.pixelpath ) {
-        int col = pixel.X();
-        int row = pixel.Y();
-        bool foundcharge = false;
-        for ( int dc=-_config.astar_neighborhood.at(plane); dc<=_config.astar_neighborhood.at(plane); dc++ ) {
-          for ( int dr=-_config.astar_neighborhood.at(plane); dr<=_config.astar_neighborhood.at(plane); dr++ ) {
-            int r = row+dr;
-            int c = col+dc;
-            if ( r<0 || r>=(int)meta.rows() ) continue;
-            if ( c<0 || c>=(int)meta.cols() ) continue;
-            float val = img.pixel( r, c );
-            if ( val>_config.thresholds.at(plane) || badchimgs.at(plane).pixel(r,c)>0 ) {
-              markedimgs.at(p).set_pixel(row,col,255);
-            }
-          }
+      for (size_t ipixel=1; ipixel<track.pixelpath.size(); ipixel++ ) {
+        const larcv::Pixel2D& pixel      = track.pixelpath.at(ipixel);
+        const larcv::Pixel2D& past_pixel = track.pixelpath.at(ipixel-1);
+        // we want to make sure we take small enough steps in between these two pixel locations
+        //int nsteps_row = fabs(pixel.Y()-past_pixel.Y())/meta.pixel_height();
+        //int nsteps_col = fabs(pixel.X()-past_pixel.X())/meta.pixel_width();
+        int nsteps_row = fabs((float)pixel.Y()-(float)past_pixel.Y());
+        int nsteps_col = fabs((float)pixel.X()-(float)past_pixel.X());
+        float step[2] = { (float)pixel.X()-(float)past_pixel.X(), (float)pixel.Y()-(float)past_pixel.Y() };
+        //float step_norm = sqrt( step[0]*step[0] + step[1]*step[1] );
+        //for (size_t i=0; i<2; i++) {
+        //  step[i] /= step_norm;
+        //}
+
+        // how we define the step size depends on which dimension has the largest number of steps
+        int nsteps = 0;
+        if ( nsteps_row > nsteps_col ) {
+          nsteps = 5*nsteps_row;
+          //step_scale = meta.pixel_height()/step[1];
         }
-      }//end of pixel list
+        else {
+          nsteps = 5*nsteps_col;
+          //step_scale = meta.pixel_width()/step[0];
+        }
+
+        for (size_t i=0; i<2; i++)
+          step[i] /= float(nsteps);
+
+        for (int istep=0; istep<=nsteps; istep++ ) {
+
+          int col = past_pixel.X() + istep*step[0];
+          int row = past_pixel.Y() + istep*step[1];
+
+          for ( int dc=-_config.tag_neighborhood.at(plane); dc<=_config.tag_neighborhood.at(plane); dc++ ) {
+            for ( int dr=-_config.tag_neighborhood.at(plane); dr<=_config.tag_neighborhood.at(plane); dr++ ) {
+          //for ( int dc=0; dc<=_config.tag_neighborhood.at(plane); dc++ ) {
+          //  for ( int dr=0; dr<=_config.tag_neighborhood.at(plane); dr++ ) {
+              int r = row+dr;
+              int c = col+dc;
+              if ( r<0 || r>=(int)meta.rows() ) continue;
+              if ( c<0 || c>=(int)meta.cols() ) continue;
+              float val = img.pixel( r, c );
+              if ( val>_config.thresholds.at(plane) || badchimgs.at(plane).pixel(r,c)>0 )
+                markedimgs.at(p).set_pixel(r,c,255);
+            }//end of loop over r-neighborhood
+          }//end of loop over c-neighborhood
+        }//end of steps
+      }//end of pixel list loop
 
     }//end of img loop
     

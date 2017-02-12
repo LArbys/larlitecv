@@ -269,9 +269,10 @@ int main( int nargs, char** argv ) {
 
     // ------------------------------------------------------------------------------------------//
     // Form 2D tracks on each plane from boundary points
+    std::vector< larcv::Image2D > tagged_v;
     std::vector< larlitecv::BMTrackCluster3D > tracks3d;
     if (runtracker) {
-      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, filtered_endpoints, tracks3d );
+      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, filtered_endpoints, tracks3d, tagged_v );
     }
 
     // ------------------------------------------------------------------------------------------//
@@ -285,8 +286,8 @@ int main( int nargs, char** argv ) {
     // ------------------------------------------------------------------------------------------//
 
 
-    std::vector< larcv::Image2D > markedimgs;
-    sidetagger.markImageWithTrackClusters( imgs, gapchimgs_v, tracks3d, goodlist, markedimgs );
+    //std::vector< larcv::Image2D > markedimgs;
+    //sidetagger.markImageWithTrackClusters( imgs, gapchimgs_v, tracks3d, goodlist, markedimgs );
 
     // ------------------------------------------------------------------------------------------//
     // SAVE OUTPUT //
@@ -439,7 +440,7 @@ int main( int nargs, char** argv ) {
 
     // Marked images
     larcv::EventImage2D* event_markedimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
-    event_markedimgs->Emplace( std::move(markedimgs) );
+    event_markedimgs->Emplace( std::move(tagged_v) );
 
 
     // go to tree
