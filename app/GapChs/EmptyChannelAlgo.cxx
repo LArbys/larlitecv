@@ -7,7 +7,7 @@
 
 namespace larlitecv {
 
-  larcv::Image2D EmptyChannelAlgo::labelEmptyChannels( float threshold, const larcv::Image2D& tpcimg ) {
+  larcv::Image2D EmptyChannelAlgo::labelEmptyChannels( float threshold, const larcv::Image2D& tpcimg, const float max_value ) {
 
     // for data I imagine this will need to be more elaborate
     
@@ -18,7 +18,8 @@ namespace larlitecv {
     for (int col=0; col<meta.cols(); col++) {
       bool isempty = true;
       for ( int row=0; row<meta.rows(); row++) {
-        if ( tpcimg.pixel(row,col)>threshold ) {
+        float val = tpcimg.pixel(row,col);
+        if ( val>threshold && (max_value<0 || val<max_value) ) {
           isempty = false;
           break;
         }
@@ -96,7 +97,7 @@ namespace larlitecv {
   }
 
   std::vector<larcv::Image2D> EmptyChannelAlgo::findMissingBadChs( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimgs_v,
-    const float empty_ch_threshold, const int max_empty_gap ) {
+    const float empty_ch_threshold, const int max_empty_gap, const float empty_ch_max ) {
 
     std::cout << "EmptyChannelAlgo::findMissingBadChs" << std::endl;
 
@@ -105,7 +106,7 @@ namespace larlitecv {
     for (size_t p=0; p<img_v.size(); p++) {
       const larcv::Image2D& img     = img_v.at(p);
       const larcv::Image2D& badch   = badchimgs_v.at(p);
-      const larcv::Image2D& emptych = labelEmptyChannels( empty_ch_threshold, img );
+      const larcv::Image2D& emptych = labelEmptyChannels( empty_ch_threshold, img, empty_ch_max );
       int cols = img.meta().cols(); 
       bool ingap = false;
       int gapsize = 0;

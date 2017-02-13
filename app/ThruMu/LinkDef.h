@@ -16,7 +16,6 @@
 #pragma link C++ class larlitecv::BoundarySpacePoint+;
 #pragma link C++ class larlitecv::BMTrackCluster2D+;
 #pragma link C++ class larlitecv::BMTrackCluster3D+;
-#pragma link C++ class larlitecv::EmptyChannelAlgo+;
 #pragma link C++ class larlitecv::BoundaryIntersectionAlgo+;
 #pragma link C++ class larlitecv::BoundaryMuonTaggerAlgo+;
 #pragma link C++ class larlitecv::BoundaryMuonTagger+;

@@ -27,7 +27,7 @@
 #include "ThruMu/BoundarySpacePoint.h"
 #include "ThruMu/BoundaryEndPt.h"
 #include "ThruMu/EndPointFilter.h"
-#include "ThruMu/EmptyChannelAlgo.h"
+#include "GapChs/EmptyChannelAlgo.h"
 
 
 
