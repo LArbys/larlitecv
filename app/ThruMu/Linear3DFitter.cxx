@@ -5,6 +5,7 @@
 // larcv
 #include "UBWireTool/UBWireTool.h"
 #include "DataFormat/ImageMeta.h"
+#include "DataFormat/Pixel2D.h"
 
 // larlite
 #include "LArUtil/LArProperties.h"
@@ -48,7 +49,9 @@ namespace larlitecv {
     goalpos[2] = poszy_goal[0];
 
     if ( start_crosses==0 || goal_crosses==0 ) {
-      throw std::runtime_error("Linear3DFitter::findpath[error] start or goal point not a good 3D space point.");
+      //throw std::runtime_error("Linear3DFitter::findpath[error] start or goal point not a good 3D space point.");
+      PointInfoList empty;
+      return empty;
     }
 
     // This begins the code for the 3D linear fitter
@@ -315,11 +318,60 @@ namespace larlitecv {
 
   }
 
+  BMTrackCluster3D Linear3DFitter::makeTrackCluster3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+    const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt, const PointInfoList& infolist ) {
+
+    // convert info list into BMTrackCluster3D
+    const int nplanes = img_v.size();
+    BMTrackCluster3D track3d;
+    track3d.start_type = start_pt.type();
+    track3d.end_type   = end_pt.type();
+    track3d.row_start = start_pt.front().row;
+    track3d.row_end   = end_pt.front().row;
+    track3d.tick_start = img_v.front().meta().pos_y( track3d.row_start );
+    track3d.tick_end   = img_v.front().meta().pos_y( track3d.row_end );
+    track3d.start_wire.resize(nplanes,0);
+    track3d.end_wire.resize(nplanes,0);
+    track3d.start3D.resize(nplanes,0);
+    track3d.end3D.resize(nplanes,0);
+    for (int i=0; i<nplanes; i++) {
+      track3d.start3D[i] = infolist.front().xyz[i];
+      track3d.end3D[i]   = infolist.back().xyz[i];
+    }
+
+    for (int p=0; p<nplanes; p++) {
+      BMTrackCluster2D track2d;
+      track2d.start = start_pt.at(p);
+      track2d.end   = end_pt.at(p);
+      track2d.plane = p;
+      track3d.plane_paths.emplace_back( std::move(track2d) );
+    }
+
+    // append points to track
+    for ( auto const& pt : infolist ) {
+      // pixels into track2d containers for each plane
+      for (int p=0; p<nplanes; p++) {
+        larcv::Pixel2D pixel( pt.cols[p], pt.row );
+        pixel.Intensity( (int)start_pt.type() );
+        track3d.plane_paths.at(p).pixelpath += pixel;
+      }
+      // 3d pos
+      std::vector<double> pos3d(3);
+      for (int i=0; i<3; i++)
+        pos3d[i] = pt.xyz[i];
+      track3d.path3d.emplace_back( std::move(pos3d) );
+    }
+
+    return track3d;
+
+  }
+
 
   // ================================================================
 
 #ifndef __CINT__
 #ifndef __CLING__
+  // This is how we add points to PointInfoList. We move object to avoid copy. We also tally some information.
   void PointInfoList::emplace( PointInfo&& pt ) {
 
     // tally

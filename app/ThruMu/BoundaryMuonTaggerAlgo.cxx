@@ -16,6 +16,7 @@
 
 #include "AStarDirAlgo.h"
 #include "AStar3DAlgo.h"
+#include "Linear3DFitter.h"
 #include "BoundaryEndPt.h"
 #include "BoundaryIntersectionAlgo.h"
 #include "LineRegionTest.h"
@@ -164,6 +165,7 @@ namespace larlitecv {
 
     // track tests: acts as a first filter. is there enouguh charge in between the start and end point?
     LineRegionTest lrt( 30, 0.9, 5.0 ); // (region width, pass threshold, pixel threshold)
+    Linear3DFitter linetrackalgo; // finds charge along a line in 3D space
 
     // compress images for AStar3D
     std::vector< larcv::Image2D > img_compressed_v;
@@ -196,6 +198,19 @@ namespace larlitecv {
       }
     }
 
+    // during pass 0 (line track), we store information about combinations of points
+    // it will tell us if we should try astar during the next pass
+    typedef std::pair<int,int> Combo_t;
+    struct ComboInfo_t {
+      int goodstart;
+      int goodend;
+      bool track_made;
+      ComboInfo_t() { goodstart = 0; goodend = 0; track_made = false; };
+    };
+    typedef std::pair<Combo_t, ComboInfo_t> Pass0Pair;
+    std::map< Combo_t, ComboInfo_t > pass0_combos;
+    std::vector< Combo_t > pass0_endpts_connected;
+
     // do the track-finding passes
     for (int pass=0; pass<NumPasses; pass++) {
 
@@ -227,10 +242,10 @@ namespace larlitecv {
           if ( _config.verbosity>1 ) {
             std::cout << "[ Pass " << pass << ": path-finding for endpoints (" << i << "," << j << ") "
                       << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
-        
+
            for (int p=0; p<3; p++) {
-              int col_a = pts_a.at(p).col;
               int row_a = pts_a.at(p).row;
+              int col_a = pts_a.at(p).col;
               int col_b = pts_b.at(p).col;
               int row_b = pts_b.at(p).row;
               std::cout << "  plane=" << p << ": "
@@ -259,9 +274,51 @@ namespace larlitecv {
           // ====================================================================================
           // PASSES
           BMTrackCluster3D track3d;
+
           bool track_made = false;
           if ( pass==0 ) {
             // straight line fitter (Chris)
+            std::vector<int> a_cols(img_v.size(),0);
+            std::vector<int> b_cols(img_v.size(),0);
+            for (int p=0; p<(int)img_v.size(); p++) {
+              a_cols[p] = pts_a.at(p).col;
+              b_cols[p] = pts_b.at(p).col;
+            }
+
+            PointInfoList straight_track = linetrackalgo.findpath( img_v, badchimg_v, pts_a.at(0).row, pts_b.at(0).row, a_cols, b_cols );
+
+            // store info about the combination
+            Combo_t thiscombo(i,j);
+            ComboInfo_t badcombo;
+            badcombo.goodstart = 0;
+            badcombo.goodend   = 0;
+
+            // we count the number of good points at start and end of track
+            if ( straight_track.size()>0 ) {
+              int nstart = ( 10<straight_track.size() ) ? 10 : straight_track.size();
+              int nend   = ( 10<straight_track.size() ) ? 10 : straight_track.size();  
+              for (int ipt=0; ipt<nstart; ipt++) {
+                if ( straight_track.at(ipt).goodpoint )
+                  badcombo.goodstart++;
+              }
+             for (int ipt=(int)straight_track.size()-nend; ipt<(int)straight_track.size(); ipt++) {
+                if ( straight_track.at(ipt).goodpoint )
+                  badcombo.goodend++;
+              }
+            }
+
+            if ( straight_track.size()>5 && straight_track.fractionGood()>0.95 && straight_track.fractionHasChargeWith3Planes()>0.5) {
+              track_made = true;
+              track3d = linetrackalgo.makeTrackCluster3D( img_v, badchimg_v, pts_a, pts_b, straight_track );
+              pass0_endpts_connected.push_back( thiscombo );
+            }
+            else {
+              track_made = false;
+            }
+
+            badcombo.track_made = track_made;
+            pass0_combos.insert( Pass0Pair(thiscombo,badcombo) );
+
           }
           else if ( pass==1 ) {
             // A* star
@@ -270,6 +327,26 @@ namespace larlitecv {
             //bool shallwe = passTrackTest( pts_a, pts_b, img_v, badchimg_v );
             // for debugging specific tracks
 
+            // We use information from the line tests to determine to run A*
+            Combo_t thiscombo(i,j);
+
+            // We already connect the two?
+            auto it_combo = pass0_combos.find( thiscombo );
+            if ( it_combo!=pass0_combos.end() && (*it_combo).second.track_made )
+              continue; // we have, so move on
+            else if ( it_combo!=pass0_combos.end() ) {
+              if ( (*it_combo).second.goodend<5 || (*it_combo).second.goodstart<5 )
+                continue;
+            }
+            else {
+              // combo not found
+              std::cout << "Pass0 combo not found." << std::endl;
+              std::cin.get();
+              continue;
+            }
+
+            
+            // use line region test to decide to go
             std::vector< BMTrackCluster2D > test_track(3);
             bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
             if ( _config.verbosity>1 )
@@ -290,6 +367,7 @@ namespace larlitecv {
               }
               //std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
             }
+            
         
             /*
             // OLD AStar done on each plane individually
@@ -340,6 +418,12 @@ namespace larlitecv {
           }
         }//loop over pt b
       }//loop over pt a
+
+      // for combos where tracks were made, we remove them from the search
+      for ( auto &combo : pass0_endpts_connected ) {
+        space_point_used.at( combo.first )  = true;
+        space_point_used.at( combo.second ) = true;
+      }
 
       // merge tagged images from this pass to final tagged images
       for (size_t p=0; p<tagged_v.size(); p++ ) {
