@@ -42,6 +42,7 @@ namespace larlitecv {
 			num_pts_w_allcharge = 0;
 			num_pts_w_allbadch = 0;
 			num_pts_w_allempty = 0;
+                        num_pts_good = 0;
 		};
 		virtual ~PointInfoList() {};
 
@@ -54,14 +55,17 @@ namespace larlitecv {
 
 		float fractionHasChargeWith3Planes() { return float(num_pts_w_allcharge)/float(size()); };
 		float fractionHasBadChOn3Planes() { return float(num_pts_w_allbadch)/float(size()); };
-		float fractionHasNoChargeOn3Planes() { return float(num_pts_w_allempty)/float(size()); };
+                float fractionHasNoChargeOn3Planes() { return float(num_pts_w_allempty)/float(size()); };
+                float fractionGood() { return float(num_pts_good)/float(size()); };
 
 		int num_pts_w_allcharge;
 		int num_pts_w_allbadch;
 		int num_pts_w_allempty;
+                int num_pts_good;
 	};
 
 	class Linear3DFitter  {
+	public:
 		Linear3DFitter() {};
 		virtual ~Linear3DFitter() {};
 
@@ -70,7 +74,7 @@ namespace larlitecv {
 
 	  PointInfoList pointsOnTrack(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
 	    const std::vector<float>& initial_point_coords, const std::vector<float>& final_point_coords, 
- 	   const float step_size, const float total_distance_between_points, const float min_ADC_value, const int neighborhood_size);
+ 	   const float step_size, const float min_ADC_value, const int neighborhood_size);
 
 	  bool doesNeighboringPixelHaveCharge(const larcv::Image2D& img, int central_row, int central_col, int neighborhood_size, float min_ADC_value);
 

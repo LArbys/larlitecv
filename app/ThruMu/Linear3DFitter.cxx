@@ -52,21 +52,12 @@ namespace larlitecv {
     }
 
     // This begins the code for the 3D linear fitter
-    
-    // Find the distance between the starting point and the end point 
-    float distance_between_trajectory_points = 0;
-    for (size_t i=0; i<3; i++) {
-      float dx = (goalpos[i]-startpos[i]);
-      if ( i==0 ) dx *= cm_per_tick;
-      distance_between_trajectory_points += dx*dx;
-    }
-    distance_between_trajectory_points = sqrt(distance_between_trajectory_points);
 
     // This ends the information that can be encapsulated into the function that finds the path between the starting point and the ending point.
     float step_size = 0.3;
     float min_ADC_value = 10.0;
     float neighborhood_square = 5;
-    PointInfoList track = pointsOnTrack(img_v, badch_v, startpos, goalpos, step_size, distance_between_trajectory_points, min_ADC_value, neighborhood_square );
+    PointInfoList track = pointsOnTrack(img_v, badch_v, startpos, goalpos, step_size, min_ADC_value, neighborhood_square );
 
     // Return the combination of 'Output_From_Points_On_Track' and 'Output_From_Last_Point_On_Track'
     return track;
@@ -89,11 +80,20 @@ namespace larlitecv {
 
   PointInfoList Linear3DFitter::pointsOnTrack(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
     const std::vector<float>& initial_point_coords, const std::vector<float>& final_point_coords, 
-    const float step_size, const float total_distance_between_points, const float min_ADC_value, const int neighborhood_size) {
+    const float step_size, const float min_ADC_value, const int neighborhood_size) {
 
     // Declare a variable equal to the 'cm_per_tick', because I need this information to convert between the x-coordinate value and the tick in the image of charge
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec] * [usec/tick] = [cm/tick]
     const int nplanes = img_v.size();
+
+    // Find the distance between the starting point and the end point 
+    float total_distance_between_points = 0;
+    for (size_t i=0; i<3; i++) {
+      float dx = (final_point_coords[i]-initial_point_coords[i]);
+      //if ( i==0 ) dx *= cm_per_tick;
+      total_distance_between_points += dx*dx;
+    }
+    total_distance_between_points = sqrt(total_distance_between_points);
 
     // Calculate the cosine along each of the axes so that you can find the coordinates of each step that you take along the track   
     // The prescription for the cosine values is the total component of the vector in that direction (the goal point - the starting point) divided by 'distance_between_trajectory_points', the length of the particle's entire trajectory                                                                                                                     
@@ -127,7 +127,7 @@ namespace larlitecv {
       Double_t xyz[3] = {0};
       pt.xyz.resize(3,0);
       for (size_t i=0; i<3; i++) {
-        xyz[i] = step_size_v[i]*float(wire_iterator);
+        xyz[i] = initial_point_coords[i] + step_size_v[i]*float(wire_iterator);
         pt.xyz[i] = xyz[i];
       }
 
@@ -136,7 +136,7 @@ namespace larlitecv {
       
       // Declare a vector of the three coordinates within the detector.  I will continue down this route, because I am not sure that all of the starting points come from the same set of channels.  This allows me to do it myself instead of going back into the 'wireIntersection' function.
       pt.wire_id.resize(nplanes,0);
-      for (size_t wire_plane_iterator = 0; wire_plane_iterator <= 2; wire_plane_iterator++) {
+      for (int wire_plane_iterator = 0; wire_plane_iterator < nplanes; wire_plane_iterator++) {
         pt.wire_id[wire_plane_iterator] = round( larutil::Geometry::GetME()->WireCoordinate( xyz , wire_plane_iterator ) );
       }
 
@@ -145,6 +145,7 @@ namespace larlitecv {
       pt.tick  = xyz[0]/cm_per_tick+3200.0;
 
       // Image coordinates
+      pt.cols.resize(nplanes,0);
       try {
         pt.row = img_v.front().meta().row(pt.tick);
         for (int p=0; p<nplanes; p++ )
@@ -164,22 +165,22 @@ namespace larlitecv {
 
       // Loop through all of the points on each of the planes to see if they contain the correct amount of charge
       // Now that I have this information, I can loop through each of the planes and see if each of the pixels have above the threshold amount of charge
+      pt.planeswithcharge = 0;      
       for (int plane_index = 0; plane_index < nplanes; plane_index++) {
 
         // Find the pixel value, badch status in the neighborhood of this coordinate value of (row, column)
         pt.planehascharge[plane_index] = doesNeighboringPixelHaveCharge( img_v.at(plane_index), pt.row, pt.cols[plane_index], neighborhood_size, min_ADC_value );
         pt.planehasbadch[plane_index]  = isNeighboringPixelDeadPixel( badch_v.at(plane_index), pt.row, pt.cols[plane_index], neighborhood_size );
-
+        if ( pt.planehascharge[plane_index])
+          pt.planeswithcharge++;
       }//end of plane loop 
 
       // check if good, i.e. the plane either has charge or badch 
       // also sum charge
       pt.goodpoint = true;
-      pt.planeswithcharge = 0;
       for (int p=0; p<nplanes; p++) {
         if ( !pt.planehascharge[p] && !pt.planehasbadch[p] ) {
           pt.goodpoint = false;
-          pt.planeswithcharge++;
           break;
         }
       }
@@ -252,6 +253,8 @@ namespace larlitecv {
       }
 
     }
+
+    return false;
   }
 
   // Declare a channel that will search for dead pixels in the vicinity of the central pixel.  This will take the same input parameters and use the same logic as the algorithm above, except it will take 'badch_v' as an input instead of 'img_v', and it will see if any of the entries in the vicinity of the central pixel have a value in the array that's greater than 0.0.  The 'float' input argument 'min_ADC_value' is not needed for this function.
@@ -326,6 +329,9 @@ namespace larlitecv {
       num_pts_w_allbadch++;
     else if ( pt.planeswithcharge==0 && !pt.goodpoint )
       num_pts_w_allempty++;
+
+    if ( pt.goodpoint )
+      num_pts_good++;
 
     // then store
     emplace_back( std::move(pt) );
