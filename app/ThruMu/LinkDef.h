@@ -33,6 +33,7 @@
 
 #pragma link C++ class larlitecv::PointInfo+;
 #pragma link C++ class larlitecv::PointInfoList+;
+#pragma link C++ class larlitecv::Linear3DFitterConfig+;
 #pragma link C++ class larlitecv::Linear3DFitter+;
 
 #pragma link C++ class larlitecv::AStarDirNode+;

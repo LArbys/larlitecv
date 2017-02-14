@@ -13,6 +13,30 @@
 
 namespace larlitecv {
 
+  // ================================================================
+  // Configuration Class of Linear3DFitter
+
+  Linear3DFitterConfig::Linear3DFitterConfig() {
+    trigger_tpc_tick = 3200.0;
+    min_ADC_value = 10.0; // works for 6 tick downsampling, no wire downsampling
+    step_size = 0.3; // cm
+    neighborhood_square = 5;
+    neighborhood_posttick = 10;
+  }
+
+  Linear3DFitterConfig Linear3DFitterConfig::makeFromPSet( const larcv::PSet& pset ) {
+    Linear3DFitterConfig cfg;
+    cfg.trigger_tpc_tick      = pset.get<float>( "TriggerTPCTick" );
+    cfg.min_ADC_value         = pset.get<float>( "PixelThreshold");
+    cfg.step_size             = pset.get<float>( "StepSize" );
+    cfg.neighborhood_square   = pset.get<int>( "NeighborhoodSquareSize");
+    cfg.neighborhood_posttick = pset.get<int>( "NeighborhoodPostTick" );
+    return cfg;
+  }
+
+  // ================================================================
+  // Linear3DFitter
+
   // I have added the variables 'time_comp_factor' and 'wire_comp_factor' to this definition when they were not here previously
   PointInfoList Linear3DFitter::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
     const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols  ) {
@@ -39,12 +63,12 @@ namespace larlitecv {
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec] * [usec/tick] = [cm/tick]    
 
     std::vector<float> startpos(3,0);
-    startpos[0] = (meta.pos_y( start_row )-3200.0)*cm_per_tick;
+    startpos[0] = (meta.pos_y( start_row )-m_config.trigger_tpc_tick)*cm_per_tick;
     startpos[1] = poszy_start[1];
     startpos[2] = poszy_start[0];
 
     std::vector<float> goalpos(3,0);
-    goalpos[0] = (meta.pos_y( goal_row )-3200.0)*cm_per_tick;
+    goalpos[0] = (meta.pos_y( goal_row )-m_config.trigger_tpc_tick)*cm_per_tick;
     goalpos[1] = poszy_goal[1];
     goalpos[2] = poszy_goal[0];
 
@@ -57,10 +81,7 @@ namespace larlitecv {
     // This begins the code for the 3D linear fitter
 
     // This ends the information that can be encapsulated into the function that finds the path between the starting point and the ending point.
-    float step_size = 0.3;
-    float min_ADC_value = 10.0;
-    float neighborhood_square = 5;
-    PointInfoList track = pointsOnTrack(img_v, badch_v, startpos, goalpos, step_size, min_ADC_value, neighborhood_square );
+    PointInfoList track = pointsOnTrack(img_v, badch_v, startpos, goalpos, m_config.step_size, m_config.min_ADC_value, m_config.neighborhood_square );
 
     // Return the combination of 'Output_From_Points_On_Track' and 'Output_From_Last_Point_On_Track'
     return track;
@@ -211,7 +232,7 @@ namespace larlitecv {
     int last_col_index = (int)img.meta().cols() - 1;
 
     // Declare variables for the starting and ending coordinates in the search
-    int starting_row_coord = central_row - neighborhood_size;
+    int starting_row_coord = central_row - m_config.neighborhood_posttick;
     int ending_row_coord   = central_row + neighborhood_size;
     int starting_col_coord = central_col - neighborhood_size;
     int ending_col_coord   = central_col + neighborhood_size;
@@ -268,7 +289,7 @@ namespace larlitecv {
     int last_col_index = (int)badch.meta().cols() - 1;
 
     // Declare variables for the starting and ending coordinates in the search                                                                                            
-    int starting_row_coord = central_row - neighborhood_size;
+    int starting_row_coord = central_row - m_config.neighborhood_posttick;
     int ending_row_coord   = central_row + neighborhood_size;
     int starting_col_coord = central_col - neighborhood_size;
     int ending_col_coord   = central_col + neighborhood_size;
@@ -315,6 +336,38 @@ namespace larlitecv {
 
     // Return 'charge_in_vicinity'                                                                                                                                              
     return false;
+
+  }
+
+  void Linear3DFitter::getTrackExtension( const PointInfoList& infolist, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+    const float max_extension_length, PointInfoList& start_extension, PointInfoList& end_extension ) {
+    // get direction of track
+    std::vector<float> dir(3,0);
+    float norm = 0.;
+    for (int i=0; i<3; i++) {
+      dir[i] = infolist.back().xyz[i] - infolist.front().xyz[i];
+      norm += dir[i]*dir[i];
+    }
+    norm = sqrt(norm);
+    for (int i=0; i<3; i++)
+      dir[i] /= norm;
+
+    std::vector<float> endpt(3,0);
+    std::vector<float> extend_end(3,0);
+    std::vector<float> startpt(3,0);    
+    std::vector<float> extend_start(3,0);
+    for (int i=0; i<3; i++) {
+      endpt[i] = infolist.back().xyz[i];
+      extend_end[i]   = infolist.back().xyz[i] + max_extension_length*dir[i];
+      startpt[i] = infolist.front().xyz[i];
+      extend_start[i] = infolist.front().xyz[i] - max_extension_length*dir[i];
+    }
+
+    end_extension   = pointsOnTrack( img_v, badch_v, endpt, extend_end, m_config.step_size, m_config.min_ADC_value, m_config.neighborhood_square );
+    start_extension = pointsOnTrack( img_v, badch_v, startpt, extend_start, m_config.step_size, m_config.min_ADC_value, m_config.neighborhood_square );    
+
+    //num_start = end_extension.num_pts_good;
+    //num_end   = start_extension.num_pts_good;
 
   }
 
@@ -366,7 +419,6 @@ namespace larlitecv {
 
   }
 
-
   // ================================================================
 
 #ifndef __CINT__
@@ -381,6 +433,9 @@ namespace larlitecv {
       num_pts_w_allbadch++;
     else if ( pt.planeswithcharge==0 && !pt.goodpoint )
       num_pts_w_allempty++;
+
+    if ( pt.planeswithcharge>=2 )
+      num_pts_w_majcharge++;
 
     if ( pt.goodpoint )
       num_pts_good++;

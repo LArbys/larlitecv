@@ -165,7 +165,9 @@ namespace larlitecv {
 
     // track tests: acts as a first filter. is there enouguh charge in between the start and end point?
     LineRegionTest lrt( 30, 0.9, 5.0 ); // (region width, pass threshold, pixel threshold)
-    Linear3DFitter linetrackalgo; // finds charge along a line in 3D space
+
+    // linear 3D track
+    Linear3DFitter linetrackalgo( _config.linear3d_cfg ); // finds charge along a line in 3D space
 
     // compress images for AStar3D
     std::vector< larcv::Image2D > img_compressed_v;
@@ -204,6 +206,10 @@ namespace larlitecv {
     struct ComboInfo_t {
       int goodstart;
       int goodend;
+      int startext_majcharge;
+      int endext_majcharge;
+      int startext_ngood;
+      int endext_ngood;
       bool track_made;
       ComboInfo_t() { goodstart = 0; goodend = 0; track_made = false; };
     };
@@ -307,13 +313,43 @@ namespace larlitecv {
               }
             }
 
-            if ( straight_track.size()>5 && straight_track.fractionGood()>0.95 && straight_track.fractionHasChargeWith3Planes()>0.5) {
+            track_made = false;
+            std::cout << "straight-track result: "
+                      << "size=" << straight_track.size() << " "
+                      << " fracGood=" << straight_track.fractionGood() << " "
+                      << " fracAllCharge=" << straight_track.fractionHasChargeWith3Planes() << " "
+                      << " fracMajCharge=" << straight_track.fractionHasChargeOnMajorityOfPlanes() << " "
+                      << std::endl;
+
+            if ( straight_track.size()>_config.linear3d_min_tracksize
+                  && straight_track.fractionGood()>_config.linear3d_min_goodfraction
+                  && straight_track.fractionHasChargeOnMajorityOfPlanes()>_config.linear3d_min_majoritychargefraction ) {
+
+              // // cool, it is mostly a good track. let's check if end point
+              // Endpoint checking didn't seem to contirbute much. We skip it for now.
+              // PointInfoList start_ext;
+              // PointInfoList end_ext;
+              // linetrackalgo.getTrackExtension( straight_track, img_v, badchimg_v, 30.0, start_ext, end_ext );
+              // //std::cout << "good track by linear fit. nstart=" << nstart << " nend=" << nend << std::endl;
+              // badcombo.startext_majcharge = start_ext.num_pts_w_majcharge;
+              // badcombo.endext_majcharge   = end_ext.num_pts_w_majcharge;
+              // badcombo.startext_ngood     = start_ext.num_pts_good;
+              // badcombo.endext_ngood       = end_ext.num_pts_good;
+
+              // // use extensions to reject the track
+              // if ( ( start_ext.num_pts_w_majcharge>=1000)
+              //   || ( end_ext.num_pts_w_majcharge>=1000) ) {
+              //   // this above cut has to be loose, because we often tag inside the track a bit
+              //   // rejected
+              //   track_made = false;
+              // }
+              // else {
+
               track_made = true;
               track3d = linetrackalgo.makeTrackCluster3D( img_v, badchimg_v, pts_a, pts_b, straight_track );
               pass0_endpts_connected.push_back( thiscombo );
-            }
-            else {
-              track_made = false;
+              //}
+
             }
 
             badcombo.track_made = track_made;
@@ -419,10 +455,26 @@ namespace larlitecv {
         }//loop over pt b
       }//loop over pt a
 
-      // for combos where tracks were made, we remove them from the search
+      // for combos where tracks were made, we remove them from the search if for some conditions
       for ( auto &combo : pass0_endpts_connected ) {
+
+        /*
+        // we can try to kill large charge extension to prevent re-use. the point is in the middle of the track.
+        // we want this to be conservative so we don't throw away points for a*
+        auto it_comboinfo = pass0_combos.find( combo );
+        if ( it_comboinfo!=pass0_combos.end() ) {
+          const ComboInfo_t& cinfo = (*it_comboinfo).second;
+          if ( cinfo.startext_majcharge>30 )
+            space_point_used.at( combo.first )  = true;
+          if ( cinfo.endext_majcharge>30 )
+            space_point_used.at( combo.second ) = true;
+
+        }
+        */
+
+        // if we connected them. we no longer need points
         space_point_used.at( combo.first )  = true;
-        space_point_used.at( combo.second ) = true;
+        space_point_used.at( combo.second ) = true;        
       }
 
       // merge tagged images from this pass to final tagged images

@@ -13,6 +13,8 @@ rt.gStyle.SetOptStat(0)
 padding = 20
 badchval = -20
 
+algoconfig = larlitecv.Linear3DFitterConfig()
+
 # ------------------------------------------------------------------------------
 # SETUP TEST PATH
 
@@ -24,23 +26,43 @@ badchval = -20
 #end_wires   = [696,34,60]
 
 # straight path that ends in dead region
-#entry = 2
-#start_tick = 4884
-#start_wires = [465,1122,913]
-#end_tick = 6282
-#end_wires = [851,247,426]
+entry = 2
+start_tick = 4884
+start_wires = [465,1122,913]
+end_tick = 6282
+end_wires = [851,247,426]
 
 # example of spurious connection
-entry = 2
-start_tick = 6762
-start_wires = [1061,414,802]
+#entry = 2
+#start_tick = 6762
+#start_wires = [1061,414,802]
 #end_tick = 6360 # bad ending
 #end_wires = [585,1092,1005] # bad ending
-end_tick = 6054 # correct ending
-end_wires = [565,1220,1114] # correct ending
+#end_tick = 6054 # correct ending
+#end_wires = [565,1220,1114] # correct ending
 
-# example of what should not be connected
+# tuning end-point rejection efficiency
+# example of determining what should be connect
+#entry = 2
+#start_tick = 7176
+#start_wires = [339,1008,675]
+#end_tick = 8046 # correct end#
+#end_wires = [866,206,398] # correct end
+#end_tick  = 7230  # wrong end point in middle of track
+#end_wires = [374,960,662] # wrong end point
+#end_tick = []
 
+#entry = 0
+#start_tick = 5046
+#start_wires = [1272,1670,2269]
+#end_tick = 7986
+#end_wires = [1689,1085,2101]
+
+#entry = 1
+#start_tick = 7890
+#start_wires = [1001,1597,1928]
+#end_tick = 6084
+#end_wires = [1618,1015,1960]
 
 # ------------------------------------------------------------------------------
 # first let's prepare data
@@ -124,7 +146,7 @@ for p in range(0,3):
 
 # Algo setup
 
-algo = larlitecv.Linear3DFitter()
+algo = larlitecv.Linear3DFitter(algoconfig)
 start_row = img_v.front().meta().row( start_tick )
 end_row   = img_v.front().meta().row( end_tick )
 start_cols = std.vector("int")(3,0)
@@ -138,6 +160,21 @@ print "Fraction w/ charge: ",pointlist.fractionHasChargeWith3Planes()
 print "Fraction w/ badch: ",pointlist.fractionHasBadChOn3Planes()
 print "Fraction w/ no charge: ",pointlist.fractionHasNoChargeOn3Planes()
 print "Fraction good: ",pointlist.fractionGood()
+
+start_ext = larlitecv.PointInfoList()
+end_ext   = larlitecv.PointInfoList()
+algo.getTrackExtension( pointlist, img_v, badch_v, 10.0, start_ext, end_ext )
+print "start extension: ",start_ext.size()
+print "  ngood: ",start_ext.num_pts_good
+print "  nallcharge: ",start_ext.num_pts_w_allcharge
+print "  nmajcharge: ",start_ext.num_pts_w_majcharge
+print "  nallbad: ",start_ext.num_pts_w_allbadch
+print "end extension: ",end_ext.size()
+print "  ngood: ",end_ext.num_pts_good
+print "  nallcharge: ",end_ext.num_pts_w_allcharge
+print "  nmajcharge: ",end_ext.num_pts_w_majcharge
+print "  nallbad: ",end_ext.num_pts_w_allbadch
+
 
 # ----------------------------------------------------------------
 # Visualize

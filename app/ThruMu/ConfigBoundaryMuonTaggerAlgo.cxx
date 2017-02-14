@@ -23,11 +23,15 @@ namespace larlitecv {
     astar_neighborhood.resize(3,10.0);
     tag_neighborhood.resize(3,2);
     verbosity = 0;
+    linear3d_min_tracksize = 5;
+    linear3d_min_goodfraction = 0.95;
+    linear3d_min_majoritychargefraction = 0.5;
   }
 
   ConfigBoundaryMuonTaggerAlgo MakeConfigBoundaryMuonTaggerAlgoFromPSet( const larcv::PSet& pset ) {
+
     ConfigBoundaryMuonTaggerAlgo config;
-    
+
     config.neighborhoods              = pset.get< std::vector<int> >("Neighborhoods");
     config.thresholds                 = pset.get< std::vector<float> >( "Thresholds" );
     config.emptych_thresh             = pset.get< std::vector<float> >( "EmptyChannelThrehsold" );
@@ -43,8 +47,12 @@ namespace larlitecv {
     config.hitsearch_uses_badchs      = pset.get<bool>("UseBadChannels",true);
     config.ticks_per_full_drift       = pset.get<float>("TicksPerFullDrift",4650.0);
     config.verbosity                  = pset.get<int>("Verbosity",0);
-    config.astar_cfg = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pset.get< larcv::PSet >( "AStarConfig" ) );
-    
+    config.astar_cfg                  = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pset.get< larcv::PSet >( "AStarConfig" ) );
+    config.linear3d_cfg               = larlitecv::Linear3DFitterConfig::makeFromPSet( pset.get< larcv::PSet >( "Linear3DConfig" ) );
+    config.linear3d_min_tracksize     = pset.get<int>("Linear3DMinTrackSize");
+    config.linear3d_min_goodfraction  = pset.get<float>("Linear3DMinGoodFraction");
+    config.linear3d_min_majoritychargefraction = pset.get<float>("Linear3DMinMajorityChargeFraction");
+               
     return config;
   }
 
