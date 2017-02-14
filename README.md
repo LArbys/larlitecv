@@ -13,7 +13,12 @@ This branch contains the muon-tagger code.
 
 ### ThruMu
 
-* first pass for through-going muons should rely on simple straight line (in 3D) fitter. Pairs of end points and the pixels between them should be tagged.  Then A* algorithm can work on images where obvious straight through-going muons have been removed
+* first pass for through-going muons should rely on simple straight line (in 3D) fitter. Pairs of end points and the pixels between them should be tagged.  Then A* algorithm can work on images where obvious straight through-going muons have been removed [done.]
+* path restriction to avoid wildly deviant paths [done. didn't do much.]
+* given path from A* or whatever. tag pixels in image. fill in gaps between nodes. [done.]
+* improve post-processing for pass0. check if connected endpoints are really end points and not point in middle of track.  do this by extending past ends and seeing if charge around.
+* can we restrict a* to those which have good points near the start/end points
+* loosen goodpoint definition in linear3d track to 2 charge only or ( m badch, 3-m charge planes)
 
 ### StopMu
 
