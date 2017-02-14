@@ -17,19 +17,27 @@ badchval = -20
 # SETUP TEST PATH
 
 # example of track that has to bend and not jump using bad channels
-entry = 0
-start_tick  = 3348
-end_tick    = 2412
-start_wires = [202,477,11]
-end_wires   = [696,34,60]
+#entry = 0
+#start_tick  = 3348
+#end_tick    = 2412
+#start_wires = [202,477,11]
+#end_wires   = [696,34,60]
 
-# straight path
+# straight path that ends in dead region
 entry = 2
 start_tick = 4884
 start_wires = [465,1122,913]
 end_tick = 6282
 end_wires = [851,247,426]
 
+# example of spurious connection
+#entry = 2
+#start_tick = 6762
+#start_wires = [1061,414,802]
+#end_tick = 6360 # bad ending
+#end_wires = [585,1092,1005] # bad ending
+#end_tick = 6054 # correct ending
+#end_wires = [565,1220,1114] # correct ending
 
 # ------------------------------------------------------------------------------
 # first let's prepare data
