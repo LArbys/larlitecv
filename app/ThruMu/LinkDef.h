@@ -31,6 +31,10 @@
 #pragma link C++ class larlitecv::AStarAlgoConfig+;
 #pragma link C++ class larlitecv::AStarGridAlgo+;
 
+#pragma link C++ class larlitecv::PointInfo+;
+#pragma link C++ class larlitecv::PointInfoList+;
+#pragma link C++ class larlitecv::Linear3DFitter+;
+
 #pragma link C++ class larlitecv::AStarDirNode+;
 #pragma link C++ class std::vector< larlitecv::AStarDirNode >+;
 #pragma link C++ class larlitecv::AStarDirAlgoConfig+;
