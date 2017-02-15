@@ -20,7 +20,12 @@ This branch contains the muon-tagger code.
 * can we restrict a* to those which have good points near the start/end points
 * loosen goodpoint definition in linear3d track to 2 charge only or ( m badch, 3-m charge planes) [done. helped complete long tracks]
 * If we can ID 2 more space-points near the line, we can solve for the value of the control points
-* HIGHEST: need a post-processor step for linear3d tracks which removes duplicates
+* Need a post-processor step for linear3d tracks which removes duplicates [done]
+* Need post-processor for A-star tracks.
+    * Removes tracks which are duplicates of previous linear3d tracks.
+    * if post-processor can ID bad tracks, that would be ideal good.
+    * Maybe find sharp turns.
+    * Fix bulges.
 
 ### StopMu
 
