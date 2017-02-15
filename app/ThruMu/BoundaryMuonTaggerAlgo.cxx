@@ -17,6 +17,7 @@
 #include "AStarDirAlgo.h"
 #include "AStar3DAlgo.h"
 #include "Linear3DFitter.h"
+#include "Linear3DPostProcessor.h"
 #include "BoundaryEndPt.h"
 #include "BoundaryIntersectionAlgo.h"
 #include "LineRegionTest.h"
@@ -169,6 +170,9 @@ namespace larlitecv {
     // linear 3D track
     Linear3DFitter linetrackalgo( _config.linear3d_cfg ); // finds charge along a line in 3D space
 
+    // post-processors. basically a filter for the tracks created.
+    Linear3DPostProcessor linear_postprocess;
+
     // compress images for AStar3D
     std::vector< larcv::Image2D > img_compressed_v;
     std::vector< larcv::Image2D > badch_compressed_v;
@@ -204,14 +208,16 @@ namespace larlitecv {
     // it will tell us if we should try astar during the next pass
     typedef std::pair<int,int> Combo_t;
     struct ComboInfo_t {
-      int goodstart;
-      int goodend;
+      float goodstart;
+      float goodend;
+      float fracGood;
+      float fracMajCharge;
       int startext_majcharge;
       int endext_majcharge;
       int startext_ngood;
       int endext_ngood;
       bool track_made;
-      ComboInfo_t() { goodstart = 0; goodend = 0; track_made = false; };
+      ComboInfo_t() { goodstart = 0; goodend = 0; track_made = false; fracGood=0.; fracMajCharge=0.; };
     };
     typedef std::pair<Combo_t, ComboInfo_t> Pass0Pair;
     std::map< Combo_t, ComboInfo_t > pass0_combos;
@@ -235,11 +241,13 @@ namespace larlitecv {
         past_tagged_compressed_v.emplace_back( std::move(tagged_compressed) );
       }
 
+      std::vector< BMTrackCluster3D > pass_tracks;      
+
       for (int i=0; i<nendpts; i++) {
-        if ( space_point_used.at(i) ) continue;
+        //if ( space_point_used.at(i) ) continue; // a little too crude as control
         const BoundarySpacePoint& pts_a = *(spacepts[i]);        
         for (int j=i+1; j<nendpts; j++) {
-          if ( space_point_used.at(j)) continue;
+          //if ( space_point_used.at(j)) continue;
           const BoundarySpacePoint& pts_b = *(spacepts[j]);
 
           if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
@@ -301,15 +309,16 @@ namespace larlitecv {
 
             // we count the number of good points at start and end of track
             if ( straight_track.size()>0 ) {
-              int nstart = ( 10<straight_track.size() ) ? 10 : straight_track.size();
-              int nend   = ( 10<straight_track.size() ) ? 10 : straight_track.size();  
+
+              int nstart = straight_track.size()/4;
+              int nend   = straight_track.size()/4;
               for (int ipt=0; ipt<nstart; ipt++) {
-                if ( straight_track.at(ipt).goodpoint )
-                  badcombo.goodstart++;
+                if ( straight_track.at(ipt).planeswithcharge>=2 )
+                  badcombo.goodstart+=1.0/float(nstart);
               }
              for (int ipt=(int)straight_track.size()-nend; ipt<(int)straight_track.size(); ipt++) {
-                if ( straight_track.at(ipt).goodpoint )
-                  badcombo.goodend++;
+                if ( straight_track.at(ipt).planeswithcharge>=2 )
+                  badcombo.goodend += 1.0/float(nend);
               }
             }
 
@@ -320,11 +329,14 @@ namespace larlitecv {
                       << " fracAllCharge=" << straight_track.fractionHasChargeWith3Planes() << " "
                       << " fracMajCharge=" << straight_track.fractionHasChargeOnMajorityOfPlanes() << " "
                       << std::endl;
+            badcombo.fracGood      = straight_track.fractionGood();
+            badcombo.fracMajCharge = straight_track.fractionHasChargeOnMajorityOfPlanes();
 
-            if ( straight_track.size()>_config.linear3d_min_tracksize
-                  && straight_track.fractionGood()>_config.linear3d_min_goodfraction
-                  && straight_track.fractionHasChargeOnMajorityOfPlanes()>_config.linear3d_min_majoritychargefraction ) {
 
+            if ( straight_track.size() > _config.linear3d_min_tracksize
+                  && straight_track.fractionGood() > _config.linear3d_min_goodfraction
+                  && straight_track.fractionHasChargeOnMajorityOfPlanes() > _config.linear3d_min_majoritychargefraction ) {
+              std::cout << "  - straight-track accepted." << std::endl;
               // // cool, it is mostly a good track. let's check if end point
               // Endpoint checking didn't seem to contirbute much. We skip it for now.
               // PointInfoList start_ext;
@@ -368,11 +380,32 @@ namespace larlitecv {
 
             // We already connect the two?
             auto it_combo = pass0_combos.find( thiscombo );
-            if ( it_combo!=pass0_combos.end() && (*it_combo).second.track_made )
-              continue; // we have, so move on
-            else if ( it_combo!=pass0_combos.end() ) {
-              if ( (*it_combo).second.goodend<5 || (*it_combo).second.goodstart<5 )
+            if ( it_combo!=pass0_combos.end() ) {
+
+              if ( (*it_combo).second.track_made )
+              continue; // we have connected these points,  move on
+
+              // end points much have way to travel to it
+              if ( (*it_combo).second.goodend<0.10 || (*it_combo).second.goodstart<0.10 ) {
+                if ( _config.verbosity>1 ) {
+                  std::cout << "combo (" << i << "," << j << ") failed pass0 end heuristic "
+                    << " fracstart=" << (*it_combo).second.goodstart << " "
+                    << " fracend=" << (*it_combo).second.goodend
+                    << std::endl;
+                }
                 continue;
+              }
+
+              // use pass0 calculation to determine if we run A*
+              if ( (*it_combo).second.fracGood<_config.astar3d_min_goodfrac || (*it_combo).second.fracMajCharge<_config.astar3d_min_majfrac ) {
+                if ( _config.verbosity>1)
+                  std::cout << "failed pass0 heuristic [" << i << "," << j << "]: "
+                            << " fracgood=" << (*it_combo).second.fracGood << " "
+                            << " fracmajcharge=" << (*it_combo).second.fracMajCharge << " "                            
+                            << std::endl;
+                continue;
+              }
+
             }
             else {
               // combo not found
@@ -381,8 +414,17 @@ namespace larlitecv {
               continue;
             }
 
+            if ( _config.verbosity>1)
+                std::cout << "passed pass0 heuristic [" << i << "," << j << "]: "
+                          << " fracgood=" << (*it_combo).second.fracGood << " "
+                          << " fracmajcharge=" << (*it_combo).second.fracMajCharge << " "                            
+                          << std::endl;
             
+            // one last heuristic
+
+
             // use line region test to decide to go
+            /*
             std::vector< BMTrackCluster2D > test_track(3);
             bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
             if ( _config.verbosity>1 )
@@ -403,7 +445,7 @@ namespace larlitecv {
               }
               //std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
             }
-            
+            */
         
             /*
             // OLD AStar done on each plane individually
@@ -450,7 +492,7 @@ namespace larlitecv {
             //space_point_used.at(i) = true;
             //space_point_used.at(j) = true;
             markImageWithTrack( img_v, badchimg_v, track3d, pass_tagged_v );
-            trackclusters.emplace_back( std::move(track3d) );
+            pass_tracks.emplace_back( std::move(track3d) );
           }
         }//loop over pt b
       }//loop over pt a
@@ -483,6 +525,20 @@ namespace larlitecv {
         larcv::Image2D& pass_tagged  = pass_tagged_v.at(p);
         final_tagged += pass_tagged;
         final_tagged.binary_threshold( 1, 0, 255 );
+      }
+
+      // POST-PROCESS TRACKS
+      if ( pass==0 ) {
+
+        std::vector< BMTrackCluster3D > filtered_tracks = linear_postprocess.process( pass_tracks );
+        // fill the output tracks
+        for ( auto &trk : filtered_tracks ) {
+          trackclusters.emplace_back( std::move(trk) );
+        }
+      }
+      else if ( pass==1 ) {
+        for ( auto &trk : pass_tracks )
+          trackclusters.emplace_back( std::move(trk) );
       }
 
     }//end of loop over passes
@@ -691,7 +747,6 @@ namespace larlitecv {
 
     larlitecv::AStar3DAlgo algo( astar_config );
     std::vector<larlitecv::AStar3DNode> path;
-    algo.setVerbose(0);
     goal_reached = false;
     int goalhit = 0;
     try {

@@ -26,6 +26,8 @@ namespace larlitecv {
     linear3d_min_tracksize = 5;
     linear3d_min_goodfraction = 0.95;
     linear3d_min_majoritychargefraction = 0.5;
+    astar3d_min_goodfrac = 0.2;
+    astar3d_min_majfrac = 0.2;
   }
 
   ConfigBoundaryMuonTaggerAlgo MakeConfigBoundaryMuonTaggerAlgoFromPSet( const larcv::PSet& pset ) {
@@ -52,6 +54,8 @@ namespace larlitecv {
     config.linear3d_min_tracksize     = pset.get<int>("Linear3DMinTrackSize");
     config.linear3d_min_goodfraction  = pset.get<float>("Linear3DMinGoodFraction");
     config.linear3d_min_majoritychargefraction = pset.get<float>("Linear3DMinMajorityChargeFraction");
+    config.astar3d_min_goodfrac       = pset.get<float>("AStar3DMinGoodFraction");
+    config.astar3d_min_majfrac        = pset.get<float>("AStar3DMinMajorityChargeFraction");
                
     return config;
   }

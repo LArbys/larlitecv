@@ -46,6 +46,8 @@ namespace larlitecv {
     int linear3d_min_tracksize;
     float linear3d_min_goodfraction;
     float linear3d_min_majoritychargefraction;
+    float astar3d_min_goodfrac;
+    float astar3d_min_majfrac;
 
     void setdefaults();
     const AStar3DAlgoConfig& getAStarConfig() { return astar_cfg; };

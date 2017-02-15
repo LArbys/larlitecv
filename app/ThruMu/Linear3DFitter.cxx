@@ -241,26 +241,26 @@ namespace larlitecv {
     if (starting_row_coord < 0)
         starting_row_coord = 0;
 
-    if (starting_row_coord > last_row_index)
-      starting_row_coord = last_row_index;
+    if (starting_row_coord >= last_row_index)
+      starting_row_coord = last_row_index-1;
 
     if (ending_row_coord < 0)
       ending_row_coord = 0;
 
-    if (ending_row_coord > last_row_index)
-      ending_row_coord = last_row_index;
+    if (ending_row_coord >= last_row_index)
+      ending_row_coord = last_row_index-1;
 
     if (starting_col_coord < 0)
       starting_col_coord = 0;
 
-    if (starting_col_coord > last_col_index)
-      starting_col_coord = last_col_index;
+    if (starting_col_coord >= last_col_index)
+      starting_col_coord = last_col_index-1;
 
     if (ending_col_coord < 0)
       ending_col_coord = 0;
 
-    if (ending_col_coord > last_col_index)
-      ending_col_coord = last_col_index;
+    if (ending_col_coord >= last_col_index)
+      ending_col_coord = last_col_index-1;
 
     
     // Begin a loop over the rows and the columns of the image that are in the vicinity of 'central_row' and 'central_col' to see if there is any charge in the vicinity
@@ -298,26 +298,26 @@ namespace larlitecv {
     if (starting_row_coord < 0)
       starting_row_coord = 0;
 
-    if (starting_row_coord > last_row_index)
-      starting_row_coord = last_row_index;
+    if (starting_row_coord >= last_row_index)
+      starting_row_coord = last_row_index-1;
 
     if (ending_row_coord < 0)
       ending_row_coord = 0;
 
-    if (ending_row_coord > last_row_index)
-      ending_row_coord = last_row_index;
+    if (ending_row_coord >= last_row_index)
+      ending_row_coord = last_row_index-1;
 
     if (starting_col_coord < 0)
       starting_col_coord = 0;
 
-    if (starting_col_coord > last_col_index)
-      starting_col_coord = last_col_index;
+    if (starting_col_coord >= last_col_index)
+      starting_col_coord = last_col_index-1;
 
     if (ending_col_coord < 0)
       ending_col_coord = 0;
 
-    if (ending_col_coord > last_col_index)
-      ending_col_coord = last_col_index;
+    if (ending_col_coord >= last_col_index)
+      ending_col_coord = last_col_index-1;
 
     // Begin a loop over the rows and the columns of the image that are in the vicinity of 'central_row' and 'central_col' to see if there is any charge in the vicinity     
     for (int col_iter = starting_col_coord; col_iter <= ending_col_coord; col_iter++) {

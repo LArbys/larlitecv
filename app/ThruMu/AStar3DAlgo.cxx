@@ -22,6 +22,7 @@ namespace larlitecv {
     cfg.accept_badch_nodes     = pset.get< bool >( "AcceptBadChannelNodes" );
     cfg.min_nplanes_w_hitpixel = pset.get< int >( "MinNumPlanesWithHitPixel" );
     cfg.restrict_path          = pset.get< bool >( "RestrictPath", false );
+    cfg.verbosity              = pset.get< int >( "Verbosity" );
     if ( cfg.restrict_path ) {
       cfg.path_restriction_radius = pset.get<float>("PathRestrictionRadius");
     }
@@ -121,7 +122,7 @@ namespace larlitecv {
 
     // finally make the lattice
     Lattice lattice( origin_lattice, lattice_widths, cm_per_pixel, meta_v );
-    if ( verbose>=0 ) {
+    if ( verbose>0 ) {
       std::cout << "Defining Lattice" << std::endl;
       std::cout << "origin: (" << origin_lattice[0] << "," << origin_lattice[1] << "," << origin_lattice[2] << ")" << std::endl;
       std::cout << "max-range: (" << max_lattice[0] << "," << max_lattice[1] << "," << max_lattice[2] << ")" << std::endl;
@@ -140,8 +141,9 @@ namespace larlitecv {
     AStar3DNode* goal = lattice.getNode( goalpos );
     if ( goal==nullptr) {
       A3DPixPos_t goalnode = lattice.getNodePos( goalpos );
-      std::cout << "goal=(" << goalpos[0] << "," << goalpos[1] << "," << goalpos[2] << ") "
-        << "node->(" << goalnode[0] << "," << goalnode[1] << "," << goalnode[2] << ")" << std::endl;
+      if ( verbose>0 )
+        std::cout << "goal=(" << goalpos[0] << "," << goalpos[1] << "," << goalpos[2] << ") "
+                  << "node->(" << goalnode[0] << "," << goalnode[1] << "," << goalnode[2] << ")" << std::endl;
       throw std::runtime_error("Was not able to produce a valid goal node.");
     }
     else
@@ -151,12 +153,15 @@ namespace larlitecv {
     AStar3DNode* start = lattice.getNode( startpos );
     if ( start==nullptr) {
       A3DPixPos_t startnode = lattice.getNodePos( startpos );
-      std::cout << "start=(" << startpos[0] << "," << startpos[1] << "," << startpos[2] << ") "
-        << "node->(" << startnode[0] << "," << startnode[1] << "," << startnode[2] << ")" << std::endl;
+      if ( verbose>0 )      
+        std::cout << "start=(" << startpos[0] << "," << startpos[1] << "," << startpos[2] << ") "
+                  << "node->(" << startnode[0] << "," << startnode[1] << "," << startnode[2] << ")" << std::endl;
       throw std::runtime_error("Was not able to produce a valid start node.");
     }
-    else
-      std::cout << "Start Node: " << start->str() << std::endl;      
+    else {
+      if ( verbose>0 )
+        std::cout << "Start Node: " << start->str() << std::endl;      
+    }
 
     // start fscore gets set to the heuristic
     for (int i=1; i<3; i++ ) {

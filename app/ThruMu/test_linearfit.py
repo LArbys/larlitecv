@@ -14,6 +14,7 @@ padding = 20
 badchval = -20
 
 algoconfig = larlitecv.Linear3DFitterConfig()
+algoconfig.neighborhood_posttick = 10
 
 # ------------------------------------------------------------------------------
 # SETUP TEST PATH
@@ -26,11 +27,11 @@ algoconfig = larlitecv.Linear3DFitterConfig()
 #end_wires   = [696,34,60]
 
 # straight path that ends in dead region
-entry = 2
-start_tick = 4884
-start_wires = [465,1122,913]
-end_tick = 6282
-end_wires = [851,247,426]
+#entry = 2
+#start_tick = 4884
+#start_wires = [465,1122,913]
+#end_tick = 6282
+#end_wires = [851,247,426]
 
 # example of spurious connection
 #entry = 2
@@ -40,6 +41,12 @@ end_wires = [851,247,426]
 #end_wires = [585,1092,1005] # bad ending
 #end_tick = 6054 # correct ending
 #end_wires = [565,1220,1114] # correct ending
+
+#entry = 2
+#start_tick = 4792
+#start_wires = [1392,2006,2726]
+#end_tick = 3000
+#end_wires = [1927,1324,2580]
 
 # tuning end-point rejection efficiency
 # example of determining what should be connect
@@ -52,6 +59,12 @@ end_wires = [851,247,426]
 #end_wires = [374,960,662] # wrong end point
 #end_tick = []
 
+entry = 2
+start_tick = 6054
+start_wires = [565,1220,1114]
+end_tick    = 6762
+end_wires   = [1061,414,802]
+
 #entry = 0
 #start_tick = 5046
 #start_wires = [1272,1670,2269]
@@ -63,6 +76,18 @@ end_wires = [851,247,426]
 #start_wires = [1001,1597,1928]
 #end_tick = 6084
 #end_wires = [1618,1015,1960]
+
+#entry = 5
+#start_tick = 4176
+#start_wires = [2311,1806,3445]
+#end_tick = 2418
+#end_wires = [1630,2182,3135]
+
+#entry = 9
+#start_tick = 4680 
+#start_wires = [1081,1742,2152]
+#end_tick = 4890
+#end_wires = [2176,1506,3013]
 
 # ------------------------------------------------------------------------------
 # first let's prepare data
@@ -133,6 +158,8 @@ for p in range(0,3):
 				t = meta.min_y()+1;
 			elif t>=meta.max_y():
 				t = meta.max_y()-1;
+			if w>=meta.cols():
+				w = meta.cols()-1
 			col = meta.col( w )
 			row = meta.row( t )
 			val = img_v.at(p).pixel( row, col )
@@ -159,6 +186,7 @@ print "Number of points in list: ",pointlist.size()
 print "Fraction w/ charge: ",pointlist.fractionHasChargeWith3Planes()
 print "Fraction w/ badch: ",pointlist.fractionHasBadChOn3Planes()
 print "Fraction w/ no charge: ",pointlist.fractionHasNoChargeOn3Planes()
+print "Fraction w/ majority charge: ",pointlist.fractionHasChargeOnMajorityOfPlanes()
 print "Fraction good: ",pointlist.fractionGood()
 
 start_ext = larlitecv.PointInfoList()

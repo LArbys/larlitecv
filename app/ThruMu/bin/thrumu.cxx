@@ -246,7 +246,7 @@ int main( int nargs, char** argv ) {
     // filter end points
     std::vector<int> endpoint_passes( all_endpoints.size(), 1 );
     endptfilter.removeBoundaryAndFlashDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );
-    endptfilter.removeSameBoundaryDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );
+    //endptfilter.removeSameBoundaryDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );
     //endptfilter.removeDiffBoundaryDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );    
 
     // remove the filtered end points

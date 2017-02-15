@@ -251,6 +251,7 @@ namespace larlitecv {
     int min_nplanes_w_hitpixel;
     bool restrict_path; // restrict the path to be within some distance from the straigh line path
     float path_restriction_radius; // max distance path can deviate from straight line
+    int verbosity;
 
     static AStar3DAlgoConfig MakeFromPSet( const larcv::PSet& pset );
 
@@ -262,25 +263,28 @@ namespace larlitecv {
     AStar3DAlgo() { verbose=2; };
   public:
 
-    AStar3DAlgo( AStar3DAlgoConfig config ) { _config = config; };
+    AStar3DAlgo( AStar3DAlgoConfig config ) { 
+      _config = config; 
+      setVerbose( _config.verbosity );
+    };
     virtual ~AStar3DAlgo() {};
     
     void setVerbose( int v ) { verbose = v; };
 
-	  std::vector<AStar3DNode> findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
-	  	const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached );
+    std::vector<AStar3DNode> findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+      const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached );
 
-	  std::vector<AStar3DNode> makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed );  
+    std::vector<AStar3DNode> makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed );  
 
-	  void evaluateNeighborNodes( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
-    	const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
-    	AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice );
+    void evaluateNeighborNodes( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
+      const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+      AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice );
 
-	  bool evaluteLatticePoint( const A3DPixPos_t& latticept, AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
-	    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
-  	  AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice );
+    bool evaluteLatticePoint( const A3DPixPos_t& latticept, AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
+      const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+      AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice );
 
-	  float distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz );
+    float distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz );
 
     // larcv::Image2D visualizeScores( std::string score_name, const larcv::Image2D& orig_img, 
     //   const int min_c, const int min_r, const int win_c, const int win_r, 
