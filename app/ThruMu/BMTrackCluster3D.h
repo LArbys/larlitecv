@@ -2,6 +2,11 @@
 #define __BM_TRACK_CLUSTER_3D__
 
 #include <vector>
+
+// LArCV
+#include "DataFormat/Image2D.h"
+
+//  larlitecv/app/Thrumu
 #include "BoundaryMuonTaggerTypes.h"
 #include "BoundaryEndPt.h"
 #include "BoundarySpacePoint.h"
@@ -44,6 +49,11 @@ namespace larlitecv {
 	return true;
       return false;
     };
+
+    void markImageWithTrack( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+      const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size, 
+      std::vector<larcv::Image2D>& markedimgs, const float markvalue=255.0 ) const;
+
     
   };
 
