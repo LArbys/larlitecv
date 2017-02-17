@@ -6,6 +6,7 @@
 #include <iostream>
 #include <set>
 #include <vector>
+#include <algorithm>
 
 namespace larlitecv {
 
@@ -170,7 +171,7 @@ namespace larlitecv {
     for ( auto &rselist : finalrseset ) {
       finalrse_v.push_back( rselist );
     }
-    std::sort( finalrse_v.begin(), finalrse_v.end() );
+    sort( finalrse_v.begin(), finalrse_v.end() );
 
     // make rse dictionaries
     int entrynum = 0;
