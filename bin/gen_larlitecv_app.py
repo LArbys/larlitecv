@@ -60,7 +60,7 @@ pkg_clean:
 all: $(PROGRAMS)
 
 $(PROGRAMS):
-	make --directory=$LARLITECV_BASEDIR
+	make --directory=$(LARLITECV_BASEDIR)
 	@echo '<<compiling' $@'>>'
 	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS)
 	@rm -rf *.dSYM
@@ -128,7 +128,6 @@ source = file(appdir+"/%s.cxx"%(appname),'w')
 main   = file(appdir+"/run_%s.cxx"%(appname),'w')
 
 header_tuple = (appname,)*5
-print header_tuple
 
 print >> header,minimal_class_header%header_tuple
 print >> source,minimal_class_source%(appname)
