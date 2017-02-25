@@ -34,6 +34,7 @@ CXXFLAGS += $(shell larcv-config --includes)
 CXXFLAGS += $(shell larcv-config --includes)/../app
 CXXFLAGS += $(shell larlitecv-config --includes)
 CXXFLAGS += $(shell larlitecv-config --includes)/../app
+INCFLAGS = $(CXXFLAGS)
 
 # platform-specific options
 OSNAME          = $(shell uname -s)
