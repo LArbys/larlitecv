@@ -60,7 +60,7 @@ pkg_clean:
 
 all: $(PROGRAMS)
 
-$(PROGRAMS):
+$(PROGRAMS): $(LARLITECV_BUILDDIR)/lib/liblarlitecv.so
 	make --directory=$(LARLITECV_BASEDIR)
 	@echo '<<compiling' $@'>>'
 	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS)
