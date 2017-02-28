@@ -42,8 +42,8 @@ namespace larlitecv {
     config.edge_win_hitthresh         = pset.get< std::vector<float> >( "EdgeWinHitThreshold" );
     config.boundary_cluster_minpixels = pset.get< std::vector<int> >( "BoundaryClusterMinPixels" );
     config.boundary_cluster_radius    = pset.get< std::vector<float> >( "BoundaryClusterRadius" );
-    config.astar_thresholds           = pset.get< std::vector<float> >( "AStarThresholds" );
-    config.astar_neighborhood         = pset.get< std::vector<int> >( "AStarNeighborhood" );
+    //config.astar_thresholds           = pset.get< std::vector<float> >( "AStarThresholds" );
+    //config.astar_neighborhood         = pset.get< std::vector<int> >( "AStarNeighborhood" );
     config.tag_neighborhood           = pset.get< std::vector<int> >("TaggingNeighborhood");    
     config.save_endpt_images          = pset.get<bool>("SaveMatchImages",false);
     config.hitsearch_uses_badchs      = pset.get<bool>("UseBadChannels",true);
