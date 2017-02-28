@@ -25,7 +25,7 @@ namespace larlitecv {
   };
 
 
-  StopMuFilterSpacePointsConfig MakeStopMuFilterSpacePointsConfig( larcv::PSet pset );
+  StopMuFilterSpacePointsConfig MakeStopMuFilterSpacePointsConfigFromPSet( larcv::PSet pset );
   
 
   class StopMuFilterSpacePoints {

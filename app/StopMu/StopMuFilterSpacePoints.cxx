@@ -12,14 +12,14 @@
 
 namespace larlitecv {
 
-  StopMuFilterSpacePointsConfig MakeStopMuFilterSpacePointsConfig( larcv::PSet pset ) {
+  StopMuFilterSpacePointsConfig MakeStopMuFilterSpacePointsConfigFromPSet( larcv::PSet pset ) {
     StopMuFilterSpacePointsConfig stopmu_filter_cfg;
     stopmu_filter_cfg.filter_thrumu_by_tag = pset.get<bool>("FilterThruByTag");
     stopmu_filter_cfg.duplicate_radius_cm  = pset.get<float>("DuplicateRadiuscm");
     stopmu_filter_cfg.pixel_threshold      = pset.get<float>("PixelThreshold");
     stopmu_filter_cfg.track_width_pixels   = pset.get<int>("TrackLabelingPixelWidth");
     stopmu_filter_cfg.row_tag_neighborhood = pset.get<int>("TagRowNeighborhood");
-    stopmu_filter_cfg.col_tag_neighborhood = pset.get<int>("TagColNeighbothood");
+    stopmu_filter_cfg.col_tag_neighborhood = pset.get<int>("TagColNeighborhood");
     return stopmu_filter_cfg;
   }
   
@@ -39,19 +39,19 @@ namespace larlitecv {
 
 
     // [ Remove Duplicates ]
-    std::vector< std::vector<const larcv::Pixel2D*> > not_duplicagted;
-    removeDuplicateEndPoints( spacepoints_list, thrumu_pixels, not_duplicagted );
-    std::cout << "number of non-duplicated endpoints: " << not_duplicagted.size() << std::endl;
+    std::vector< std::vector<const larcv::Pixel2D*> > not_duplicated;
+    removeDuplicateEndPoints( spacepoints_list, thrumu_pixels, not_duplicated );
+    std::cout << "number of non-duplicated endpoints: " << not_duplicated.size() << std::endl;
 
     // [ Remove Through-going Muons ]
     std::vector< std::vector<const larcv::Pixel2D*> > not_thrumu;
     if ( !m_config->filter_thrumu_by_tag ) {
       std::cout << "filter thrumu end points by proximinty to thrumu-tagged pixels" << std::endl;
-      removeThroughGoingEndPointsFromPixVectors( not_duplicagted, thrumu_pixels, not_thrumu );
+      removeThroughGoingEndPointsFromPixVectors( not_duplicated, thrumu_pixels, not_thrumu );
     }
     else {
       std::cout << "filter thrumu end points using tags" << std::endl;
-      removeThroughGoingEndPointsFromTags( not_duplicagted, thrumu_pixels, not_thrumu );
+      removeThroughGoingEndPointsFromTags( not_duplicated, thrumu_pixels, not_thrumu );
     }
     
     std::cout << "number of non-duplicated, non-thru-mu endpoints: " << not_thrumu.size() << std::endl;
@@ -103,6 +103,7 @@ namespace larlitecv {
     for (int p=0; p<3; p++) {
       int pix_row=pix_v[p]->Y();
       int pix_col=pix_v[p]->X();
+      int npixels_inplane_tagged = 0;
       for (int r=-m_config->row_tag_neighborhood; r<=m_config->row_tag_neighborhood; r++) {
 	for (int c=-m_config->col_tag_neighborhood; c<=m_config->col_tag_neighborhood; c++) {
 	  int row = pix_row+r;
@@ -110,9 +111,11 @@ namespace larlitecv {
 	  if ( row<0 || row>=thrumu_pixels.at(p).meta().rows() || col<0 || col>=thrumu_pixels.at(p).meta().cols() )
 	    continue;
 	  if ( thrumu_pixels.at(p).pixel(row,col)>0 )
-	    nplanes_tagged++;
+            npixels_inplane_tagged++;
 	}
       }//end of r loop
+      if ( npixels_inplane_tagged>0 )
+      	nplanes_tagged++;
     }//end of plane loop
 
     if ( nplanes_tagged>=2 )

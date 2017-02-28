@@ -30,7 +30,7 @@
 #include "CVUtil/CVUtil.h"
 
 // larlitecv
-#include "ThruMu/EmptyChannelAlgo.h"
+#include "GapChs/EmptyChannelAlgo.h"
 
 // larlite/stopmu
 #include "StopMuAlgoTypes.h"
@@ -127,8 +127,6 @@ int main( int nargs, char** argv ) {
     // go to some entry
     dataco.goto_entry(ientry, "larcv");
     
-    // for the test, we target a top-passing, stop muon
-    // at time around tick 3880
     larcv::EventImage2D* imgs            = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "modimgs" );
     larcv::EventImage2D* marked3d        = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
     larcv::EventROI* rois                = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "tpc" );
@@ -175,6 +173,10 @@ int main( int nargs, char** argv ) {
     // --------------------------------------------
     // Algo Prep
     std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpts = stopmu_filterpts.filterSpacePoints( ev_pixs, thrumu_v, badch_v );
+    std::cout << "Number of StopMu Candidate End points" << std::endl;
+    for ( auto const& pix_v : stopmu_candidate_endpts ) {
+      
+    }
 
     // --------------------------------------------
     // stop mu tracker
