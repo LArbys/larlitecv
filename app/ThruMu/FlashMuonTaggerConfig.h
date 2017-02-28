@@ -30,6 +30,7 @@ namespace larlitecv {
     int                 flash_pixelcluster_minsize; //< min. number of pixels required to make a flash-tagged cluster
     float               max_triarea;
     float               max_triarea_tight;
+    float               cathode_drift_tick_correction;
 
     void setdefaults();
     

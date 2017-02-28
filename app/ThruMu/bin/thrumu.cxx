@@ -142,10 +142,19 @@ int main( int nargs, char** argv ) {
 
     // ------------------------------------------------------------------------------------------//
     // LABEL BAD CHANNELS
-    
-    larlite::event_chstatus* ev_status = (larlite::event_chstatus*)dataco.get_larlite_data( larlite::data::kChStatus, "chstatus" );
-    std::cout << "ch status planes: " << ev_status->size() << std::endl;
-    std::vector< larcv::Image2D > badchimgs = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+    std::vector< larcv::Image2D > badchimgs;
+    if ( bmt.get<std::string>("ChStatusDataType")=="LARLITE" ) {
+      larlite::event_chstatus* ev_status = (larlite::event_chstatus*)dataco.get_larlite_data( larlite::data::kChStatus, "chstatus" );
+      badchimgs = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+    }
+    else if (bmt.get<std::string>("ChStatusDataType")=="LARCV") {
+      larcv::EventChStatus* ev_status = (larcv::EventChStatus*)dataco.get_larcv_data( larcv::kProductChStatus, "chstatus" );
+      badchimgs = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+    }
+    else {
+      std::cout << "ERROR: ChStatusDataType must be either LARCV or LARLITE" << std::endl;
+      return 0;
+    }
     std::cout << "number of bad ch imgs: " << badchimgs.size() << std::endl;
 
     // ------------------------------------------------------------------------------------------//
@@ -250,7 +259,6 @@ int main( int nargs, char** argv ) {
     //endptfilter.removeDiffBoundaryDuplicates( all_endpoints, imgs, gapchimgs_v, endpoint_passes );    
 
     // remove the filtered end points
-
     std::vector< const larlitecv::BoundarySpacePoint* > filtered_endpoints;
     for ( size_t idx=0; idx<endpoint_passes.size(); idx++ ) {
       if ( endpoint_passes.at(idx)==1 ) {
@@ -268,11 +276,12 @@ int main( int nargs, char** argv ) {
     }
 
     // ------------------------------------------------------------------------------------------//
-    // Form 2D tracks on each plane from boundary points
+    // Form 3D tracks on each plane from boundary points
     std::vector< larcv::Image2D > tagged_v;
     std::vector< larlitecv::BMTrackCluster3D > tracks3d;
+    std::vector< int > used_filtered_endpoints( filtered_endpoints.size(), 0 );
     if (runtracker) {
-      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, filtered_endpoints, tracks3d, tagged_v );
+      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, filtered_endpoints, tracks3d, tagged_v, used_filtered_endpoints );
     }
 
     // ------------------------------------------------------------------------------------------//
@@ -296,14 +305,11 @@ int main( int nargs, char** argv ) {
     larcv::EventImage2D* ev_mod_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "modimgs" );
     ev_mod_imgs->Emplace( std::move( imgs ) );
 
-    // // from empty channel imgs
-    // larcv::EventImage2D* ev_empty_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "emptychs" );
-    // ev_empty_imgs->Emplace( std::move( emptyimgs ) );
-
-    // // from empty channel imgs
+    // from empty channel imgs
     larcv::EventImage2D* ev_badch_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "badchs" );
     ev_badch_imgs->Emplace( std::move( badchimgs ) );
-    // // from gap channel imgs
+    
+    // from gap channel imgs
     larcv::EventImage2D* ev_gapch_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "gapchs" );
     ev_gapch_imgs->Emplace( std::move( gapchimgs_v ) );
     
@@ -317,84 +323,54 @@ int main( int nargs, char** argv ) {
       boundarypixels_imgs->Emplace( std::move(boundarypixels) );
     }
 
-    enum { toppt=0, botpt, uppt, dnpt, nendpts };
-    larcv::EventPixel2D* realspace_endpts[nendpts];
-    realspace_endpts[toppt] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("TopSpacePts") );
-    realspace_endpts[botpt] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("BottomSpacePts") );
-    realspace_endpts[uppt]  = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("UpstreamSpacePts") );
-    realspace_endpts[dnpt]  = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("DownstreamSpacePts") );
-    for (int i=0; i<(int)space_points.size(); i++) {
-      const larlitecv::BoundarySpacePoint& sp_v = space_points.at(i);
+    // Save All End-Points
+    larcv::EventPixel2D* realspace_endpts[larlitecv::kNumEndTypes];
+    realspace_endpts[larlitecv::kTop]        = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("TopSpacePts") );
+    realspace_endpts[larlitecv::kBottom]     = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("BottomSpacePts") );
+    realspace_endpts[larlitecv::kUpstream]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("UpstreamSpacePts") );
+    realspace_endpts[larlitecv::kDownstream] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, sidetagger_pset.get<std::string>("DownstreamSpacePts") );
+    realspace_endpts[larlitecv::kAnode]      = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("AnodeEndpointProducer") );
+    realspace_endpts[larlitecv::kCathode]    = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("CathodeEndpointProducer") );    
+    realspace_endpts[larlitecv::kImageEnd]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("ImageEndpointProducer") );
+    for (int i=0; i<(int)filtered_endpoints.size(); i++) {
+      const larlitecv::BoundarySpacePoint& sp_v = *(filtered_endpoints.at(i));
       int sptype = (int)sp_v.at(0).type;
-      int type_idx = i;
-      for (int t=0; t<=sptype-1; t++) {
-        type_idx -= (int)boundary_endpt_usedtag.at(t).size();
-      }
-      std::cout << "space point #" << i << " type=" << sptype << " type_idx=" << type_idx << std::endl;
+      if ( sptype<0 ) continue; // should
+      std::cout << "space point #" << i << " type=" << sptype << std::endl;
       for (int p=0; p<3; p++) {
         const larlitecv::BoundaryEndPt& sp = sp_v.at(p);
         larcv::Pixel2D pixel( sp.col, sp.row );
         pixel.Intensity( sptype ); // using intensity to label pixel
-        if ( boundary_endpt_usedtag.at(sptype).at(type_idx)==1 )
+        if ( used_filtered_endpoints.at(i)==1 )
           pixel.Width( 1 ); // using width to mark if used
         else
           pixel.Width( 0 ); // using width to mark if unused
         realspace_endpts[sptype]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
       }
     }
-    
-    // flash tagger
 
-    enum { flanode=0, flcathode, flimgends, nflashends };
-    larcv::EventPixel2D* flashends[nflashends];
-    flashends[flanode]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("AnodeEndpointProducer") );
-    flashends[flcathode] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("CathodeEndpointProducer") );
-    flashends[flimgends] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, flashtagger_pset.get<std::string>("ImageEndpointProducer") );        
-    for (int i=0; i<(int)trackendpts_anode.size(); i++) {
-      const larlitecv::BoundarySpacePoint& anode_pts   = trackendpts_anode.at(i);
+    // Save Unused End-Points: for downstream steps
+    larcv::EventPixel2D* unused_endpts[larlitecv::kNumEndTypes];
+    unused_endpts[larlitecv::kTop]        = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_"+sidetagger_pset.get<std::string>("TopSpacePts") );
+    unused_endpts[larlitecv::kBottom]     = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_"+sidetagger_pset.get<std::string>("BottomSpacePts") );
+    unused_endpts[larlitecv::kUpstream]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_"+sidetagger_pset.get<std::string>("UpstreamSpacePts") );
+    unused_endpts[larlitecv::kDownstream] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_"+sidetagger_pset.get<std::string>("DownstreamSpacePts") );
+    unused_endpts[larlitecv::kAnode]      = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_"+flashtagger_pset.get<std::string>("AnodeEndpointProducer") );
+    unused_endpts[larlitecv::kCathode]    = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_"+flashtagger_pset.get<std::string>("CathodeEndpointProducer") );    
+    unused_endpts[larlitecv::kImageEnd]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_"+flashtagger_pset.get<std::string>("ImageEndpointProducer") );
+    for (int i=0; i<(int)filtered_endpoints.size(); i++) {
+      const larlitecv::BoundarySpacePoint& sp_v = *(filtered_endpoints.at(i));
+      int sptype = (int)sp_v.at(0).type;
+      if ( used_filtered_endpoints.at(i)==1 )
+        continue;
       for (int p=0; p<3; p++) {
-        larcv::Pixel2D pixel( anode_pts.at(p).col, anode_pts.at(p).row );
-        int itype = (int)nendpts+(int)flanode;
-        pixel.Intensity( itype );
-        pixel.Width( boundary_endpt_usedtag.at(itype).at(i) );
-        flashends[flanode]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
+        const larlitecv::BoundaryEndPt& sp = sp_v.at(p);
+        larcv::Pixel2D pixel( sp.col, sp.row );
+        pixel.Intensity( sptype ); // using intensity to label pixel
+        pixel.Width( 1 ); // using width to mark if used
+        unused_endpts[sptype]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
       }
     }
-    for (int i=0; i<(int)trackendpts_cathode.size(); i++) {
-      const larlitecv::BoundarySpacePoint& cathode_pts   = trackendpts_cathode.at(i);
-      for (int p=0; p<3; p++) {
-        larcv::Pixel2D pixel( cathode_pts.at(p).col, cathode_pts.at(p).row );
-        int itype = (int)nendpts+(int)flcathode;
-        pixel.Intensity( itype );
-        pixel.Width( boundary_endpt_usedtag.at(itype).at(i) );
-        flashends[flcathode]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
-      }
-    }
-    for (int i=0; i<(int)trackendpts_imgends.size(); i++) {
-      const larlitecv::BoundarySpacePoint& imgends_pts   = trackendpts_imgends.at(i);
-      for (int p=0; p<3; p++) {
-        larcv::Pixel2D pixel( imgends_pts.at(p).col, imgends_pts.at(p).row );
-        int itype = (int)nendpts+(int)flimgends;
-        pixel.Intensity( itype );
-        pixel.Width( boundary_endpt_usedtag.at(itype).at(i) );
-        flashends[flimgends]->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
-      }
-    }
-    
-    // save 2d pixelcluster objects. only save those that are filtered
-//     std::cout << "SAVE 2D TRACKS as PIXEL2D OBJECTS" << std::endl;
-//     larcv::EventPixel2D* event_tracks = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumu" );
-//     for (int i=0; i<(int)trackclusters.size(); i++) {
-//       std::vector< larlitecv::BMTrackCluster2D >& trackcluster = trackclusters.at(i);
-//       std::cout << "save track cluster" << std::endl;
-//       for (int p=0; p<3; p++) {
-//      larlitecv::BMTrackCluster2D& track = trackcluster.at(p);
-//      larcv::Pixel2DCluster cluster;
-//      std::swap( cluster, track.pixelpath );
-//      std::cout << " plane=" << p << " track. length=" << cluster.size() << std::endl;
-//      event_tracks->Emplace( (larcv::PlaneID_t)p, std::move(cluster) );
-//       }
-//     }
 
     // save 2D track objects filtered by good 3d tracks
     larcv::EventPixel2D* ev_tracks2d = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumu2d" );

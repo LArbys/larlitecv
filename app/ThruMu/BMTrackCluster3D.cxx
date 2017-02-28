@@ -4,7 +4,8 @@
 namespace larlitecv {
 
   BMTrackCluster3D::BMTrackCluster3D() {
-    
+    start_index = -1;
+    end_index = -1;
   }
 
   BMTrackCluster3D::~BMTrackCluster3D() {}

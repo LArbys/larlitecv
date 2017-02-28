@@ -52,7 +52,7 @@ namespace larlitecv {
         }
         else if ( fSearchMode==kCathode ) {
           flash_tick = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick;
-          tick_target = flash_tick + fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+240.0;
+          tick_target = flash_tick + fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+fConfig.cathode_drift_tick_correction;
           point_type = larlitecv::kCathode;          
           modename = "cathode";
         }

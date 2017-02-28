@@ -19,7 +19,7 @@ namespace larlitecv {
     flash_zrange_extension = 1.1;
     max_triarea = 10.0;
     max_triarea_tight  = 1.0;
-    
+    cathode_drift_tick_correction = 240.0;
   }
 
 
@@ -41,7 +41,7 @@ namespace larlitecv {
     flashtagger_cfg.flash_zrange_extension       = flashtagger_pset.get< float >( "FlashZRangeExtension", 1.1 );
     flashtagger_cfg.max_triarea                  = flashtagger_pset.get< float >( "MaxTriArea", 10.0 );
     flashtagger_cfg.max_triarea_tight            = flashtagger_pset.get< float >( "MaxTriAreaTight", 1.0 );
-    
+    flashtagger_cfg.cathode_drift_tick_correction = flashtagger_pset.get< float >( "CathodeDriftTickCorrection" );
     return flashtagger_cfg;
   }
 

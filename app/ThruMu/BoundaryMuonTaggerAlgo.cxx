@@ -153,9 +153,10 @@ namespace larlitecv {
   int BoundaryMuonTaggerAlgo::makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
                                                    const std::vector< const BoundarySpacePoint* >& spacepts,
                                                    std::vector< larlitecv::BMTrackCluster3D >& trackclusters, 
-                                                   std::vector< larcv::Image2D >& tagged_v ) {
+                                                   std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices) {
     // This method takes in the list of boundaryspacepoints and pairs them up in order to try to find through-going muons
     int nendpts = (int)spacepts.size();
+    used_endpoints_indices.resize( nendpts, 0 );
 
     // pair up containers
     int ntotsearched = 0;
@@ -359,6 +360,8 @@ namespace larlitecv {
 
               track_made = true;
               track3d = linetrackalgo.makeTrackCluster3D( img_v, badchimg_v, pts_a, pts_b, straight_track );
+	      track3d.start_index = i;
+	      track3d.end_index   = j;
               pass0_endpts_connected.push_back( thiscombo );
               //}
 
@@ -477,6 +480,8 @@ namespace larlitecv {
             // 3D A* path-finding
             bool goal_reached = false;
             track3d = runAstar3D( pts_a, pts_b, img_v, badchimg_v, tagged_v, img_compressed_v, badch_compressed_v, past_tagged_compressed_v, goal_reached );
+	    track3d.start_index = i;
+	    track3d.end_index   = j;
             std::vector< BMTrackCluster2D >& planetracks = track3d.plane_paths;
 
             if ( goal_reached ) {
@@ -500,21 +505,10 @@ namespace larlitecv {
       // for combos where tracks were made, we remove them from the search if for some conditions
       for ( auto &combo : pass0_endpts_connected ) {
 
-        /*
-        // we can try to kill large charge extension to prevent re-use. the point is in the middle of the track.
-        // we want this to be conservative so we don't throw away points for a*
-        auto it_comboinfo = pass0_combos.find( combo );
-        if ( it_comboinfo!=pass0_combos.end() ) {
-          const ComboInfo_t& cinfo = (*it_comboinfo).second;
-          if ( cinfo.startext_majcharge>30 )
-            space_point_used.at( combo.first )  = true;
-          if ( cinfo.endext_majcharge>30 )
-            space_point_used.at( combo.second ) = true;
-
-        }
-        */
-
-        // if we connected them. we no longer need points
+	// we tried to remove those tracks in the middle, but they were not easily discernable from those tagged some distance from the end
+	// could explore a more conservative cut here in the future...
+	
+        // if we connected them. we no longer need the points
         space_point_used.at( combo.first )  = true;
         space_point_used.at( combo.second ) = true;        
       }
@@ -529,7 +523,7 @@ namespace larlitecv {
 
       // POST-PROCESS TRACKS
       if ( pass==0 ) {
-
+	// linear post-processor
         std::vector< BMTrackCluster3D > filtered_tracks = linear_postprocess.process( pass_tracks );
         // fill the output tracks
         for ( auto &trk : filtered_tracks ) {
@@ -537,11 +531,18 @@ namespace larlitecv {
         }
       }
       else if ( pass==1 ) {
+	// astar post-processor
         for ( auto &trk : pass_tracks )
           trackclusters.emplace_back( std::move(trk) );
       }
 
     }//end of loop over passes
+
+    // boring book-keeping stuff ...
+    for ( auto& track : trackclusters ) {
+      used_endpoints_indices.at( track.start_index ) = 1;
+      used_endpoints_indices.at( track.end_index ) = 1;      
+    }
     
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "total paths searched: " << ntotsearched << " of " << npossible << " possible combinations. time=" << elapsed_secs << " secs" << std::endl;

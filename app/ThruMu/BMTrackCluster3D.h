@@ -35,6 +35,9 @@ namespace larlitecv {
     std::vector< BMTrackCluster2D > plane_paths;
     std::vector< std::vector<double> > path3d;
     int track2d_index;
+    // these indices don't mean much, they are for book keeping purposes so we can track which endpoints have been used up
+    int start_index; 
+    int end_index; 
     
     //std::vector< float > node_triangle_area;
 
