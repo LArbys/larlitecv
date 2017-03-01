@@ -186,17 +186,73 @@ namespace larlitecv {
       if ( !cluster_on_all_planes )
         continue;
 
+      std::cout << starting_cluster[0] << " " << starting_cluster[1] << " " << starting_cluster[2] << std::endl;
+      if ( starting_cluster[2]!=37 )
+        continue;
+
       // for each plane. build cluster group.
       std::vector< std::set<int> > cluster_groups;
-      for ( size_t p=0; p<img_v.size(); p++ ) {
+      for ( int p=0; p<(int)img_v.size(); p++ ) {
         std::set<int> group;
-        int current_cluster = starting_cluster[p];
+        std::vector<int> cluster_history;
+        cluster_history.push_back( starting_cluster[p] );
+        group.insert(starting_cluster[p]);
         // recursive function
-        
+        getNextLinkedCluster( p, cluster_history, group );
+        cluster_groups.emplace_back( std::move(group) );
       }
-    }
+
+      // with cluster group made, we fill an image with pixels, which we will pass to A*
+      std::vector< larcv::Image2D > clust_img_v;
+      for ( size_t p=0; p<img_v.size(); p++ ) {
+        larcv::Image2D clust_img( img_v.at(p).meta() );
+        clust_img.paint(0.0);
+        for ( auto &idx_cl : cluster_groups.at(p) ) {
+          std::cout << "plane " << p << " cluster group: " << idx_cl << std::endl;
+          const dbscan::dbCluster& cluster = m_untagged_clusters_v.at(p).output.clusters.at(idx_cl);
+          for (size_t ihit=0; ihit<cluster.size(); ihit++) {
+            int hitidx = cluster.at(ihit);
+            int col = m_untagged_clusters_v.at(p).pixels.at(hitidx)[0];
+            int row = m_untagged_clusters_v.at(p).pixels.at(hitidx)[1];
+            clust_img.set_pixel( row, col, img_v.at(p).pixel(row,col) );
+          }
+        }
+        clust_img_v.emplace_back( std::move(clust_img) );
+      }
+      m_cluster_images.emplace_back( std::move(clust_img_v) );
+
+      // we find spacepoints
+
+      // we downscale
+
+      // run A*
+      break;
+    }// end of endpoint loop
   }
 
+  void StopMuCluster::getNextLinkedCluster( const int& plane, std::vector<int>& cluster_history, std::set<int>& clustergroup ) {
+    // get the links
+    if ( cluster_history.size()==0)
+      return;
+    int current_cluster = cluster_history.back();
+    const std::vector<ClusterLink_t>& cluster_link = m_untagged_clusters_v.at(plane).getLinks(current_cluster);
+    for ( auto& link : cluster_link ) {
+      // go to first cluster not already in the group
+      if ( link.indices[0]==current_cluster && clustergroup.find( link.indices[1] )==clustergroup.end() ) {
+        clustergroup.insert( link.indices[1] );
+        cluster_history.push_back( link.indices[1] );
+        getNextLinkedCluster( plane, cluster_history, clustergroup );
+      }
+      else if ( link.indices[1]==current_cluster && clustergroup.find( link.indices[0] )==clustergroup.end() ) {
+        clustergroup.insert( link.indices[0] );
+        cluster_history.push_back( link.indices[0] );
+        getNextLinkedCluster( plane, cluster_history, clustergroup );
+      }
+    }
+    // no link
+    cluster_history.pop_back();
+    return;
+  }
 
   // ================================================================================================
   //  OPENCV FUNCTIONS
@@ -268,8 +324,7 @@ namespace larlitecv {
         std::stringstream slabel;
         slabel << icluster;
         cv::putText(cvimg,slabel.str(),cv::Point(ex.leftmost()[0],ex.leftmost()[1]),cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255,255,255) );
-      }
-
+      }//end of cluster loop
 
       for ( auto const& link : cluster_info.link_v ) {
         int icluster_a = link.indices[0];
@@ -279,6 +334,20 @@ namespace larlitecv {
         int x2 = cluster_info.extrema_v.at(icluster_b).extrema(link.extrema[1])[0];
         int y2 = cluster_info.extrema_v.at(icluster_b).extrema(link.extrema[1])[1];
         cv::line( cvimg, cv::Point(x1,y1), cv::Point(x2,y2), cv::Scalar(0,0,255), 2 );
+      }
+
+      for ( auto const& clust_img : m_cluster_images ) {
+        const larcv::Image2D& clust_img_p = clust_img.at(p);
+        for (size_t r=0; r<clust_img_p.meta().rows(); r++) {
+          for (size_t c=0; c<clust_img_p.meta().cols(); c++) {
+            if ( clust_img_p.pixel(r,c)>m_config.pixel_thresholds[p] ) {
+              cv::Vec3b& pixcol = cvimg.at<cv::Vec3b>( cv::Point(c,r) );
+              pixcol[0] = 255;
+              pixcol[1] = 255;
+              pixcol[2] = 255;
+            }
+          }
+        }
       }
 
       cvimgs_v.emplace_back( std::move(cvimg) );

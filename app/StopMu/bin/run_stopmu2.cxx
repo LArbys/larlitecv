@@ -180,6 +180,7 @@ int main( int nargs, char** argv ) {
 
     smcluster.extractBaseClusters( img_v, thrumu_v, stopmu_candidate_endpts );
     smcluster.findClusterLinks();
+    smcluster.findStopMuTrack( img_v, badch_v, thrumu_v, stopmu_candidate_endpts );
 
     std::stringstream ss;
     ss << "smcluster_" << ientry << "_r" << run << "_s" << subrun << "_e" << event;

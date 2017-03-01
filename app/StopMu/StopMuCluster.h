@@ -18,6 +18,7 @@
  */
 
 #include <vector>
+#include <set>
 #include <array>
 #include <exception>
 #include <algorithm>
@@ -70,6 +71,7 @@ namespace larlitecv {
     void runAStar();
     void postProcessing();
     void packageOutput(); 
+    void getNextLinkedCluster( const int& plane, std::vector<int>& cluster_history, std::set<int>& clustergroup );
 
     int m_verbosity;
     StopMuClusterConfig m_config;
@@ -78,6 +80,7 @@ namespace larlitecv {
     // stored information
     std::vector<const larcv::Image2D*> m_img_v;
     std::vector<const larcv::Image2D*> m_thrumu_v;
+    std::vector< std::vector<larcv::Image2D> > m_cluster_images;
     std::vector<larcv::Image2D> m_masked_v;
     std::vector<untagged_cluster_info_t> m_untagged_clusters_v;
 
