@@ -59,7 +59,7 @@ namespace larlitecv {
 
     void extractBaseClusters(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts );
     void saveClusterImageOCV( std::string filename ); ///< dumps out image of intermediate quantities in algorithm
-    void findClusterLinks() {};
+    void findClusterLinks();
     void getClusterGroupForSpacepoint() {};
     void generateCluster3PlaneSpacepoints() {};
     void generateCluster2PlaneSpacepoints() {};

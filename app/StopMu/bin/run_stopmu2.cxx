@@ -177,6 +177,7 @@ int main( int nargs, char** argv ) {
     std::cout << " Number of candidate stop-mu start points: " << stopmu_candidate_endpts.size() << std::endl;
 
     smcluster.extractBaseClusters( img_v, thrumu_v, stopmu_candidate_endpts );
+    smcluster.findClusterLinks();
 
     std::stringstream ss;
     ss << "test";

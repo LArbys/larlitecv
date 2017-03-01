@@ -96,7 +96,7 @@ namespace larlitecv {
       untagged_cluster_info_t plane_cluster;
       plane_cluster.pixels = dbscan::extractPointsFromImage( m_masked_v.at(p), 0.5 );
       dbscan::DBSCANAlgo algo;
-      plane_cluster.output = algo.scan( plane_cluster.pixels, m_config.dbscan_cluster_minpoints, m_config.dbscan_cluster_radius );
+      plane_cluster.output = algo.scan( plane_cluster.pixels, m_config.dbscan_cluster_minpoints, m_config.dbscan_cluster_radius, false );
       for (size_t ic=0; ic<plane_cluster.output.clusters.size(); ic++) {
         dbscan::ClusterExtrema ex = dbscan::ClusterExtrema::FindClusterExtrema( ic, plane_cluster.output, plane_cluster.pixels );
         plane_cluster.extrema_v.emplace_back( std::move(ex) );
@@ -106,6 +106,62 @@ namespace larlitecv {
     }
 
   }
+
+  void StopMuCluster::findClusterLinks() {
+    const size_t nplanes = m_img_v.size();
+    for (size_t p=0; p<nplanes; p++) {
+      const dbscan::dbClusters& clusters = m_untagged_clusters_v.at(p).output.clusters;
+      for (size_t ic_a=0; ic_a<clusters.size(); ic_a++ ) {
+
+        if ( m_untagged_clusters_v.at(p).output.clusters.at(ic_a).size()<m_config.dbscan_cluster_minpoints ) continue;
+
+        for (size_t ic_b=ic_a+1; ic_b<clusters.size(); ic_b++ ) {
+
+          if ( m_untagged_clusters_v.at(p).output.clusters.at(ic_b).size()<m_config.dbscan_cluster_minpoints ) continue;
+
+          const dbscan::ClusterExtrema& ex_a = m_untagged_clusters_v.at(p).extrema_v.at(ic_a);
+          const dbscan::ClusterExtrema& ex_b = m_untagged_clusters_v.at(p).extrema_v.at(ic_b);
+
+          // we find closest distance between cluster extrema
+          float min_dist = -1;
+          dbscan::ClusterExtrema::Extrema_t min_exa;
+          dbscan::ClusterExtrema::Extrema_t min_exb;
+          for (int i=0; i<(int)dbscan::ClusterExtrema::kNumExtrema; i++) {
+            for (int j=0; j<(int)dbscan::ClusterExtrema::kNumExtrema; j++) {
+
+              float d = 0;
+              for (int v=0; v<2; v++) {
+                float dv = ex_a.extrema((dbscan::ClusterExtrema::Extrema_t)i)[v]-ex_b.extrema((dbscan::ClusterExtrema::Extrema_t)j)[v];
+                d += dv*dv;
+              }
+              d = sqrt(d);
+              if ( min_dist<0 || d<min_dist ) {
+                min_dist = d;
+                min_exa = (dbscan::ClusterExtrema::Extrema_t)i;
+                min_exb = (dbscan::ClusterExtrema::Extrema_t)j;
+              }
+            }
+          }
+
+          if ( min_dist <0 || min_dist > m_config.max_link_distance ) continue;
+
+          // define the link
+          m_untagged_clusters_v.at(p).makeLink( ic_a, ic_b, min_exa, min_exb, min_dist );
+          std::cout << "plane " << p << ": make link between " << ic_a << " and " << ic_b 
+            << " ex(a)=" << min_exa << " ex(b)=" << min_exb
+            << " a=(" << ex_a.extrema(min_exa)[0] << "," << ex_a.extrema(min_exa)[1] << ") "
+            << " b=(" << ex_b.extrema(min_exb)[0] << "," << ex_b.extrema(min_exb)[1] << ") "            
+            << " dist=" << min_dist << std::endl;
+        }
+      }
+    }//end loop over planes
+
+  }
+
+
+  // ================================================================================================
+  //  OPENCV FUNCTIONS
+  // ================================================================================================
 
   void StopMuCluster::saveClusterImageOCV( std::string filename ) {
     // for visual evaluation, we dump out various information used/constructed by this class
@@ -151,6 +207,7 @@ namespace larlitecv {
       // ok, we now label base clusters with colors!
       for (size_t icluster=0; icluster<cluster_info.output.clusters.size(); icluster++){
         if ( cluster_info.output.clusters.at(icluster).size()<m_config.dbscan_cluster_minpoints ) continue;
+        const dbscan::dbCluster& cluster = cluster_info.output.clusters.at(icluster);
         // pick a color
         cv::Vec3b color;
         color[0] = (int)(rand.Uniform()*255);
@@ -164,10 +221,25 @@ namespace larlitecv {
         }
         // color in the extrema
         const dbscan::ClusterExtrema& ex = cluster_info.extrema_v.at(icluster);
-        cv::circle(cvimg, cv::Point(ex.leftmost()[0],   ex.leftmost()[1]),   5, cv::Scalar(0,255,0),-1);
-        cv::circle(cvimg, cv::Point(ex.topmost()[0],    ex.topmost()[1]),    5, cv::Scalar(255,255,0),-1);          
-        cv::circle(cvimg, cv::Point(ex.rightmost()[0],  ex.rightmost()[1]),  5, cv::Scalar(0,255,255),-1);          
-        cv::circle(cvimg, cv::Point(ex.bottommost()[0], ex.bottommost()[1]), 5, cv::Scalar(255,0,255),-1);
+        cv::circle(cvimg, cv::Point(ex.leftmost()[0],   ex.leftmost()[1]),   3, cv::Scalar(0,255,0),-1);
+        cv::circle(cvimg, cv::Point(ex.topmost()[0],    ex.topmost()[1]),    3, cv::Scalar(255,255,0),-1);          
+        cv::circle(cvimg, cv::Point(ex.rightmost()[0],  ex.rightmost()[1]),  3, cv::Scalar(0,255,255),-1);          
+        cv::circle(cvimg, cv::Point(ex.bottommost()[0], ex.bottommost()[1]), 3, cv::Scalar(255,0,255),-1);
+
+        std::stringstream slabel;
+        slabel << icluster;
+        cv::putText(cvimg,slabel.str(),cv::Point(ex.leftmost()[0],ex.leftmost()[1]),cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255,255,255) );
+      }
+
+
+      for ( auto const& link : cluster_info.link_v ) {
+        int icluster_a = link.indices[0];
+        int icluster_b = link.indices[1];
+        int x1 = cluster_info.extrema_v.at(icluster_a).extrema(link.extrema[0])[0];
+        int y1 = cluster_info.extrema_v.at(icluster_a).extrema(link.extrema[0])[1];
+        int x2 = cluster_info.extrema_v.at(icluster_b).extrema(link.extrema[1])[0];
+        int y2 = cluster_info.extrema_v.at(icluster_b).extrema(link.extrema[1])[1];
+        cv::line( cvimg, cv::Point(x1,y1), cv::Point(x2,y2), cv::Scalar(0,0,255), 2 );
       }
 
       cvimgs_v.emplace_back( std::move(cvimg) );

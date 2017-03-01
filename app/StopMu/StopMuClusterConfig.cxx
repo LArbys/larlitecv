@@ -2,6 +2,7 @@
 
 namespace larlitecv {
 
+
   StopMuClusterConfig::StopMuClusterConfig() {
     setDefaults();
   }
@@ -12,6 +13,7 @@ namespace larlitecv {
     pixel_thresholds.resize(3,10.0);
     dbscan_cluster_radius = 10.0;
     dbscan_cluster_minpoints = 30;
+    max_link_distance = 100;
   }
 
 
