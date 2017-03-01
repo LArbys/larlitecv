@@ -14,6 +14,7 @@ namespace larlitecv {
     dbscan_cluster_radius = 10.0;
     dbscan_cluster_minpoints = 30;
     max_link_distance = 150;
+    min_link_cosine = 0.8;
   }
 
 
@@ -24,6 +25,7 @@ namespace larlitecv {
     cfg.dbscan_cluster_radius = pset.get< float >("ClusteringRadius");
     cfg.dbscan_cluster_minpoints = pset.get< int >("ClusteringMinPoints");
     cfg.max_link_distance = pset.get< float >("MaxLinkDistance");
+    cfg.min_link_cosine = pset.get< float >("MinLinkCosine");
     return cfg;
   }
 

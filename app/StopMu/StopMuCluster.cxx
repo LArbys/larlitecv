@@ -126,6 +126,7 @@ namespace larlitecv {
           float min_dist = -1;
           dbscan::ClusterExtrema::Extrema_t min_exa;
           dbscan::ClusterExtrema::Extrema_t min_exb;
+          float dir_min[2] = {0};
           for (int i=0; i<(int)dbscan::ClusterExtrema::kNumExtrema; i++) {
             for (int j=0; j<(int)dbscan::ClusterExtrema::kNumExtrema; j++) {
 
@@ -139,11 +140,58 @@ namespace larlitecv {
                 min_dist = d;
                 min_exa = (dbscan::ClusterExtrema::Extrema_t)i;
                 min_exb = (dbscan::ClusterExtrema::Extrema_t)j;
+                for (int v=0; v<2; v++)
+                  dir_min[v] = (ex_a.extrema((dbscan::ClusterExtrema::Extrema_t)i)[v]-ex_b.extrema((dbscan::ClusterExtrema::Extrema_t)j)[v])/min_dist;
               }
             }
           }
 
           if ( min_dist <0 || min_dist > m_config.max_link_distance ) continue;
+
+          // min-dist criteria passed. now check direction compatibility
+          float max_dist_exa = 0.;
+          float max_dist_exb = 0.;
+          int max_exa = 0;
+          int max_exb = 0;
+          float dir_a[2] = {0};
+          float dir_b[2] = {0};
+
+          for (int i=0; i<(int)dbscan::ClusterExtrema::kNumExtrema; i++) {
+            float d_a = 0.;
+            float d_b = 0.;
+            for (int v=0; v<3; v++) {
+              float dv_a = ex_a.extrema((dbscan::ClusterExtrema::Extrema_t)i)[v] - ex_a.extrema(min_exa)[v];
+              d_a += dv_a*dv_a;
+              float dv_b = ex_b.extrema((dbscan::ClusterExtrema::Extrema_t)i)[v] - ex_b.extrema(min_exb)[v];
+              d_b += dv_b*dv_b;
+            }
+            d_a = sqrt(d_a);
+            d_b = sqrt(d_b);
+            if ( d_a>max_dist_exa ) {
+              max_exa = i;
+              max_dist_exa = d_a;
+              for (int v=0; v<2; v++)
+                dir_a[v] = (ex_a.extrema((dbscan::ClusterExtrema::Extrema_t)max_exa)[v] - ex_a.extrema(min_exa)[v])/max_dist_exa;
+            }
+            if ( d_b>max_dist_exb ) {
+              max_exb = i;
+              max_dist_exb = d_b;
+              for (int v=0; v<2; v++)
+                dir_b[v] = (ex_b.extrema((dbscan::ClusterExtrema::Extrema_t)max_exb)[v] - ex_b.extrema(min_exb)[v])/max_dist_exb;              
+            }
+          }
+
+
+          float coscluster_a = 0.;
+          float coscluster_b = 0.;          
+          for (int v=0; v<2; v++) {
+            coscluster_a += dir_min[v]*dir_a[v];
+            coscluster_b += -dir_min[v]*dir_b[v];
+          }
+
+          // cosine must be above some value for both
+          if ( coscluster_b<m_config.min_link_cosine || coscluster_a<m_config.min_link_cosine )
+            continue;
 
           // define the link
           m_untagged_clusters_v.at(p).makeLink( ic_a, ic_b, min_exa, min_exb, min_dist );
@@ -164,6 +212,7 @@ namespace larlitecv {
 
     // prep
     // build base clusters and links between them
+    m_cluster_images.clear();
 
     for ( auto const& endpt : endpts_v ) {
 
@@ -186,7 +235,7 @@ namespace larlitecv {
       if ( !cluster_on_all_planes )
         continue;
 
-      std::cout << starting_cluster[0] << " " << starting_cluster[1] << " " << starting_cluster[2] << std::endl;
+      //std::cout << starting_cluster[0] << " " << starting_cluster[1] << " " << starting_cluster[2] << std::endl;
       if ( starting_cluster[2]!=37 )
         continue;
 
@@ -208,7 +257,7 @@ namespace larlitecv {
         larcv::Image2D clust_img( img_v.at(p).meta() );
         clust_img.paint(0.0);
         for ( auto &idx_cl : cluster_groups.at(p) ) {
-          std::cout << "plane " << p << " cluster group: " << idx_cl << std::endl;
+          //std::cout << "plane " << p << " cluster group: " << idx_cl << std::endl;
           const dbscan::dbCluster& cluster = m_untagged_clusters_v.at(p).output.clusters.at(idx_cl);
           for (size_t ihit=0; ihit<cluster.size(); ihit++) {
             int hitidx = cluster.at(ihit);
@@ -228,6 +277,11 @@ namespace larlitecv {
       // run A*
       break;
     }// end of endpoint loop
+  }
+
+  void StopMuCluster::generateCluster3PlaneSpacepoints() {
+    // get cluster group from 3 planes. collect the consistent 3 plane spacepoints
+
   }
 
   void StopMuCluster::getNextLinkedCluster( const int& plane, std::vector<int>& cluster_history, std::set<int>& clustergroup ) {

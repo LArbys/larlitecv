@@ -66,7 +66,7 @@ namespace larlitecv {
     void saveClusterImageOCV( std::string filename ); ///< dumps out image of intermediate quantities in algorithm
     void findClusterLinks();
     void getClusterGroupForSpacepoint() {};
-    void generateCluster3PlaneSpacepoints() {};
+    void generateCluster3PlaneSpacepoints();
     void generateCluster2PlaneSpacepoints() {};
     void runAStar();
     void postProcessing();
