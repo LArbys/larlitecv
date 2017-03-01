@@ -9,6 +9,8 @@
 
 #include <vector>
 
+#include "Base/PSet.h"
+
 namespace larlitecv {
 
   class StopMuClusterConfig {
@@ -28,6 +30,9 @@ namespace larlitecv {
     float max_link_distance; //< maximum clusterl link distance
 
   };
+
+  StopMuClusterConfig makeStopMuClusterConfigFromPSet( const larcv::PSet& pset );
+
 }
 
 #endif

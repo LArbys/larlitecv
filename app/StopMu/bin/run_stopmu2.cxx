@@ -91,7 +91,7 @@ int main( int nargs, char** argv ) {
   larlitecv::StopMuFilterSpacePointsConfig stopmu_filter_cfg = larlitecv::MakeStopMuFilterSpacePointsConfigFromPSet( stopmu_filter_pset );
   larlitecv::StopMuFilterSpacePoints stopmu_filterpts(stopmu_filter_cfg);
 
-  larlitecv::StopMuClusterConfig stopmu_cluster_config;
+  larlitecv::StopMuClusterConfig stopmu_cluster_config = larlitecv::makeStopMuClusterConfigFromPSet( stopmu_cfg.get<larcv::PSet>("StopMuCluster") );
   larlitecv::StopMuCluster smcluster( stopmu_cluster_config);
 
   // start point direction

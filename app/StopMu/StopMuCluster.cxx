@@ -147,11 +147,11 @@ namespace larlitecv {
 
           // define the link
           m_untagged_clusters_v.at(p).makeLink( ic_a, ic_b, min_exa, min_exb, min_dist );
-          std::cout << "plane " << p << ": make link between " << ic_a << " and " << ic_b 
-            << " ex(a)=" << min_exa << " ex(b)=" << min_exb
-            << " a=(" << ex_a.extrema(min_exa)[0] << "," << ex_a.extrema(min_exa)[1] << ") "
-            << " b=(" << ex_b.extrema(min_exb)[0] << "," << ex_b.extrema(min_exb)[1] << ") "            
-            << " dist=" << min_dist << std::endl;
+          // std::cout << "plane " << p << ": make link between " << ic_a << " and " << ic_b 
+          //   << " ex(a)=" << min_exa << " ex(b)=" << min_exb
+          //   << " a=(" << ex_a.extrema(min_exa)[0] << "," << ex_a.extrema(min_exa)[1] << ") "
+          //   << " b=(" << ex_b.extrema(min_exb)[0] << "," << ex_b.extrema(min_exb)[1] << ") "            
+          //   << " dist=" << min_dist << std::endl;
         }
       }
     }//end loop over planes
