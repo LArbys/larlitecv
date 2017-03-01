@@ -28,7 +28,7 @@ include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 # Add your program below with a space after the previous one.
 # This makefile compiles all binaries specified below.
-PROGRAMS = test_start_dir test_stopmutracker run_stopmu
+PROGRAMS = test_start_dir test_stopmutracker run_stopmu run_stopmu2
 
 all: $(PROGRAMS)
 
