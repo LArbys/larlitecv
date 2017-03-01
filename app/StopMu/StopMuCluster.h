@@ -57,6 +57,10 @@ namespace larlitecv {
     StopMuCluster( const StopMuClusterConfig& cfg );
     virtual ~StopMuCluster() {};
 
+    void findStopMuTrack( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+      const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v );
+
+
     void extractBaseClusters(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts );
     void saveClusterImageOCV( std::string filename ); ///< dumps out image of intermediate quantities in algorithm
     void findClusterLinks();

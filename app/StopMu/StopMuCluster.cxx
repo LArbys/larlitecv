@@ -158,6 +158,45 @@ namespace larlitecv {
 
   }
 
+  void StopMuCluster::findStopMuTrack( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+    const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v  ) {
+    // here we build stopmu-tracks
+
+    // prep
+    // build base clusters and links between them
+
+    for ( auto const& endpt : endpts_v ) {
+
+      // on each plane, we build cluster group connected to start points
+      std::vector<int> starting_cluster(img_v.size(),-1);
+
+      // get cluster connected to start point
+      bool cluster_on_all_planes = true;
+      for (size_t p=0; p<img_v.size(); p++) {
+        std::vector<double> testpoint(2);
+        testpoint[0] = endpt.at(p)->X();
+        testpoint[1] = endpt.at(p)->Y();
+        starting_cluster[p] = m_untagged_clusters_v.at(p).output.findMatchingCluster( testpoint, m_untagged_clusters_v.at(p).pixels, 2.0 );
+        if ( starting_cluster[p]<0 ) {
+          cluster_on_all_planes = false;
+          break;
+        }
+      }
+
+      if ( !cluster_on_all_planes )
+        continue;
+
+      // for each plane. build cluster group.
+      std::vector< std::set<int> > cluster_groups;
+      for ( size_t p=0; p<img_v.size(); p++ ) {
+        std::set<int> group;
+        int current_cluster = starting_cluster[p];
+        // recursive function
+        
+      }
+    }
+  }
+
 
   // ================================================================================================
   //  OPENCV FUNCTIONS

@@ -127,6 +127,8 @@ int main( int nargs, char** argv ) {
 
     // go to some entry
     dataco.goto_entry(ientry, "larcv");
+    int run,subrun,event;
+    dataco.get_id(run,subrun,event);
     
     larcv::EventImage2D* imgs            = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "modimgs" );
     larcv::EventImage2D* marked3d        = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
@@ -180,7 +182,7 @@ int main( int nargs, char** argv ) {
     smcluster.findClusterLinks();
 
     std::stringstream ss;
-    ss << "test";
+    ss << "smcluster_" << ientry << "_r" << run << "_s" << subrun << "_e" << event;
     smcluster.saveClusterImageOCV( ss.str() );
  
     larcv::EventImage2D* stopmu_eventimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmu" );

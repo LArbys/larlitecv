@@ -3,5 +3,6 @@
 *.jpg
 *.root
 run_stopmu
+run_stopmu2
 test_start_dir
 test_stopmutracker
