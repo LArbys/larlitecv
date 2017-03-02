@@ -41,6 +41,8 @@
 // larcv/app
 #include "dbscan/DBSCANAlgo.h"
 
+#include "ThruMu/BoundarySpacePoint.h"
+#include "ThruMu/AStar3DAlgo.h"
 #include "StopMuClusterConfig.h"
 #include "SMClusterTypes.h"
 
@@ -66,12 +68,15 @@ namespace larlitecv {
     void saveClusterImageOCV( std::string filename ); ///< dumps out image of intermediate quantities in algorithm
     void findClusterLinks();
     void getClusterGroupForSpacepoint() {};
-    void generateCluster3PlaneSpacepoints();
+    std::vector<BoundarySpacePoint> generateCluster3PlaneSpacepoints( const std::vector< std::set<int> >& cluster_groups );
+    std::vector<BoundarySpacePoint> generateCluster2PlaneSpacepoints( const std::vector< std::set<int> >& cluster_groups, 
+      const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& thrumu_v );
+
     void generateCluster2PlaneSpacepoints() {};
     void runAStar();
     void postProcessing();
     void packageOutput(); 
-    void getNextLinkedCluster( const int& plane, std::vector<int>& cluster_history, std::set<int>& clustergroup );
+    void getNextLinkedCluster( const int& plane, std::vector<int>& cluster_history, std::set<int>& clustergroup, std::vector< const ClusterLink_t* >& used_links );
 
     int m_verbosity;
     StopMuClusterConfig m_config;
@@ -83,6 +88,10 @@ namespace larlitecv {
     std::vector< std::vector<larcv::Image2D> > m_cluster_images;
     std::vector<larcv::Image2D> m_masked_v;
     std::vector<untagged_cluster_info_t> m_untagged_clusters_v;
+    std::vector<BoundarySpacePoint> m_spacepoints;
+
+    typedef std::vector< std::vector<AStar3DNode> > PathList_t;
+    PathList_t m_paths;
 
 #ifdef USE_OPENCV
     std::vector<cv::Mat> makeBaseClusterImageOCV();

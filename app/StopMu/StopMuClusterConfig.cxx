@@ -15,6 +15,10 @@ namespace larlitecv {
     dbscan_cluster_minpoints = 30;
     max_link_distance = 150;
     min_link_cosine = 0.8;
+    max_extrema_row_diff = 2.0;
+    max_extrema_triarea = 2.0;
+    link_stepsize = 0.3;
+    astar_downsampling_factor = 4;
   }
 
 
@@ -26,6 +30,8 @@ namespace larlitecv {
     cfg.dbscan_cluster_minpoints = pset.get< int >("ClusteringMinPoints");
     cfg.max_link_distance = pset.get< float >("MaxLinkDistance");
     cfg.min_link_cosine = pset.get< float >("MinLinkCosine");
+    cfg.max_extrema_row_diff = pset.get< float >("MaxExtremaRowDiff");
+    cfg.max_extrema_triarea = pset.get< float >("MaxExtremaTriArea");
     return cfg;
   }
 

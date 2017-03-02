@@ -29,6 +29,10 @@ namespace larlitecv {
     int dbscan_cluster_minpoints; //< minimum number of points in a cluster
     float max_link_distance; //< maximum clusterl link distance
     float min_link_cosine; //< minimum cosine between links
+    float max_extrema_row_diff; 
+    float max_extrema_triarea;
+    float link_stepsize;
+    float astar_downsampling_factor;
 
   };
 
