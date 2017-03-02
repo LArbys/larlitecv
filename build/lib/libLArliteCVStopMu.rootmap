@@ -1,0 +1,16 @@
+{ decls }
+namespace larlitecv {  }
+
+[ liblarlitecv.so ]
+# List of selected classes
+class larlitecv::Step3D
+class larlitecv::StopMuAlgo
+class larlitecv::StopMuSkeleton
+class larlitecv::StopMuStart
+class larlitecv::StopMuTracker
+header StopMuTracker.h
+header StopMuAlgo.h
+header StopMuSkeleton.h
+header StopMuStart.h
+# List of selected namespaces
+namespace larlitecv
