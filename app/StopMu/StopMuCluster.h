@@ -43,6 +43,7 @@
 
 #include "ThruMu/BoundarySpacePoint.h"
 #include "ThruMu/AStar3DAlgo.h"
+#include "ThruMu/BMTrackCluster3D.h"
 #include "StopMuClusterConfig.h"
 #include "SMClusterTypes.h"
 
@@ -60,43 +61,71 @@ namespace larlitecv {
     StopMuCluster( const StopMuClusterConfig& cfg );
     virtual ~StopMuCluster() {};
 
-    void findStopMuTrack( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+    void findStopMuTracks( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
       const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v );
 
 
-    void extractBaseClusters(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts );
-    void saveClusterImageOCV( std::string filename ); ///< dumps out image of intermediate quantities in algorithm
-    void findClusterLinks();
-    void getClusterGroupForSpacepoint() {};
-    std::vector<BoundarySpacePoint> generateCluster3PlaneSpacepoints( const std::vector< std::set<int> >& cluster_groups );
-    std::vector<BoundarySpacePoint> generateCluster2PlaneSpacepoints( const ClusterGroup_t& cluster_group, 
-      const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& thrumu_v );
+    // We run the algorithm in passes. Being less restrictive each time.
+    // Each pass has data we collect
+    typedef std::vector< std::vector<AStar3DNode> > PathList_t;    
+    struct PassOutput_t {
+      std::vector< std::vector<larcv::Image2D> > m_cluster_images; // (deprecate)
+      std::vector<larcv::Image2D> m_masked_v; // image where pixels are tagged by thrumu or previous stopmu passes
+      std::vector<untagged_cluster_info_t> m_untagged_clusters_v; // clusters from dbscan over m_masked_v
+      std::vector<ClusterGroup_t> m_clustergroups;  //  secondary clustering of untagged_clusters_v clusters
+      std::vector<BoundarySpacePoint> m_spacepoints; // space points found by finding 3D-consistent points in the cluster groups
+      PathList_t m_paths; // list of astar paths
+      std::vector<int> m_path_goalreached; // marks those that reach their goal
+      std::vector<int> m_endpt_index; // index of endpt used to start the path
+    };
+    std::vector< PassOutput_t > m_pass_data;
 
-    void generateCluster2PlaneSpacepoints() {};
+    // ------------------------------------
+    // PASS METHODS
+
+    PassOutput_t performPass( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+      const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v, std::vector<int>& endpts_used );
+
+    // pass sub-methods
+
+    void extractBaseClusters( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, 
+      const std::vector< std::vector< const larcv::Pixel2D* > >& endpts, PassOutput_t& output );
+
+    void findClusterLinks( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, PassOutput_t& data );
+
+    void analyzeClusters( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+      const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v, std::vector<int>& endpts_used, 
+      StopMuCluster::PassOutput_t& data);
+
+    std::vector<BoundarySpacePoint> generateCluster2PlaneSpacepoints( const StopMuClusterConfig::PassConfig_t& passcfg, const ClusterGroup_t& cluster_group, 
+      const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& thrumu_v, PassOutput_t& data );
+
+    std::vector<BoundarySpacePoint> generateCluster3PlaneSpacepoints( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v,
+      const std::vector< std::set<int> >& cluster_groups, PassOutput_t& data );
+
+    void saveClusterImageOCV( std::string filename ); ///< dumps out image of intermediate quantities in algorithm   
+
+    // ------------------------------------------------------------------
+
+    
     void runAStar();
+
     void postProcessing();
+
     void packageOutput(); 
-    void getNextLinkedCluster( const int& plane, std::vector<int>& cluster_history, std::set<int>& clustergroup, std::vector< const ClusterLink_t* >& used_links );
+
+    void getNextLinkedCluster( StopMuCluster::PassOutput_t& data, const int& plane, std::vector<int>& cluster_history, 
+      std::set<int>& clustergroup, std::vector< const ClusterLink_t* >& used_links );
+
+    BMTrackCluster3D makeBMTrackCluster3D( const std::vector<AStar3DNode>& path, 
+      const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<const larcv::Pixel2D*>& start_pt );
 
     int m_verbosity;
     StopMuClusterConfig m_config;
     void setVerbosity( int v ) { m_verbosity = v; };    
 
-    // stored information
-    std::vector<const larcv::Image2D*> m_img_v;
-    std::vector<const larcv::Image2D*> m_thrumu_v;
-    std::vector< std::vector<larcv::Image2D> > m_cluster_images;
-    std::vector<larcv::Image2D> m_masked_v;
-    std::vector<untagged_cluster_info_t> m_untagged_clusters_v;
-    std::vector<BoundarySpacePoint> m_spacepoints;
-    std::vector<ClusterGroup_t> m_clustergroups;
-
-    typedef std::vector< std::vector<AStar3DNode> > PathList_t;
-    PathList_t m_paths;
-    std::vector<int> m_path_goalreached;
-
 #ifdef USE_OPENCV
-    std::vector<cv::Mat> makeBaseClusterImageOCV();
+    std::vector<cv::Mat> makeBaseClusterImageOCV( const PassOutput_t& data, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v );
 #endif
 
   protected:
