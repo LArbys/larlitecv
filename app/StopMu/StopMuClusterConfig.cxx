@@ -12,7 +12,7 @@ namespace larlitecv {
     start_point_pixel_neighborhood = 5;
     pixel_thresholds.resize(3,10.0);
     dbscan_cluster_radius = 10.0;
-    dbscan_cluster_minpoints = 30;
+    dbscan_cluster_minpoints = 10;
     max_link_distance = 150;
     min_link_cosine = 0.8;
     max_extrema_row_diff = 2.0;

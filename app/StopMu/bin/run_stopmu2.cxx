@@ -139,6 +139,14 @@ int main( int nargs, char** argv ) {
     larcv::EventChStatus* ev_status      = (larcv::EventChStatus*)dataco.get_larcv_data( larcv::kProductChStatus, "tpc" );
     std::vector< larcv::Image2D > badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status ); //< fill this out!
     std::cout << "number of bad ch imgs: " << badch_v.size() << std::endl;
+
+    int maxgap = 200;
+    std::vector< larcv::Image2D> gapchimgs_v = emptyalgo.findMissingBadChs( imgs->Image2DArray(), badch_v, 5, maxgap );
+    // combine with badchs
+    for ( size_t p=0; p<badch_v.size(); p++ ) {
+      larcv::Image2D& gapchimg = gapchimgs_v.at(p);
+      gapchimg += badch_v.at(p);
+    }
     
     // get the imgs and the thru-mu tagged images
     const std::vector<larcv::Image2D>& img_v    = imgs->Image2DArray();
@@ -180,7 +188,7 @@ int main( int nargs, char** argv ) {
 
     smcluster.extractBaseClusters( img_v, thrumu_v, stopmu_candidate_endpts );
     smcluster.findClusterLinks();
-    smcluster.findStopMuTrack( img_v, badch_v, thrumu_v, stopmu_candidate_endpts );
+    smcluster.findStopMuTrack( img_v, gapchimgs_v, thrumu_v, stopmu_candidate_endpts );
 
     std::stringstream ss;
     ss << "smcluster_" << ientry << "_r" << run << "_s" << subrun << "_e" << event;

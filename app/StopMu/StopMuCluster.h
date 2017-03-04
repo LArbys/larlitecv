@@ -69,7 +69,7 @@ namespace larlitecv {
     void findClusterLinks();
     void getClusterGroupForSpacepoint() {};
     std::vector<BoundarySpacePoint> generateCluster3PlaneSpacepoints( const std::vector< std::set<int> >& cluster_groups );
-    std::vector<BoundarySpacePoint> generateCluster2PlaneSpacepoints( const std::vector< std::set<int> >& cluster_groups, 
+    std::vector<BoundarySpacePoint> generateCluster2PlaneSpacepoints( const ClusterGroup_t& cluster_group, 
       const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& thrumu_v );
 
     void generateCluster2PlaneSpacepoints() {};
@@ -89,9 +89,11 @@ namespace larlitecv {
     std::vector<larcv::Image2D> m_masked_v;
     std::vector<untagged_cluster_info_t> m_untagged_clusters_v;
     std::vector<BoundarySpacePoint> m_spacepoints;
+    std::vector<ClusterGroup_t> m_clustergroups;
 
     typedef std::vector< std::vector<AStar3DNode> > PathList_t;
     PathList_t m_paths;
+    std::vector<int> m_path_goalreached;
 
 #ifdef USE_OPENCV
     std::vector<cv::Mat> makeBaseClusterImageOCV();

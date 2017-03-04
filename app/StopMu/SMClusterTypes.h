@@ -39,6 +39,14 @@ namespace larlitecv {
     const std::vector<ClusterLink_t>& getLinks( ClusterIndex_t a);
   };
 
+  struct PlaneClusterGroup_t {
+  	std::set<int> group; ///< set contains indices of clusters (untagged_cluster_info_t::output::clusters) that form the group
+  	std::vector< const ClusterLink_t* > links; ///< for each plane, the list of links that connect the cluster
+  	std::vector< std::vector<int> > pixels;
+  };
+
+  typedef std::vector< PlaneClusterGroup_t > ClusterGroup_t;
+
 }
 
 #endif
