@@ -26,6 +26,7 @@ namespace larlitecv {
   StopMuCluster::StopMuCluster( const StopMuClusterConfig& cfg ) : m_config(cfg) {
     // Constructor
     setVerbosity(m_config.verbosity);
+    m_cvout_stem = "";
   }
 
   void StopMuCluster::findStopMuTracks( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
@@ -54,7 +55,10 @@ namespace larlitecv {
       std::vector<cv::Mat> passcv = makeBaseClusterImageOCV( pass_data, img_v, marked_v );
       for (size_t p=0; p<passcv.size(); p++) {
         std::stringstream ss;
-        ss << "test_smc_pass" << ipass+1 << "_p" << p << ".jpg";
+        if ( m_cvout_stem=="")
+          ss << "test_smc_pass" << ipass+1 << "_p" << p << ".jpg";
+        else
+          ss << m_cvout_stem << "_pass" << ipass+1 << "_p" << p << ".jpg";
         cv::imwrite( ss.str(), passcv.at(p) );
       }
 
@@ -107,7 +111,10 @@ namespace larlitecv {
         }
       }
       std::stringstream ss;
-      ss << "test_smc_p" << p << ".jpg";
+      if ( m_cvout_stem=="")
+        ss << "test_smv_tagged_p" << p << ".jpg";
+      else
+        ss << m_cvout_stem << "_tagged_p" << p << ".jpg";
       cv::imwrite( ss.str(), cvimg );
     }
   }

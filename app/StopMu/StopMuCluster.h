@@ -124,6 +124,9 @@ namespace larlitecv {
     StopMuClusterConfig m_config;
     void setVerbosity( int v ) { m_verbosity = v; };    
 
+    std::string m_cvout_stem;
+    void setOpenCVImageStemName( std::string s ) { m_cvout_stem = s; };
+
 #ifdef USE_OPENCV
     std::vector<cv::Mat> makeBaseClusterImageOCV( const PassOutput_t& data, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v );
 #endif

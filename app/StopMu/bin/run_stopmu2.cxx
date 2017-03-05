@@ -185,13 +185,13 @@ int main( int nargs, char** argv ) {
     // Algo Prep
     std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpts = stopmu_filterpts.filterSpacePoints( ev_pixs, thrumu_v, badch_v );
     std::cout << " Number of candidate stop-mu start points: " << stopmu_candidate_endpts.size() << std::endl;
-    
+
+    std::stringstream ss;
+    ss << "smcluster_" << ientry << "_r" << run << "_s" << subrun << "_e" << event;
+
+    smcluster.setOpenCVImageStemName( ss.str() );
     smcluster.findStopMuTracks( img_v, gapchimgs_v, thrumu_v, stopmu_candidate_endpts );
 
-    //std::stringstream ss;
-    //ss << "smcluster_" << ientry << "_r" << run << "_s" << subrun << "_e" << event;
-    //smcluster.saveClusterImageOCV( ss.str() );
- 
     larcv::EventImage2D* stopmu_eventimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmu" );
     stopmu_eventimgs->Emplace( std::move(stopmu_v) );
     
