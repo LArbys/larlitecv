@@ -301,7 +301,6 @@ namespace larlitecv {
             }
           }
 
-
           float coscluster_a = 0.;
           float coscluster_b = 0.;          
           for (int v=0; v<2; v++) {
@@ -352,15 +351,13 @@ namespace larlitecv {
     }
 
     // setup A* config
-    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
-    larlitecv::AStar3DAlgo algo( passcfg.astarcfg );
-    algo.setVerbose(0);
+    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;    
 
     struct SPdata_t {
       int idx;
       float dist;
       bool operator()( SPdata_t a, SPdata_t b ) {
-        if ( a.dist<b.dist ) return true;
+        if ( a.dist>b.dist ) return true;
         return false;
       };
     } myspdata;    
@@ -414,10 +411,6 @@ namespace larlitecv {
         data.m_endpt_index.push_back( iendpt );
         continue;
       }
-
-      //std::cout << starting_cluster[0] << " " << starting_cluster[1] << " " << starting_cluster[2] << std::endl;
-      //if ( starting_cluster[2]!=37 )
-      //  continue;
 
       // for each plane. build cluster group.
       ClusterGroup_t clustergroup;
@@ -484,7 +477,6 @@ namespace larlitecv {
       }//end of loop over planes
 
       // we find spacepoints
-      //std::vector<BoundarySpacePoint> cluster_spacepoints = generateCluster3PlaneSpacepoints( cluster_groups );  
       std::vector<BoundarySpacePoint> cluster_spacepoints = generateCluster2PlaneSpacepoints( passcfg, clustergroup, img_v, badch_v, thrumu_v, data );
       std::cout << "cluster space points: " << cluster_spacepoints.size() << std::endl;
       if ( cluster_spacepoints.size()==0 ) {
@@ -542,72 +534,94 @@ namespace larlitecv {
       // sort from smallest to largest
       std::sort( spdata_v.begin(), spdata_v.end(), myspdata );
 
-      // translate start and stop
-      float orig_start_tick = img_v.at(0).meta().pos_y( endpt.at(0)->Y() );
-      int start_row = clust_img_compressed_v.at(0).meta().row( orig_start_tick );
-      //float orig_goal_tick = img_v.at(0).meta().pos_y( cluster_spacepoints.at(spdata_v.back().idx).at(0).row );
-      int goal_row  = clust_img_compressed_v.at(0).meta().row( img_v.at(0).meta().pos_y( cluster_spacepoints.at(spdata_v.back().idx).at(0).row ) );
+      // we try to fit path from start to many of the end-points
 
-      if ( start_row<=0 ) start_row = 1;
-      if ( start_row>=(int)clust_img_compressed_v.front().meta().rows() ) start_row = (int)clust_img_compressed_v.front().meta().rows() - 1;
-      if ( goal_row<=0 ) goal_row = 1;
-      if ( goal_row>=(int)clust_img_compressed_v.front().meta().rows() )  goal_row  = (int)clust_img_compressed_v.front().meta().rows() - 1;
-
+      // first, get the start point
+      int start_row    = endpt.at(0)->Y();
+      float start_tick = img_v.at(0).meta().pos_y( start_row );
       std::vector<int> start_cols(3,0);
-      std::vector<int> goal_cols(3,0);
-      std::vector<int> orig_goal_wids(3,0);
-      for (int p=0; p<3; p++) {
-        const larcv::Image2D& compressed = clust_img_compressed_v.at(p);
-        const larcv::Image2D& img        = clust_img_v.at(p);
-        start_cols[p] = compressed.meta().col( img.meta().pos_x( endpt.at(p)->X() ) );
-        goal_cols[p]  = compressed.meta().col( img.meta().pos_x( cluster_spacepoints.at(spdata_v.back().idx).at(p).col ) );
-        orig_goal_wids[p] = img.meta().pos_x( cluster_spacepoints.at(spdata_v.back().idx).at(p).col );
-
-        // // FOR DEBUG
-        //const larcv::Image2D& badch_compressed = badch_compressed_v.at(p);        
-        // cv::Mat cvimg = larcv::as_mat_greyscale2bgr( compressed, 10, 500 );
-        // for (int r=0; r<compressed.meta().rows(); r++) {
-        //   for (int c=0; c<compressed.meta().cols(); c++) {
-        //     if ( badch_compressed.pixel(r,c)>0) {
-        //       cv::Vec3b& color = cvimg.at<cv::Vec3b>( cv::Point(c,r) );
-        //       color[0] = 125;
-        //       color[1] = 0;
-        //       color[2] = 0;
-        //     }
-        //   }
-        // }
-        // cv::circle( cvimg, cv::Point(start_cols[p],start_row), 1, cv::Scalar(0,255,0), -1);
-        // cv::circle( cvimg, cv::Point(goal_cols[p],goal_row), 1, cv::Scalar(0,0,255), -1);
-        // std::stringstream ss;
-        // ss << "test_cl" << iendpt << "_p" << p << ".jpg";
-        // cv::imwrite( ss.str(), cvimg );
+      std::vector<int> start_wids(3,0);
+      for (size_t p=0; p<img_v.size(); p++) {
+        start_cols[p] = endpt.at(p)->X();
+        start_wids[p] = img_v.at(p).meta().pos_x( endpt.at(p)->X() );
       }
 
-      int goal_reached = 0;
-      std::cout << " original start tick=" << orig_start_tick << "; "
-                << " original row=" << img_v.at(0).meta().row( orig_start_tick) 
-                << " compressed row=" << start_row  << "; "
-                << " original start col: " << endpt.at(0)->X() << " " << endpt.at(1)->X() << " " << endpt.at(2)->X() << "; "
-                << " compressed start col: " << start_cols[0] << " " << start_cols[1] << " " << start_cols[2] << std::endl;
-      std::cout << "goal row=" << goal_row << " tick=" << img_v.at(0).meta().pos_y( cluster_spacepoints.at(spdata_v.back().idx).at(0).row ) << "; "
-                << " goal col: " << orig_goal_wids[0] << " " << orig_goal_wids[1] << " " << orig_goal_wids[2]  << "; "
-                << " compressed goal col: " << goal_cols[0] << " " << goal_cols[1] << " " << goal_cols[2] << std::endl;
+      // the spacepoints should be sorted in distance order, furthest to closest
+      std::vector<AStar3DNode> path;
+      bool goodtrack = false;
+      int spidx = 0;
+      for ( auto const& spdata : spdata_v ) {
+
+        // Define Goal from space point
+        int goal_row    = cluster_spacepoints.at(spdata.idx).at(0).row;
+        float goal_tick = img_v.front().meta().pos_y( goal_row );
+        std::vector<int> goal_cols(3,0);
+        std::vector<int> goal_wids(3,0);
+        for (size_t p=0; p<img_v.size(); p++) {
+          goal_cols[p] = cluster_spacepoints.at(spdata.idx).at(p).col;
+          goal_wids[p] = img_v.at(p).meta().pos_x( cluster_spacepoints.at(spdata.idx).at(p).col );
+        }
 
 
-      std::vector<AStar3DNode> path = algo.findpath( clust_img_compressed_v, badch_compressed_v, badch_compressed_v, 
-        start_row, goal_row, start_cols, goal_cols, goal_reached );
-      //std::cout << "astar attempt. goal-reached=" << goal_reached << " pathsize=" << path.size() << std::endl;
+        // std::cout << "start tick=" << start_tick << "; "
+        //           << " start row=" << start_row  << "; "
+        //           << " start col: " << endpt.at(0)->X() << " " << endpt.at(1)->X() << " " << endpt.at(2)->X() << "; "
+        //           << std::endl;
+        std::cout << "goal tick=" << goal_tick << "; goal row=" << goal_row << "; " 
+                  << "goal cols: " << goal_cols[0] << " " << goal_cols[1] << " " << goal_cols[2] << std::endl;
+
+
+        // first run linear tracker 
+        goodtrack = false;
+        PointInfoList linearpath = runLinearFitter( passcfg, img_v, badch_v, start_row, goal_row, start_cols, goal_cols, goodtrack );
+
+        if ( goodtrack ) {
+          // convert to vector<AStarNode> to make the same format as AStar
+          std::vector<AStar3DNode> apath;
+          for (int istep=(int)linearpath.size()-1; istep>=0; istep--) {
+            AStar3DNode node;
+            node.tyz = linearpath.at(istep).xyz;
+            node.tyz[0] = node.tyz[0]/cm_per_tick+3200.0; // turn x into tick
+            apath.emplace_back( std::move(node) );
+          }
+          std::swap( path, apath );
+        }
+        if ( (goodtrack && (linearpath.fractionGood()<0.9 || linearpath.fractionHasChargeOnMajorityOfPlanes()<0.9))
+            || ( !goodtrack && (linearpath.fractionGood()>0.5 && linearpath.fractionHasChargeOnMajorityOfPlanes()>0.5) ) ) {
+          // if not good, we then try the astar tracker
+          bool goodastar = false;
+          std::vector<AStar3DNode> apath = runAStar( passcfg, clust_img_v, badch_v, clust_img_compressed_v, badch_compressed_v, 
+            start_row, goal_row, start_cols, goal_cols, goodastar );
+          if ( goodastar ) {
+            goodtrack = goodastar;
+            std::swap(path,apath);
+          }
+        }
+
+        // store spacepoints for drawing
+        //for ( auto& sp : cluster_spacepoints ) 
+        //m_spacepoints.emplace_back( std::move(sp) );
+        data.m_spacepoints.emplace_back( std::move(cluster_spacepoints.at(spdata.idx)) );
+
+        if ( goodtrack )
+          break;
+        spidx++;
+        //if ( spidx>20 )
+        //  break;
+      }
+
+      if ( !goodtrack )
+        path.clear();
       data.m_paths.emplace_back( std::move(path) );
-      data.m_path_goalreached.push_back( goal_reached );
+
+      if (goodtrack)
+        data.m_path_goalreached.push_back( 1 );
+      else
+        data.m_path_goalreached.push_back( 0 );        
       data.m_endpt_index.push_back( iendpt );
 
-      if ( goal_reached==1 )
+      if ( goodtrack )
         endpts_used[iendpt] = 1;
-
-      // store spacepoints for drawing
-      //for ( auto& sp : cluster_spacepoints ) 
-      //m_spacepoints.emplace_back( std::move(sp) );
-      data.m_spacepoints.emplace_back( std::move(cluster_spacepoints.back()) );
 
       // store cluster object
       data.m_clustergroups.emplace_back( std::move(clustergroup) );
@@ -814,7 +828,8 @@ namespace larlitecv {
         pos[2] = intersection_zy[0];
         sp.pos( pos );
 
-        spacepoints.emplace_back( std::move(sp) );
+        if ( std::find( spacepoints.begin(), spacepoints.end(), sp )==spacepoints.end() )
+          spacepoints.emplace_back( std::move(sp) );
       }//end of j loop
     }//end of i loop
 
@@ -967,6 +982,83 @@ namespace larlitecv {
     }//end of node loop
 
     return track3d;
+  }
+
+  PointInfoList StopMuCluster::runLinearFitter( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, 
+    const std::vector<larcv::Image2D>& badch_v, 
+    const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath ) {
+
+    // linear track
+    Linear3DFitterConfig cfg;
+    cfg.step_size = 3.0;
+    Linear3DFitter lineartrack( cfg );
+    PointInfoList path = lineartrack.findpath( img_v, badch_v, start_row, goal_row, start_cols, goal_cols );
+
+    std::cout << "linear track result: goodfrac=" << path.fractionGood() << " majfrac=" << path.fractionHasChargeOnMajorityOfPlanes() << std::endl;
+
+
+    // now we need to decide the quality of the fit
+    goodpath = false;
+    if ( path.fractionGood()>0.8 && path.fractionHasChargeOnMajorityOfPlanes()>0.8 )
+      goodpath = true;
+
+    return path;
+  }
+
+  std::vector<AStar3DNode> StopMuCluster::runAStar( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, 
+    const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v, 
+    const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath ) {
+
+    const larcv::ImageMeta& meta      = img_v.at(0).meta();
+    const larcv::ImageMeta& meta_comp = img_compressed_v.at(0).meta();
+
+    int start_row_compressed = meta_comp.row( meta.pos_y(start_row) );
+    int goal_row_compressed  = meta_comp.row( meta.pos_y(goal_row) );
+    std::vector<int> start_cols_compressed(3,0);
+    std::vector<int> goals_cols_compressed(3,0);
+    for (size_t p=0; p<img_v.size(); p++) {
+      start_cols_compressed[p] = meta_comp.col( meta.pos_x(start_cols.at(p)) );
+      goals_cols_compressed[p] = meta_comp.col( meta.pos_x(goal_cols.at(p)) );
+    }
+    if ( start_row_compressed<=0 ) start_row_compressed = 1;
+    if ( start_row_compressed>=(int)img_compressed_v.front().meta().rows() ) start_row_compressed = (int)img_compressed_v.front().meta().rows() - 1;
+    if ( goal_row_compressed<=0 ) goal_row_compressed = 1;
+    if ( goal_row_compressed>=(int)img_compressed_v.front().meta().rows() )  goal_row_compressed  = (int)img_compressed_v.front().meta().rows() - 1;
+
+    int goal_reached = 0;
+    larlitecv::AStar3DAlgo algo( passcfg.astarcfg );
+    algo.setVerbose(0);
+        
+    std::vector<AStar3DNode> path = algo.findpath( img_compressed_v, badch_compressed_v, badch_compressed_v, 
+      start_row_compressed, goal_row_compressed, start_cols_compressed, goals_cols_compressed, goal_reached );
+
+    std::cout << "astar result: goalreached=" << goal_reached << "path-length=" << path.size() << std::endl;
+
+    // // FOR DEBUG
+    //const larcv::Image2D& badch_compressed = badch_compressed_v.at(p);        
+    // cv::Mat cvimg = larcv::as_mat_greyscale2bgr( compressed, 10, 500 );
+    // for (int r=0; r<compressed.meta().rows(); r++) {
+    //   for (int c=0; c<compressed.meta().cols(); c++) {
+    //     if ( badch_compressed.pixel(r,c)>0) {
+    //       cv::Vec3b& color = cvimg.at<cv::Vec3b>( cv::Point(c,r) );
+    //       color[0] = 125;
+    //       color[1] = 0;
+    //       color[2] = 0;
+    //     }
+    //   }
+    // }
+    // cv::circle( cvimg, cv::Point(start_cols[p],start_row), 1, cv::Scalar(0,255,0), -1);
+    // cv::circle( cvimg, cv::Point(goal_cols[p],goal_row), 1, cv::Scalar(0,0,255), -1);
+    // std::stringstream ss;
+    // ss << "test_cl" << iendpt << "_p" << p << ".jpg";
+    // cv::imwrite( ss.str(), cvimg );
+
+    if ( goal_reached==1 )
+      goodpath = true;
+    else
+      goodpath = false;
+
+    return path;
   }
 
   // ================================================================================================

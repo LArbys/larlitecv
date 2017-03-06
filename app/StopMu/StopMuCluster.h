@@ -43,6 +43,7 @@
 
 #include "ThruMu/BoundarySpacePoint.h"
 #include "ThruMu/AStar3DAlgo.h"
+#include "ThruMu/Linear3DFitter.h"
 #include "ThruMu/BMTrackCluster3D.h"
 #include "StopMuClusterConfig.h"
 #include "SMClusterTypes.h"
@@ -102,6 +103,14 @@ namespace larlitecv {
 
     std::vector<BoundarySpacePoint> generateCluster3PlaneSpacepoints( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v,
       const std::vector< std::set<int> >& cluster_groups, PassOutput_t& data );
+
+    PointInfoList runLinearFitter( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+      const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath );
+
+    std::vector<AStar3DNode> runAStar( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+      const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v, 
+      const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath );
+
 
     void saveClusterImageOCV( std::string filename ); ///< dumps out image of intermediate quantities in algorithm   
 
