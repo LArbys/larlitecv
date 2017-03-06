@@ -97,12 +97,6 @@ int main( int nargs, char** argv ) {
   // start point direction
   larlitecv::StopMuStart start_finder_algo;
   start_finder_algo.setVerbose(1);
-  float fThreshold = 10.0;
-  int rneighbor = 10;
-  int cneighbor = 10;
-
-  // tagging parameters
-  int tagged_stopmu_pixelradius = 2;
 
   int nentries = dataco.get_nentries("larcv");
   int user_nentries =   stopmu_cfg.get<int>("NumEntries",-1);
@@ -132,7 +126,7 @@ int main( int nargs, char** argv ) {
     
     larcv::EventImage2D* imgs            = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "modimgs" );
     larcv::EventImage2D* marked3d        = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
-    larcv::EventROI* rois                = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "tpc" );
+    //larcv::EventROI* rois                = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "tpc" );
     
     // make the bad channel image
     larlitecv::EmptyChannelAlgo emptyalgo;
@@ -151,7 +145,6 @@ int main( int nargs, char** argv ) {
     // get the imgs and the thru-mu tagged images
     const std::vector<larcv::Image2D>& img_v    = imgs->Image2DArray();
     const std::vector<larcv::Image2D>& thrumu_v = marked3d->Image2DArray();
-    const larcv::ImageMeta& meta = img_v.at(0).meta();
     
     // make a list of the EventPixel2D containers
     std::vector< larcv::EventPixel2D* > ev_pixs;
@@ -224,6 +217,19 @@ int main( int nargs, char** argv ) {
 
     larcv::EventImage2D* stopmu_eventimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmu" );
     stopmu_eventimgs->Emplace( std::move(stopmu_v) );
+
+    // finally, store 2D pixels
+    larcv::EventPixel2D* ev_stopmupixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "stopmupixels" );
+    for ( size_t itrack=0; itrack<tracks3d.size(); itrack++ ) {
+      larlitecv::BMTrackCluster3D& track3d = tracks3d.at(itrack);
+      std::vector< larlitecv::BMTrackCluster2D >& trackpixs_v = track3d.plane_paths;
+      for (size_t p=0; p<trackpixs_v.size(); p++) {
+        larcv::Pixel2DCluster& trackpixs = trackpixs_v.at(p).pixelpath;
+        larcv::Pixel2DCluster stored;
+        std::swap( stored, trackpixs );
+        ev_stopmupixels->Emplace( (larcv::PlaneID_t)p, std::move(stored) );
+      }
+    }
 
     dataco.save_entry();
 
