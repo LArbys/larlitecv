@@ -61,7 +61,7 @@ namespace larlitecv {
     StopMuCluster( const StopMuClusterConfig& cfg );
     virtual ~StopMuCluster() {};
 
-    void findStopMuTracks( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+    std::vector< larlitecv::BMTrackCluster3D > findStopMuTracks( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
       const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v );
 
 

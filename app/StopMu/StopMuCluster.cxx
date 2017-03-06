@@ -29,7 +29,7 @@ namespace larlitecv {
     m_cvout_stem = "";
   }
 
-  void StopMuCluster::findStopMuTracks( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+  std::vector<larlitecv::BMTrackCluster3D> StopMuCluster::findStopMuTracks( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
       const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v ) {
 
     std::vector<BMTrackCluster3D> stopmu_tracks;
@@ -52,14 +52,16 @@ namespace larlitecv {
       PassOutput_t pass_data = performPass( m_config.pass_configs.at(ipass), img_v, badch_v, marked_v, endpts_v, endpts_used );
 
       // dump out pass data
-      std::vector<cv::Mat> passcv = makeBaseClusterImageOCV( pass_data, img_v, marked_v );
-      for (size_t p=0; p<passcv.size(); p++) {
-        std::stringstream ss;
-        if ( m_cvout_stem=="")
-          ss << "test_smc_pass" << ipass+1 << "_p" << p << ".jpg";
-        else
-          ss << m_cvout_stem << "_pass" << ipass+1 << "_p" << p << ".jpg";
-        cv::imwrite( ss.str(), passcv.at(p) );
+      if ( m_config.save_pass_images ) {
+        std::vector<cv::Mat> passcv = makeBaseClusterImageOCV( pass_data, img_v, marked_v );
+        for (size_t p=0; p<passcv.size(); p++) {
+          std::stringstream ss;
+          if ( m_cvout_stem=="")
+            ss << "test_smc_pass" << ipass+1 << "_p" << p << ".jpg";
+          else
+            ss << m_cvout_stem << "_pass" << ipass+1 << "_p" << p << ".jpg";
+          cv::imwrite( ss.str(), passcv.at(p) );
+        }
       }
 
       for ( size_t ipath=0; ipath<pass_data.m_paths.size(); ipath++) {
@@ -110,13 +112,19 @@ namespace larlitecv {
           }
         }
       }
-      std::stringstream ss;
-      if ( m_cvout_stem=="")
-        ss << "test_smv_tagged_p" << p << ".jpg";
-      else
-        ss << m_cvout_stem << "_tagged_p" << p << ".jpg";
-      cv::imwrite( ss.str(), cvimg );
+
+      if ( m_config.dump_tagged_images ) {
+        std::stringstream ss;
+        if ( m_cvout_stem=="")
+          ss << "test_smv_tagged_p" << p << ".jpg";
+         else
+          ss << m_cvout_stem << "_tagged_p" << p << ".jpg";
+        cv::imwrite( ss.str(), cvimg );
+      }
+
     }
+
+    return stopmu_tracks;
   }
 
 
@@ -258,7 +266,7 @@ namespace larlitecv {
             }
           }
 
-          if ( min_dist <0 || min_dist > passcfg.max_link_distance ) continue;
+          if ( min_dist>passcfg.alldir_max_link_dist && (min_dist <0 || min_dist > passcfg.max_link_distance ) ) continue;
 
           // min-dist criteria passed. now check direction compatibility
           float max_dist_exa = 0.;

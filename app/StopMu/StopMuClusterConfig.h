@@ -34,12 +34,15 @@ namespace larlitecv {
     float link_stepsize;
     float astar_downsampling_factor;
     int num_passes;
+    bool save_pass_images;
+    bool dump_tagged_images;
 
     class PassConfig_t {
     public:
         float max_link_distance; //< maximum clusterl link distance
         float min_link_cosine; //< minimum cosine between links
         float max_extrema_row_diff; 
+        float alldir_max_link_dist; //< if link is shorter than this dist, accept at all directions
         float max_extrema_triarea;
         AStar3DAlgoConfig astarcfg;
         PassConfig_t() {};

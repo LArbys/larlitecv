@@ -15,10 +15,13 @@ namespace larlitecv {
     dbscan_cluster_minpoints = 10;
     link_stepsize = 0.3;
     astar_downsampling_factor = 4; 
-    num_passes = 2;       
+    num_passes = 2;
+    save_pass_images = false;
+    dump_tagged_images = false;
     PassConfig_t passcfg;    
     passcfg.max_link_distance = 150;
     passcfg.min_link_cosine = 0.8;
+    passcfg.alldir_max_link_dist = 20.0;
     passcfg.max_extrema_row_diff = 2.0;
     passcfg.max_extrema_triarea = 2.0;
     passcfg.astarcfg.astar_threshold.resize(3,10.0);
@@ -42,6 +45,7 @@ namespace larlitecv {
     PassConfig_t passcfg;
     passcfg.max_link_distance    = pass_pset.get< float >("MaxLinkDistance");
     passcfg.min_link_cosine      = pass_pset.get< float >("MinLinkCosine");
+    passcfg.alldir_max_link_dist = pass_pset.get< float >("AllDirMaxLinkDistance");
     passcfg.max_extrema_row_diff = pass_pset.get< float >("MaxExtremaRowDiff");
     passcfg.max_extrema_triarea  = pass_pset.get< float >("MaxExtremaTriArea");
     passcfg.astarcfg             = AStar3DAlgoConfig::MakeFromPSet( pass_pset.get<larcv::PSet>("AStarConfig") );
@@ -58,6 +62,8 @@ namespace larlitecv {
     cfg.dbscan_cluster_minpoints = pset.get< int >("ClusteringMinPoints");
     cfg.link_stepsize = pset.get<float>("LinkStepSize",0.3);
     cfg.astar_downsampling_factor = pset.get<float>("AStarDownsamplingFactor",4.0);
+    cfg.save_pass_images = pset.get<bool>("SavePassImages");
+    cfg.dump_tagged_images = pset.get<bool>("DumpTaggedImages");    
 
     cfg.pass_configs.clear();
     for (int ipass=0; ipass<cfg.num_passes; ipass++) {
