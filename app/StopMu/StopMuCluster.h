@@ -68,7 +68,7 @@ namespace larlitecv {
 
     // We run the algorithm in passes. Being less restrictive each time.
     // Each pass has data we collect
-    typedef std::vector< std::vector<AStar3DNode> > PathList_t;    
+
     struct PassOutput_t {
       std::vector< std::vector<larcv::Image2D> > m_cluster_images; // (deprecate)
       std::vector<larcv::Image2D> m_masked_v; // image where pixels are tagged by thrumu or previous stopmu passes

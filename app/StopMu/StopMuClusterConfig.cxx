@@ -67,11 +67,11 @@ namespace larlitecv {
 
     cfg.pass_configs.clear();
     for (int ipass=0; ipass<cfg.num_passes; ipass++) {
-        char zpass[20];
-        sprintf(zpass, "Pass%d",ipass+1);
-        larcv::PSet pass_pset = pset.get<larcv::PSet>(std::string(zpass));
-        StopMuClusterConfig::PassConfig_t passcfg = StopMuClusterConfig::makePassConfigFromPSet(pass_pset);        
-        cfg.pass_configs.emplace_back( std::move(passcfg) );
+      char zpass[20];
+      sprintf(zpass, "Pass%d",ipass+1);
+      larcv::PSet pass_pset = pset.get<larcv::PSet>(std::string(zpass));
+      StopMuClusterConfig::PassConfig_t passcfg = StopMuClusterConfig::makePassConfigFromPSet(pass_pset);        
+      cfg.pass_configs.emplace_back( std::move(passcfg) );
     }
 
     return cfg;
