@@ -46,6 +46,19 @@ To control which block of events are run you can set the following parameters in
     StartEntry: 0
     NumEntries: 10
 
+## Test data samples
+
+### [MCC7]
+
+  * Sample of MC cosmic + MC nue between [200,600] MeV (on the FNAL system)
+
+      /uboone/data/users/tmw/dl/test_samples/premcc8_nue
+
+  * Sample of MC cosmic + MC numu between [200,600] MeV (on the FNAL system)
+
+      /uboone/data/users/tmw/dl/test_samples/premcc8_numu
+
 ## Other Parameter Descriptions
 
 (to do!)
+
