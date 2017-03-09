@@ -99,6 +99,8 @@ To control which block of events are run you can set the following parameters in
     StartEntry: 0
     NumEntries: 10
 
+In this example, entries number 0 to 9 (inclusive) will be run.
+
 ## Test data samples
 
 ### [MCC7]
