@@ -16,7 +16,7 @@
 
 #include "AStarDirAlgo.h"
 #include "AStar3DAlgo.h"
-#include "Linear3DFitter.h"
+#include "Linear3DChargeTagger.h"
 #include "Linear3DPostProcessor.h"
 #include "BoundaryEndPt.h"
 #include "BoundaryIntersectionAlgo.h"
@@ -169,7 +169,7 @@ namespace larlitecv {
     LineRegionTest lrt( 30, 0.9, 5.0 ); // (region width, pass threshold, pixel threshold)
 
     // linear 3D track
-    Linear3DFitter linetrackalgo( _config.linear3d_cfg ); // finds charge along a line in 3D space
+    Linear3DChargeTagger linetrackalgo( _config.linear3d_cfg ); // finds charge along a line in 3D space
 
     // post-processors. basically a filter for the tracks created.
     Linear3DPostProcessor linear_postprocess;

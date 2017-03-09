@@ -6,7 +6,7 @@
 // larcv
 #include "Base/PSet.h"
 #include "AStar3DAlgo.h"
-#include "Linear3DFitter.h"
+#include "Linear3DChargeTagger.h"
 
 namespace larlitecv {
 
@@ -42,7 +42,7 @@ namespace larlitecv {
     std::vector<float> type_modifier;
     int verbosity;
     AStar3DAlgoConfig    astar_cfg;
-    Linear3DFitterConfig linear3d_cfg;
+    Linear3DChargeTaggerConfig linear3d_cfg;
     int linear3d_min_tracksize;
     float linear3d_min_goodfraction;
     float linear3d_min_majoritychargefraction;
@@ -51,7 +51,7 @@ namespace larlitecv {
 
     void setdefaults();
     const AStar3DAlgoConfig& getAStarConfig() { return astar_cfg; };
-    const Linear3DFitterConfig& getLinear3DConfig() { return linear3d_cfg; };
+    const Linear3DChargeTaggerConfig& getLinear3DConfig() { return linear3d_cfg; };
     
   };
 

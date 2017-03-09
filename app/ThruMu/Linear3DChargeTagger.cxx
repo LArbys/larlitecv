@@ -1,4 +1,4 @@
-#include "Linear3DFitter.h"
+#include "Linear3DChargeTagger.h"
 #include <vector>
 #include <cmath>
 
@@ -14,9 +14,9 @@
 namespace larlitecv {
 
   // ================================================================
-  // Configuration Class of Linear3DFitter
+  // Configuration Class of Linear3DChargeTagger
 
-  Linear3DFitterConfig::Linear3DFitterConfig() {
+  Linear3DChargeTaggerConfig::Linear3DChargeTaggerConfig() {
     trigger_tpc_tick = 3200.0;
     min_ADC_value = 10.0; // works for 6 tick downsampling, no wire downsampling
     step_size = 0.3; // cm
@@ -24,8 +24,8 @@ namespace larlitecv {
     neighborhood_posttick = 10;
   }
 
-  Linear3DFitterConfig Linear3DFitterConfig::makeFromPSet( const larcv::PSet& pset ) {
-    Linear3DFitterConfig cfg;
+  Linear3DChargeTaggerConfig Linear3DChargeTaggerConfig::makeFromPSet( const larcv::PSet& pset ) {
+    Linear3DChargeTaggerConfig cfg;
     cfg.trigger_tpc_tick      = pset.get<float>( "TriggerTPCTick" );
     cfg.min_ADC_value         = pset.get<float>( "PixelThreshold");
     cfg.step_size             = pset.get<float>( "StepSize" );
@@ -35,10 +35,10 @@ namespace larlitecv {
   }
 
   // ================================================================
-  // Linear3DFitter
+  // Linear3DChargeTagger
 
   // I have added the variables 'time_comp_factor' and 'wire_comp_factor' to this definition when they were not here previously
-  PointInfoList Linear3DFitter::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+  PointInfoList Linear3DChargeTagger::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
     const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols  ) {
     
     const larcv::ImageMeta& meta = img_v.front().meta();
@@ -73,7 +73,7 @@ namespace larlitecv {
     goalpos[2] = poszy_goal[0];
 
     if ( start_crosses==0 || goal_crosses==0 ) {
-      //throw std::runtime_error("Linear3DFitter::findpath[error] start or goal point not a good 3D space point.");
+      //throw std::runtime_error("Linear3DChargeTagger::findpath[error] start or goal point not a good 3D space point.");
       PointInfoList empty;
       return empty;
     }
@@ -102,7 +102,7 @@ namespace larlitecv {
 
   // Note: I will consider a channel to be dead if it has a value greater than 0.0 in 'badch_v', which is the vector of plane images for the event
 
-  PointInfoList Linear3DFitter::pointsOnTrack(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+  PointInfoList Linear3DChargeTagger::pointsOnTrack(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
     const std::vector<float>& initial_point_coords, const std::vector<float>& final_point_coords, 
     const float step_size, const float min_ADC_value, const int neighborhood_size) {
 
@@ -225,7 +225,7 @@ namespace larlitecv {
   // 'central_col'    - This is an 'int' which corresponds to the column number of the central pixel around which we will search for charge
   // 'neighborhood size' - This is an 'int' which specifies the size of the square around the central pixel that we will search for charge
   // 'min_ADC_value' - This is the minimum ADC value that a pixel in the vicinity of the central pixel can have so that it is deemed true that there is charge in the vicinity of the central pixel
-  bool Linear3DFitter::doesNeighboringPixelHaveCharge(const larcv::Image2D& img, int central_row, int central_col, int neighborhood_size, float min_ADC_value) {
+  bool Linear3DChargeTagger::doesNeighboringPixelHaveCharge(const larcv::Image2D& img, int central_row, int central_col, int neighborhood_size, float min_ADC_value) {
 
     // You can define variables for the initial row and the final row based on where in the TPC they are
     int last_row_index = (int)img.meta().rows() - 1;
@@ -282,7 +282,7 @@ namespace larlitecv {
   }
 
   // Declare a channel that will search for dead pixels in the vicinity of the central pixel.  This will take the same input parameters and use the same logic as the algorithm above, except it will take 'badch_v' as an input instead of 'img_v', and it will see if any of the entries in the vicinity of the central pixel have a value in the array that's greater than 0.0.  The 'float' input argument 'min_ADC_value' is not needed for this function.
-  bool Linear3DFitter::isNeighboringPixelDeadPixel(const larcv::Image2D& badch, int central_row, int central_col, int neighborhood_size) {
+  bool Linear3DChargeTagger::isNeighboringPixelDeadPixel(const larcv::Image2D& badch, int central_row, int central_col, int neighborhood_size) {
 
     // You can define variables for the initial row and the final row based on where in the TPC they are 
     int last_row_index = (int)badch.meta().rows() - 1;
@@ -339,7 +339,7 @@ namespace larlitecv {
 
   }
 
-  void Linear3DFitter::getTrackExtension( const PointInfoList& infolist, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+  void Linear3DChargeTagger::getTrackExtension( const PointInfoList& infolist, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
     const float max_extension_length, PointInfoList& start_extension, PointInfoList& end_extension ) {
     // get direction of track
     std::vector<float> dir(3,0);
@@ -371,7 +371,7 @@ namespace larlitecv {
 
   }
 
-  BMTrackCluster3D Linear3DFitter::makeTrackCluster3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+  BMTrackCluster3D Linear3DChargeTagger::makeTrackCluster3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
     const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt, const PointInfoList& infolist ) {
 
     // convert info list into BMTrackCluster3D
@@ -421,31 +421,6 @@ namespace larlitecv {
 
   // ================================================================
 
-#ifndef __CINT__
-#ifndef __CLING__
-  // This is how we add points to PointInfoList. We move object to avoid copy. We also tally some information.
-  void PointInfoList::emplace( PointInfo&& pt ) {
-
-    // tally
-    if ( pt.planeswithcharge==(int)pt.cols.size() )
-      num_pts_w_allcharge++;
-    else if ( pt.planeswithcharge==0 && pt.goodpoint )
-      num_pts_w_allbadch++;
-    else if ( pt.planeswithcharge==0 && !pt.goodpoint )
-      num_pts_w_allempty++;
-
-    if ( pt.planeswithcharge>=2 )
-      num_pts_w_majcharge++;
-
-    if ( pt.goodpoint )
-      num_pts_good++;
-
-    // then store
-    emplace_back( std::move(pt) );
-  }
-
-#endif
-#endif
   
 } // This should match the end of namespace larcv......
 

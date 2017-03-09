@@ -50,7 +50,7 @@ namespace larlitecv {
     config.ticks_per_full_drift       = pset.get<float>("TicksPerFullDrift",4650.0);
     config.verbosity                  = pset.get<int>("Verbosity",0);
     config.astar_cfg                  = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pset.get< larcv::PSet >( "AStarConfig" ) );
-    config.linear3d_cfg               = larlitecv::Linear3DFitterConfig::makeFromPSet( pset.get< larcv::PSet >( "Linear3DConfig" ) );
+    config.linear3d_cfg               = larlitecv::Linear3DChargeTaggerConfig::makeFromPSet( pset.get< larcv::PSet >( "Linear3DConfig" ) );
     config.linear3d_min_tracksize     = pset.get<int>("Linear3DMinTrackSize");
     config.linear3d_min_goodfraction  = pset.get<float>("Linear3DMinGoodFraction");
     config.linear3d_min_majoritychargefraction = pset.get<float>("Linear3DMinMajorityChargeFraction");
