@@ -5,7 +5,7 @@
 
 // larlite
 #include "Base/DataFormatConstants.h"
-#include "../../larlite/core/DataFormat/chstatus.h" // needed because of duplicate name!
+#include "DataFormat/chstatus.h" // needed because of duplicate name!
 
 // larcv
 #include "DataFormat/Image2D.h"

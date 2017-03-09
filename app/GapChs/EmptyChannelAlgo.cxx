@@ -15,9 +15,9 @@ namespace larlitecv {
     larcv::Image2D emptyimg( meta );
     emptyimg.paint(0.0);
 
-    for (int col=0; col<meta.cols(); col++) {
+    for (size_t col=0; col<meta.cols(); col++) {
       bool isempty = true;
-      for ( int row=0; row<meta.rows(); row++) {
+      for ( size_t row=0; row<meta.rows(); row++) {
         float val = tpcimg.pixel(row,col);
         if ( val>threshold && (max_value<0 || val<max_value) ) {
           isempty = false;
@@ -38,7 +38,7 @@ namespace larlitecv {
     std::vector<larcv::Image2D> badchs;
     for (int p=0; p<nplanes; p++) {
 
-      if ( p>=ev_status.size() ) {
+      if ( p>=(int)ev_status.size() ) {
         std::cout << "ch status not available for plane " << p << std::endl;
         assert(false);
       }
@@ -49,7 +49,7 @@ namespace larlitecv {
       
       const larlite::chstatus& chs = ev_status.at(p);
       const std::vector<short>& status_v = chs.status();
-      for ( int ch=0; ch<status_v.size(); ch++) {
+      for ( int ch=0; ch<(int)status_v.size(); ch++) {
         int status = status_v.at(ch);
         if ( ch<nchannels && status<minstatus  )
           img.paint_col( ch, 255.0 );
@@ -83,7 +83,7 @@ namespace larlitecv {
       
         const larcv::ChStatus& chs = ev_status.Status(p);
         const std::vector<short>& status_v = chs.as_vector();
-        for ( int ch=0; ch<status_v.size(); ch++) {
+        for ( int ch=0; ch<(int)status_v.size(); ch++) {
           int status = status_v.at(ch);
           if ( ch<nchannels && status<minstatus  )
             img.paint_col( ch, 255.0 );
