@@ -8,9 +8,10 @@ from math import fabs
 rt.gStyle.SetOptStat(0)
 
 ioman = larcv.IOManager( larcv.IOManager.kREAD );
-ioman.add_in_file( "bin/output_larcv_testextbnb_run00.root" );
+ioman.add_in_file( "astar_test_file.root" );
+#ioman.add_in_file( "bin/output_larcv_testextbnb_run00.root" );
 ioman.initialize()
-ioman.read_entry(2)
+ioman.read_entry(0)
 ev_img   = ioman.get_data( larcv.kProductImage2D, "modimgs" )
 ev_badchs = ioman.get_data( larcv.kProductImage2D, "gapchs" )
 img_v   = ev_img.Image2DArray()
@@ -66,10 +67,10 @@ badch_v = gapchimgs_v
 #end_wires   = [1272,1670,2269]
 
 # path that crosses a large dead-channel gap 
-#start_tick  = 4578
-#start_wires = [239,894,463]
-#end_tick    = 5730
-#end_wires   = [1090,490,907]
+start_tick  = 4578
+start_wires = [239,894,463]
+end_tick    = 5730
+end_wires   = [1090,490,907]
 
 # snakes through dead channels
 #start_tick = 3792
@@ -122,10 +123,10 @@ badch_v = gapchimgs_v
 #end_tick = 6054
 #end_wires = [565,1220,1114]
 
-start_tick  = 6054
-start_wires = [565,1220,1114]
-end_tick = 6762
-end_wires = [1061,414,802]
+#start_tick  = 6054
+#start_wires = [565,1220,1114]
+#end_tick = 6762
+#end_wires = [1061,414,802]
 
 
 #start_tick = 7176
