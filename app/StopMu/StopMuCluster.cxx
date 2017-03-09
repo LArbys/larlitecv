@@ -18,15 +18,140 @@
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
 
+// larlitecv
+#include "ThruMu/BoundaryEndPt.h"
+
 namespace larlitecv {
 
   StopMuCluster::StopMuCluster( const StopMuClusterConfig& cfg ) : m_config(cfg) {
     // Constructor
     setVerbosity(m_config.verbosity);
+    m_cvout_stem = "";
   }
 
-  void StopMuCluster::extractBaseClusters(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v, 
-    const std::vector< std::vector< const larcv::Pixel2D* > >& endpts ) {
+  std::vector<larlitecv::BMTrackCluster3D> StopMuCluster::findStopMuTracks( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+      const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v ) {
+
+    std::vector<BMTrackCluster3D> stopmu_tracks;
+
+    // make a copy of thrumu_v images -- this is the marked up images
+    std::vector<larcv::Image2D> marked_v;
+    for ( auto const& thrumu : thrumu_v ) {
+      larcv::Image2D marked( thrumu );
+      marked_v.emplace_back( std::move(marked) );
+    }
+
+    std::vector<int> endpts_used( endpts_v.size(), 0 );
+
+    for (int ipass=0; ipass<m_config.num_passes; ipass++ ) {
+
+      // update the marked image with stopmu_tracks
+      std::cout << "===============================================================" << std::endl;
+      std::cout << "[ START OF PASS " << ipass+1 << " ]" << std::endl;
+
+      PassOutput_t pass_data = performPass( m_config.pass_configs.at(ipass), img_v, badch_v, marked_v, endpts_v, endpts_used );
+
+      // dump out pass data
+      if ( m_config.save_pass_images ) {
+        std::vector<cv::Mat> passcv = makeBaseClusterImageOCV( pass_data, img_v, marked_v );
+        for (size_t p=0; p<passcv.size(); p++) {
+          std::stringstream ss;
+          if ( m_cvout_stem=="")
+            ss << "test_smc_pass" << ipass+1 << "_p" << p << ".jpg";
+          else
+            ss << m_cvout_stem << "_pass" << ipass+1 << "_p" << p << ".jpg";
+          cv::imwrite( ss.str(), passcv.at(p) );
+        }
+      }
+
+      for ( size_t ipath=0; ipath<pass_data.m_paths.size(); ipath++) {
+        if ( pass_data.m_path_goalreached.at(ipath)==1 ) {
+          BMTrackCluster3D track3d = makeBMTrackCluster3D( pass_data.m_paths.at(ipath), img_v, badch_v, endpts_v.at(pass_data.m_endpt_index.at(ipath)) );
+
+          // mark up the image
+          for (size_t p=0; p<img_v.size(); p++) {
+            for ( auto const& pix : track3d.plane_paths.at(p).pixelpath ) {
+              marked_v.at(p).set_pixel( pix.Y(), pix.X(), 255 );
+            }
+          }
+
+          stopmu_tracks.emplace_back( std::move(track3d) );
+        }
+      }
+
+      std::cout << "PASS " << ipass+1 << ": number of tracks=" << stopmu_tracks.size() << std::endl;
+    }
+
+    std::cout << "StopMu Tracks Found: " << stopmu_tracks.size() << std::endl;
+
+    // dump out an image
+    for (size_t p=0; p<thrumu_v.size(); p++) {
+      cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img_v.at(p), 0, 50.0 );
+      for (size_t c=0; c<img_v.at(p).meta().cols(); c++) {        
+        for (size_t r=0; r<img_v.at(p).meta().rows(); r++) {
+          bool marked = false;
+          if ( marked_v.at(p).pixel(r,c)>0 ) {
+            cv::Vec3b& color = cvimg.at<cv::Vec3b>( cv::Point(c,r) );
+            color[0] = 0;
+            color[1] = 0;
+            color[2] = 255;
+            marked = true;
+          }
+          if ( thrumu_v.at(p).pixel(r,c)>0 ) {
+            cv::Vec3b& color = cvimg.at<cv::Vec3b>( cv::Point(c,r) );            
+            color[0] = 255;
+            color[1] = 0;
+            color[2] = 0;
+            marked = true;
+          }
+          if ( !marked && badch_v.at(p).pixel(r,c)>0 ) {
+            cv::Vec3b& color = cvimg.at<cv::Vec3b>( cv::Point(c,r) );            
+            color[0] = 30;
+            color[1] = 30;
+            color[2] = 30;
+          }
+        }
+      }
+
+      if ( m_config.dump_tagged_images ) {
+        std::stringstream ss;
+        if ( m_cvout_stem=="")
+          ss << "test_smv_tagged_p" << p << ".jpg";
+         else
+          ss << m_cvout_stem << "_tagged_p" << p << ".jpg";
+        cv::imwrite( ss.str(), cvimg );
+      }
+
+    }
+
+    return stopmu_tracks;
+  }
+
+
+  StopMuCluster::PassOutput_t StopMuCluster::performPass( const StopMuClusterConfig::PassConfig_t& passcfg,  const std::vector<larcv::Image2D>& img_v, 
+    const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& thrumu_v, 
+    const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v, std::vector<int>& endpts_used  ) {
+
+    PassOutput_t output;
+
+    // I should probably use a chain-of-command pattern
+    // here the input and output are specific to each submethod. there is no ambiguity on order of methods
+    // maybe later...
+
+    // make untagged image and cluster
+    extractBaseClusters( passcfg, img_v, thrumu_v, endpts_v, output );
+
+    // group clusters into secondary clusters
+    findClusterLinks( passcfg, img_v, output );
+
+    // we use the clusters to run astar
+    analyzeClusters( passcfg, img_v, badch_v, thrumu_v, endpts_v, endpts_used, output );
+
+    return output;
+  }
+
+  void StopMuCluster::extractBaseClusters( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, 
+    const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts, StopMuCluster::PassOutput_t& output ) {
 
     // input checks
     if ( thrumu_v.size()!=img_v.size()) {
@@ -36,16 +161,10 @@ namespace larlitecv {
       throw std::runtime_error( "StopMuCluster::extractBaseClusters[Error] number of thresholds and images not the same.");
 
     // first mask out thrumu images
-    m_masked_v.clear();
-    m_img_v.clear();
-    m_thrumu_v.clear();
+    output.m_masked_v.clear();
     for ( size_t iimg=0; iimg<img_v.size(); iimg++ ) {
       const larcv::Image2D& img    = img_v.at(iimg);
       const larcv::Image2D& thrumu = thrumu_v.at(iimg);
-
-      // we store pointers to these items for future reference
-      m_img_v.push_back( &img );
-      m_thrumu_v.push_back( &thrumu );
 
       // check that dimensions match
       if ( img.meta().rows()!=thrumu.meta().rows() || img.meta().cols()!=thrumu.meta().cols() ) {
@@ -67,23 +186,23 @@ namespace larlitecv {
         }
       }
 
-      m_masked_v.emplace_back( std::move(masked) );
+      output.m_masked_v.emplace_back( std::move(masked) );
 
 
     }//end of image loop
 
     // unmask pixels around end points, so they can be included in the clusters
     for ( auto const& endpt : endpts ) {
-      for (size_t p=0; p<m_masked_v.size(); p++ ) {
-        larcv::Image2D& masked = m_masked_v.at(p);
+      for (size_t p=0; p<output.m_masked_v.size(); p++ ) {
+        larcv::Image2D& masked = output.m_masked_v.at(p);
         int row = (int)endpt.at(p)->Y();
         int col = (int)endpt.at(p)->X();
         for (int dr=-m_config.start_point_pixel_neighborhood; dr<m_config.start_point_pixel_neighborhood; dr++) {
           int r = row+dr;
-          if ( r<0 || r>=masked.meta().rows()) continue;
+          if ( r<0 || r>=(int)masked.meta().rows()) continue;
           for (int dc=-m_config.start_point_pixel_neighborhood; dc<m_config.start_point_pixel_neighborhood; dc++) { 
             int c = col+dc;
-            if ( c<0 || c>=masked.meta().cols() ) continue;
+            if ( c<0 || c>=(int)masked.meta().cols() ) continue;
             masked.set_pixel(r,c,m_config.pixel_thresholds[p]+1);
           }
         }
@@ -91,10 +210,10 @@ namespace larlitecv {
     }
 
     // use the masked image to form clusters
-    m_untagged_clusters_v.clear();
-    for (size_t p=0; p<m_masked_v.size(); p++) {
+    output.m_untagged_clusters_v.clear();
+    for (size_t p=0; p<output.m_masked_v.size(); p++) {
       untagged_cluster_info_t plane_cluster;
-      plane_cluster.pixels = dbscan::extractPointsFromImage( m_masked_v.at(p), 0.5 );
+      plane_cluster.pixels = dbscan::extractPointsFromImage( output.m_masked_v.at(p), 0.5 );
       dbscan::DBSCANAlgo algo;
       plane_cluster.output = algo.scan( plane_cluster.pixels, m_config.dbscan_cluster_minpoints, m_config.dbscan_cluster_radius, false );
       for (size_t ic=0; ic<plane_cluster.output.clusters.size(); ic++) {
@@ -102,25 +221,26 @@ namespace larlitecv {
         plane_cluster.extrema_v.emplace_back( std::move(ex) );
       }
 
-      m_untagged_clusters_v.emplace_back( std::move(plane_cluster) );
+      output.m_untagged_clusters_v.emplace_back( std::move(plane_cluster) );
     }
 
   }
 
-  void StopMuCluster::findClusterLinks() {
-    const size_t nplanes = m_img_v.size();
+  void StopMuCluster::findClusterLinks( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, PassOutput_t& data ) {
+
+    const size_t nplanes = img_v.size();
     for (size_t p=0; p<nplanes; p++) {
-      const dbscan::dbClusters& clusters = m_untagged_clusters_v.at(p).output.clusters;
+      const dbscan::dbClusters& clusters = data.m_untagged_clusters_v.at(p).output.clusters;
       for (size_t ic_a=0; ic_a<clusters.size(); ic_a++ ) {
 
-        if ( m_untagged_clusters_v.at(p).output.clusters.at(ic_a).size()<m_config.dbscan_cluster_minpoints ) continue;
+        if ( (int)clusters.at(ic_a).size()<m_config.dbscan_cluster_minpoints ) continue;
 
         for (size_t ic_b=ic_a+1; ic_b<clusters.size(); ic_b++ ) {
 
-          if ( m_untagged_clusters_v.at(p).output.clusters.at(ic_b).size()<m_config.dbscan_cluster_minpoints ) continue;
+          if ( (int)clusters.at(ic_b).size()<m_config.dbscan_cluster_minpoints ) continue;
 
-          const dbscan::ClusterExtrema& ex_a = m_untagged_clusters_v.at(p).extrema_v.at(ic_a);
-          const dbscan::ClusterExtrema& ex_b = m_untagged_clusters_v.at(p).extrema_v.at(ic_b);
+          const dbscan::ClusterExtrema& ex_a = data.m_untagged_clusters_v.at(p).extrema_v.at(ic_a);
+          const dbscan::ClusterExtrema& ex_b = data.m_untagged_clusters_v.at(p).extrema_v.at(ic_b);
 
           // we find closest distance between cluster extrema
           float min_dist = -1;
@@ -146,7 +266,7 @@ namespace larlitecv {
             }
           }
 
-          if ( min_dist <0 || min_dist > m_config.max_link_distance ) continue;
+          if ( min_dist>passcfg.alldir_max_link_dist && (min_dist <0 || min_dist > passcfg.max_link_distance ) ) continue;
 
           // min-dist criteria passed. now check direction compatibility
           float max_dist_exa = 0.;
@@ -181,7 +301,6 @@ namespace larlitecv {
             }
           }
 
-
           float coscluster_a = 0.;
           float coscluster_b = 0.;          
           for (int v=0; v<2; v++) {
@@ -190,11 +309,11 @@ namespace larlitecv {
           }
 
           // cosine must be above some value for both
-          if ( coscluster_b<m_config.min_link_cosine || coscluster_a<m_config.min_link_cosine )
+          if ( coscluster_b<passcfg.min_link_cosine || coscluster_a<passcfg.min_link_cosine )
             continue;
 
           // define the link
-          m_untagged_clusters_v.at(p).makeLink( ic_a, ic_b, min_exa, min_exb, min_dist );
+          data.m_untagged_clusters_v.at(p).makeLink( ic_a, ic_b, min_exa, min_exb, min_dist );
           // std::cout << "plane " << p << ": make link between " << ic_a << " and " << ic_b 
           //   << " ex(a)=" << min_exa << " ex(b)=" << min_exb
           //   << " a=(" << ex_a.extrema(min_exa)[0] << "," << ex_a.extrema(min_exa)[1] << ") "
@@ -206,47 +325,50 @@ namespace larlitecv {
 
   }
 
-  void StopMuCluster::findStopMuTrack( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
-    const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v  ) {
-    // here we build stopmu-tracks
+  void StopMuCluster::analyzeClusters( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, 
+    const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& thrumu_v, const std::vector< std::vector< const larcv::Pixel2D* > >& endpts_v, 
+    std::vector<int>& endpts_used, StopMuCluster::PassOutput_t& data  ) {
+
+    // here we build stopmu-tracks using cluster groups found by previous pass sub-methods
+    // for each space point, given as a pixel on all 3 planes, we
+    //   (1) find the matching cluster group
+    //   (2) look for 3D spacepoints on the cluster group
+    //   (3) take the space point furthest from the start
+    //   (4) and attempt to form a path from start to goal using AStar3DAlgo
+    //   (5) we communicate if we are successful through the endpts_used vector
 
     // prep
     // build base clusters and links between them
-    m_cluster_images.clear();
-    m_spacepoints.clear();
-    m_paths.clear();
-    m_path_goalreached.clear();
-    m_clustergroups.clear();
+    data.m_spacepoints.clear();
+    data.m_paths.clear();
+    data.m_path_goalreached.clear();
+    data.m_clustergroups.clear();
+    data.m_endpt_index.clear();
+
+    if ( endpts_used.size()!=endpts_v.size() ) {
+      endpts_used.resize( endpts_v.size(), 0 );
+      // if the size is correct, we use that as a way to skip endpts for whatever reason
+    }
 
     // setup A* config
-    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
-    larlitecv::AStar3DAlgoConfig astar_config;
-    astar_config.astar_threshold.resize(3,0);
-    astar_config.astar_threshold[0] = 20.0;
-    astar_config.astar_threshold[1] = 20.0;
-    astar_config.astar_threshold[2] = 20.0;
-    astar_config.astar_neighborhood.resize(3,6);
-    astar_config.astar_start_padding = 4;
-    astar_config.astar_end_padding   = 4;
-    astar_config.lattice_padding = 10;
-    astar_config.accept_badch_nodes = true;
-    astar_config.min_nplanes_w_hitpixel = 3;
-    astar_config.restrict_path = false;
-    astar_config.path_restriction_radius = 10.0;
-    larlitecv::AStar3DAlgo algo( astar_config );
-    algo.setVerbose(0);
+    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;    
 
     struct SPdata_t {
       int idx;
       float dist;
       bool operator()( SPdata_t a, SPdata_t b ) {
-        if ( a.dist<b.dist ) return true;
+        if ( a.dist>b.dist ) return true;
         return false;
       };
     } myspdata;    
 
-    int iendpt = 0;
-    for ( auto const& endpt : endpts_v ) {
+    for (size_t iendpt=0; iendpt<endpts_v.size(); iendpt++ ) {
+      if ( endpts_used.at(iendpt)==1 ) continue;     
+
+      auto const& endpt = endpts_v.at(iendpt);
+      std::cout << "[Start Point idx=" << iendpt << "] " << std::endl;
+      std::cout << " tick=" << img_v.front().meta().pos_y( endpt.front()->Y() ) << std::endl;
+      std::cout << " cols=" << endpt[0]->X() << " " << endpt[1]->X() << " " << endpt[2]->X() << std::endl;
 
       // get 3D position of spacepoint
       float tick_start = img_v.at(0).meta().pos_y( endpt.at(0)->Y() );
@@ -273,19 +395,22 @@ namespace larlitecv {
         std::vector<double> testpoint(2);
         testpoint[0] = endpt.at(p)->X();
         testpoint[1] = endpt.at(p)->Y();
-        starting_cluster[p] = m_untagged_clusters_v.at(p).output.findMatchingCluster( testpoint, m_untagged_clusters_v.at(p).pixels, 2.0 );
+        starting_cluster[p] = data.m_untagged_clusters_v.at(p).output.findMatchingCluster( testpoint, data.m_untagged_clusters_v.at(p).pixels, 2.0 );
         if ( starting_cluster[p]<0 ) {
           cluster_on_all_planes = false;
           break;
         }
       }
 
-      if ( !cluster_on_all_planes )
+      if ( !cluster_on_all_planes ) {
+        // found no compatible cluster on all three planes for this end point, we skip it
+        // we fill an empty path for this end point though
+        std::vector<AStar3DNode> empty;
+        data.m_paths.emplace_back( std::move(empty) );
+        data.m_path_goalreached.push_back(0);
+        data.m_endpt_index.push_back( iendpt );
         continue;
-
-      //std::cout << starting_cluster[0] << " " << starting_cluster[1] << " " << starting_cluster[2] << std::endl;
-      //if ( starting_cluster[2]!=37 )
-      //  continue;
+      }
 
       // for each plane. build cluster group.
       ClusterGroup_t clustergroup;
@@ -295,7 +420,7 @@ namespace larlitecv {
         cluster_history.push_back( starting_cluster[p] );
         plgroup.group.insert(starting_cluster[p]);
         // recursive function
-        getNextLinkedCluster( p, cluster_history, plgroup.group, plgroup.links );
+        getNextLinkedCluster( data, p, cluster_history, plgroup.group, plgroup.links );
         clustergroup.emplace_back( std::move(plgroup) );
       }
 
@@ -306,11 +431,11 @@ namespace larlitecv {
         clust_img.paint(0.0);
         for ( auto &idx_cl : clustergroup.at(p).group ) {
           //std::cout << "plane " << p << " cluster group: " << idx_cl << std::endl;
-          const dbscan::dbCluster& cluster = m_untagged_clusters_v.at(p).output.clusters.at(idx_cl);
+          const dbscan::dbCluster& cluster = data.m_untagged_clusters_v.at(p).output.clusters.at(idx_cl);
           for (size_t ihit=0; ihit<cluster.size(); ihit++) {
             int hitidx = cluster.at(ihit);
-            int col = m_untagged_clusters_v.at(p).pixels.at(hitidx)[0];
-            int row = m_untagged_clusters_v.at(p).pixels.at(hitidx)[1];
+            int col = data.m_untagged_clusters_v.at(p).pixels.at(hitidx)[0];
+            int row = data.m_untagged_clusters_v.at(p).pixels.at(hitidx)[1];
             clust_img.set_pixel( row, col, img_v.at(p).pixel(row,col) );
             std::vector<int> pix(2);
             pix[0] = col;
@@ -324,18 +449,18 @@ namespace larlitecv {
           // we step through, filling in empty pixels where we can
           int nsteps = (*plink).dist/m_config.link_stepsize+1;
           float stepsize = (*plink).dist/float(nsteps);
-          const std::vector<double>& start = m_untagged_clusters_v.at(p).extrema_v.at( (*plink).indices[0] ).extrema( (*plink).extrema[0] );
-          const std::vector<double>& end   = m_untagged_clusters_v.at(p).extrema_v.at( (*plink).indices[1] ).extrema( (*plink).extrema[1] );
-          float dir[2] = { (end[0]-start[0])/(*plink).dist, (end[1]-start[1])/(*plink).dist };
+          const std::vector<double>& start = data.m_untagged_clusters_v.at(p).extrema_v.at( (*plink).indices[0] ).extrema( (*plink).extrema[0] );
+          const std::vector<double>& end   = data.m_untagged_clusters_v.at(p).extrema_v.at( (*plink).indices[1] ).extrema( (*plink).extrema[1] );
+          double dir[2] = { (end[0]-start[0])/(*plink).dist, (end[1]-start[1])/(*plink).dist };
           for ( int istep=0; istep<nsteps; istep++) {
             int col = start[0] + stepsize*dir[0]*(istep+1);
             int row = start[1] + stepsize*dir[1]*(istep+1);
             for (int dr=-m_config.start_point_pixel_neighborhood; dr<=m_config.start_point_pixel_neighborhood; dr++) {
               int r = row+dr;
-              if ( r<0 || r>=clust_img.meta().rows() ) continue;
+              if ( r<0 || r>=(int)clust_img.meta().rows() ) continue;
               for (int dc=-m_config.start_point_pixel_neighborhood; dc<=m_config.start_point_pixel_neighborhood; dc++) {
                 int c = col+dc;
-                if ( c<0 || c>=clust_img.meta().cols() ) continue;
+                if ( c<0 || c>=(int)clust_img.meta().cols() ) continue;
                 if ( clust_img.pixel(r,c)<m_config.pixel_thresholds[p] ) {
                   clust_img.set_pixel(r,c,2.0*m_config.pixel_thresholds[p]);
                   std::vector<int> pix(2);
@@ -352,11 +477,16 @@ namespace larlitecv {
       }//end of loop over planes
 
       // we find spacepoints
-      //std::vector<BoundarySpacePoint> cluster_spacepoints = generateCluster3PlaneSpacepoints( cluster_groups );  
-      std::vector<BoundarySpacePoint> cluster_spacepoints = generateCluster2PlaneSpacepoints( clustergroup, img_v, badch_v, thrumu_v );
+      std::vector<BoundarySpacePoint> cluster_spacepoints = generateCluster2PlaneSpacepoints( passcfg, clustergroup, img_v, badch_v, thrumu_v, data );
       std::cout << "cluster space points: " << cluster_spacepoints.size() << std::endl;
-      if ( cluster_spacepoints.size()==0 )
+      if ( cluster_spacepoints.size()==0 ) {
+        // no space points. fill empty path
+        std::vector<AStar3DNode> empty;
+        data.m_paths.emplace_back( std::move(empty) );
+        data.m_path_goalreached.push_back(0);
+        data.m_endpt_index.push_back( iendpt );        
         continue;
+      }
 
       // compress image for A* 3D
       std::vector< larcv::Image2D > clust_img_compressed_v;
@@ -401,88 +531,107 @@ namespace larlitecv {
         spdata_v.emplace_back( std::move(spdata) );
       }
 
+      // sort from smallest to largest
       std::sort( spdata_v.begin(), spdata_v.end(), myspdata );
-      for (auto &data : spdata_v ) {
-        std::cout << "  idx=" << data.idx << " dist=" << data.dist << std::endl;
+
+      // we try to fit path from start to many of the end-points
+
+      // first, get the start point
+      int start_row    = endpt.at(0)->Y();
+      float start_tick = img_v.at(0).meta().pos_y( start_row );
+      std::vector<int> start_cols(3,0);
+      std::vector<int> start_wids(3,0);
+      for (size_t p=0; p<img_v.size(); p++) {
+        start_cols[p] = endpt.at(p)->X();
+        start_wids[p] = img_v.at(p).meta().pos_x( endpt.at(p)->X() );
       }
 
+      // the spacepoints should be sorted in distance order, furthest to closest
+      std::vector<AStar3DNode> path;
+      bool goodtrack = false;
+      int spidx = 0;
+      for ( auto const& spdata : spdata_v ) {
 
-      // translate start and stop
-      float orig_start_tick = img_v.at(0).meta().pos_y( endpt.at(0)->Y() );
-      int start_row = clust_img_compressed_v.at(0).meta().row( orig_start_tick );
-      float orig_goal_tick = img_v.at(0).meta().pos_y( cluster_spacepoints.at(spdata_v.back().idx).at(0).row );
-      int goal_row  = clust_img_compressed_v.at(0).meta().row( img_v.at(0).meta().pos_y( cluster_spacepoints.at(spdata_v.back().idx).at(0).row ) );
+        // Define Goal from space point
+        int goal_row    = cluster_spacepoints.at(spdata.idx).at(0).row;
+        float goal_tick = img_v.front().meta().pos_y( goal_row );
+        std::vector<int> goal_cols(3,0);
+        std::vector<int> goal_wids(3,0);
+        for (size_t p=0; p<img_v.size(); p++) {
+          goal_cols[p] = cluster_spacepoints.at(spdata.idx).at(p).col;
+          goal_wids[p] = img_v.at(p).meta().pos_x( cluster_spacepoints.at(spdata.idx).at(p).col );
+        }
 
-      if ( start_row<=0 ) start_row = 1;
-      if ( start_row>=clust_img_compressed_v.front().meta().rows() ) start_row = (int)clust_img_compressed_v.front().meta().rows() - 1;
-      if ( goal_row<=0 ) goal_row = 1;
-      if ( goal_row>=clust_img_compressed_v.front().meta().rows() )  goal_row  = (int)clust_img_compressed_v.front().meta().rows() - 1;
 
-      std::vector<int> start_cols(3,0);
-      std::vector<int> goal_cols(3,0);
-      std::vector<int> orig_goal_wids(3,0);
-      for (int p=0; p<3; p++) {
-        const larcv::Image2D& compressed = clust_img_compressed_v.at(p);
-        const larcv::Image2D& badch_compressed = badch_compressed_v.at(p);
-        const larcv::Image2D& img        = clust_img_v.at(p);
-        start_cols[p] = compressed.meta().col( img.meta().pos_x( endpt.at(p)->X() ) );
-        goal_cols[p]  = compressed.meta().col( img.meta().pos_x( cluster_spacepoints.at(spdata_v.back().idx).at(p).col ) );
-        orig_goal_wids[p] = img.meta().pos_x( cluster_spacepoints.at(spdata_v.back().idx).at(p).col );
+        // std::cout << "start tick=" << start_tick << "; "
+        //           << " start row=" << start_row  << "; "
+        //           << " start col: " << endpt.at(0)->X() << " " << endpt.at(1)->X() << " " << endpt.at(2)->X() << "; "
+        //           << std::endl;
+        std::cout << "goal tick=" << goal_tick << "; goal row=" << goal_row << "; " 
+                  << "goal cols: " << goal_cols[0] << " " << goal_cols[1] << " " << goal_cols[2] << std::endl;
 
-        cv::Mat cvimg = larcv::as_mat_greyscale2bgr( compressed, 10, 500 );
 
-        for (int r=0; r<compressed.meta().rows(); r++) {
-          for (int c=0; c<compressed.meta().cols(); c++) {
-            if ( badch_compressed.pixel(r,c)>0) {
-              cv::Vec3b& color = cvimg.at<cv::Vec3b>( cv::Point(c,r) );
-              color[0] = 125;
-              color[1] = 0;
-              color[2] = 0;
-            }
+        // first run linear tracker 
+        goodtrack = false;
+        PointInfoList linearpath = runLinearFitter( passcfg, img_v, badch_v, start_row, goal_row, start_cols, goal_cols, goodtrack );
+
+        if ( goodtrack ) {
+          // convert to vector<AStarNode> to make the same format as AStar
+          std::vector<AStar3DNode> apath;
+          for (int istep=(int)linearpath.size()-1; istep>=0; istep--) {
+            AStar3DNode node;
+            node.tyz = linearpath.at(istep).xyz;
+            node.tyz[0] = node.tyz[0]/cm_per_tick+3200.0; // turn x into tick
+            apath.emplace_back( std::move(node) );
+          }
+          std::swap( path, apath );
+        }
+        if ( (goodtrack && (linearpath.fractionGood()<0.9 || linearpath.fractionHasChargeOnMajorityOfPlanes()<0.9))
+            || ( !goodtrack && (linearpath.fractionGood()>0.5 && linearpath.fractionHasChargeOnMajorityOfPlanes()>0.5) ) ) {
+          // if not good, we then try the astar tracker
+          bool goodastar = false;
+          std::vector<AStar3DNode> apath = runAStar( passcfg, clust_img_v, badch_v, clust_img_compressed_v, badch_compressed_v, 
+            start_row, goal_row, start_cols, goal_cols, goodastar );
+          if ( goodastar ) {
+            goodtrack = goodastar;
+            std::swap(path,apath);
           }
         }
 
-        cv::circle( cvimg, cv::Point(start_cols[p],start_row), 1, cv::Scalar(0,255,0), -1);
-        cv::circle( cvimg, cv::Point(goal_cols[p],goal_row), 1, cv::Scalar(0,0,255), -1);
+        // store spacepoints for drawing
+        //for ( auto& sp : cluster_spacepoints ) 
+        //m_spacepoints.emplace_back( std::move(sp) );
+        data.m_spacepoints.emplace_back( std::move(cluster_spacepoints.at(spdata.idx)) );
 
-        std::stringstream ss;
-        ss << "test_cl" << iendpt << "_p" << p << ".jpg";
-        cv::imwrite( ss.str(), cvimg );
+        if ( goodtrack )
+          break;
+        spidx++;
+        //if ( spidx>20 )
+        //  break;
       }
-      int goal_reached = 0;
-      std::cout << " original start tick=" << orig_start_tick << "; "
-                << " original row=" << img_v.at(0).meta().row( orig_start_tick) 
-                << " compressed row=" << start_row 
-                << " original start col: " << endpt.at(0)->X() << " " << endpt.at(1)->X() << " " << endpt.at(2)->X() << "; "
-                << " compressed start col: " << start_cols[0] << " " << start_cols[1] << " " << start_cols[2] << std::endl;
-      std::cout << "goal row=" << goal_row << " tick=" << img_v.at(0).meta().pos_y( cluster_spacepoints.at(spdata_v.back().idx).at(0).row )
-                << " goal col: " << orig_goal_wids[0] << " " << orig_goal_wids[1] << " " << orig_goal_wids[2] 
-                << " goal col: " << goal_cols[0] << " " << goal_cols[1] << " " << goal_cols[2] << std::endl;
 
+      if ( !goodtrack )
+        path.clear();
+      data.m_paths.emplace_back( std::move(path) );
 
-      std::vector<AStar3DNode> path = algo.findpath( clust_img_compressed_v, badch_compressed_v, badch_compressed_v, 
-        start_row, goal_row, start_cols, goal_cols, goal_reached );
-      std::cout << "astar attempt. goal-reached=" << goal_reached << " pathsize=" << path.size() << std::endl;
-      m_paths.emplace_back( std::move(path) );
-      m_path_goalreached.push_back( goal_reached );
+      if (goodtrack)
+        data.m_path_goalreached.push_back( 1 );
+      else
+        data.m_path_goalreached.push_back( 0 );        
+      data.m_endpt_index.push_back( iendpt );
 
-      // store spacepoints for drawing
-      //for ( auto& sp : cluster_spacepoints ) 
-      //m_spacepoints.emplace_back( std::move(sp) );
-      m_spacepoints.emplace_back( std::move(cluster_spacepoints.back()) );
+      if ( goodtrack )
+        endpts_used[iendpt] = 1;
 
       // store cluster object
-      m_clustergroups.emplace_back( std::move(clustergroup) );
+      data.m_clustergroups.emplace_back( std::move(clustergroup) );
 
-      // store cluster images
-      m_cluster_images.emplace_back( std::move(clust_img_v) );
-
-      iendpt++;
     }// end of endpoint loop
 
   }
 
-  std::vector<BoundarySpacePoint> StopMuCluster::generateCluster3PlaneSpacepoints( const std::vector< std::set<int> >& cluster_groups ) {
+  std::vector<BoundarySpacePoint> StopMuCluster::generateCluster3PlaneSpacepoints( const StopMuClusterConfig::PassConfig_t& passcfg, 
+    const std::vector<larcv::Image2D>& img_v, const std::vector< std::set<int> >& cluster_groups, StopMuCluster::PassOutput_t& data ) {
     // get cluster group from 3 planes. collect the consistent 3 plane spacepoints
 
     // this involves a p*(p-1) combinatoric search...
@@ -497,7 +646,7 @@ namespace larlitecv {
       std::cout << " plane " << p << ": ";
       for ( auto& cl_idx : cluster_groups.at(p)) {
         std::cout << cl_idx << " ";
-        const dbscan::ClusterExtrema& ex = m_untagged_clusters_v.at(p).extrema_v.at(cl_idx);
+        const dbscan::ClusterExtrema& ex = data.m_untagged_clusters_v.at(p).extrema_v.at(cl_idx);
         for (int i=0; i<(int)dbscan::ClusterExtrema::kNumExtrema; i++) {
           std::vector<float> pt(2);
           for (int v=0; v<2; v++)
@@ -518,20 +667,20 @@ namespace larlitecv {
       for (int j=0; j<(int)planepts.at(1).size(); j++) {
 
         const std::vector<float>& pt_j = planepts.at(1).at(j);
-        if ( fabs(pt_i[1]-pt_j[1])>m_config.max_extrema_row_diff )
+        if ( fabs(pt_i[1]-pt_j[1])>passcfg.max_extrema_row_diff )
           continue;
 
         for (int k=0; k<(int)planepts.at(2).size(); k++) {
 
           const std::vector<float>& pt_k = planepts.at(2).at(k);
-          if ( fabs(pt_i[1]-pt_k[1])>m_config.max_extrema_row_diff || fabs(pt_j[1]-pt_k[1])>m_config.max_extrema_row_diff )
+          if ( fabs(pt_i[1]-pt_k[1])>passcfg.max_extrema_row_diff || fabs(pt_j[1]-pt_k[1])>passcfg.max_extrema_row_diff )
             continue;
 
           // ok, all within some acceptable time
           std::vector<int> wids(3);
-          wids[0] = m_img_v.at(0)->meta().pos_x( pt_i[0] );
-          wids[1] = m_img_v.at(1)->meta().pos_x( pt_j[0] );
-          wids[2] = m_img_v.at(2)->meta().pos_x( pt_k[0] );
+          wids[0] = img_v.at(0).meta().pos_x( pt_i[0] );
+          wids[1] = img_v.at(1).meta().pos_x( pt_j[0] );
+          wids[2] = img_v.at(2).meta().pos_x( pt_k[0] );
 
           double tri = 0;
           int crosses = 0;
@@ -540,11 +689,11 @@ namespace larlitecv {
 
           // get tick
           float ave_row = (pt_i[1]+pt_j[1]+pt_k[1])/3.0;
-          float tick = m_img_v.at(0)->meta().pos_y(ave_row);
+          float tick = img_v.at(0).meta().pos_y(ave_row);
 
           std::cout << " tick=" << tick << " wids: " << wids[0] << " " << wids[1] << " " << wids[2] << " tri=" << tri << std::endl;
 
-          if ( crosses==0 || tri>m_config.max_extrema_triarea )
+          if ( crosses==0 || tri>passcfg.max_extrema_triarea )
             continue;
 
           float xpos = (tick-3200.0)*0.5*::larutil::LArProperties::GetME()->DriftVelocity();
@@ -568,8 +717,9 @@ namespace larlitecv {
     return spacepoints;
   }
 
-  std::vector<BoundarySpacePoint> StopMuCluster::generateCluster2PlaneSpacepoints( const ClusterGroup_t& cluster_group, 
-    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& thrumu_v ) {
+  std::vector<BoundarySpacePoint> StopMuCluster::generateCluster2PlaneSpacepoints( const StopMuClusterConfig::PassConfig_t& passcfg, 
+    const ClusterGroup_t& cluster_group, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+    const std::vector<larcv::Image2D>& thrumu_v, StopMuCluster::PassOutput_t& data ) {
 
     struct PlanePoint_t {
       std::vector<float> pt;
@@ -588,7 +738,7 @@ namespace larlitecv {
       std::cout << " plane " << p << ": ";
       for ( auto& cl_idx : cluster_group.at(p).group ) {
         std::cout << cl_idx << " ";
-        const dbscan::ClusterExtrema& ex = m_untagged_clusters_v.at(p).extrema_v.at(cl_idx);
+        const dbscan::ClusterExtrema& ex = data.m_untagged_clusters_v.at(p).extrema_v.at(cl_idx);
         for (int i=0; i<(int)dbscan::ClusterExtrema::kNumExtrema; i++) {
           std::vector<float> pt(2);
           for (int v=0; v<2; v++)
@@ -608,10 +758,10 @@ namespace larlitecv {
         const PlanePoint_t& pt_j = planepts.at(jpt);
         if ( pt_i.plane==pt_j.plane ) continue; // not interest in same-plane matches
 
-        if ( fabs(pt_i.pt[1]-pt_j.pt[1])>m_config.max_extrema_row_diff ) continue; // too out of time
+        if ( fabs(pt_i.pt[1]-pt_j.pt[1])>passcfg.max_extrema_row_diff ) continue; // too out of time
 
-        int wire_i = m_img_v.at(pt_i.plane)->meta().pos_x( pt_i.pt[0]);
-        int wire_j = m_img_v.at(pt_j.plane)->meta().pos_x( pt_j.pt[0]);
+        int wire_i = img_v.at(pt_i.plane).meta().pos_x( pt_i.pt[0]);
+        int wire_j = img_v.at(pt_j.plane).meta().pos_x( pt_j.pt[0]);
 
         // in-time
         int crosses = 0;
@@ -628,17 +778,17 @@ namespace larlitecv {
         // check if other point has charge or is in badch
         bool foundcharge = false;
         int averow = 0.5*( pt_i.pt[1] + pt_j.pt[1] );
-        float tick = m_img_v.at(0)->meta().pos_y(averow);
+        float tick = img_v.at(0).meta().pos_y(averow);
         float xpos = (tick-3200.0)*0.5*::larutil::LArProperties::GetME()->DriftVelocity();
 
-        int col = m_img_v.at(otherplane)->meta().col( otherwire );
+        int col = img_v.at(otherplane).meta().col( otherwire );
 
         for (int dr=-m_config.start_point_pixel_neighborhood; dr<=m_config.start_point_pixel_neighborhood; dr++) {
           int r = averow+dr;
-          if ( r<0 || r>=m_img_v.at(otherplane)->meta().rows() ) continue;
+          if ( r<0 || r>=(int)img_v.at(otherplane).meta().rows() ) continue;
           for (int dc=-m_config.start_point_pixel_neighborhood; dc<=m_config.start_point_pixel_neighborhood; dc++) {
             int c = col+dc;
-            if ( c<0 || c>=m_img_v.at(otherplane)->meta().cols() ) continue;
+            if ( c<0 || c>=(int)img_v.at(otherplane).meta().cols() ) continue;
             if ( img_v.at(otherplane).pixel(r,c)>m_config.pixel_thresholds[otherplane] || badch_v.at(otherplane).pixel(r,c)>0 ) {
               foundcharge = true;
               break;
@@ -661,10 +811,10 @@ namespace larlitecv {
 
         if ( !foundcharge ) continue;        
 
-        std::cout << "  candidate 2-plane sp: tick=" << tick << " averow=" << averow
-          << " wids=(" << pts[0][0] << "," << pts[1][0] << "," << pts[2][0] << ") "
-          << " foundcharge=" << foundcharge
-          << std::endl;        
+        // std::cout << "  candidate 2-plane sp: tick=" << tick << " averow=" << averow
+        //   << " wids=(" << pts[0][0] << "," << pts[1][0] << "," << pts[2][0] << ") "
+        //   << " foundcharge=" << foundcharge
+        //   << std::endl;        
 
         // define space point
         BoundarySpacePoint sp;
@@ -678,7 +828,8 @@ namespace larlitecv {
         pos[2] = intersection_zy[0];
         sp.pos( pos );
 
-        spacepoints.emplace_back( std::move(sp) );
+        if ( std::find( spacepoints.begin(), spacepoints.end(), sp )==spacepoints.end() )
+          spacepoints.emplace_back( std::move(sp) );
       }//end of j loop
     }//end of i loop
 
@@ -686,32 +837,228 @@ namespace larlitecv {
     return spacepoints;
   }
 
-  void StopMuCluster::getNextLinkedCluster( const int& plane, std::vector<int>& cluster_history, std::set<int>& clustergroup, 
-    std::vector< const ClusterLink_t* >& used_links ) {
+  void StopMuCluster::getNextLinkedCluster( StopMuCluster::PassOutput_t& data, const int& plane, std::vector<int>& cluster_history, 
+    std::set<int>& clustergroup, std::vector< const ClusterLink_t* >& used_links ) {
 
     // get the links
     if ( cluster_history.size()==0)
       return;
     int current_cluster = cluster_history.back();
-    const std::vector<ClusterLink_t>& cluster_link = m_untagged_clusters_v.at(plane).getLinks(current_cluster);
+    const std::vector<ClusterLink_t>& cluster_link = data.m_untagged_clusters_v.at(plane).getLinks(current_cluster);
     for ( auto& link : cluster_link ) {
       // go to first cluster not already in the group
       if ( link.indices[0]==current_cluster && clustergroup.find( link.indices[1] )==clustergroup.end() ) {
         clustergroup.insert( link.indices[1] );
         cluster_history.push_back( link.indices[1] );
         used_links.push_back( &link );
-        getNextLinkedCluster( plane, cluster_history, clustergroup, used_links );
+        getNextLinkedCluster( data, plane, cluster_history, clustergroup, used_links );
       }
       else if ( link.indices[1]==current_cluster && clustergroup.find( link.indices[0] )==clustergroup.end() ) {
         clustergroup.insert( link.indices[0] );
         cluster_history.push_back( link.indices[0] );
         used_links.push_back( &link );        
-        getNextLinkedCluster( plane, cluster_history, clustergroup, used_links );
+        getNextLinkedCluster( data, plane, cluster_history, clustergroup, used_links );
       }
     }
     // no link
     cluster_history.pop_back();
     return;
+  }
+
+  BMTrackCluster3D StopMuCluster::makeBMTrackCluster3D( const std::vector<AStar3DNode>& path, 
+    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<const larcv::Pixel2D*>& start_pt ) {
+
+    const larcv::ImageMeta& meta = img_v.front().meta();
+    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick] 
+    const int nplanes = img_v.size();
+
+    // fill track3d data
+    BMTrackCluster3D track3d;
+
+    // Start Point Information
+    track3d.start_type = (larlitecv::BoundaryEnd_t) int(start_pt.front()->Intensity());
+    track3d.row_start  = start_pt.front()->Y();
+    track3d.tick_start = img_v.front().meta().pos_y( track3d.row_start );
+    track3d.start_wire.resize(nplanes,0);
+    track3d.start3D.resize(nplanes,0);
+    for (int i=0; i<nplanes; i++) {
+      track3d.start3D[i] = path.back().tyz[i];
+      track3d.start_wire[i] = meta.pos_x( start_pt[i]->X() );
+    }   
+    track3d.start3D[0] = (track3d.start3D[0]-3200)*cm_per_tick;
+
+    // End Point Information
+    track3d.end_type   = larlitecv::kUndefined;
+    track3d.tick_end   = path.front().tyz.at(0);
+    track3d.row_end    = meta.row( track3d.tick_end );
+    track3d.end_wire.resize(nplanes,0);
+    track3d.end3D.resize(nplanes,0);
+    track3d.end3D[0] = (track3d.end3D[0]-3200)*cm_per_tick;    
+    for (int i=1; i<nplanes; i++)
+      track3d.end3D[i] = path.front().tyz[i];
+    Double_t xyz_end[3];
+    for (int i=0; i<nplanes; i++) 
+      xyz_end[i] = track3d.end3D[i];    
+    for (int i=0; i<nplanes; i++)
+      track3d.end_wire[i] = (int)larutil::Geometry::GetME()->WireCoordinate(xyz_end,i);
+
+
+    // Prepare Track2D objects and an empty image to track which pixels we've marked
+    std::vector<larcv::Image2D> tagged_v;
+    for (int p=0; p<nplanes; p++) {
+      BMTrackCluster2D track2d;
+      BoundaryEndPt start( track3d.row_start, meta.col( track3d.start_wire[p]), track3d.start_type );
+      BoundaryEndPt end( track3d.row_end, meta.col( track3d.end_wire[p] ), larlitecv::kUndefined );
+      track2d.start = start;
+      track2d.end   = end;
+      track2d.plane = p;
+      track3d.plane_paths.emplace_back( std::move(track2d) );
+      larcv::Image2D tagged( img_v.at(p).meta() );
+      tagged.paint(0.0);
+      tagged_v.emplace_back( std::move(tagged) );
+    }
+
+    float nbad_nodes = 0;
+    float total_nodes = 0;
+    int nnodes = (int)path.size();
+    for ( int inode=nnodes-1; inode>=1; inode-- ) {
+
+      const AStar3DNode& node      = path.at(inode);
+      const AStar3DNode& next_node = path.at(inode-1);
+      if ( node.badchnode )
+        nbad_nodes+=1.0;
+      total_nodes+=1.0;
+
+      float dir3d[3];
+      float step0[3];
+      float dist = 0.;
+      for (int i=0; i<3; i++) {
+        dir3d[i] = next_node.tyz[i] - node.tyz[i];
+        step0[i] = node.tyz[i];
+      }
+      dir3d[0] *= cm_per_tick;
+      step0[0] = (step0[0]-3200.0)*cm_per_tick;
+      for (int i=0; i<3; i++)
+        dist += dir3d[i]*dir3d[i];
+      dist = sqrt(dist);
+      for (int i=0; i<3; i++)
+        dir3d[i] /= dist;
+
+      int nsteps = dist/m_config.link_stepsize+1;
+      float stepsize = dist/float(nsteps);
+
+      for (int istep=0; istep<=nsteps; istep++) {
+        Double_t xyz[3];
+        std::vector<double> pt(3,0.0);
+        for (int i=0; i<3; i++) {
+          xyz[i] = step0[i] + stepsize*istep*dir3d[i];
+          pt[i] = xyz[i];
+        }
+        float tick = xyz[0]/cm_per_tick + 3200.0;
+        if ( tick<=meta.min_y() || tick>=meta.max_y() ) continue;
+        track3d.path3d.emplace_back( std::move(pt) );        
+        int row = meta.row( tick );        
+        std::vector<int> cols(3);
+        for (int p=0; p<nplanes; p++) {
+          cols[p] = meta.col( larutil::Geometry::GetME()->WireCoordinate(xyz,p) );
+
+          for (int dr=-m_config.start_point_pixel_neighborhood; dr<=m_config.start_point_pixel_neighborhood; dr++) {
+            int r = row+dr;
+            if ( r<0 || r>=(int)meta.rows()) continue;
+            for (int dc=-m_config.start_point_pixel_neighborhood; dc<=m_config.start_point_pixel_neighborhood; dc++) {
+              int c = cols[p]+dc;
+              if ( c<0 || c>=(int)meta.cols()) continue;
+              // tag pixels that are (1) untagged && (2) above threshold or bad channels
+              if ( tagged_v.at(p).pixel(r,c)==0 && (img_v.at(p).pixel(r,c)>m_config.pixel_thresholds.at(p) || badch_v.at(p).pixel(r,c)>0 ) ) {
+                tagged_v.at(p).set_pixel(r,c,255);
+                larcv::Pixel2D pix(c,r);
+                track3d.plane_paths.at(p).pixelpath.emplace_back( std::move(pix) );
+              }
+            }
+          }//end of row loop
+        }//end of plane loop
+      }//end of steps
+
+    }//end of node loop
+
+    return track3d;
+  }
+
+  PointInfoList StopMuCluster::runLinearFitter( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, 
+    const std::vector<larcv::Image2D>& badch_v, 
+    const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath ) {
+
+    // linear track
+    Linear3DFitterConfig cfg;
+    cfg.step_size = 3.0;
+    Linear3DFitter lineartrack( cfg );
+    PointInfoList path = lineartrack.findpath( img_v, badch_v, start_row, goal_row, start_cols, goal_cols );
+
+    std::cout << "linear track result: goodfrac=" << path.fractionGood() << " majfrac=" << path.fractionHasChargeOnMajorityOfPlanes() << std::endl;
+
+
+    // now we need to decide the quality of the fit
+    goodpath = false;
+    if ( path.fractionGood()>0.8 && path.fractionHasChargeOnMajorityOfPlanes()>0.8 )
+      goodpath = true;
+
+    return path;
+  }
+
+  std::vector<AStar3DNode> StopMuCluster::runAStar( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, 
+    const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v, 
+    const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath ) {
+
+    const larcv::ImageMeta& meta      = img_v.at(0).meta();
+    const larcv::ImageMeta& meta_comp = img_compressed_v.at(0).meta();
+
+    int start_row_compressed = meta_comp.row( meta.pos_y(start_row) );
+    int goal_row_compressed  = meta_comp.row( meta.pos_y(goal_row) );
+    std::vector<int> start_cols_compressed(3,0);
+    std::vector<int> goals_cols_compressed(3,0);
+    for (size_t p=0; p<img_v.size(); p++) {
+      start_cols_compressed[p] = meta_comp.col( meta.pos_x(start_cols.at(p)) );
+      goals_cols_compressed[p] = meta_comp.col( meta.pos_x(goal_cols.at(p)) );
+    }
+    if ( start_row_compressed<=0 ) start_row_compressed = 1;
+    if ( start_row_compressed>=(int)img_compressed_v.front().meta().rows() ) start_row_compressed = (int)img_compressed_v.front().meta().rows() - 1;
+    if ( goal_row_compressed<=0 ) goal_row_compressed = 1;
+    if ( goal_row_compressed>=(int)img_compressed_v.front().meta().rows() )  goal_row_compressed  = (int)img_compressed_v.front().meta().rows() - 1;
+
+    int goal_reached = 0;
+    larlitecv::AStar3DAlgo algo( passcfg.astarcfg );
+    algo.setVerbose(0);
+        
+    std::vector<AStar3DNode> path = algo.findpath( img_compressed_v, badch_compressed_v, badch_compressed_v, 
+      start_row_compressed, goal_row_compressed, start_cols_compressed, goals_cols_compressed, goal_reached );
+
+    std::cout << "astar result: goalreached=" << goal_reached << "path-length=" << path.size() << std::endl;
+
+    // // FOR DEBUG
+    //const larcv::Image2D& badch_compressed = badch_compressed_v.at(p);        
+    // cv::Mat cvimg = larcv::as_mat_greyscale2bgr( compressed, 10, 500 );
+    // for (int r=0; r<compressed.meta().rows(); r++) {
+    //   for (int c=0; c<compressed.meta().cols(); c++) {
+    //     if ( badch_compressed.pixel(r,c)>0) {
+    //       cv::Vec3b& color = cvimg.at<cv::Vec3b>( cv::Point(c,r) );
+    //       color[0] = 125;
+    //       color[1] = 0;
+    //       color[2] = 0;
+    //     }
+    //   }
+    // }
+    // cv::circle( cvimg, cv::Point(start_cols[p],start_row), 1, cv::Scalar(0,255,0), -1);
+    // cv::circle( cvimg, cv::Point(goal_cols[p],goal_row), 1, cv::Scalar(0,0,255), -1);
+    // std::stringstream ss;
+    // ss << "test_cl" << iendpt << "_p" << p << ".jpg";
+    // cv::imwrite( ss.str(), cvimg );
+
+    if ( goal_reached==1 )
+      goodpath = true;
+    else
+      goodpath = false;
+
+    return path;
   }
 
   // ================================================================================================
@@ -721,17 +1068,17 @@ namespace larlitecv {
   void StopMuCluster::saveClusterImageOCV( std::string filename ) {
     // for visual evaluation, we dump out various information used/constructed by this class
 #ifdef USE_OPENCV
-    std::vector<cv::Mat> cvimg_v = makeBaseClusterImageOCV();
-    for (size_t p=0; p<cvimg_v.size(); p++) {
-      std::stringstream ss;
-      ss << filename << "_p" << p << ".png";
-      cv::imwrite( ss.str(), cvimg_v.at(p) );
-    }
+    // std::vector<cv::Mat> cvimg_v = makeBaseClusterImageOCV();
+    // for (size_t p=0; p<cvimg_v.size(); p++) {
+    //   std::stringstream ss;
+    //   ss << filename << "_p" << p << ".png";
+    //   cv::imwrite( ss.str(), cvimg_v.at(p) );
+    // }
 #endif
   }
 
 #ifdef USE_OPENCV
-  std::vector<cv::Mat> StopMuCluster::makeBaseClusterImageOCV() {
+  std::vector<cv::Mat> StopMuCluster::makeBaseClusterImageOCV( const PassOutput_t& data, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& thrumu_v ) {
 
     // we draw an image, that highlights the clusters, links between them, and interesting space points
     // we drawn an image per plane
@@ -739,16 +1086,16 @@ namespace larlitecv {
     TRandom rand(1);
     std::vector<cv::Mat> cvimgs_v;
 
-    for ( size_t p=0; p<m_img_v.size(); p++ ) {
-      const larcv::Image2D& img = *(m_img_v.at(p));
+    for ( size_t p=0; p<img_v.size(); p++ ) {
+      const larcv::Image2D& img = img_v.at(p);
       const larcv::ImageMeta& meta = img.meta();
-      const untagged_cluster_info_t& cluster_info = m_untagged_clusters_v.at(p);
+      const untagged_cluster_info_t& cluster_info = data.m_untagged_clusters_v.at(p);
 
       // first make a CV image we can have fun with
       cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img, m_config.pixel_thresholds[p], 100 );
 
       // color in the thrumu
-      const larcv::Image2D& thrumu = *(m_thrumu_v.at(p));
+      const larcv::Image2D& thrumu = thrumu_v.at(p);
       for (size_t r=0; r<thrumu.meta().rows(); r++) {
         for (size_t c=0; c<thrumu.meta().cols(); c++) {
           if ( thrumu.pixel(r,c)>0 ){
@@ -813,8 +1160,7 @@ namespace larlitecv {
       }
       */
 
-      std::cout << "number of spacepoints: " <<  m_spacepoints.size() << std::endl;
-      for ( auto const& sp : m_spacepoints ) {
+      for ( auto const& sp : data.m_spacepoints ) {
         const BoundaryEndPt& endpt = sp.at(p);
         cv::circle(cvimg, cv::Point(endpt.col,endpt.row),   5, cv::Scalar(255,255,255),-1);
       }
@@ -831,8 +1177,8 @@ namespace larlitecv {
       }
       */
 
-      for ( size_t ipath=0; ipath<m_paths.size(); ipath++ ) {
-        auto const& path = m_paths.at(ipath);
+      for ( size_t ipath=0; ipath<data.m_paths.size(); ipath++ ) {
+        auto const& path = data.m_paths.at(ipath);
         for ( int inode=0; inode<(int)(path.size()-1); inode++ ) {
 
           float tick_start = path.at(inode).tyz.at(0);
@@ -843,7 +1189,7 @@ namespace larlitecv {
           Double_t xyz_end[3] = { (tick_start-3200.0)*0.5*0.110, path.at(inode+1).tyz.at(1), path.at(inode+1).tyz.at(2) };
           float wid_end  = larutil::Geometry::GetME()->WireCoordinate( xyz_end, p );
 
-          if ( m_path_goalreached.at(ipath) )
+          if ( data.m_path_goalreached.at(ipath) )
             cv::line( cvimg, cv::Point( meta.col(wid_start), meta.row(tick_start)), cv::Point( meta.col(wid_end), meta.row(tick_end) ), cv::Scalar(0,255,0), 3 );
           else
             cv::line( cvimg, cv::Point( meta.col(wid_start), meta.row(tick_start)), cv::Point( meta.col(wid_end), meta.row(tick_end) ), cv::Scalar(0,100,0), 3 );

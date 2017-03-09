@@ -97,12 +97,6 @@ int main( int nargs, char** argv ) {
   // start point direction
   larlitecv::StopMuStart start_finder_algo;
   start_finder_algo.setVerbose(1);
-  float fThreshold = 10.0;
-  int rneighbor = 10;
-  int cneighbor = 10;
-
-  // tagging parameters
-  int tagged_stopmu_pixelradius = 2;
 
   int nentries = dataco.get_nentries("larcv");
   int user_nentries =   stopmu_cfg.get<int>("NumEntries",-1);
@@ -132,7 +126,7 @@ int main( int nargs, char** argv ) {
     
     larcv::EventImage2D* imgs            = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "modimgs" );
     larcv::EventImage2D* marked3d        = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
-    larcv::EventROI* rois                = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "tpc" );
+    //larcv::EventROI* rois                = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "tpc" );
     
     // make the bad channel image
     larlitecv::EmptyChannelAlgo emptyalgo;
@@ -151,7 +145,6 @@ int main( int nargs, char** argv ) {
     // get the imgs and the thru-mu tagged images
     const std::vector<larcv::Image2D>& img_v    = imgs->Image2DArray();
     const std::vector<larcv::Image2D>& thrumu_v = marked3d->Image2DArray();
-    const larcv::ImageMeta& meta = img_v.at(0).meta();
     
     // make a list of the EventPixel2D containers
     std::vector< larcv::EventPixel2D* > ev_pixs;
@@ -167,36 +160,77 @@ int main( int nargs, char** argv ) {
     std::cout << "total end points=" << tot_endpts << std::endl;
     
     // --------------------------------------------
-    // Output Data objects
-  
+    // Algo Prep
+    std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpts = stopmu_filterpts.filterSpacePoints( ev_pixs, thrumu_v, badch_v );
+    std::cout << " Number of candidate stop-mu start points: " << stopmu_candidate_endpts.size() << std::endl;
+
+    std::stringstream ss;
+    ss << "smcluster_" << ientry << "_r" << run << "_s" << subrun << "_e" << event;
+
+    smcluster.setOpenCVImageStemName( ss.str() );
+    std::vector< larlitecv::BMTrackCluster3D > tracks3d = smcluster.findStopMuTracks( img_v, gapchimgs_v, thrumu_v, stopmu_candidate_endpts );
+
+    // ------------------------------------------------
+    // Store Output Data
+
+    // save 3D track object
+    larlite::event_track* ev_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "stopmu3d" );
+    
+    // convert BMTrackCluster3D to larlite::track
+    for ( int itrack=0; itrack<(int)tracks3d.size(); itrack++ ) {
+      const larlitecv::BMTrackCluster3D& track3d = tracks3d.at(itrack);
+      larlite::track lltrack;
+      int istep = 0;
+      for ( auto const& point3d : track3d.path3d ) {
+        TVector3 vec( point3d[0], point3d[1], point3d[2] );
+        lltrack.add_vertex( vec );
+        if ( istep+1<(int)track3d.path3d.size() ) {
+          TVector3 dir( track3d.path3d.at(istep+1)[0]-point3d[0], track3d.path3d.at(istep+1)[1]-point3d[1], track3d.path3d.at(istep+1)[2]-point3d[2] );
+          lltrack.add_direction( dir );
+        }
+        else {
+          TVector3 dir( point3d[0]-track3d.path3d.at(istep-1)[0], point3d[1]-track3d.path3d.at(istep-1)[1], point3d[2]-track3d.path3d.at(istep-1)[2] );
+          lltrack.add_direction( dir );
+        }
+      }
+      std::cout <<  "storing StopMu 3D track with " << lltrack.NumberTrajectoryPoints() << " trajectory points" << std::endl;
+      ev_tracks->emplace_back( std::move(lltrack) );
+    }
+
     // output: stopmu-tagged pixels
+    // use pixel2dclusters to fill out image
     std::vector<larcv::Image2D> stopmu_v;
     for (size_t p=0; p<img_v.size(); p++) {
       larcv::Image2D stopmu_img( img_v.at(p).meta() );
       stopmu_img.paint(0);
       stopmu_v.emplace_back( std::move(stopmu_img) );
     }
-    // output: pixel clusters for eah stopmu track
-    larcv::EventPixel2D* ev_stopmu_pixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "stopmupixels" );
-    // output: 3D trajectory points from stopmu tracker
-    larlite::event_track* ev_stopmu_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "stopmutracks" );
+    for ( size_t itrack=0; itrack<tracks3d.size(); itrack++ ) {
+      const larlitecv::BMTrackCluster3D& track3d = tracks3d.at(itrack);
+      for (size_t p=0; p<stopmu_v.size(); p++) {
+        const larcv::Pixel2DCluster& trackpixs = track3d.plane_paths.at(p).pixelpath;
+        for ( auto const& pix : trackpixs ) {
+          stopmu_v.at(p).set_pixel( pix.Y(), pix.X(), 255 );
+        }
+      }
+    }
 
-    // --------------------------------------------
-    // Algo Prep
-    std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpts = stopmu_filterpts.filterSpacePoints( ev_pixs, thrumu_v, badch_v );
-    std::cout << " Number of candidate stop-mu start points: " << stopmu_candidate_endpts.size() << std::endl;
-
-    smcluster.extractBaseClusters( img_v, thrumu_v, stopmu_candidate_endpts );
-    smcluster.findClusterLinks();
-    smcluster.findStopMuTrack( img_v, gapchimgs_v, thrumu_v, stopmu_candidate_endpts );
-
-    std::stringstream ss;
-    ss << "smcluster_" << ientry << "_r" << run << "_s" << subrun << "_e" << event;
-    smcluster.saveClusterImageOCV( ss.str() );
- 
     larcv::EventImage2D* stopmu_eventimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmu" );
     stopmu_eventimgs->Emplace( std::move(stopmu_v) );
-    
+
+    // finally, store 2D pixels
+    larcv::EventPixel2D* ev_stopmupixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "stopmupixels" );
+    for ( size_t itrack=0; itrack<tracks3d.size(); itrack++ ) {
+      larlitecv::BMTrackCluster3D& track3d = tracks3d.at(itrack);
+      std::vector< larlitecv::BMTrackCluster2D >& trackpixs_v = track3d.plane_paths;
+      for (size_t p=0; p<trackpixs_v.size(); p++) {
+        larcv::Pixel2DCluster& trackpixs = trackpixs_v.at(p).pixelpath;
+        larcv::Pixel2DCluster stored;
+        std::swap( stored, trackpixs );
+        ev_stopmupixels->Emplace( (larcv::PlaneID_t)p, std::move(stored) );
+      }
+    }
+
     dataco.save_entry();
 
     //if ( ientry>=10 )

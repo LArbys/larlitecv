@@ -144,7 +144,9 @@ namespace larlitecv {
 
   };
 
-	//LATTICE DEFINITION
+  typedef std::vector< std::vector<AStar3DNode> > PathList_t;      
+
+  //LATTICE DEFINITION
   typedef std::pair< A3DPixPos_t, AStar3DNode* > a3dpos_pair_t;
 
   class Lattice : public std::map< A3DPixPos_t, AStar3DNode* > {
@@ -239,6 +241,8 @@ namespace larlitecv {
     AStar3DAlgoConfig() {
       astar_start_padding = 0;
       astar_end_padding = 0;
+      restrict_path = false;
+      path_restriction_radius = 10.0;   
     };
     virtual ~AStar3DAlgoConfig() {};
 
