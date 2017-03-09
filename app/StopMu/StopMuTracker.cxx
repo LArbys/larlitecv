@@ -300,7 +300,7 @@ namespace larlitecv {
 			       std::vector< std::pair<int,double> >& hitlist, const int max_nhits, const int ignore_marked ) const {
 
     struct mycompare_t {
-#if __GNUC__      
+#if __GNUC__ >= 6
       bool operator() ( std::pair<int,double>& lhs, std::pair<int,double>& rhs ) { 
         if ( lhs.second<rhs.second ) 
           return true;
