@@ -28,6 +28,12 @@ namespace larlitecv {
     DataCoordinator();
     virtual ~DataCoordinator();
 
+  private:
+    // prevent copy and copy asignment
+    DataCoordinator( const DataCoordinator& );
+    DataCoordinator& operator=(const DataCoordinator&);
+
+  public:
     // get iomans
     larlite::storage_manager& get_larlite_io() { return larlite_io; };
     larcv::IOManager&         get_larcv_io()   { return larcv_io; };

@@ -15,6 +15,7 @@
 // larcv data
 #include "DataFormat/EventImage2D.h"
 #include "DataFormat/EventPixel2D.h"
+#include "DataFormat/EventROI.h"
 
 // ROOT includes
 #include "TRandom3.h"
@@ -24,26 +25,35 @@ int main( int nargs, char** argv ) {
   
   std::cout << "[Example LArCV and LArLite Data Access]" << std::endl;
   
-  // configuration
+  // parse configuration file
+  // -------------------------
+  // get file-level configuration parameter set
   larcv::PSet cfg = larcv::CreatePSetFromFile( "config.cfg" );
+  // get main PSet
   larcv::PSet exconfig = cfg.get<larcv::PSet>("ExampleConfigurationFile");
+  // get name of tree that stores Image2D
   std::string larcv_image_producer = exconfig.get<std::string>("InputLArCVImages");
   
   // Configure Data coordinator
+  // --------------------------
   larlitecv::DataCoordinator dataco;
 
-  // you can get example data files from: /uboone/data/users/tmw/tutorials/larlitecv_example/
+  // you can get example data files from: uboonegpvm0X:/uboone/data/users/tmw/tutorials/larlitecv_example/
 
   // larlite
   dataco.add_inputfile( "larlite_opreco_0000.root", "larlite" );
   // larcv
   dataco.add_inputfile( "supera_data_0000.root", "larcv" );
 
-  // configure
+  // configure the data coordinator
   dataco.configure( "config.cfg", "StorageManager", "IOManager", "ExampleConfigurationFile" );
   
   // initialize
   dataco.initialize();
+
+  // Output
+  // ------
+  // Note that output files are specified in config.cfg and get setup by the data coordinator during initialize()
 
 
   // Start Event Loop
@@ -60,7 +70,7 @@ int main( int nargs, char** argv ) {
     // --------------------------------------------------------
     // example operating and creating larcv Image2D objects
 
-    // get images (from larcv)
+    // get input images (from larcv)
     larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, larcv_image_producer );
     std::cout << "get data: number of images=" << event_imgs->Image2DArray().size() << std::endl;
     const std::vector<larcv::Image2D>& img_v = event_imgs->Image2DArray();
@@ -70,11 +80,33 @@ int main( int nargs, char** argv ) {
 	      << std::endl;
     std::cout << " a pixel and its value: " << img_v.at(0).pixel(10,10) << std::endl;
     
-    // make a container for some new images to output
+    // make a container to hold our new images to output
     std::vector< larcv::Image2D > output_container;
 
-    // make a pixel2D event container to output hits
-    larcv::EventPixel2D* event_pixel2d = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "hits" );
+    // Output Event Containers
+    // ------------------------
+    // We pass in objects we want to write to file into these Event containers.  These get added to the ROOT tree and saved to disk when we call save() later.
+    // note that "hits", "rando", and "outroi" will name the TTree that our objects get saved to. You can name these trees as desired.
+    // they will show up in the root file as:
+    //   TTree* image2d_rando_tree;
+    //   TTree* pixel2d_hits_tree;
+    //   TTree* partroi_outroi_tree;
+    
+    // make a pixel2D event container to output hits to file
+    larcv::EventPixel2D* event_pixel2d  = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "hits" );
+
+    // make the output event container
+    larcv::EventImage2D* out_event_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "rando" ); // rando matches output list
+    out_event_imgs->Emplace( std::move( output_container ) );
+
+    // make output container for ROI objects
+    larcv::EventROI* out_event_roi      = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "outroi" ); 
+    
+
+    // Do some stuff with a LArCV Image2D object
+    // -------------------------------------------
+
+    // this is an example, showing some operations we can do with the image: how to access and asign values to the pixels in an image.
 
     // we iterate through the images
     for ( auto &img : event_imgs->Image2DArray() ) {
@@ -98,10 +130,16 @@ int main( int nargs, char** argv ) {
       output_container.emplace_back( std::move(newimg) ); // we use emplace and move so that we avoid making a copy
     }
 
+    // Make an ROI object
+    // ------------------
+
+    // create a vector to hold our ROIs
+    std::vector<larcv::ROI> outroi_v;
+    larcv::ROI anewroi( larcv::kROIBNB ); // arbitrary ROI given a BNB label, ROIType_t. (You can find labels in $LARCV_BASEDIR/core/DataFormat/DataFormatTypes.h)
+    outroi_v.emplace_back( std::move(anewroi) );
+    // put it into the container
+    out_event_roi->Emplace( std::move(outroi_v) );
     
-    // make the output event container
-    larcv::EventImage2D* out_event_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "rando" ); // rando matches output list
-    out_event_imgs->Emplace( std::move( output_container ) );
 
     // --------------------------------------------------------
     // example of using larlite data: we're going to loop through some opflashes
