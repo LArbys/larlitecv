@@ -23,7 +23,7 @@
 #include "CVUtil/CVUtil.h"
 
 // larlitecv
-#include "ThruMu/EmptyChannelAlgo.h"
+#include "GapChs/EmptyChannelAlgo.h"
 
 // larlite/stopmu
 #include "StopMuAlgoTypes.h"

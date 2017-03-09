@@ -19,7 +19,7 @@
 #include "dbscan/DBSCANAlgo.h"
 
 // larlitecv
-#include "ThruMu/EmptyChannelAlgo.h"
+#include "GapChs/EmptyChannelAlgo.h"
 
 #include "StopMuAlgo.h"
 
