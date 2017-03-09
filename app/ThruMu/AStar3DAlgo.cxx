@@ -146,8 +146,10 @@ namespace larlitecv {
                   << "node->(" << goalnode[0] << "," << goalnode[1] << "," << goalnode[2] << ")" << std::endl;
       throw std::runtime_error("Was not able to produce a valid goal node.");
     }
-    else
-      std::cout << "Goal Node: " << goal->str() << std::endl;
+    else {
+      if ( verbose>0 )
+        std::cout << "Goal Node: " << goal->str() << " within-image=" << goal->within_image << std::endl;
+    }
 
     // make starting node (window coordinates)
     AStar3DNode* start = lattice.getNode( startpos );
@@ -227,12 +229,12 @@ namespace larlitecv {
       }
           
 
-      if ( verbose>3 || nsteps%100==0 ) {
+      if ( verbose>3 || (verbose>0 && nsteps%100==0) ) {
         std::cout << "in openset: " << openset.size() << std::endl;
         std::cout << "in closedset: " << closedset.size() << std::endl;
         std::cout << "fracion of max visited: " << float(closedset.size())/float(max_nelements) << std::endl;
         std::cout << "step " << nsteps << ". [enter] to continue." << std::endl;
-        if ( verbose>3 )
+        if ( verbose>4 )
           std::cin.get();
       }
       //std::cin.get();      
@@ -272,8 +274,9 @@ namespace larlitecv {
 
     std::cout << "nsteps: " << nsteps << std::endl;
     std::cout << "path length: " << path.size() << std::endl;
-    for ( auto& node : path ) {
-      std::cout << " " << node.str() << " pixval=(" << node.pixval[0] << "," << node.pixval[1] << "," << node.pixval[2] << ")" << std::endl;
+    if ( verbose>0 ) {
+      for ( auto& node : path )
+        std::cout << " " << node.str() << " pixval=(" << node.pixval[0] << "," << node.pixval[1] << "," << node.pixval[2] << ")" << std::endl;
     }
 
 
@@ -333,14 +336,16 @@ namespace larlitecv {
         << "img pos: (r=" << neighbor_node->row << "," << neighbor_node->cols[0] << "," << neighbor_node->cols[1] << "," << neighbor_node->cols[2] << ") "
         << "within_image=" << neighbor_node->within_image 
         << " closed=" << neighbor_node->closed 
-        << " badchnode=" << neighbor_node->badchnode
-        << std::endl;
+        << " badchnode=" << neighbor_node->badchnode;
     }
 
-    if ( neighbor_node->closed )
+    if ( neighbor_node->closed ) {
+      if (verbose>3) std::cout << std::endl;
       return false; // don't reevaluate a closed node
+    }
  
     if ( !neighbor_node->within_image )  {
+      if (verbose>3) std::cout << std::endl;
       neighbor_node->closed = true;
       closedset.addnode(neighbor_node);
       return false; // clearly not worth evaluating
@@ -355,12 +360,18 @@ namespace larlitecv {
         if ( abs( neighbor_node->cols[p] - start->cols[p])<_config.astar_start_padding ) {
           planes_within_pad++;
         }
+        else if ( abs( neighbor_node->cols[p] - goal->cols[p]) < _config.astar_end_padding ) {
+          planes_within_pad++;
+        }
         else {
           break;
         }
       }
       if ( planes_within_pad==nplanes )
         within_pad = true;
+    }
+    if ( verbose>3 ) {
+      std::cout << " within_pad=" << within_pad;
     }
 
     // is this neighbor the goal? we need to know so we can always include it as a possible landing point, even if in badch region.
@@ -395,22 +406,28 @@ namespace larlitecv {
         pixval.at(p) = -1.0;
       }
     }
+    if ( verbose>3 ) {
+      std::cout << " nplanes_abovethreshold_or_bad=" << nplanes_abovethreshold_or_bad;
+    }    
           
     // the criteria for NOT evaluating this node
     if ( !_config.accept_badch_nodes && !within_pad && !isgoal && ( nplanes_abovethreshold_or_bad<3 || nplanes_bad>1 ) ) {
       // the most basic criteria
       neighbor_node->closed = true; // we close this node as its not allowed
       closedset.addnode( neighbor_node);
+      if ( verbose>3 ) std::cout << " closed by criteria-1" << std::endl;
       return false; // skip if below threshold
     }
     if ( _config.accept_badch_nodes && !within_pad && !isgoal && nplanes_abovethreshold_or_bad<_config.min_nplanes_w_hitpixel ) {
       neighbor_node->closed = true; // we close this node as it won't be used
       closedset.addnode( neighbor_node );
+      if ( verbose>3 ) std::cout << " closed by criteria-2" << std::endl;      
       return false;
     }
-    if ( _config.restrict_path && _config.path_restriction_radius<distanceFromCentralLine( start->tyz, goal->tyz, neighbor_node->tyz ) ) {
-      neighbor_node->closed = true;
+    if ( !isgoal && _config.restrict_path && _config.path_restriction_radius<distanceFromCentralLine( start->tyz, goal->tyz, neighbor_node->tyz ) ) {
+      neighbor_node->closed = true;      
       closedset.addnode( neighbor_node );
+      if ( verbose>3 ) std::cout << " closed by criteria-3" << std::endl;      
       return false;
     }
 
@@ -426,6 +443,7 @@ namespace larlitecv {
 
     if ( !neighbor_node->inopenset )
       openset.addnode( neighbor_node ); // add to openset if not on closed set nor is already on openset
+    if ( verbose>3 ) std::cout << " added to openset." << std::endl;
 
     // how many past nodes in a row are bad?
     int npast_badnodes = 0;
@@ -500,8 +518,12 @@ namespace larlitecv {
     float fscore = gscore + hscore;
     float kscore = curvature_cost;
 
-    // is this gscore better than the current one (or is it unassigned?)
-    if ( (neighbor_node->fscore==0 || neighbor_node->fscore>fscore) && npast_badnodes<10) {
+    if ( isgoal )
+      std::cout << "ISGOAL!" << std::endl;
+
+    // is this gscore better than the current one (or is it unassigned?) (or is the goal)
+    if ( isgoal || 
+         ((neighbor_node->fscore==0 || neighbor_node->fscore>fscore) && npast_badnodes<10) ) {
       // update the neighbor to follow this path 
       if ( verbose>2 )
         std::cout << "  updating neighbor to with better path: from f=" << neighbor_node->fscore << " g=" << neighbor_node->gscore 
@@ -511,6 +533,8 @@ namespace larlitecv {
       neighbor_node->gscore = gscore;
       neighbor_node->kscore = kscore;
       neighbor_node->pixval = pixval;
+      if ( isgoal )
+        neighbor_node->fscore = 0;
       //neighbor_node->dir3d = dir3d; not implemented yet
       return true;
     }
