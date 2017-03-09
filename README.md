@@ -4,7 +4,7 @@ Analysis processor framework for working with LArLite and LArCV data
 
 `larlitecv` attempts to provide some tools to synchronize input from larlite and larcv data files.  What exists now is a `DataCoordinator` class which allows one to get the right larlite and larcv data entry using run, subrun, and event values.  Hopefully sometime in the near future, support for larlite `ana_processor` and larcv `processmanager` will be added.
 
-## Muon Tagger Branch
+### Muon Tagger Branch
 
 This branch contains the muon-tagger code.
 
@@ -12,7 +12,7 @@ This branch contains the muon-tagger code.
 * app/StopMu: tags stopping muon tracks using single boundary end points. relies on output of ThruMu code
 * app/ContainedROI: finds contained ROI tracks. uses output of StopMu code
 
-# Installation
+## Installation
 
 larlitecv has the following required dependencies:
 
@@ -125,8 +125,7 @@ This will make a new folder, `app/test`, which provides
 
 You should be able to run `make` in this folder
 
-
-# Running the code
+## Running the code
 
 Each portion of the cosmic muon tagger/contained ROI selection has its own binary
 
@@ -136,9 +135,9 @@ Each portion of the cosmic muon tagger/contained ROI selection has its own binar
 
 You will find READMEs for each (describing how to run them) in their respective `bin` folders.
 
-# Notes: To do/where things can improve
+## Notes: To do/where things can improve
 
-## ThruMu
+### ThruMu
 
 * first pass for through-going muons should rely on simple straight line (in 3D) fitter. Pairs of end points and the pixels between them should be tagged.  Then A* algorithm can work on images where obvious straight through-going muons have been removed [done.]
 * path restriction to avoid wildly deviant paths [done. didn't do much.]
@@ -154,13 +153,13 @@ You will find READMEs for each (describing how to run them) in their respective 
     * Maybe find sharp turns.
     * Fix bulges.
 
-## StopMu
+### StopMu
 
 * stop-mu tagger gets stuck while trying to cross thru-mu tagged pixels [addressed]
 * an idea is to iteratively find extrema points on the cluster and then use the 3D A* to fit path [done]
 * if 3D A* applied, then can have 3D space points to make better flash hypothesis for matching [done]
 
-## Contained ROI Selection
+### Contained ROI Selection
 
 * We want to incorporate 3D constraints on cluster location. This is a bit harder because we do not have information like a good, trustworthy 3D spacepoint or aprior knowledge of the cluster shape.
 * Approach is to cluster separately on each plane. Also probably want to form cluster groups as well

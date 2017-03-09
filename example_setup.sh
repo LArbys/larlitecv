@@ -2,9 +2,10 @@
 MY_LARLITE=/Users/twongjirad/working/uboone/larlite
 MY_LARCV=/Users/twongjirad/working/larbys/LArCV
 
-# Set these to use OpenCV. Needed by StopMu Tagger
-#export OPENCV_INCDIR=/usr/local/include
+# OPTIONAL: SPECIFY LOCATION OF OPENCV library and include directories
+# This affects LArCV compilation
 #export OPENCV_LIBDIR=/usr/local/lib
+#export OPENCV_INCDIR=/usr/local/include
 
 #SETUP LARLITE
 cd $MY_LARLITE/config
