@@ -12,6 +12,9 @@ This branch contains the muon-tagger code.
 * app/StopMu: tags stopping muon tracks using single boundary end points. relies on output of ThruMu code
 * app/ContainedROI: finds contained ROI tracks. uses output of StopMu code
 
+Slides summarizing the algorithms can be found on the [uboone docdb](
+http://microboone-docdb.fnal.gov:8080/cgi-bin/ShowDocument?docid=7390)
+
 ## Installation
 
 larlitecv has the following required dependencies:
