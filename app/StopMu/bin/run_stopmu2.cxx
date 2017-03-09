@@ -124,8 +124,9 @@ int main( int nargs, char** argv ) {
     int run,subrun,event;
     dataco.get_id(run,subrun,event);
     
-    larcv::EventImage2D* imgs            = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "modimgs" );
-    larcv::EventImage2D* marked3d        = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "marked3d" );
+    larcv::EventImage2D* imgs            = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, stopmu_cfg.get<std::string>("InputLArCVImages") );
+    larcv::EventImage2D* marked3d        = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, stopmu_cfg.get< std::vector<std::string> >("ThruMuLabeledImagesProducer").front() );
+    // later fix this so multiple sets of tagged images can be used
     //larcv::EventROI* rois                = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "tpc" );
     
     // make the bad channel image
