@@ -298,12 +298,21 @@ namespace larlitecv {
 
   void Hit2DList::closestHits( std::vector<double>& test_pos, const larcv::ImageMeta& meta, const float cm_per_tick, const float cm_per_wire,
 			       std::vector< std::pair<int,double> >& hitlist, const int max_nhits, const int ignore_marked ) const {
+
     struct mycompare_t {
+#if __GNUC__      
       bool operator() ( std::pair<int,double>& lhs, std::pair<int,double>& rhs ) { 
-	if ( lhs.second<rhs.second ) 
-	  return true;
-	return false;
+        if ( lhs.second<rhs.second ) 
+          return true;
+        return false;
       }
+#else
+      bool operator() ( std::pair<int,double> lhs, std::pair<int,double> rhs ) { 
+        if ( lhs.second<rhs.second ) 
+          return true;
+        return false;
+      }      
+#endif
     } mycompare;
 
     hitlist.clear();
