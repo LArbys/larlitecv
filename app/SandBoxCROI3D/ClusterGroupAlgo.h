@@ -9,6 +9,15 @@
 
 #include "dbscan/DBSCANAlgo.h"
 
+// OpenCV
+#ifndef __CINT__
+#ifdef USE_OPENCV
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include "CVUtil/CVUtil.h"
+#endif
+#endif
+
 namespace larlitecv {
 
   // Data Product Representing a group of clusters
@@ -33,6 +42,7 @@ namespace larlitecv {
     ClusterGroup() {};
     virtual ~ClusterGroup() {};
 
+    std::vector<int> m_cluster_indices;
     std::vector<larcv::Pixel2DCluster> m_clusters_v;   //< list of clusters in the group
     std::vector< dbscan::ClusterExtrema > m_extrema_v; //< list of cluster extrema    
     std::vector< ClusterLink > m_links_v;              //< list of links between the cluster groups (links extrema)
@@ -63,7 +73,7 @@ namespace larlitecv {
      : m_config(config) {};
     virtual ~ClusterGroupAlgo() {};
 
-    std::vector<ClusterGroup> MakeClusterGroups( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+    std::vector<std::vector<ClusterGroup> > MakeClusterGroups( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
       const std::vector<larcv::Image2D>& tagged_v );
 
 
@@ -79,7 +89,8 @@ namespace larlitecv {
       std::vector< std::vector<larcv::Pixel2DCluster> >  plane_clusters_v;
       std::vector< std::vector<dbscan::ClusterExtrema> > plane_extrema_v;
       std::vector< std::vector<ClusterLink> >            plane_links_v;
-      std::vector< const ClusterLink* >                  GetClusterLinks( int plane, const larcv::Pixel2DCluster* pixcluster );
+      std::vector< std::vector<ClusterGroup > >          plane_groups_v;
+      std::vector< ClusterLink* >                  GetClusterLinks( int plane, const larcv::Pixel2DCluster* pixcluster );
     };
 
     void MakeUntaggedImages( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
@@ -91,8 +102,15 @@ namespace larlitecv {
 
     void AssembleClusterGroups( AlgoData_t& data );
 
-    void getNextLinkedCluster( AlgoData_t& data, const int& plane, std::vector<const larcv::Pixel2DCluster* >& cluster_history, 
-      std::set<const larcv::Pixel2DCluster* >& clustergroup, std::vector< const ClusterLink* >& used_links );  
+    void getNextLinkedCluster( AlgoData_t& data, const int& plane, std::vector< const larcv::Pixel2DCluster* >& cluster_history, 
+      std::set< const larcv::Pixel2DCluster* >& clustergroup, std::vector< ClusterLink* >& used_links ); 
+
+#ifndef __CINT__
+#ifdef USE_OPENCV
+    std::vector<cv::Mat> makeBaseClusterImageOCV( const AlgoData_t& data, const std::vector<larcv::Image2D>& img_v, 
+      const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v );
+#endif
+#endif
 
   };
 

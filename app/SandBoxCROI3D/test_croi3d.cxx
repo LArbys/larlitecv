@@ -38,7 +38,7 @@ int main( int nargs, char** argv ) {
     for ( size_t r=0; r<sub.meta().rows(); r++ ) {
       for ( size_t c=0; c<sub.meta().cols(); c++ ) {
       	float val = sub.pixel(r,c);
-      	if ( thrumu_v.at(p).pixel(r,c)>0 || stopmu_v.at(p).pixel(r,c)>0 ) {
+      	if ( val<10.0 || thrumu_v.at(p).pixel(r,c)>0 || stopmu_v.at(p).pixel(r,c)>0 ) {
       	  val = 0.0;
       	}
       	sub.set_pixel(r,c,val);
@@ -51,10 +51,27 @@ int main( int nargs, char** argv ) {
     subimg_v.emplace_back( std::move(sub) );
   }
 
+  // form tagged image
+  std::vector< larcv::Image2D > tagged_v;
+  for ( size_t p=0; p<img_v.size(); p++) {
+    larcv::Image2D tagged( img_v.at(p).meta() );
+    tagged.paint(0.0);
+    for ( size_t r=0; r<tagged.meta().rows(); r++ ) {
+      for ( size_t c=0; c<tagged.meta().cols(); c++ ) {
+      	if ( thrumu_v.at(p).pixel(r,c)>0 || stopmu_v.at(p).pixel(r,c)>0 )
+          tagged.set_pixel(r,c,255);
+      }
+    }
+    tagged_v.emplace_back( std::move(tagged) );
+  }  
+
   larlitecv::ClusterGroupAlgoConfig config;
+  config.dbscan_cluster_minpoints = 20;
+  config.max_link_distance = 300.0;
+  config.min_link_cosine = 0.9;
   larlitecv::ClusterGroupAlgo cluster_algo(config);
 
-  cluster_algo.MakeClusterGroups( img_v, gapchs_v, subimg_v );
+  cluster_algo.MakeClusterGroups( img_v, gapchs_v, tagged_v );
 
   return 0;
 }
