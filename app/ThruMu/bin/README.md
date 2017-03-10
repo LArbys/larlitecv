@@ -1,5 +1,11 @@
 # Running the Through-going Muon Tagger
 
+## Building
+
+If larlitecv is built and the environment is setup type
+
+    make
+
 ## Inputs
 
 One needs a larlite and larcv file.
@@ -20,6 +26,18 @@ An example configuration file can be found in `bmt.cfg`.
 
 ### Parameters to setup before running
 
+  * Set `IOManager:ReadOnlyDataName`. This is a list of trees that the LArCV IO manager will read it. If blank, all trees are loaded from disk for each event. But to save time, one can choose which trees should be loaded.  See below on how to pick which trees to load.  You'll want the `Image2D` tree that contains the TPC images. Leave this blank if unsure.
+  * Set`'IOManager:ReadOnlyDataType`. This pairs with the above variable, tellingn the IO Manager what kind of data is stored in the tree. The data types are:
+
+       0: `Image2D`
+       1: `ROI`
+       2: `ChStatus`
+       3: `Pixel2DCluster`
+
+    The length of this list should match that of `IOmanager:ReadOnlyDataName`.
+
+  * Set `StorageManager:ReadOnlyProducers`. This does the same thing as `IOManager:ReadOnlyDataName` except for larlite data trees.
+  * Set `StorageManager:ReadOnlyDataTypes`. This does the same thing as `IOManager:ReadOnlyDataType` except for larlite data trees. One specifies the data type by a string containing the class name. For example to load a `larlite::opflash` data tree, provide "opflash". The length of this list should match that of `StorageManager:ReadOnlyProduers`.
   * Set `InputLArCVImages` to the name of the TPC `Image2D` branch
   * Set the list of opflash tree names in `BMTFlashTagger:OpflashProducers` (e.g. `["simpleFlashBeam","simpleFlashCosmic"]`)
   * The output larcv file name is set in `IOManager:OutFileName`
