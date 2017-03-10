@@ -17,6 +17,17 @@ An example configuration file can be found in `smc.cfg`.
 
 ### Parameters to setup before running
 
+  * Set `IOManager:ReadOnlyDataName`. This is a list of trees that the LArCV IO manager will read it. If blank, all trees are loaded from disk for each event. But to save time, one can choose which trees should be loaded.  See below on how to pick which trees to load.  You'll want the `Image2D` tree that contains the TPC images. Leave this blank if unsure.
+  * Set`'IOManager:ReadOnlyDataType`. This pairs with the above variable, tellingn the IO Manager what kind of data is stored in the tree. The data types are:
+
+       0: `Image2D`
+       1: `ROI`
+       2: `ChStatus`
+       3: `Pixel2DCluster`
+
+    The length of this list should match that of `IOmanager:ReadOnlyDataName`.
+
+  * Set `StorageManager:ReadOnlyProducers`. This does the same thing as `IOManager:ReadOnlyDataName` except for larlite data trees.
   * `InputLArCVImages`: name of tree that contains the TPC images
   * `LArCVInputList`: text file with list of paths to larcv files
   * `LArLiteInputList:`: test file with list of paths to larlite files (not really needed)
