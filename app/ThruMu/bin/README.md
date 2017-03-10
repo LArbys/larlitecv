@@ -27,12 +27,12 @@ An example configuration file can be found in `bmt.cfg`.
 ### Parameters to setup before running
 
   * Set `IOManager:ReadOnlyDataName`. This is a list of trees that the LArCV IO manager will read it. If blank, all trees are loaded from disk for each event. But to save time, one can choose which trees should be loaded.  See below on how to pick which trees to load.  You'll want the `Image2D` tree that contains the TPC images. Leave this blank if unsure.
-  * Set`'IOManager:ReadOnlyDataType`. This pairs with the above variable, tellingn the IO Manager what kind of data is stored in the tree. The data types are:
+  * Set`IOManager:ReadOnlyDataType`. This pairs with the above variable, tellingn the IO Manager what kind of data is stored in the tree. The data types are:
 
-       0: `Image2D`
-       1: `ROI`
-       2: `ChStatus`
-       3: `Pixel2DCluster`
+        0: `Image2D`
+        1: `ROI`
+        2: `ChStatus`
+        3: `Pixel2DCluster`
 
     The length of this list should match that of `IOmanager:ReadOnlyDataName`.
 
@@ -125,11 +125,11 @@ In this example, entries number 0 to 9 (inclusive) will be run.
 
   * Sample of MC cosmic + MC nue between [200,600] MeV (on the FNAL system)
 
-      /uboone/data/users/tmw/dl/test_samples/premcc8_nue
+        /uboone/data/users/tmw/dl/test_samples/premcc8_nue
 
   * Sample of MC cosmic + MC numu between [200,600] MeV (on the FNAL system)
 
-      /uboone/data/users/tmw/dl/test_samples/premcc8_numu
+        /uboone/data/users/tmw/dl/test_samples/premcc8_numu
 
 ## Other Parameter Descriptions
 
