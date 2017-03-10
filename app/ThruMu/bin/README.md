@@ -1,5 +1,11 @@
 # Running the Through-going Muon Tagger
 
+## Building
+
+If larlitecv is built and the environment is setup type
+
+    make
+
 ## Inputs
 
 One needs a larlite and larcv file.
