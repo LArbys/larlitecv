@@ -25,7 +25,7 @@ CORE_SUBDIRS := Hashlib2plus Base
 #  CORE_SUBDIRS += CVUtil
 #endif
 
-APP_SUBDIRS := GapChs ThruMu StopMu ContainedROI SandBoxCROI3D
+APP_SUBDIRS := GapChs ThruMu StopMu ContainedROI
 
 .phony: all clean
 
