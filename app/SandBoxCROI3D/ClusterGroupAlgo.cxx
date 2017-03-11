@@ -48,9 +48,9 @@ namespace larlitecv {
     for (size_t p=0; p<img_v.size(); p++) {
       for (size_t ig=0; ig<data.plane_groups_v.at(p).size(); ig++) {
         std::cout << "Plane " << p << " Group #" << ig << ", " << data.plane_groups_v.at(p).at(ig).m_cluster_indices.size() << " clusters: ";
-        // for ( auto& idx : data.plane_groups_v.at(p).at(ig).m_cluster_indices ) {
-        //   std::cout << idx << " ";
-        // }
+        for ( auto& idx : data.plane_groups_v.at(p).at(ig).m_cluster_indices ) {
+           std::cout << idx << " ";
+        }
         std::cout << std::endl;
       }
     }
@@ -276,6 +276,17 @@ namespace larlitecv {
             used_cluster_indices.insert(idx);
           }
         }
+
+        // determine time span
+        cgroup.tick_start = -1;
+        cgroup.tick_end   = -1;
+        for ( auto const& ex : cgroup.m_extrema_v ) {
+          if ( cgroup.tick_start<0 || cgroup.tick_start>ex.topmost()[1] )
+            cgroup.tick_start = ex.topmost()[1];
+          if ( cgroup.tick_end<0 || cgroup.tick_end<ex.bottommost()[1] )
+            cgroup.tick_end = ex.bottommost()[1];
+        }
+        cgroup.tick_width = cgroup.tick_end - cgroup.tick_start;
 
         // pass on the links
         for ( auto & plink : used_links ) {

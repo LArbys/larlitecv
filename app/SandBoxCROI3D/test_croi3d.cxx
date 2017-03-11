@@ -11,6 +11,7 @@
 #include "CVUtil/CVUtil.h"
 
 #include "ClusterGroupAlgo.h"
+#include "ClusterGroupMatchingAlgo.h"
 
 int main( int nargs, char** argv ) {
 
@@ -71,7 +72,10 @@ int main( int nargs, char** argv ) {
   config.min_link_cosine = 0.9;
   larlitecv::ClusterGroupAlgo cluster_algo(config);
 
-  cluster_algo.MakeClusterGroups( img_v, gapchs_v, tagged_v );
+  std::vector< larlitecv::PlaneClusterGroups > plane_groups = cluster_algo.MakeClusterGroups( img_v, gapchs_v, tagged_v );
+
+  larlitecv::ClusterGroupMatchingAlgo matcher;
+  matcher.MatchClusterGroups( plane_groups );
 
   return 0;
 }

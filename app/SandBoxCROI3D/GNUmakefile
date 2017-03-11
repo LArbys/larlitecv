@@ -20,8 +20,10 @@ CXXFLAGS += $(shell larcv-config --includes)/../app
 CXXFLAGS += $(shell larcv-config --includes)/../app/ANN
 CXXFLAGS += $(shell larlitecv-config --includes)
 CXXFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
+ifeq ($(LARCV_OPENCV),1)
+CXXFLAGS += -I$(OPENCV_INCDIR) -DUSE_OPENCV
+endif
 INCFLAGS = $(CXXFLAGS)
-
 
 # platform-specific options
 OSNAME          = $(shell uname -s)
@@ -47,9 +49,9 @@ pkg_clean:
 
 all: $(PROGRAMS)
 
-$(PROGRAMS): $(LARLITECV_BUILDDIR)/lib/liblarlitecv.so
+%: %.cxx $(LARLITECV_BUILDDIR)/lib/liblarlitecv.so
 	make --directory=$(LARLITECV_BASEDIR)
-	@echo '<<compiling' $@'>>'
+	@echo '<< x compiling x' $@'>>'
 	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS)
 	@rm -rf *.dSYM
 

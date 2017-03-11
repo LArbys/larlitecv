@@ -46,8 +46,13 @@ namespace larlitecv {
     std::vector<larcv::Pixel2DCluster> m_clusters_v;   //< list of clusters in the group
     std::vector< dbscan::ClusterExtrema > m_extrema_v; //< list of cluster extrema    
     std::vector< ClusterLink > m_links_v;              //< list of links between the cluster groups (links extrema)
+    float tick_width; //< tick span
+    float tick_start;
+    float tick_end;
 
   };
+
+  typedef std::vector<ClusterGroup> PlaneClusterGroups;
 
   class ClusterGroupAlgoConfig {
   public:
