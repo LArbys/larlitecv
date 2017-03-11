@@ -1,4 +1,5 @@
 #include "ClusterGroupMatchingAlgo.h"
+#include "Combinator/Combinator.h"
 
 namespace larlitecv {
 
@@ -21,44 +22,11 @@ namespace larlitecv {
 		// make pre-matches
 		// factorial fun!
 
-		struct IndexCombo_t {
-			std::vector<int> combo;
-			const std::vector<int> nelems;
-			IndexCombo_t( const std::vector<int>& size_per_dim ) 
-			  : nelems(size_per_dim) {
-				combo.resize( nelems.size(), 0 );
-			};
-			bool isLast() {
-				for (size_t p=0; p<nelems.size(); p++) {
-					if ( combo[p]!=nelems[p]-1 ) 
-						return false;
-				}
-				return true;
-			};
-			bool next() {
-				if ( isLast() ) return true; // prevent moving further
-				for ( size_t p=0; p<nelems.size(); p++) {
-					combo[p]++;
-					if ( combo[p]<nelems[p] )
-						break;
-					else
-						combo[p] = 0;
-					// reset this value, move to next dim
-				}
-				return isLast();
-			};
-			int operator()(int i) {
-				return combo[i];
-			};
-		};
-
-		std::vector<int> ngroups_per_plane( plane_groups.size() );
-		for ( size_t p=0; p<plane_groups.size(); p++)
-			ngroups_per_plane[p] = plane_groups.at(p).size();
-		IndexCombo_t combo( ngroups_per_plane );
+		Combinator< ClusterGroup > combo( plane_groups );
 
 		while ( !combo.isLast() ) {
-			PreMatchMetric_t prematch( plane_groups.at(0).at(combo(0)), plane_groups.at(1).at(combo(1)), plane_groups.at(1).at(combo(2)) );
+			std::vector< const ClusterGroup* > groupcombo = combo.getCombo();
+			PreMatchMetric_t prematch( *groupcombo[0], *groupcombo[1], *groupcombo[2] );
 			data.prematch_combos_v.emplace_back( std::move(prematch) );
 			combo.next();
 		}
