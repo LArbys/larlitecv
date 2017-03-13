@@ -10,8 +10,8 @@
 #include <opencv2/opencv.hpp>
 #include "CVUtil/CVUtil.h"
 
-#include "ClusterGroupAlgo.h"
-#include "ClusterGroupMatchingAlgo.h"
+#include "UntaggedClustering/ClusterGroupAlgo.h"
+#include "UntaggedClustering/ClusterGroupMatchingAlgo.h"
 
 #include "TRandom.h"
 
