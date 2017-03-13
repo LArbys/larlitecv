@@ -12,6 +12,7 @@ namespace larlitecv {
     max_link_distance        = 300.0;
     min_link_cosine          = 0.9;
     single_cluster_group_min_npoints = 100;
+    save_jpg_images          = false;
   }
 
   ClusterGroupAlgoConfig ClusterGroupAlgoConfig::MakeClusterGroupAlgoConfigFromPSet( const larcv::PSet& ps ) {
@@ -23,6 +24,7 @@ namespace larlitecv {
     cfg.max_link_distance        = ps.get<float>("MaxLinkDistance");
     cfg.min_link_cosine          = ps.get<float>("MinLinkCosine");
     cfg.single_cluster_group_min_npoints = ps.get<int>("SingleClusterGroupMinNumPoints");
+    cfg.save_jpg_images          = ps.get<bool>("SaveJPGImages");
   }
 
   std::vector< std::vector<ClusterGroup> > ClusterGroupAlgo::MakeClusterGroups( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
@@ -72,12 +74,17 @@ namespace larlitecv {
 
     std::vector< std::vector<ClusterGroup> > groups;
 
-    std::vector<cv::Mat> cvimgs_v = makeBaseClusterImageOCV( img_v, badch_v, tagged_v, &data );
-    for ( size_t p=0; p<cvimgs_v.size(); p++) {
-      cv::Mat& cvimg = cvimgs_v.at(p);
-      std::stringstream ss;
-      ss << "clustergroup_p" << p << ".jpg";
-      cv::imwrite( ss.str(), cvimg );
+    if ( m_config.save_jpg_images ) {
+      std::vector<cv::Mat> cvimgs_v = makeBaseClusterImageOCV( img_v, badch_v, tagged_v, &data );
+      for ( size_t p=0; p<cvimgs_v.size(); p++) {
+        cv::Mat& cvimg = cvimgs_v.at(p);
+        std::stringstream ss;
+        if ( m_jpg_stem=="" )
+          ss << "clustergroup_p" << p << ".jpg";
+        else
+          ss << m_jpg_stem + "_p" << p << ".jpg";
+        cv::imwrite( ss.str(), cvimg );
+      }
     }
 
     //std::swap( groups, data.plane_groups_v );

@@ -8,7 +8,9 @@ namespace larlitecv {
 
 	class ClusterGroupMatchingAlgo {
 	public:
-		ClusterGroupMatchingAlgo() {};
+		ClusterGroupMatchingAlgo() {
+			m_verbose = 0;
+		};
 		virtual ~ClusterGroupMatchingAlgo() {};
 
 		std::vector<ChargeVolume> MatchClusterGroups( const std::vector<larcv::Image2D>& untagged_v, const std::vector<PlaneClusterGroups>& plane_groups );
@@ -16,9 +18,19 @@ namespace larlitecv {
 		void debugSetTargetCombo( const std::vector<int>& target ) { m_debug_targetcombo=target; };
 		void debugUnsetTargetCombo() { m_debug_targetcombo.clear(); };
 
+		void setVerbose( int verbose ) { m_verbose = verbose; };
+		int getVerbose() { return m_verbose; };
+
+#ifndef __CINT__
+#ifdef USE_OPENCV
+		void labelCVImageWithMatchedClusters( std::vector<cv::Mat>& cvimgs, const std::vector<larcv::Image2D>& img_v, 
+			const std::vector<ChargeVolume>& vols, float frac_good_threshold );
+#endif
+#endif
+
 	protected:
 
-
+		int m_verbose;
 
 		struct AlgoData_t {
 			std::vector<PreMatchMetric_t> prematch_combos_v;

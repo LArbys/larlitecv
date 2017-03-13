@@ -2,6 +2,7 @@
 #define __COMBINATOR_H__
 
 #include <vector>
+#include <iostream>
 
 /*
 	Often we need to evaluate combinations of objects across several planes.
@@ -29,10 +30,8 @@ namespace larlitecv {
 	  		return m_combo;
 	  	};
 	  	bool isLast() {
-				for (int p=0; p<ndims(); p++) {
-					if ( m_combo[p]!=dimsize(p)-1 ) 
-						return false;
-				}
+	  		if ( m_combo[ndims()-1]!=dimsize(ndims()-1) )
+					return false;
 				return true;	  		
 	  	};
 	  	bool next() {
@@ -41,10 +40,12 @@ namespace larlitecv {
 					m_combo[p]++;
 					if ( m_combo[p]<dimsize(p) )
 						break;
-					else
+					else if ( p!=(ndims()-1) ) {
 						m_combo[p] = 0;
+					}
 					// reset this value, move to next dim
 				}
+				return false;
 	  	};
 
 	  protected:

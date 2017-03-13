@@ -71,6 +71,7 @@ namespace larlitecv {
     float max_link_distance;
     float min_link_cosine;
     int single_cluster_group_min_npoints;
+    bool save_jpg_images;
 
     void setdefaults();
 
@@ -81,7 +82,9 @@ namespace larlitecv {
   class ClusterGroupAlgo {
   public:
     ClusterGroupAlgo( const ClusterGroupAlgoConfig& config ) 
-     : m_config(config) {};
+     : m_config(config) {
+      m_jpg_stem = "";
+     };
     virtual ~ClusterGroupAlgo() {};
 
     std::vector<std::vector<ClusterGroup> > MakeClusterGroups( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
@@ -123,6 +126,9 @@ namespace larlitecv {
       const std::vector<larcv::Image2D>& tagged_v, const AlgoData_t* data=nullptr );
 #endif
 #endif
+
+    std::string m_jpg_stem;
+    void SetJPGStem( std::string jpg_stem ) { m_jpg_stem = jpg_stem; };
 
   };
 

@@ -8,6 +8,8 @@
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
 
+#include "TRandom.h"
+
 namespace larlitecv {
 
 	std::vector<ChargeVolume> ClusterGroupMatchingAlgo::MatchClusterGroups( const std::vector<larcv::Image2D>& untagged_v, 
@@ -42,15 +44,15 @@ namespace larlitecv {
 
 		std::sort( vols.begin(), vols.end() );
 
-		// std::cout << "Charge Volumes: " << std::endl;
-		// for ( auto const& vol : vols ) {
-		// 	std::cout << " clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
-		// 	  << " numslices=" << vol.num_slices 
-		// 	  << " goodslices=" << vol.num_good_slices 
-		// 	  << " fracgood=" << vol.frac_good_slices 
-		// 	  << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
-		// 	  << std::endl;
-		// }
+		std::cout << "Charge Volumes: " << std::endl;
+		for ( auto const& vol : vols ) {
+			std::cout << " clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
+			  << " numslices=" << vol.num_slices 
+			  << " goodslices=" << vol.num_good_slices 
+			  << " fracgood=" << vol.frac_good_slices 
+			  << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
+			  << std::endl;
+		}
 
 		return vols;
 	}
@@ -61,13 +63,14 @@ namespace larlitecv {
 
 		Combinator< ClusterGroup > combo( plane_groups );
 
-		while ( !combo.isLast() ) {
+		do {
 			std::vector< const ClusterGroup* > groupcombo = combo.getCombo();
 			PreMatchMetric_t prematch( *groupcombo[0], *groupcombo[1], *groupcombo[2] );
 			prematch.m_index_combo = combo.getIndexCombo();
+			//std::cout << " (" << prematch.m_index_combo[0] << "," << prematch.m_index_combo[1] << "," << prematch.m_index_combo[2] << ")" << std::endl;
 			data.prematch_combos_v.emplace_back( std::move(prematch) );
 			combo.next();
-		}
+		} while ( !combo.isLast() );
 
 		std::sort( data.prematch_combos_v.begin(), data.prematch_combos_v.end() );
 	}
@@ -104,7 +107,7 @@ namespace larlitecv {
 
 	ChargeVolume ClusterGroupMatchingAlgo::GetIntersectionVolume( const std::vector<larcv::Image2D>& untagged_v, const PreMatchMetric_t& prematch ) {
 
-		bool debug_verbose = false;
+		bool debug_verbose = true;
 		if ( m_debug_targetcombo.size()>0 )
 			debug_verbose = true;
 
@@ -115,6 +118,7 @@ namespace larlitecv {
 
 	  std::vector<int> row_interval = GetCommonRowInterval( prematch );
 	  if ( debug_verbose ) {
+	  	std::cout << "combo[" << prematch.m_index_combo[0] << "," << prematch.m_index_combo[1] << "," << prematch.m_index_combo[2] << "] ";
 	    std::cout << " row interval: [" << row_interval[0] << "," << row_interval[1] << "] "
      	  << " ticks: [" << meta.pos_y(row_interval[1]) << "," << meta.pos_y(row_interval[0]) << "]"
      	  << " :: "
@@ -652,5 +656,49 @@ namespace larlitecv {
   	return plane_charge;
 
   }
+
+#ifndef __CINT__
+#ifdef USE_OPENCV
+  void ClusterGroupMatchingAlgo::labelCVImageWithMatchedClusters( std::vector<cv::Mat>& cvimgs, const std::vector<larcv::Image2D>& img_v, 
+  	const std::vector<ChargeVolume>& vols, const float frac_good_threshold  ) {
+
+    TRandom rand(1);
+    for ( auto const& vol : vols ){
+
+      if ( vol.frac_good_slices<frac_good_threshold )
+        continue;
+
+      // pick a color at random
+      cv::Vec3b color;
+      color[0] = (int)(rand.Uniform()*255);
+      color[1] = (int)(rand.Uniform()*255);
+      color[2] = (int)(rand.Uniform()*255);
+
+      for ( size_t p=0; p<cvimgs.size(); p++ ) {
+        cv::Mat& cvimg = cvimgs.at(p);
+
+        // tag the pixesl
+        const larlitecv::ClusterGroup& group = *( vol.m_clustergroups.at(p) );
+        const larcv::ImageMeta& meta = img_v.at(p).meta();
+
+        for ( auto const& slice : vol.slices ) {
+
+          const larlitecv::WireInterval& winterval     = slice.wire_intervals.at(p);
+          const std::vector<int>& rinterval = slice.row_interval;
+          for ( auto const& pixels : group.m_clusters_v ) {
+            for ( auto const& pix : pixels ) {
+
+              if ( (int)meta.pos_x(pix.X())>=winterval[0] && (int)meta.pos_x(pix.X())<=winterval[1] 
+                && (int)pix.Y()>=rinterval[0] && (int)pix.Y()<=rinterval[1] ) {
+                cvimg.at<cv::Vec3b>( cv::Point(pix.X(), pix.Y()) ) = color;
+              }
+            }
+          }
+        }
+      }
+    }
+  }	    	
+#endif
+#endif
 
 }
