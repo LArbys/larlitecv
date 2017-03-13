@@ -10,7 +10,8 @@
 
 namespace larlitecv {
 
-	void ClusterGroupMatchingAlgo::MatchClusterGroups( const std::vector<larcv::Image2D>& untagged_v, const std::vector<PlaneClusterGroups>& plane_groups ) {
+	std::vector<ChargeVolume> ClusterGroupMatchingAlgo::MatchClusterGroups( const std::vector<larcv::Image2D>& untagged_v, 
+		const std::vector<PlaneClusterGroups>& plane_groups ) {
 
 		// setup internal data object
 		AlgoData_t data;
@@ -41,16 +42,17 @@ namespace larlitecv {
 
 		std::sort( vols.begin(), vols.end() );
 
-		std::cout << "Charge Volumes: " << std::endl;
-		for ( auto const& vol : vols ) {
-			std::cout << " clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
-			  << " numslices=" << vol.num_slices 
-			  << " goodslices=" << vol.num_good_slices 
-			  << " fracgood=" << vol.frac_good_slices 
-			  << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
-			  << std::endl;
-		}
+		// std::cout << "Charge Volumes: " << std::endl;
+		// for ( auto const& vol : vols ) {
+		// 	std::cout << " clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
+		// 	  << " numslices=" << vol.num_slices 
+		// 	  << " goodslices=" << vol.num_good_slices 
+		// 	  << " fracgood=" << vol.frac_good_slices 
+		// 	  << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
+		// 	  << std::endl;
+		// }
 
+		return vols;
 	}
 
 	void ClusterGroupMatchingAlgo::GenPreMatches( const std::vector<PlaneClusterGroups>& plane_groups, ClusterGroupMatchingAlgo::AlgoData_t& data ) {

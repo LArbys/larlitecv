@@ -11,7 +11,7 @@ namespace larlitecv {
 		ClusterGroupMatchingAlgo() {};
 		virtual ~ClusterGroupMatchingAlgo() {};
 
-		void MatchClusterGroups( const std::vector<larcv::Image2D>& untagged_v, const std::vector<PlaneClusterGroups>& plane_groups );
+		std::vector<ChargeVolume> MatchClusterGroups( const std::vector<larcv::Image2D>& untagged_v, const std::vector<PlaneClusterGroups>& plane_groups );
 
 		void debugSetTargetCombo( const std::vector<int>& target ) { m_debug_targetcombo=target; };
 		void debugUnsetTargetCombo() { m_debug_targetcombo.clear(); };
