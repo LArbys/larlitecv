@@ -135,67 +135,70 @@ namespace larlitecv {
    	int ntime_slices = rows/slice_size;
    	if ( rows%slice_size!=0 ) ntime_slices++;
 
-   	Slices_t area_slices(ntime_slices);
+   	SliceList_t area_slices;
    	std::vector<float> tot_plane_charge( untagged_v.size(), 0.0 );
 
    	for (int islice=0; islice<ntime_slices; islice++) {
 
+   		Slice_t theslice;
+
    		// define the row slice
-   		int row_start = row_interval[0] + slice_size*(islice);
-   		int row_end   = row_start + slice_size;
+   		theslice.row_interval.resize(2);
+   		theslice.row_interval[0] = row_interval[0] + slice_size*(islice);
+   		theslice.row_interval[1] = theslice.row_interval[0] + slice_size;
 
    		// define the wire intervals over this slice
-   		std::vector<WireInterval> wintervals = GetWireInterval( prematch, row_start, row_end, meta );
+   		WireIntervalList_t wire_intervals = GetWireInterval( prematch, theslice.row_interval[0], theslice.row_interval[1], meta );
 
    		if ( debug_verbose ) {
    		std::cout << " slice[" << islice << "] "
-   			<< "tick=[" << meta.pos_y( row_end ) << "," << meta.pos_y(row_start) << "]"
+   			<< "tick=[" << meta.pos_y( theslice.row_interval[1] ) << "," << meta.pos_y(theslice.row_interval[0]) << "]"
    			<< " wire intervals: "
-   			<< "[" << wintervals[0][0] << "," << wintervals[0][1] << "] "
-   			<< "[" << wintervals[1][0] << "," << wintervals[1][1] << "] "
-   			<< "[" << wintervals[2][0] << "," << wintervals[2][1] << "] ";
+   			<< "[" << wire_intervals[0][0] << "," << wire_intervals[0][1] << "] "
+   			<< "[" << wire_intervals[1][0] << "," << wire_intervals[1][1] << "] "
+   			<< "[" << wire_intervals[2][0] << "," << wire_intervals[2][1] << "] ";
    		}
 
    		// get the (y,z) point from the center of each wire interval
-   		Point_t centroid = GetIntersectionCentroid( wintervals );
+   		theslice.centroid = GetIntersectionCentroid( wire_intervals );
    		if ( debug_verbose )
-    		std::cout << "centroid: (" << centroid[0] << "," << centroid[1] << ") ";
-   		if ( centroid[0]<=-10000.0 && centroid[1]<=-10000.0 ) {
+    		std::cout << "centroid: (" << theslice.centroid[0] << "," << theslice.centroid[1] << ") ";
+   		if ( theslice.centroid[0]<=-10000.0 && theslice.centroid[1]<=-10000.0 ) {
    			if ( debug_verbose )
    			 	std::cout << " [bad slice]" << std::endl;
    			continue;
    		}
 
    		// get a list of all 12 intersection points made up by the intervals
-   		PointList_t yzintersections = GetIntersectionPoints( wintervals );
+   		PointList_t yzintersections = GetIntersectionPoints( wire_intervals );
    		//std::cout << "nxsections=" << yzintersections.size() << " ";
 
    		// we filter out the intersection points along the (y,z) overlap polygon and form the boundary of the polygon
-   		PointList_t yzboundary = GetBoundaryPoints( yzintersections, centroid, wintervals );
+   		PointList_t yzboundary = GetBoundaryPoints( yzintersections, theslice.centroid, wire_intervals );
    		//std::cout << "boundarypts=" << yzboundary.size() << " ";
 
    		// we make sure the the defined boundary is within the TPC active region (y,z)
-   		PointList_t inside_tpc_boundary = EnforceTPCBounds( yzboundary );
+   		theslice.inside_tpc_boundary = EnforceTPCBounds( yzboundary );
    		if ( debug_verbose )
-   			std::cout << " inside tpc boundary pt=" << inside_tpc_boundary.size();
+   			std::cout << " inside tpc boundary pt=" << theslice.inside_tpc_boundary.size();
    		// we calculate the area of this polygon
 
    		// we can use the polygon to narrow the wire-ranges
-   		std::vector<WireInterval> overlap_intervals = RecalculateWireIntervalsFromBoundary( inside_tpc_boundary );
+   		theslice.wire_intervals = RecalculateWireIntervalsFromBoundary( theslice.inside_tpc_boundary );
    		if ( debug_verbose ) {
      		std::cout << "overlap intervals: ";
-     		for ( auto const& interval : overlap_intervals ) {
+     		for ( auto const& interval : theslice.wire_intervals ) {
    		  	std::cout << "[" << interval[0] << "," << interval[1] << "] ";
    		  }
    		}
 
    		// within the narrowed slice, we sum pixel charge
-   		std::vector<float> plane_charge = SumContainedCharge( prematch, untagged_v, overlap_intervals, row_start, row_end );
+   		std::vector<float> plane_charge = SumContainedCharge( prematch, untagged_v, theslice.wire_intervals, theslice.row_interval[0], theslice.row_interval[1] );
    		for (size_t p=0; p<plane_charge.size(); p++)
    			tot_plane_charge[p] += plane_charge[p];
 
    		// store the slice
-   		area_slices.at(islice) = inside_tpc_boundary;
+   		area_slices.emplace_back( std::move(theslice) );
 
    		if ( debug_verbose )
    		  std::cout << std::endl;
@@ -204,7 +207,7 @@ namespace larlitecv {
    	// Build the ChargeVolume Data product
 	  int num_good_slices = 0;
 	  for ( auto const& slice : area_slices ) {
-	  	if ( slice.size()>=3 )
+	  	if ( slice.inside_tpc_boundary.size()>=3 )
 	  		num_good_slices++;
 	  }
 	  float frac_good_slices = float(num_good_slices)/float(area_slices.size());

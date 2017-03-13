@@ -58,6 +58,13 @@ namespace larlitecv {
 	// Intersection Points in the (y,z) coordinates. Basically the projection on the wire planes.
 	class Point_t : public std::vector<float>  {
 	public:
+		Point_t() {
+			resize(2);
+			at(0) = -1;
+			at(1) = -1;
+			tickstart = -1;
+			tickend = -1;
+		};
 		Point_t( float y, float z, float start, float end )
 		 : tickstart(start), tickend(end) { 
 		  resize(2); 
@@ -77,7 +84,6 @@ namespace larlitecv {
 
 	// Some containers for our Point_t object
   typedef std::vector<Point_t> PointList_t;
-  typedef std::vector<PointList_t> Slices_t;
 
   // Defines a wire range: just two ints
 	class WireInterval : public std::vector<int> {
@@ -95,6 +101,20 @@ namespace larlitecv {
 		virtual ~WireInterval() {};
 	};
 
+	typedef std::vector<WireInterval> WireIntervalList_t;
+
+  class Slice_t {
+  public:
+  	Slice_t() {};
+  	virtual ~Slice_t() {};
+  	PointList_t inside_tpc_boundary;
+  	Point_t centroid;
+  	WireIntervalList_t wire_intervals;
+  	std::vector<int> row_interval;
+  };
+
+  typedef std::vector<Slice_t> SliceList_t;
+
 	// ================================================================
 	// This is the output object of ClusterGroupMatchingAlgo
 	// ================================================================
@@ -110,7 +130,7 @@ namespace larlitecv {
   		m_clustergroups.resize(3,nullptr);
   	};
   	virtual ~ChargeVolume() {};
-  	Slices_t slices;
+  	SliceList_t slices;
   	float frac_good_slices;
   	int num_good_slices;
   	int num_slices;

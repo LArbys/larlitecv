@@ -6,12 +6,12 @@ namespace larlitecv {
 
   void ClusterGroupAlgoConfig::setdefaults() {
     pixel_thresholds.resize(3,10.0);
-    dbscan_cluster_minpoints = 10;
+    dbscan_cluster_minpoints = 20;
     dbscan_cluster_radius    = 10.0;
-    alldir_max_link_dist     = 20.0;
-    max_link_distance        = 100.0;
-    min_link_cosine          = 0.75;
-    single_cluster_group_min_npoints = 30;
+    alldir_max_link_dist     = 30.0;
+    max_link_distance        = 300.0;
+    min_link_cosine          = 0.9;
+    single_cluster_group_min_npoints = 100;
   }
 
   ClusterGroupAlgoConfig ClusterGroupAlgoConfig::MakeClusterGroupAlgoConfigFromPSet( const larcv::PSet& ps ) {
@@ -21,7 +21,7 @@ namespace larlitecv {
     cfg.dbscan_cluster_radius    = ps.get<int>("DBScanClusterRadius");
     cfg.alldir_max_link_dist     = ps.get<float>("AllDirMaxLinkDist");
     cfg.max_link_distance        = ps.get<float>("MaxLinkDistance");
-    cfg.max_link_cosine          = ps.get<float>("MaxLinkCosine");
+    cfg.min_link_cosine          = ps.get<float>("MinLinkCosine");
     cfg.single_cluster_group_min_npoints = ps.get<int>("SingleClusterGroupMinNumPoints");
   }
 
@@ -72,7 +72,7 @@ namespace larlitecv {
 
     std::vector< std::vector<ClusterGroup> > groups;
 
-    std::vector<cv::Mat> cvimgs_v = makeBaseClusterImageOCV( data, img_v, badch_v, tagged_v );
+    std::vector<cv::Mat> cvimgs_v = makeBaseClusterImageOCV( img_v, badch_v, tagged_v, &data );
     for ( size_t p=0; p<cvimgs_v.size(); p++) {
       cv::Mat& cvimg = cvimgs_v.at(p);
       std::stringstream ss;
@@ -80,9 +80,10 @@ namespace larlitecv {
       cv::imwrite( ss.str(), cvimg );
     }
 
-    std::swap( groups, data.plane_groups_v );
+    //std::swap( groups, data.plane_groups_v );
+    std::swap( m_stored_algodata, data );
 
-    return groups;
+    return m_stored_algodata.plane_groups_v;
   }
 
   void ClusterGroupAlgo::MakeUntaggedImages( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
@@ -361,8 +362,12 @@ namespace larlitecv {
 
 #ifndef __CINT__
 #ifdef USE_OPENCV
-  std::vector<cv::Mat> ClusterGroupAlgo::makeBaseClusterImageOCV( const AlgoData_t& data, const std::vector<larcv::Image2D>& img_v, 
-    const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v ) {
+  std::vector<cv::Mat> ClusterGroupAlgo::makeBaseClusterImageOCV( const std::vector<larcv::Image2D>& img_v, 
+    const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v, const AlgoData_t* data  ) {
+
+    if ( data==nullptr ) {
+      data = &m_stored_algodata;
+    }
 
     // we draw an image, that highlights the clusters, links between them, and interesting space points
     // we drawn an image per plane
@@ -405,13 +410,13 @@ namespace larlitecv {
       }
 
       // draw the links
-      for ( auto const& link : data.plane_links_v.at(p) ) {
+      for ( auto const& link : data->plane_links_v.at(p) ) {
         cv::line( cvimg, cv::Point(link.firstpixel.X(),link.firstpixel.Y()), cv::Point(link.secondpixel.X(),link.secondpixel.Y()), cv::Scalar(0,0,150), 2 );
       }
 
       // ok, we now label base clusters with colors! also draw their extrema and their links     
-      const std::vector< larcv::Pixel2DCluster >& clusters = data.plane_clusters_v.at(p);
-      const std::vector< dbscan::ClusterExtrema >& extrema = data.plane_extrema_v.at(p);
+      const std::vector< larcv::Pixel2DCluster >& clusters = data->plane_clusters_v.at(p);
+      const std::vector< dbscan::ClusterExtrema >& extrema = data->plane_extrema_v.at(p);
 
       for (size_t icluster=0; icluster<clusters.size(); icluster++){
         if ( clusters.at(icluster).size()<m_config.dbscan_cluster_minpoints ) continue;

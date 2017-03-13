@@ -45,10 +45,12 @@ int main( int nargs, char** argv ) {
       	sub.set_pixel(r,c,val);
       }
     }
-    cv::Mat cvimg = larcv::as_mat_greyscale2bgr( sub, 10, 60 );
-    std::stringstream ss;
-    ss << "subimg_p" << p << ".jpg";
-    cv::imwrite( ss.str(), cvimg );
+
+    //cv::Mat cvimg = larcv::as_mat_greyscale2bgr( sub, 10, 60 );
+    //std::stringstream ss;
+    //ss << "subimg_p" << p << ".jpg";
+    //cv::imwrite( ss.str(), cvimg );
+
     subimg_v.emplace_back( std::move(sub) );
   }
 
@@ -75,9 +77,21 @@ int main( int nargs, char** argv ) {
   larlitecv::ClusterGroupAlgo cluster_algo(config);
 
   std::vector< larlitecv::PlaneClusterGroups > plane_groups = cluster_algo.MakeClusterGroups( img_v, gapchs_v, tagged_v );
+  std::vector< cv::Mat > cvimg_cluster;
+
 
   larlitecv::ClusterGroupMatchingAlgo matcher;
-  matcher.MatchClusterGroups( subimg_v, plane_groups );
+  std::vector<larlitecv::ChargeVolume> vols = matcher.MatchClusterGroups( subimg_v, plane_groups );
+
+  // image the output of clustergroup matcher
+  std::vector<cv::Mat> cv_matched;
+  for ( size_t p=0; p<img_v.size(); p++) {
+    cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img_v.at(p), 10, 60 );
+
+    for ( auto const& vol : vols ){
+      
+    }
+  }
 
   return 0;
 }

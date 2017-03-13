@@ -103,6 +103,7 @@ namespace larlitecv {
       std::vector< std::vector<ClusterGroup > >          plane_groups_v;
       std::vector< ClusterLink* >                  GetClusterLinks( int plane, const larcv::Pixel2DCluster* pixcluster );
     };
+    AlgoData_t m_stored_algodata;
 
     void MakeUntaggedImages( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
       const std::vector<larcv::Image2D>& tagged_v, AlgoData_t& data );
@@ -118,8 +119,8 @@ namespace larlitecv {
 
 #ifndef __CINT__
 #ifdef USE_OPENCV
-    std::vector<cv::Mat> makeBaseClusterImageOCV( const AlgoData_t& data, const std::vector<larcv::Image2D>& img_v, 
-      const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v );
+    std::vector<cv::Mat> makeBaseClusterImageOCV( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+      const std::vector<larcv::Image2D>& tagged_v, const AlgoData_t* data=nullptr );
 #endif
 #endif
 
