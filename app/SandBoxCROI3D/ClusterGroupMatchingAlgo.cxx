@@ -70,7 +70,7 @@ namespace larlitecv {
 		std::sort( data.prematch_combos_v.begin(), data.prematch_combos_v.end() );
 	}
 
-	ClusterGroupMatchingAlgo::PreMatchMetric_t::PreMatchMetric_t( const ClusterGroup& p1, const ClusterGroup& p2, const ClusterGroup& p3 ) { // assumes 3-plane match
+	PreMatchMetric_t::PreMatchMetric_t( const ClusterGroup& p1, const ClusterGroup& p2, const ClusterGroup& p3 ) { // assumes 3-plane match
 
 	  dtSpan = 0;
 		dtEnd = 0;		
@@ -100,8 +100,7 @@ namespace larlitecv {
   	}				
 	}
 
-	ClusterGroupMatchingAlgo::ChargeVolume ClusterGroupMatchingAlgo::GetIntersectionVolume( const std::vector<larcv::Image2D>& untagged_v, 
-		const ClusterGroupMatchingAlgo::PreMatchMetric_t& prematch ) {
+	ChargeVolume ClusterGroupMatchingAlgo::GetIntersectionVolume( const std::vector<larcv::Image2D>& untagged_v, const PreMatchMetric_t& prematch ) {
 
 		bool debug_verbose = false;
 		if ( m_debug_targetcombo.size()>0 )
@@ -225,7 +224,7 @@ namespace larlitecv {
    	return vol;
 	}
 
-	std::vector<int> ClusterGroupMatchingAlgo::GetCommonRowInterval( const ClusterGroupMatchingAlgo::PreMatchMetric_t& prematch ) {
+	std::vector<int> ClusterGroupMatchingAlgo::GetCommonRowInterval( const PreMatchMetric_t& prematch ) {
 		// we get the minimal row interval common
 		float row_start = -1.0;
 		float row_end   = -1.0;
@@ -239,9 +238,9 @@ namespace larlitecv {
 		return interval;
 	}
 
-	std::vector< ClusterGroupMatchingAlgo::WireInterval > ClusterGroupMatchingAlgo::GetWireInterval( 
-		const ClusterGroupMatchingAlgo::PreMatchMetric_t& prematch, 
+	std::vector< WireInterval > ClusterGroupMatchingAlgo::GetWireInterval( const PreMatchMetric_t& prematch, 
 		const int row_start, const int row_end, const larcv::ImageMeta& meta ) {
+
 		// we find the min and max col for a given row interval for each plane cluster
 		std::vector< WireInterval > intervals;
 		for ( size_t p=0; p<prematch.m_clusters.size(); p++) {
@@ -277,8 +276,7 @@ namespace larlitecv {
 		return intervals;
 	}
 
-	ClusterGroupMatchingAlgo::PointList_t ClusterGroupMatchingAlgo::GetIntersectionPoints( 
-		const std::vector< ClusterGroupMatchingAlgo::WireInterval >& plane_wire_intervals ) {
+	PointList_t ClusterGroupMatchingAlgo::GetIntersectionPoints( const std::vector< WireInterval >& plane_wire_intervals ) {
 
 		PointList_t intersections_v;
 		for (size_t p1=0; p1<plane_wire_intervals.size(); p1++) {
@@ -305,7 +303,7 @@ namespace larlitecv {
 		return intersections_v;
 	}
 
-	ClusterGroupMatchingAlgo::Point_t ClusterGroupMatchingAlgo::GetIntersectionCentroid( const std::vector< ClusterGroupMatchingAlgo::WireInterval >& plane_wire_intervals ) {
+	Point_t ClusterGroupMatchingAlgo::GetIntersectionCentroid( const std::vector< WireInterval >& plane_wire_intervals ) {
 		std::vector<int> wids;
 		std::vector<int> goodplanes;
 
@@ -346,8 +344,8 @@ namespace larlitecv {
 	  return Point_t(-1.0e6,-1.0e6,-1,-1);
 	}
 
-	ClusterGroupMatchingAlgo::PointList_t ClusterGroupMatchingAlgo::GetBoundaryPoints( const ClusterGroupMatchingAlgo::PointList_t& crossingpts, 
-		const ClusterGroupMatchingAlgo::Point_t& centroid, const std::vector<ClusterGroupMatchingAlgo::WireInterval>& wireranges  ) {
+	PointList_t ClusterGroupMatchingAlgo::GetBoundaryPoints( const PointList_t& crossingpts, 
+		const Point_t& centroid, const std::vector<WireInterval>& wireranges  ) {
 
 		// note: if we have only 2 good wire intervals, the 4 intersection points will be boundary points by definition as we don't have 
 		// the additional constraint to use
@@ -430,7 +428,7 @@ namespace larlitecv {
 		return boundary_pts;
 	}
 
-	std::vector<ClusterGroupMatchingAlgo::WireInterval> ClusterGroupMatchingAlgo::RecalculateWireIntervalsFromBoundary( const ClusterGroupMatchingAlgo::PointList_t& yzboundary ) {
+	std::vector<WireInterval> ClusterGroupMatchingAlgo::RecalculateWireIntervalsFromBoundary( const PointList_t& yzboundary ) {
 		std::vector<WireInterval> output(3);
 
 		for ( auto const& pt : yzboundary ) {
@@ -449,7 +447,7 @@ namespace larlitecv {
 		return output;
 	}
 
-	ClusterGroupMatchingAlgo::PointList_t ClusterGroupMatchingAlgo::EnforceTPCBounds( const ClusterGroupMatchingAlgo::PointList_t& yzboundary ) {
+	PointList_t ClusterGroupMatchingAlgo::EnforceTPCBounds( const PointList_t& yzboundary ) {
 		// In this method, we modify the boundary, if needed, to stay within the wire plane boundary.
 		// we look for the first internal yz-boundary point. From there we step until we found a point that goes out of bounds. We find the intersection 
 		// point between that line segment and the TPC boundary. 
@@ -623,9 +621,8 @@ namespace larlitecv {
 		return inside_boundary_points;
 	}
 
-  std::vector<float> ClusterGroupMatchingAlgo::SumContainedCharge( const ClusterGroupMatchingAlgo::PreMatchMetric_t& prematch, 
-  	const std::vector<larcv::Image2D>& untagged_v, const std::vector<ClusterGroupMatchingAlgo::WireInterval>& overlap_intervals, 
-  	const int row_start, const int row_end ) {
+  std::vector<float> ClusterGroupMatchingAlgo::SumContainedCharge( const PreMatchMetric_t& prematch, const std::vector<larcv::Image2D>& untagged_v, 
+  	const std::vector<WireInterval>& overlap_intervals, const int row_start, const int row_end ) {
 
   	std::vector<float> plane_charge(prematch.m_clusters.size(),0.0);
 
