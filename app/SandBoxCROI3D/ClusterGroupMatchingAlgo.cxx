@@ -43,7 +43,7 @@ namespace larlitecv {
 
 		std::cout << "Charge Volumes: " << std::endl;
 		for ( auto const& vol : vols ) {
-			std::cout << " clgroup[" << vol.clustergroup_indices[0] << "," << vol.clustergroup_indices[1] << "," << vol.clustergroup_indices[2] << "] "
+			std::cout << " clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
 			  << " numslices=" << vol.num_slices 
 			  << " goodslices=" << vol.num_good_slices 
 			  << " fracgood=" << vol.frac_good_slices 
@@ -124,7 +124,6 @@ namespace larlitecv {
     if ( row_interval[0]>row_interval[1] ) {
     	//std::cout << "  no time overlap" << std::endl;
     	ChargeVolume empty;
-    	empty.clustergroup_indices = prematch.m_index_combo;
     	return empty;
     }
 
@@ -216,7 +215,8 @@ namespace larlitecv {
   	else {
   		vol.frac_good_slices = 0.;
   	}
-		vol.clustergroup_indices = prematch.m_index_combo;
+		vol.m_clustergroups = prematch.m_clusters;
+		vol._clustergroup_indices = prematch.m_index_combo;
 		std::swap( vol.slices, area_slices );			
 		std::swap( vol.plane_charge, tot_plane_charge );
 

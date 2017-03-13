@@ -98,7 +98,7 @@ namespace larlitecv {
 	// ================================================================
 	// This is the output object of ClusterGroupMatchingAlgo
 	// ================================================================
-	
+
   class ChargeVolume {
   public:
   	ChargeVolume() {
@@ -106,7 +106,8 @@ namespace larlitecv {
   		num_slices = 0;
   		num_good_slices = 0;
   		plane_charge.resize(3,0.0);
-  		clustergroup_indices.resize(3,-1);
+  		_clustergroup_indices.resize(3,-1);
+  		m_clustergroups.resize(3,nullptr);
   	};
   	virtual ~ChargeVolume() {};
   	Slices_t slices;
@@ -114,7 +115,8 @@ namespace larlitecv {
   	int num_good_slices;
   	int num_slices;
   	std::vector<float> plane_charge;
-  	std::vector<int> clustergroup_indices;
+  	std::vector< const ClusterGroup* > m_clustergroups;
+  	std::vector<int> _clustergroup_indices; ///< this is meaningless once object leaves algo
 
 		bool operator<(const ChargeVolume& rhs ) {
 			if ( frac_good_slices>rhs.frac_good_slices)
@@ -123,10 +125,12 @@ namespace larlitecv {
 		};
 
 		bool isempty() {
-			if ( clustergroup_indices[0]==-1 && clustergroup_indices[1]==-1 && clustergroup_indices[2]==-1 )
+			if ( m_clustergroups[0]==nullptr && m_clustergroups[1]==nullptr && m_clustergroups[2]==nullptr )
 				return true;
 			return false;
 		};
+
+
 	};	
 
 }

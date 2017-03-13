@@ -14,6 +14,17 @@ namespace larlitecv {
     single_cluster_group_min_npoints = 30;
   }
 
+  ClusterGroupAlgoConfig ClusterGroupAlgoConfig::MakeClusterGroupAlgoConfigFromPSet( const larcv::PSet& ps ) {
+    ClusterGroupAlgoConfig cfg;
+    cfg.pixel_thresholds         = ps.get<std::vector<float> >("PixelThresholds");
+    cfg.dbscan_cluster_minpoints = ps.get<int>("DBScanClusterMinPoints");
+    cfg.dbscan_cluster_radius    = ps.get<int>("DBScanClusterRadius");
+    cfg.alldir_max_link_dist     = ps.get<float>("AllDirMaxLinkDist");
+    cfg.max_link_distance        = ps.get<float>("MaxLinkDistance");
+    cfg.max_link_cosine          = ps.get<float>("MaxLinkCosine");
+    cfg.single_cluster_group_min_npoints = ps.get<int>("SingleClusterGroupMinNumPoints");
+  }
+
   std::vector< std::vector<ClusterGroup> > ClusterGroupAlgo::MakeClusterGroups( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
     const std::vector<larcv::Image2D>& tagged_v ) {
 
@@ -112,10 +123,10 @@ namespace larlitecv {
         // make a cluster object
         larcv::Pixel2DCluster cluster;
         for ( size_t ihit=0; ihit<dboutput.clusters.at(ic).size(); ihit++ ) {
-                int hitidx = dboutput.clusters.at(ic).at(ihit);
-                larcv::Pixel2D pix( pixels.at(hitidx)[0], pixels.at(hitidx)[1] );
-                pix.Intensity( data.untagged_v.at(p).pixel( pix.Y(), pix.X() ) );
-                cluster.emplace_back( std::move(pix) );
+          int hitidx = dboutput.clusters.at(ic).at(ihit);
+          larcv::Pixel2D pix( pixels.at(hitidx)[0], pixels.at(hitidx)[1] );
+          pix.Intensity( data.untagged_v.at(p).pixel( pix.Y(), pix.X() ) );
+          cluster.emplace_back( std::move(pix) );
         }
         cluster_v.emplace_back( std::move(cluster) );
 

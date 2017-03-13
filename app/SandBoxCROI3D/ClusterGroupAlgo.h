@@ -3,10 +3,13 @@
 
 #include <vector>
 
+// LArCV
 #include "DataFormat/Image2D.h"
 #include "DataFormat/Pixel2DCluster.h"
 #include "DataFormat/Pixel2D.h"
+#include "Base/PSet.h"
 
+// LArCV/app
 #include "dbscan/DBSCANAlgo.h"
 
 // OpenCV
@@ -71,6 +74,8 @@ namespace larlitecv {
 
     void setdefaults();
 
+    static ClusterGroupAlgoConfig MakeClusterGroupAlgoConfigFromPSet( const larcv::PSet& ps );
+
   };
 
   class ClusterGroupAlgo {
@@ -109,7 +114,7 @@ namespace larlitecv {
     void AssembleClusterGroups( AlgoData_t& data );
 
     void getNextLinkedCluster( AlgoData_t& data, const int& plane, std::vector< const larcv::Pixel2DCluster* >& cluster_history, 
-      std::set< const larcv::Pixel2DCluster* >& clustergroup, std::vector< ClusterLink* >& used_links ); 
+      std::set< const larcv::Pixel2DCluster* >& clustergroup, std::vector< ClusterLink* >& used_links );     
 
 #ifndef __CINT__
 #ifdef USE_OPENCV
