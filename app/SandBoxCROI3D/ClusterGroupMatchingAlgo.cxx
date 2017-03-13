@@ -16,8 +16,8 @@ namespace larlitecv {
 		AlgoData_t data;
 
 		//std::vector<int> debug_target = {3,7,5}; // neutrino cluster
-		std::vector<int> debug_target = {3,0,3};
-		debugSetTargetCombo( debug_target );
+		//std::vector<int> debug_target = {3,0,3};
+		//debugSetTargetCombo( debug_target );
 
 		GenPreMatches( plane_groups, data );
 		// for (size_t i=0; i<data.prematch_combos_v.size(); i++) {
@@ -35,29 +35,8 @@ namespace larlitecv {
 
 			// over minimal time overlap, break into time slices and calculate bounding polygons
 			//std::cout << "prematch index: (" << prematch.m_index_combo[0] << "," << prematch.m_index_combo[1] << "," << prematch.m_index_combo[2] << ")";
-			Slices_t slices = GetIntersectionVolume( untagged_v, prematch );
-			int num_good_slices = 0;
-			for ( auto const& slice : slices ) {
-				if ( slice.size()>=3 )
-					num_good_slices++;
-				// std::cout << "slice: ";
-				// for ( auto const& pt : slice ) {
-				// 	std::cout << " (" << pt[0] << "," << pt[1] << ") ";
-				// }
-				// std::cout << std::endl;
-			}
-			float frac_good_slices = float(num_good_slices)/float(slices.size());
-			// if ( slices.size()>0 )
-			// 	std::cout << " num good slices=" << num_good_slices << " frac_good_slices=" << frac_good_slices << std::endl;
-			// else
-			// 	std::cout << " volume has no slices" << std::endl;
-			ChargeVolume vol;
-			vol.num_good_slices = num_good_slices;
-			vol.frac_good_slices = frac_good_slices;
-			vol.num_slices = slices.size();
-			vol.clustergroup_indices = prematch.m_index_combo;
-			std::swap( vol.slices, slices );			
-			vols.emplace_back( std::move(vol) );
+			ChargeVolume vol = GetIntersectionVolume( untagged_v, prematch );
+		  vols.emplace_back( std::move(vol) );
 		}
 
 		std::sort( vols.begin(), vols.end() );
@@ -65,7 +44,11 @@ namespace larlitecv {
 		std::cout << "Charge Volumes: " << std::endl;
 		for ( auto const& vol : vols ) {
 			std::cout << " clgroup[" << vol.clustergroup_indices[0] << "," << vol.clustergroup_indices[1] << "," << vol.clustergroup_indices[2] << "] "
-			  << " numslices=" << vol.num_slices << " goodslices=" << vol.num_good_slices << " fracgood=" << vol.frac_good_slices << std::endl;
+			  << " numslices=" << vol.num_slices 
+			  << " goodslices=" << vol.num_good_slices 
+			  << " fracgood=" << vol.frac_good_slices 
+			  << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
+			  << std::endl;
 		}
 
 	}
@@ -117,7 +100,7 @@ namespace larlitecv {
   	}				
 	}
 
-	ClusterGroupMatchingAlgo::Slices_t ClusterGroupMatchingAlgo::GetIntersectionVolume( const std::vector<larcv::Image2D>& untagged_v, 
+	ClusterGroupMatchingAlgo::ChargeVolume ClusterGroupMatchingAlgo::GetIntersectionVolume( const std::vector<larcv::Image2D>& untagged_v, 
 		const ClusterGroupMatchingAlgo::PreMatchMetric_t& prematch ) {
 
 		bool debug_verbose = false;
@@ -133,7 +116,17 @@ namespace larlitecv {
 	  if ( debug_verbose ) {
 	    std::cout << " row interval: [" << row_interval[0] << "," << row_interval[1] << "] "
      	  << " ticks: [" << meta.pos_y(row_interval[1]) << "," << meta.pos_y(row_interval[0]) << "]"
+     	  << " :: "
+     	  << " [" << meta.pos_y(prematch.m_clusters[0]->tick_end) << "," << meta.pos_y(prematch.m_clusters[0]->tick_start) << "] "
+     	  << " [" << meta.pos_y(prematch.m_clusters[1]->tick_end) << "," << meta.pos_y(prematch.m_clusters[1]->tick_start) << "] "
+     	  << " [" << meta.pos_y(prematch.m_clusters[2]->tick_end) << "," << meta.pos_y(prematch.m_clusters[2]->tick_start) << "] "
      	  << std::endl;
+    }
+    if ( row_interval[0]>row_interval[1] ) {
+    	//std::cout << "  no time overlap" << std::endl;
+    	ChargeVolume empty;
+    	empty.clustergroup_indices = prematch.m_index_combo;
+    	return empty;
     }
 
    	int rows = abs( row_interval[1]-row_interval[0] );
@@ -143,6 +136,7 @@ namespace larlitecv {
    	if ( rows%slice_size!=0 ) ntime_slices++;
 
    	Slices_t area_slices(ntime_slices);
+   	std::vector<float> tot_plane_charge( untagged_v.size(), 0.0 );
 
    	for (int islice=0; islice<ntime_slices; islice++) {
 
@@ -180,10 +174,14 @@ namespace larlitecv {
    		PointList_t yzboundary = GetBoundaryPoints( yzintersections, centroid, wintervals );
    		//std::cout << "boundarypts=" << yzboundary.size() << " ";
 
+   		// we make sure the the defined boundary is within the TPC active region (y,z)
+   		PointList_t inside_tpc_boundary = EnforceTPCBounds( yzboundary );
+   		if ( debug_verbose )
+   			std::cout << " inside tpc boundary pt=" << inside_tpc_boundary.size();
    		// we calculate the area of this polygon
 
    		// we can use the polygon to narrow the wire-ranges
-   		std::vector<WireInterval> overlap_intervals = RecalculateWireIntervalsFromBoundary( yzboundary );
+   		std::vector<WireInterval> overlap_intervals = RecalculateWireIntervalsFromBoundary( inside_tpc_boundary );
    		if ( debug_verbose ) {
      		std::cout << "overlap intervals: ";
      		for ( auto const& interval : overlap_intervals ) {
@@ -191,9 +189,10 @@ namespace larlitecv {
    		  }
    		}
 
-   		PointList_t inside_tpc_boundary = EnforceTPCBounds( yzboundary );
-   		if ( debug_verbose )
-   			std::cout << " inside tpc boundary pt=" << inside_tpc_boundary.size();
+   		// within the narrowed slice, we sum pixel charge
+   		std::vector<float> plane_charge = SumContainedCharge( prematch, untagged_v, overlap_intervals, row_start, row_end );
+   		for (size_t p=0; p<plane_charge.size(); p++)
+   			tot_plane_charge[p] += plane_charge[p];
 
    		// store the slice
    		area_slices.at(islice) = inside_tpc_boundary;
@@ -202,8 +201,28 @@ namespace larlitecv {
    		  std::cout << std::endl;
    	}
 
+   	// Build the ChargeVolume Data product
+	  int num_good_slices = 0;
+	  for ( auto const& slice : area_slices ) {
+	  	if ( slice.size()>=3 )
+	  		num_good_slices++;
+	  }
+	  float frac_good_slices = float(num_good_slices)/float(area_slices.size());
+		ChargeVolume vol;
+		vol.num_good_slices = num_good_slices;
+		vol.num_slices = area_slices.size();			
+		if ( vol.num_slices>0 ) {
+  		vol.frac_good_slices = frac_good_slices;
+		}
+  	else {
+  		vol.frac_good_slices = 0.;
+  	}
+		vol.clustergroup_indices = prematch.m_index_combo;
+		std::swap( vol.slices, area_slices );			
+		std::swap( vol.plane_charge, tot_plane_charge );
+
    	// volume is the set of slices
-   	return area_slices;
+   	return vol;
 	}
 
 	std::vector<int> ClusterGroupMatchingAlgo::GetCommonRowInterval( const ClusterGroupMatchingAlgo::PreMatchMetric_t& prematch ) {
@@ -603,5 +622,33 @@ namespace larlitecv {
 
 		return inside_boundary_points;
 	}
+
+  std::vector<float> ClusterGroupMatchingAlgo::SumContainedCharge( const ClusterGroupMatchingAlgo::PreMatchMetric_t& prematch, 
+  	const std::vector<larcv::Image2D>& untagged_v, const std::vector<ClusterGroupMatchingAlgo::WireInterval>& overlap_intervals, 
+  	const int row_start, const int row_end ) {
+
+  	std::vector<float> plane_charge(prematch.m_clusters.size(),0.0);
+
+  	for ( size_t p=0; p<prematch.m_clusters.size(); p++ ) {
+  		const larcv::ImageMeta& meta = untagged_v.at(p).meta();
+			const ClusterGroup& group = *( prematch.m_clusters.at(p) );
+			const WireInterval& winterval = overlap_intervals.at(p);
+
+			float plane_cluster_charge = 0.;
+
+			for (auto const& pixels : group.m_clusters_v ) {
+				for ( auto const& pix : pixels ) {
+					if ( (int)pix.Y()>=row_start && (int)pix.Y()<=row_end
+						&& meta.pos_x(pix.X())>=winterval[0] && meta.pos_x(pix.X())<=winterval[1] )
+						plane_cluster_charge += untagged_v.at(p).pixel( pix.Y(), pix.X() );
+				}
+			}
+
+			plane_charge[p] = plane_cluster_charge;
+  	}
+
+  	return plane_charge;
+
+  }
 
 }

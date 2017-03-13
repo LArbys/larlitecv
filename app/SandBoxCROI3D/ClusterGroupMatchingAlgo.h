@@ -102,20 +102,29 @@ namespace larlitecv {
 				frac_good_slices = 0.;
 				num_slices = 0;
 				num_good_slices = 0;
+				plane_charge.resize(3,0.0);
+				clustergroup_indices.resize(3,-1);
 			};
 			virtual ~ChargeVolume() {};
 			Slices_t slices;
 			float frac_good_slices;
 			int num_good_slices;
 			int num_slices;
+			std::vector<float> plane_charge;
+			std::vector<int> clustergroup_indices;
+
 			bool operator<(const ChargeVolume& rhs ) {
 				if ( frac_good_slices>rhs.frac_good_slices)
 					return true;
 				return false;
 			};
-			std::vector<int> clustergroup_indices;
-		};
 
+			bool isempty() {
+				if ( clustergroup_indices[0]==-1 && clustergroup_indices[1]==-1 && clustergroup_indices[2]==-1 )
+					return true;
+				return false;
+			};
+		};
 
 		struct AlgoData_t {
 			std::vector<PreMatchMetric_t> prematch_combos_v;
@@ -127,7 +136,7 @@ namespace larlitecv {
 		// should use chain of command here
 		void GenPreMatches( const std::vector<PlaneClusterGroups>& plane_groups, AlgoData_t& data );
 
-		Slices_t GetIntersectionVolume( const std::vector<larcv::Image2D>& untagged_v, const PreMatchMetric_t& prematch );
+		ChargeVolume GetIntersectionVolume( const std::vector<larcv::Image2D>& untagged_v, const PreMatchMetric_t& prematch );
 
 		std::vector<int> GetCommonRowInterval( const PreMatchMetric_t& prematch );
 
@@ -142,6 +151,9 @@ namespace larlitecv {
 	  std::vector<WireInterval> RecalculateWireIntervalsFromBoundary( const PointList_t& yzboundary );
 
 	  PointList_t EnforceTPCBounds( const PointList_t& yzboundary );
+
+  	std::vector<float> SumContainedCharge( const PreMatchMetric_t& prematch, const std::vector<larcv::Image2D>& untagged_v, 
+  		const std::vector<WireInterval>& overlap_intervals, const int row_start, const int row_end );
 
 	};
 
