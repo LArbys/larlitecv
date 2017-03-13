@@ -13,6 +13,8 @@
 #include "ClusterGroupAlgo.h"
 #include "ClusterGroupMatchingAlgo.h"
 
+#include "TRandom.h"
+
 int main( int nargs, char** argv ) {
 
   larlitecv::DataCoordinator dataco;
@@ -85,11 +87,49 @@ int main( int nargs, char** argv ) {
 
   // image the output of clustergroup matcher
   std::vector<cv::Mat> cv_matched;
+  TRandom rand(0);
   for ( size_t p=0; p<img_v.size(); p++) {
     cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img_v.at(p), 10, 60 );
+    cv_matched.emplace_back( std::move(cvimg) );
+  }
 
-    for ( auto const& vol : vols ){
-      
+  for ( auto const& vol : vols ){
+
+    if ( vol.frac_good_slices<0.75 )
+      continue;
+
+    // pick a color at random
+    cv::Vec3b color;
+    color[0] = (int)(rand.Uniform()*255);
+    color[1] = (int)(rand.Uniform()*255);
+    color[2] = (int)(rand.Uniform()*255);
+
+    for ( size_t p=0; p<img_v.size(); p++ ) {
+      cv::Mat& cvimg = cv_matched.at(p);
+
+      // tag the pixesl
+      const larlitecv::ClusterGroup& group = *( vol.m_clustergroups.at(p) );
+      const larcv::ImageMeta& meta = img_v.at(p).meta();
+
+      for ( auto const& slice : vol.slices ) {
+
+        const larlitecv::WireInterval& winterval     = slice.wire_intervals.at(p);
+        const std::vector<int>& rinterval = slice.row_interval;
+        for ( auto const& pixels : group.m_clusters_v ) {
+          for ( auto const& pix : pixels ) {
+
+            if ( (int)meta.pos_x(pix.X())>=winterval[0] && (int)meta.pos_x(pix.X())<=winterval[1] 
+              && (int)pix.Y()>=rinterval[0] && (int)pix.Y()<=rinterval[1] ) {
+              cvimg.at<cv::Vec3b>( cv::Point(pix.X(), pix.Y()) ) = color;
+            }
+
+          }
+        }
+      }
+
+      std::stringstream ss;
+      ss << "clustermatch_p" << p << ".jpg";
+      imwrite( ss.str(), cvimg );
     }
   }
 
