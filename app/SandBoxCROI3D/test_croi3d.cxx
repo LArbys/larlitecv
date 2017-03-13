@@ -68,14 +68,16 @@ int main( int nargs, char** argv ) {
 
   larlitecv::ClusterGroupAlgoConfig config;
   config.dbscan_cluster_minpoints = 20;
+  config.alldir_max_link_dist = 30.0;
   config.max_link_distance = 300.0;
   config.min_link_cosine = 0.9;
+  config.single_cluster_group_min_npoints = 100;
   larlitecv::ClusterGroupAlgo cluster_algo(config);
 
   std::vector< larlitecv::PlaneClusterGroups > plane_groups = cluster_algo.MakeClusterGroups( img_v, gapchs_v, tagged_v );
 
   larlitecv::ClusterGroupMatchingAlgo matcher;
-  matcher.MatchClusterGroups( plane_groups );
+  matcher.MatchClusterGroups( subimg_v, plane_groups );
 
   return 0;
 }

@@ -67,6 +67,7 @@ namespace larlitecv {
     float alldir_max_link_dist;
     float max_link_distance;
     float min_link_cosine;
+    int single_cluster_group_min_npoints;
 
     void setdefaults();
 

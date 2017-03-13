@@ -11,6 +11,7 @@ namespace larlitecv {
     alldir_max_link_dist     = 20.0;
     max_link_distance        = 100.0;
     min_link_cosine          = 0.75;
+    single_cluster_group_min_npoints = 30;
   }
 
   std::vector< std::vector<ClusterGroup> > ClusterGroupAlgo::MakeClusterGroups( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
@@ -46,11 +47,14 @@ namespace larlitecv {
     AssembleClusterGroups( data );
     std::cout << "ClusterGroupAlgo::MakeClusterGroups: number of groups" << std::endl;
     for (size_t p=0; p<img_v.size(); p++) {
+      const larcv::ImageMeta& meta = img_v.at(p).meta();
       for (size_t ig=0; ig<data.plane_groups_v.at(p).size(); ig++) {
-        std::cout << "Plane " << p << " Group #" << ig << ", " << data.plane_groups_v.at(p).at(ig).m_cluster_indices.size() << " clusters: ";
-        for ( auto& idx : data.plane_groups_v.at(p).at(ig).m_cluster_indices ) {
+        const ClusterGroup& group = data.plane_groups_v.at(p).at(ig);
+        std::cout << "Plane " << p << " Group #" << ig << ", " << group.m_cluster_indices.size() << " clusters: ";
+        for ( auto& idx : group.m_cluster_indices ) {
            std::cout << idx << " ";
         }
+        std::cout << " range: [" << meta.pos_y(group.tick_start) << "," << meta.pos_y(group.tick_end) << "] width=" << group.tick_width;
         std::cout << std::endl;
       }
     }
@@ -168,7 +172,7 @@ namespace larlitecv {
             }
           }
 
-          if ( min_dist>m_config.alldir_max_link_dist && (min_dist <0 || min_dist > m_config.max_link_distance ) ) continue;
+          if ( min_dist <0 || min_dist > m_config.max_link_distance ) continue;
 
           // min-dist criteria passed. now check direction compatibility.
           // the direction of each cluster is made by using the largest distance from link-extrema
@@ -211,8 +215,8 @@ namespace larlitecv {
             coscluster_b += -dir_min[v]*dir_b[v];
           }
 
-          // cosine must be above some value for both
-          if ( coscluster_a<m_config.min_link_cosine || coscluster_b<m_config.min_link_cosine )
+          // cosine must be above some value for both (or within some distance)
+          if ( min_dist > m_config.alldir_max_link_dist && (coscluster_a<m_config.min_link_cosine || coscluster_b<m_config.min_link_cosine) )
             continue;
 
           // define the link
@@ -231,7 +235,7 @@ namespace larlitecv {
   void ClusterGroupAlgo::AssembleClusterGroups( ClusterGroupAlgo::AlgoData_t& data ) {
 
     for ( size_t p=0; p<data.plane_clusters_v.size(); p++ ) {
-
+      const larcv::ImageMeta& meta = data.untagged_v.at(p).meta();
       std::vector< ClusterGroup > plane_group_v;
       std::set<int> used_cluster_indices;
       while ( true ) {
@@ -260,7 +264,7 @@ namespace larlitecv {
         std::vector< ClusterLink* > used_links;
         getNextLinkedCluster( data, p, cluster_history, cluster_group, used_links );
 
-        if ( cluster_group.size()<=1 )
+        if ( cluster_group.size()<=1 && (int)pseed_cluster.size()<m_config.single_cluster_group_min_npoints )
           continue;
 
         // make the data product, by copy (barf!)
@@ -281,10 +285,11 @@ namespace larlitecv {
         cgroup.tick_start = -1;
         cgroup.tick_end   = -1;
         for ( auto const& ex : cgroup.m_extrema_v ) {
-          if ( cgroup.tick_start<0 || cgroup.tick_start>ex.topmost()[1] )
-            cgroup.tick_start = ex.topmost()[1];
-          if ( cgroup.tick_end<0 || cgroup.tick_end<ex.bottommost()[1] )
-            cgroup.tick_end = ex.bottommost()[1];
+          //std::cout << "  top=" << meta.pos_y(ex.topmost()[1]) << " bot=" << meta.pos_y(ex.bottommost()[1]) << std::endl;
+          if ( cgroup.tick_start<0 || cgroup.tick_start>ex.bottommost()[1] )
+            cgroup.tick_start = ex.bottommost()[1];
+          if ( cgroup.tick_end<0 || cgroup.tick_end<ex.topmost()[1] )
+            cgroup.tick_end = ex.topmost()[1];
         }
         cgroup.tick_width = cgroup.tick_end - cgroup.tick_start;
 
