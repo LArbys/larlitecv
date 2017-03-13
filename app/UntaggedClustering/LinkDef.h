@@ -11,4 +11,7 @@
 
 #pragma link C++ namespace larlitecv;
 //ADD_NEW_CLASS ... do not change this line
+#pragma link C++ class larlitecv::ClusterGroupAlgoConfig+;
+#pragma link C++ class larlitecv::ClusterGroupAlgo+;
+#pragma link C++ class larlitecv::ClusterGroupMatchingAlgo+;
 #endif
