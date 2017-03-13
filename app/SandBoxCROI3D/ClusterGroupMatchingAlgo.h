@@ -96,8 +96,24 @@ namespace larlitecv {
 		typedef std::vector<Point_t> PointList_t;
 		typedef std::vector<PointList_t> Slices_t;
 
-		class ChargeVolumes {
-
+		class ChargeVolume {
+		public:
+			ChargeVolume() {
+				frac_good_slices = 0.;
+				num_slices = 0;
+				num_good_slices = 0;
+			};
+			virtual ~ChargeVolume() {};
+			Slices_t slices;
+			float frac_good_slices;
+			int num_good_slices;
+			int num_slices;
+			bool operator<(const ChargeVolume& rhs ) {
+				if ( frac_good_slices>rhs.frac_good_slices)
+					return true;
+				return false;
+			};
+			std::vector<int> clustergroup_indices;
 		};
 
 
@@ -124,6 +140,8 @@ namespace larlitecv {
 		PointList_t GetBoundaryPoints( const PointList_t& crossingpts, const Point_t& centroid, const std::vector<WireInterval>& wireranges );
 
 	  std::vector<WireInterval> RecalculateWireIntervalsFromBoundary( const PointList_t& yzboundary );
+
+	  PointList_t EnforceTPCBounds( const PointList_t& yzboundary );
 
 	};
 

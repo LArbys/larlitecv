@@ -15,7 +15,8 @@ namespace larlitecv {
 		// setup internal data object
 		AlgoData_t data;
 
-		std::vector<int> debug_target = {3,7,5};
+		//std::vector<int> debug_target = {3,7,5}; // neutrino cluster
+		std::vector<int> debug_target = {3,0,3};
 		debugSetTargetCombo( debug_target );
 
 		GenPreMatches( plane_groups, data );
@@ -26,20 +27,45 @@ namespace larlitecv {
 			  // << prematch.dtSpan << " " << prematch.dtEnd << std::endl;
 		// }
 
+		std::vector<ChargeVolume> vols;
 		for (auto const& prematch : data.prematch_combos_v ) {
 			//std::cout << "(" << m_debug_targetcombo[0] << "," << m_debug_targetcombo[1] << "," << m_debug_targetcombo[2] << ")" << std::endl;
 			if ( m_debug_targetcombo.size()>0 && m_debug_targetcombo!=prematch.m_index_combo )
 				continue;
 
 			// over minimal time overlap, break into time slices and calculate bounding polygons
+			//std::cout << "prematch index: (" << prematch.m_index_combo[0] << "," << prematch.m_index_combo[1] << "," << prematch.m_index_combo[2] << ")";
 			Slices_t slices = GetIntersectionVolume( untagged_v, prematch );
+			int num_good_slices = 0;
 			for ( auto const& slice : slices ) {
-				std::cout << "slice: ";
-				for ( auto const& pt : slice ) {
-					std::cout << " (" << pt[0] << "," << pt[1] << ") ";
-				}
-				std::cout << std::endl;
+				if ( slice.size()>=3 )
+					num_good_slices++;
+				// std::cout << "slice: ";
+				// for ( auto const& pt : slice ) {
+				// 	std::cout << " (" << pt[0] << "," << pt[1] << ") ";
+				// }
+				// std::cout << std::endl;
 			}
+			float frac_good_slices = float(num_good_slices)/float(slices.size());
+			// if ( slices.size()>0 )
+			// 	std::cout << " num good slices=" << num_good_slices << " frac_good_slices=" << frac_good_slices << std::endl;
+			// else
+			// 	std::cout << " volume has no slices" << std::endl;
+			ChargeVolume vol;
+			vol.num_good_slices = num_good_slices;
+			vol.frac_good_slices = frac_good_slices;
+			vol.num_slices = slices.size();
+			vol.clustergroup_indices = prematch.m_index_combo;
+			std::swap( vol.slices, slices );			
+			vols.emplace_back( std::move(vol) );
+		}
+
+		std::sort( vols.begin(), vols.end() );
+
+		std::cout << "Charge Volumes: " << std::endl;
+		for ( auto const& vol : vols ) {
+			std::cout << " clgroup[" << vol.clustergroup_indices[0] << "," << vol.clustergroup_indices[1] << "," << vol.clustergroup_indices[2] << "] "
+			  << " numslices=" << vol.num_slices << " goodslices=" << vol.num_good_slices << " fracgood=" << vol.frac_good_slices << std::endl;
 		}
 
 	}
@@ -94,14 +120,21 @@ namespace larlitecv {
 	ClusterGroupMatchingAlgo::Slices_t ClusterGroupMatchingAlgo::GetIntersectionVolume( const std::vector<larcv::Image2D>& untagged_v, 
 		const ClusterGroupMatchingAlgo::PreMatchMetric_t& prematch ) {
 
-		std::cout << "ClusterGroupMatchingAlgo::GetIntersectionVolume" << std::endl;
+		bool debug_verbose = false;
+		if ( m_debug_targetcombo.size()>0 )
+			debug_verbose = true;
+
+		if ( debug_verbose )
+  		std::cout << "ClusterGroupMatchingAlgo::GetIntersectionVolume" << std::endl;
 
 		const larcv::ImageMeta& meta = untagged_v.front().meta();
 
 	  std::vector<int> row_interval = GetCommonRowInterval( prematch );
-	  std::cout << " row interval: [" << row_interval[0] << "," << row_interval[1] << "] "
-   	  << " ticks: [" << meta.pos_y(row_interval[1]) << "," << meta.pos_y(row_interval[0]) << "]"
-   	  << std::endl;
+	  if ( debug_verbose ) {
+	    std::cout << " row interval: [" << row_interval[0] << "," << row_interval[1] << "] "
+     	  << " ticks: [" << meta.pos_y(row_interval[1]) << "," << meta.pos_y(row_interval[0]) << "]"
+     	  << std::endl;
+    }
 
    	int rows = abs( row_interval[1]-row_interval[0] );
 
@@ -120,42 +153,53 @@ namespace larlitecv {
    		// define the wire intervals over this slice
    		std::vector<WireInterval> wintervals = GetWireInterval( prematch, row_start, row_end, meta );
 
+   		if ( debug_verbose ) {
    		std::cout << " slice[" << islice << "] "
    			<< "tick=[" << meta.pos_y( row_end ) << "," << meta.pos_y(row_start) << "]"
    			<< " wire intervals: "
    			<< "[" << wintervals[0][0] << "," << wintervals[0][1] << "] "
    			<< "[" << wintervals[1][0] << "," << wintervals[1][1] << "] "
    			<< "[" << wintervals[2][0] << "," << wintervals[2][1] << "] ";
+   		}
 
    		// get the (y,z) point from the center of each wire interval
    		Point_t centroid = GetIntersectionCentroid( wintervals );
-   		std::cout << "centroid: (" << centroid[0] << "," << centroid[1] << ") ";
+   		if ( debug_verbose )
+    		std::cout << "centroid: (" << centroid[0] << "," << centroid[1] << ") ";
    		if ( centroid[0]<=-10000.0 && centroid[1]<=-10000.0 ) {
-   			std::cout << " [bad slice]" << std::endl;
+   			if ( debug_verbose )
+   			 	std::cout << " [bad slice]" << std::endl;
    			continue;
    		}
 
    		// get a list of all 12 intersection points made up by the intervals
    		PointList_t yzintersections = GetIntersectionPoints( wintervals );
-   		std::cout << "nxsections=" << yzintersections.size() << " ";
+   		//std::cout << "nxsections=" << yzintersections.size() << " ";
 
    		// we filter out the intersection points along the (y,z) overlap polygon and form the boundary of the polygon
    		PointList_t yzboundary = GetBoundaryPoints( yzintersections, centroid, wintervals );
-   		std::cout << "boundarypts=" << yzboundary.size() << " ";
+   		//std::cout << "boundarypts=" << yzboundary.size() << " ";
 
    		// we calculate the area of this polygon
 
    		// we can use the polygon to narrow the wire-ranges
    		std::vector<WireInterval> overlap_intervals = RecalculateWireIntervalsFromBoundary( yzboundary );
-   		std::cout << "overlap intervals: ";
-   		for ( auto const& interval : overlap_intervals ) {
-   			std::cout << "[" << interval[0] << "," << interval[1] << "] ";
+   		if ( debug_verbose ) {
+     		std::cout << "overlap intervals: ";
+     		for ( auto const& interval : overlap_intervals ) {
+   		  	std::cout << "[" << interval[0] << "," << interval[1] << "] ";
+   		  }
    		}
 
-   		// store the slice
-   		area_slices.at(islice) = yzboundary;
+   		PointList_t inside_tpc_boundary = EnforceTPCBounds( yzboundary );
+   		if ( debug_verbose )
+   			std::cout << " inside tpc boundary pt=" << inside_tpc_boundary.size();
 
-   		std::cout << std::endl;
+   		// store the slice
+   		area_slices.at(islice) = inside_tpc_boundary;
+
+   		if ( debug_verbose )
+   		  std::cout << std::endl;
    	}
 
    	// volume is the set of slices
@@ -286,6 +330,18 @@ namespace larlitecv {
 	ClusterGroupMatchingAlgo::PointList_t ClusterGroupMatchingAlgo::GetBoundaryPoints( const ClusterGroupMatchingAlgo::PointList_t& crossingpts, 
 		const ClusterGroupMatchingAlgo::Point_t& centroid, const std::vector<ClusterGroupMatchingAlgo::WireInterval>& wireranges  ) {
 
+		// note: if we have only 2 good wire intervals, the 4 intersection points will be boundary points by definition as we don't have 
+		// the additional constraint to use
+		// we simply copy back if so.
+		int numbadplanes = 0;
+		for ( size_t p=0; p<wireranges.size(); p++) {
+			if ( wireranges[p][0]<0 || wireranges[p][1]<0 ) {
+				numbadplanes++;
+			}
+		}
+		if ( numbadplanes>0 )
+			return crossingpts; // a simple copy
+
 		// we define an (y,z) point that we can sort by phi around centroid
 		class BoundaryPt {
 		public:
@@ -374,5 +430,178 @@ namespace larlitecv {
 		return output;
 	}
 
+	ClusterGroupMatchingAlgo::PointList_t ClusterGroupMatchingAlgo::EnforceTPCBounds( const ClusterGroupMatchingAlgo::PointList_t& yzboundary ) {
+		// In this method, we modify the boundary, if needed, to stay within the wire plane boundary.
+		// we look for the first internal yz-boundary point. From there we step until we found a point that goes out of bounds. We find the intersection 
+		// point between that line segment and the TPC boundary. 
+		// we then go to the next out-of-bounds to in-bounds transition point and do the same.  
+		// These boundary points are the inserted into the new yz boundary 
+		// We do this until we circl back to the first in-bound point;
+
+		PointList_t inside_boundary_points;
+
+		int idx = 0;
+		int first_inbound_idx = -1;
+		typedef enum { kTop=0, kDownstream, kBot, kUpstream } TPCBoundary_t; // these are the boundaries we can cross
+		std::vector< std::vector<float> > boundaries[4];
+		for (int i=0; i<4; i++) {
+			boundaries[i].resize(2);
+			boundaries[i][0].resize(2);
+			boundaries[i][1].resize(2);			
+	  }
+
+		// top
+		boundaries[kTop][0][1] = 0;
+		boundaries[kTop][0][0] = 118.0;
+		boundaries[kTop][1][1] = 1037.0;
+		boundaries[kTop][1][0] = 118.0;
+
+		// bottom
+		boundaries[kBot][0][1] = 0;
+		boundaries[kBot][0][0] = -118.0;
+		boundaries[kBot][1][1] = 1037.0;
+		boundaries[kBot][1][0] = -118.0;
+
+		// kDownstream
+		boundaries[kDownstream][0][1] = 1037;
+		boundaries[kDownstream][0][0] = -118.0;
+		boundaries[kDownstream][1][1] = 1037;
+		boundaries[kDownstream][1][0] = 118.0;
+
+		// kUpstream
+		boundaries[kUpstream][0][1] = 0.0;
+		boundaries[kUpstream][0][0] = -118.0;
+		boundaries[kUpstream][1][1] = 0.0;
+		boundaries[kUpstream][1][0] = 118.0;
+
+
+		// find the first in-bound point
+		for ( size_t ipt=0; ipt<yzboundary.size(); ipt++ ) {
+			auto const& pt = yzboundary.at(ipt);
+			if ( pt[1]>0 && pt[1]<1037.0 && pt[0]>-118.0 && pt[0]<118.0 ) {
+				first_inbound_idx = ipt;
+				break;
+			}
+		}
+
+		if ( first_inbound_idx<0 ) {
+			//std::cout << "no internal boundary points." << std::endl;
+			return inside_boundary_points;
+		}
+
+		inside_boundary_points.push_back( yzboundary.at(first_inbound_idx) );
+
+		// now move through boundary points finding inbound/outbound transitions (and vice-versa)
+		typedef enum { kIn=0, kOut } SearchState_t;
+		SearchState_t state = kIn;
+		idx = first_inbound_idx+1;
+		int last_inbound_idx = first_inbound_idx;
+		int last_outbound_idx = 0;
+		while ( idx!=first_inbound_idx) {
+			if ( idx>=(int)yzboundary.size()) {
+				// wrapped back around.
+				idx = 0;
+				continue;
+			}
+			const Point_t& pt = yzboundary.at(idx);
+			SearchState_t thispt_state = kIn;
+			if ( pt[1]<0 || pt[1]>1037.0 || pt[0]<-118.0 || pt[0]>118.0 ) {
+				thispt_state = kOut;
+			}
+
+			// in-to-out transition
+			if ( thispt_state!=state ) {
+
+				// find intersection point
+				// we'll use the UBWireTool Line segment tool
+				Point_t last_pt(0,0,0,0);
+				if ( state==kIn )
+					last_pt = yzboundary.at(last_inbound_idx);
+				else
+					last_pt = yzboundary.at(last_outbound_idx);
+				Point_t outpt(0,0,0,0);
+				if (thispt_state==kOut)
+					outpt = pt;
+				else
+					outpt = last_pt;
+
+				std::vector< std::vector<float> > lineseg;
+				lineseg.push_back( last_pt.as_vec() );
+				lineseg.push_back( pt.as_vec() );
+				std::vector<float>  intersection(2,-1.0);
+				int crosses = 0;
+
+				// easy sectors
+				if ( outpt[1]<0 && outpt[0]>-118.0 && outpt[0]<118.0 ) {
+  				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kUpstream], intersection, crosses );
+				}
+  			else if ( outpt[1]>1037.0 && outpt[0]>-118.0 && outpt[0]<118.0 ) {
+  				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kDownstream], intersection, crosses );
+  			}
+  			else if ( outpt[0]> 118.0 && outpt[1]>0 && outpt[1]<1037.0 ) {
+  				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kTop], intersection, crosses );
+  			}
+  			else if ( outpt[0]<-118.0 && outpt[1]>0 && outpt[1]<1037.0 ) {
+  				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kBot], intersection, crosses );
+  			}
+  			// corner sectors  			
+  			else if ( outpt[1]<0 && outpt[0]>118.0 ) {
+  				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kUpstream], intersection, crosses );
+  				if ( crosses==0 )
+    				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kTop], intersection, crosses );
+  			}
+  			else if ( outpt[1]<0 && outpt[0]<-118.0 ) {
+  				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kUpstream], intersection, crosses );
+  				if ( crosses==0 )
+    				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kBot], intersection, crosses );
+  			}
+  			else if ( outpt[1]>1037.0 && outpt[0]>118.0 ) {
+  				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kDownstream], intersection, crosses );
+  				if ( crosses==0 )
+    				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kTop], intersection, crosses );  				
+  			}
+  			else if ( outpt[1]>1037.0 && outpt[0]<-118.0 ) {
+  				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kDownstream], intersection, crosses );
+  				if ( crosses==0 )
+    				larcv::UBWireTool::lineSegmentIntersection2D( lineseg, boundaries[kBot], intersection, crosses );
+  			}
+
+  			if (crosses==0) {
+  			  std::cout << "in/out transition[" << idx << "]: thispt[" << thispt_state << "]="" << (" << pt[0] << "," << pt[1] << ") "
+  				   << "--- (" << intersection[0] << "," << intersection[1] << ") ---"
+  				   << " state[" << state << "]=("  << last_pt[0] << "," << last_pt[1] << ") "
+  				   << "crosses=" << crosses  << " last_in_idx=" << last_inbound_idx << " last_outbound_idx=" << last_outbound_idx
+  				   << std::endl;
+  				throw std::runtime_error("in-out boundary crossing missed.");
+  			}
+
+  			// switch state
+  			// std::cout << "in/out transition[" << idx << "]: (" << pt[0] << "," << pt[1] << ") "
+  			//   << "--- (" << intersection[0] << "," << intersection[1] << ") ---"
+  			//   << "("  << last_pt[0] << "," << last_pt[1] << ") " 
+  			//   << "crosses=" << crosses << std::endl;
+  			if ( thispt_state==kOut )
+  				last_outbound_idx = idx;
+  			else
+  				last_inbound_idx = idx;
+  			state = thispt_state;
+  			// add to vector
+  			Point_t boundary_pt( intersection[0], intersection[1], pt.tickstart, pt.tickend );
+  			inside_boundary_points.emplace_back( std::move(boundary_pt) );
+			}
+			else if ( thispt_state==kIn ) {
+				// add to vector
+				inside_boundary_points.push_back( pt );
+				last_inbound_idx = idx;
+			}
+			else if ( thispt_state==kOut ) {
+				// not interested
+				last_outbound_idx = idx;
+			}
+			idx++;
+		}
+
+		return inside_boundary_points;
+	}
 
 }
