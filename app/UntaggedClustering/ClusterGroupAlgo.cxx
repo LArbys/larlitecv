@@ -19,12 +19,22 @@ namespace larlitecv {
     ClusterGroupAlgoConfig cfg;
     cfg.pixel_thresholds         = ps.get<std::vector<float> >("PixelThresholds");
     cfg.dbscan_cluster_minpoints = ps.get<int>("DBScanClusterMinPoints");
-    cfg.dbscan_cluster_radius    = ps.get<int>("DBScanClusterRadius");
+    cfg.dbscan_cluster_radius    = ps.get<float>("DBScanClusterRadius");
     cfg.alldir_max_link_dist     = ps.get<float>("AllDirMaxLinkDist");
     cfg.max_link_distance        = ps.get<float>("MaxLinkDistance");
     cfg.min_link_cosine          = ps.get<float>("MinLinkCosine");
     cfg.single_cluster_group_min_npoints = ps.get<int>("SingleClusterGroupMinNumPoints");
     cfg.save_jpg_images          = ps.get<bool>("SaveJPGImages");
+    return cfg;
+  }
+
+  void ClusterGroupAlgoConfig::print() {
+    std::cout << "-----------------------------------" << std::endl;
+    std::cout << "ClusterGroupAlgoConfig" << std::endl;
+    std::cout << "  pixel threshold: " << pixel_thresholds[0] << ", " << pixel_thresholds[1] << ", " << pixel_thresholds[2] << std::endl;
+    std::cout << "  dbscan cluster minpoints: " << dbscan_cluster_minpoints << std::endl;
+    std::cout << "  dbscan cluster radius: " << dbscan_cluster_radius << std::endl;
+    std::cout << "-----------------------------------" << std::endl;    
   }
 
   std::vector< std::vector<ClusterGroup> > ClusterGroupAlgo::MakeClusterGroups( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 

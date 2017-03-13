@@ -74,6 +74,7 @@ namespace larlitecv {
     bool save_jpg_images;
 
     void setdefaults();
+    void print();
 
     static ClusterGroupAlgoConfig MakeClusterGroupAlgoConfigFromPSet( const larcv::PSet& ps );
 
