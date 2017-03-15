@@ -7,19 +7,22 @@
 #include "DataFormat/ROI.h"
 #include "DataFormat/Image2D.h"
 #include "DataFormat/EventImage2D.h"
+#include "DataFormat/EventPixel2D.h"
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
 
 // larlite
 #include "DataFormat/opflash.h"
 #include "DataFormat/chstatus.h"
+#include "LArUtil/LArProperties.h"
 
 // larlitecv
 #include "Base/DataCoordinator.h"
-#include "ThruMu/EmptyChannelAlgo.h"
-#include "ContainedROIConfig.h"
-#include "ContainedROI.h"
-#include "FlashROIMatching.h"
+#include "GapChs/EmptyChannelAlgo.h"
+#include "UntaggedClustering/ClusterGroupAlgo.h"
+#include "UntaggedClustering/ClusterGroupMatchingTypes.h"
+#include "UntaggedClustering/ClusterGroupMatchingAlgo.h"
+#include "ContainedROI/TaggerFlashMatchTypes.h"
 
 #ifndef __CINT__
 #ifdef USE_OPENCV
@@ -34,60 +37,67 @@ int main( int nargs, char** argv ) {
 
   std::cout << "[[ ROI SELECTION ]]" << std::endl;
 
-  // we need to have a data coordinator for each stage because the number of entries could be different.
-  // we'll coordinate by using event,subrun,run information
-  std::string data_folder = "~/working/data/larbys/cosmic_tagger_dev/";
+  if ( nargs!=2) {
+    std::cout << "./run_roi_selection [config file]" << std::endl;
+    return 0;
+  }
+  std::string cfg_file = argv[1];
+
+  larcv::PSet cfg_root = larcv::CreatePSetFromFile( cfg_file );
+  larcv::PSet cfg      = cfg_root.get<larcv::PSet>( "ContainedROI" );
 
   larlitecv::DataCoordinator dataco_source;
-  dataco_source.add_inputfile( data_folder+"/output_larcv.root", "larcv" ); // segment image/original image
-  dataco_source.add_inputfile( data_folder+"/output_larlite.root", "larlite"); //source larlite file
+  dataco_source.set_filelist( cfg.get<std::string>( "SourceLArCVFilelist" ), "larcv" );   // original image/(segment image if we need it)
+  dataco_source.set_filelist( cfg.get<std::string>( "SourceLArLiteFilelist"), "larlite"); // source larlite file
 
-  larlitecv::DataCoordinator dataco_thrumu;
-  dataco_thrumu.add_inputfile( data_folder+"/output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" ); // thrumu-tagger info, larcv
-  dataco_thrumu.add_inputfile( data_folder+"/output_larlite_testmcbnbcosmic_signalnumu.root", "larlite"); //thrumu-tagged info, larlite
+  // Deprecate?
+  //larlitecv::DataCoordinator dataco_thrumu;
+  //dataco_thrumu.set_filelist( , "larcv" ); // thrumu-tagger info, larcv
+  //dataco_thrumu.set_filelist( data_folder+"/output_larlite_testmcbnbcosmic_signalnumu.root", "larlite"); //thrumu-tagged info, larlite
 
   larlitecv::DataCoordinator dataco_stopmu;
-  dataco_stopmu.add_inputfile( data_folder+"/output_stopmu_larcv.root",   "larcv" );   //stopmu-tagger output
-  dataco_stopmu.add_inputfile( data_folder+"/output_stopmu_larlite.root", "larlite" ); //stopmu-tagger output
+  dataco_stopmu.set_filelist( cfg.get<std::string>( "StopMuLArCVFilelist"),   "larcv" );   //stopmu-tagger output
+  dataco_stopmu.set_filelist( cfg.get<std::string>( "StopMuLArLiteFilelist"), "larlite" ); //stopmu-tagger output
 
   larlitecv::DataCoordinator dataco_output;
-  dataco_output.set_outputfile( "output_containedroi_larcv.root", "larcv");
-  dataco_output.set_outputfile( "output_containedroi_larlite.root", "larlite");
 
   dataco_source.configure( "containedroi.cfg", "StorageManager", "IOManager", "ContainedROI" );
-  dataco_thrumu.configure( "containedroi.cfg", "StorageManager", "IOManager", "ContainedROI" );
+  //dataco_thrumu.configure( "containedroi.cfg", "StorageManager", "IOManager", "ContainedROI" );
   dataco_stopmu.configure( "containedroi.cfg", "StorageManager", "IOManager", "ContainedROI" );
   dataco_output.configure( "containedroi.cfg", "StorageManagerOutput", "IOManagerOutput", "ContainedROI" );
 
   dataco_source.initialize();
-  dataco_thrumu.initialize();
+  //dataco_thrumu.initialize();
   dataco_stopmu.initialize();
   dataco_output.initialize();
 
   std::cout << "data[source] entries=" << dataco_source.get_nentries("larcv") << std::endl;
-  std::cout << "data[thrumu] entries=" << dataco_thrumu.get_nentries("larcv") << std::endl;
+  //std::cout << "data[thrumu] entries=" << dataco_thrumu.get_nentries("larcv") << std::endl;
   std::cout << "data[stopmu] entries=" << dataco_stopmu.get_nentries("larcv") << std::endl;
 
   // configuration parameters
-  larcv::PSet cfg = larcv::CreatePSetFromFile( "containedroi.cfg" );
-  larcv::PSet pset = cfg.get<larcv::PSet>("ContainedROI");
-  larcv::PSet contained_pset = pset.get<larcv::PSet>("ContainedROIConfig");
-  larcv::PSet flash_pset     = pset.get<larcv::PSet>("FlashROIMatchingConfig");
-  std::vector<std::string> flashproducers = pset.get< std::vector<std::string> >("OpFlashProducers");
+  larcv::PSet cluster_pset   = cfg.get<larcv::PSet>("ContainedGroupAlgo");
+  bool isMC = cfg.get<bool>("IsMC");
+  std::string tpc_image_producername    = cfg.get<std::string>("StopMuInputLArCVImages");
+  std::string gapchs_image_producername = cfg.get<std::string>("StopMuBadChLArCVImages");
+  std::string stopmutagged_image_producername = cfg.get<std::string>("StopMuTaggedImages");
+  std::string thrumutagged_image_producername = cfg.get<std::string>("ThruMuTaggedImages");
+  std::vector<std::string> flashproducers = cfg.get< std::vector<std::string> >("OpFlashProducers");
 
-  larlitecv::ContainedROIConfig contained_cfg = larlitecv::CreateContainedROIConfig( contained_pset );
-  larlitecv::FlashROIMatchingConfig flash_cfg = larlitecv::MakeFlashROIMatchingConfigFromFile( "containedroi.cfg"); // add pset interface
+  // ----------------------------------------------------------------
 
-  // contained ROI selection algorithm
-  larlitecv::ContainedROI algo( contained_cfg );
-  larlitecv::FlashROIMatching flash_matching( flash_cfg );
+  // Cluster Group
+  larlitecv::ClusterGroupAlgoConfig cluster_cfg = larlitecv::ClusterGroupAlgoConfig::MakeClusterGroupAlgoConfigFromPSet( cluster_pset );  
+  larlitecv::ClusterGroupAlgo clusteralgo( cluster_cfg );
 
-  // event loop
+  // Cluster Group Match
+  larlitecv::ClusterGroupMatchingAlgo matchingalgo;
 
-  int nentries = dataco_stopmu.get_nentries("larcv");
-  int user_nentries =   pset.get<int>("NumEntries",-1);
-  int user_startentry = pset.get<int>("StartEntry",-1);
-  int start_entry = 0;
+  // Event Loop
+  int nentries        = dataco_stopmu.get_nentries("larcv");
+  int user_nentries   = cfg.get<int>("NumEntries",-1);
+  int user_startentry = cfg.get<int>("StartEntry",-1);
+  int start_entry     = 0;
   if ( user_startentry>=0 ) {
     start_entry = user_startentry;
   }
@@ -105,35 +115,49 @@ int main( int nargs, char** argv ) {
     dataco_stopmu.get_id(run,subrun,event);
     std::cout << "entry " << ientry << std::endl;
     std::cout << " (r,s,e)=(" << run << ", " << subrun << ", " << event << ")" << std::endl;
-    dataco_thrumu.goto_event(run,subrun,event,"larcv");
+    //dataco_thrumu.goto_event(run,subrun,event,"larcv");
     dataco_source.goto_event(run,subrun,event,"larcv");
     dataco_output.set_id(run, subrun, event);
 
-    algo.m_run = run;
-    algo.m_subrun = subrun;
-    algo.m_event = event;
-    algo.m_entry = ientry;
+    // algo.m_run = run;
+    // algo.m_subrun = subrun;
+    // algo.m_event = event;
+    // algo.m_entry = ientry;
 
-    // get images
-    larcv::EventImage2D* ev_imgs   = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"modimgs");
-    larcv::EventImage2D* ev_seg    = (larcv::EventImage2D*)dataco_source.get_larcv_data(larcv::kProductImage2D,"segment");
-    larcv::EventImage2D* ev_thrumu = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"marked3d");
-    larcv::EventImage2D* ev_stopmu = (larcv::EventImage2D*)dataco_stopmu.get_larcv_data(larcv::kProductImage2D,"stopmu"); 
-    larcv::EventROI* rois          = (larcv::EventROI*)    dataco_source.get_larcv_data(larcv::kProductROI, "tpc" );
+    // ------------------------------------------------------------------------------------------//
+    // STOPMU DATA PRODUCTS: images, pixels, and tracks
 
+    // images
+    larcv::EventImage2D* ev_imgs   = (larcv::EventImage2D*)dataco_stopmu.get_larcv_data(larcv::kProductImage2D, tpc_image_producername);
+    larcv::EventImage2D* ev_thrumu = (larcv::EventImage2D*)dataco_stopmu.get_larcv_data(larcv::kProductImage2D, thrumutagged_image_producername);
+    larcv::EventImage2D* ev_stopmu = (larcv::EventImage2D*)dataco_stopmu.get_larcv_data(larcv::kProductImage2D, stopmutagged_image_producername); 
+    larcv::EventImage2D* ev_gapchs = (larcv::EventImage2D*)dataco_stopmu.get_larcv_data(larcv::kProductImage2D, gapchs_image_producername);
+
+    // retrieve the thrumu and stopmu clusters as well
+    larcv::EventPixel2D*  ev_thrumu_pixels = (larcv::EventPixel2D*) dataco_stopmu.get_larcv_data(larcv::kProductPixel2D,   "thrumu2d" );
+    larcv::EventPixel2D*  ev_stopmu_pixels = (larcv::EventPixel2D*) dataco_stopmu.get_larcv_data(larcv::kProductPixel2D,   "stopmupixels");
+
+    // tracks
+    larlite::event_track* ev_thrumu_tracks = (larlite::event_track*)dataco_stopmu.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
+    larlite::event_track* ev_stopmu_tracks = (larlite::event_track*)dataco_stopmu.get_larlite_data( larlite::data::kTrack, "stopmu3d");
+
+    // MC information: ROI and segment image
+    larcv::EventROI* rois       = nullptr;
+    larcv::EventImage2D* ev_seg = nullptr;
+    if ( isMC ) {
+      // source
+      rois   = (larcv::EventROI*)    dataco_source.get_larcv_data(larcv::kProductROI, "tpc" );
+      ev_seg = (larcv::EventImage2D*)dataco_source.get_larcv_data(larcv::kProductImage2D,"segment");
+    }
 
     const std::vector<larcv::Image2D>& imgs_v   = ev_imgs->Image2DArray();
     const std::vector<larcv::Image2D>& thrumu_v = ev_thrumu->Image2DArray();
     const std::vector<larcv::Image2D>& stopmu_v = ev_stopmu->Image2DArray();
+    const std::vector<larcv::Image2D>& gapchs_v = ev_gapchs->Image2DArray();
 
-    // use larlite chstatus to get badch
-    larlite::event_chstatus* ev_status = (larlite::event_chstatus*)dataco_source.get_larlite_data( larlite::data::kChStatus, "chstatus" );
-    larlitecv::EmptyChannelAlgo emptyalgo;
-    std::cout << "ch status planes: " << ev_status->size() << std::endl;
-    std::vector< larcv::Image2D > badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
-    std::cout << "number of bad ch imgs: " << badch_v.size() << std::endl;
+    // ------------------------------------------------------------------------------------------//
+    // LARLITE OPFLASH DATA
 
-    // larlite opflash data
     std::vector< larlite::event_opflash* > opflash_containers;
     for ( auto &flashproducer : flashproducers ) {
       std::cout << "search for flash hits from " << flashproducer << ". ";
@@ -142,97 +166,179 @@ int main( int nargs, char** argv ) {
       opflash_containers.push_back( opdata );
     }
 
-    // find untagged pixel clusters, matched in all three planes
-    std::vector< std::vector<larcv::Pixel2DCluster> > untagged_pixel_clusters;
-    algo.SetTruthROI( rois->ROIArray().at(0) );
-    std::vector<larcv::ROI> untagged_rois = algo.SelectROIs( imgs_v, thrumu_v, stopmu_v, badch_v, untagged_pixel_clusters );
+    // ------------------------------------------------------------------------------------------//
+    // COMBINE STOPMU/THRUMU TAGGER INFO
 
-    // retrieve the thrumu and stopmu clusters as well
-    larcv::EventPixel2D*  ev_thrumu_pixels = (larcv::EventPixel2D*) dataco_thrumu.get_larcv_data(larcv::kProductPixel2D,   "thrumu2d" );
-    larlite::event_track* ev_thrumu_tracks = (larlite::event_track*)dataco_thrumu.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
-    larcv::EventPixel2D*  ev_stopmu_pixels = (larcv::EventPixel2D*) dataco_stopmu.get_larcv_data(larcv::kProductPixel2D,   "stopmupixels");
-    larlite::event_track* ev_stopmu_tracks = (larlite::event_track*)dataco_stopmu.get_larlite_data( larlite::data::kTrack, "stopmutracks");
+    std::vector< larcv::Image2D > tagged_v;
+    std::vector< larcv::Image2D > subimg_v;    
+    for ( size_t p=0; p<imgs_v.size(); p++) {
+      larcv::Image2D tagged( imgs_v.at(p).meta() );
+      tagged.paint(0.0);
+      larcv::Image2D sub( imgs_v.at(p) );
 
-    // we pass these clusters to the t
-    larcv::Image2D yplane_seg = ev_seg->Image2DArray().at(2); // just copy;
-    flash_matching.setNeutrinoYPlaneSegmentImage( &yplane_seg );
-    flash_matching.setRSE( ientry, run, subrun, event );
-    std::vector<larcv::ROI> flash_matched_rois = flash_matching.SelectFlashConsistentROIs( opflash_containers, imgs_v, 
-      untagged_pixel_clusters, untagged_rois, *ev_thrumu_pixels, *ev_stopmu_pixels );
+      for ( size_t r=0; r<tagged.meta().rows(); r++ ) {
+        for ( size_t c=0; c<tagged.meta().cols(); c++ ) {
+          // tagged image
+          if ( thrumu_v.at(p).pixel(r,c)>0 || stopmu_v.at(p).pixel(r,c)>0 )
+            tagged.set_pixel(r,c,255);
 
-
-    // visualize the output
-    std::vector< cv::Mat > cvimgs_v;
-    for (size_t p=0; p<3; p++) {
-      cv::Mat cvimg = larcv::as_mat_greyscale2bgr( imgs_v.at(p), 5.0, 50.0 );
-
-      // draw interaction ROI
-      if (rois->ROIArray().size()>0 && p<(int)rois->ROIArray().at(0).BB().size() && p<(int)imgs_v.size() ) {
-       larcv::draw_bb( cvimg, imgs_v.at(p).meta(), rois->ROIArray().at(0).BB().at(p), 200, 0, 200, 2 );
-      }
-
-      // label thrumu and stopmu pixels
-      int nthrumu = ev_thrumu_pixels->Pixel2DClusterArray(p).size();
-      for ( int imu=0; imu<nthrumu; imu++ ) {
-        const larcv::Pixel2DCluster& cluster = ev_thrumu_pixels->Pixel2DClusterArray(p).at(imu);
-        for ( auto const& pixel : cluster ) {
-          cv::circle( cvimg, cv::Point(pixel.X(),pixel.Y()), 3, cv::Scalar(200,0,0), -1 );
+          // subtraction image: below threshold and tagged pixels get zeroed (for clustering)
+          if ( sub.pixel(r,c)<10.0 || thrumu_v.at(p).pixel(r,c)>0 || stopmu_v.at(p).pixel(r,c)>0 )
+            sub.set_pixel(r,c,0.0);
         }
       }
-
-      int nstopmu = ev_stopmu_pixels->Pixel2DClusterArray(p).size();
-      for ( int imu=0; imu<nstopmu; imu++ ) {
-        const larcv::Pixel2DCluster& cluster = ev_stopmu_pixels->Pixel2DClusterArray(p).at(imu);
-        for ( auto const& pixel : cluster ) {
-          cv::circle( cvimg, cv::Point(pixel.X(),pixel.Y()), 3, cv::Scalar(0,0,200), -1 );
-        }
-      }
-
-      // draw proposed uncontained rois
-      for ( auto const& roi : untagged_rois ) {
-        larcv::draw_bb( cvimg, imgs_v.at(p).meta(), roi.BB().at(p), 0, 100, 100, 2 );        
-      }
-
-      // draw selected ROIs
-      for ( auto const& roi : flash_matched_rois ){
-        larcv::draw_bb( cvimg, imgs_v.at(p).meta(), roi.BB().at(p), 0, 200, 0, 2 );
-      }
-
-      std::stringstream ss;
-      ss << "roiselected_n" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
-      cv::imwrite( ss.str(), cvimg );
-
+      tagged_v.emplace_back( std::move(tagged) );
+      subimg_v.emplace_back( std::move(sub) );
     }
+
+    // ------------------------------------------------------------------------------------------//
+    // WE MAKE THE UNTAGGED/CONTAINED (3D) CLUSTERS and MATCH OVER PLANES
+
+    std::vector< larlitecv::PlaneClusterGroups > plane_groups_v = clusteralgo.MakeClusterGroups( imgs_v, gapchs_v, tagged_v );
+
+    std::vector<larlitecv::ChargeVolume> vols_v = matchingalgo.MatchClusterGroups( subimg_v, plane_groups_v );
+
+    // ------------------------------------------------------------------------------------------//
+    // WE COLLECT OUR CLUSTER DATA, forming TaggerFlashMatchData objects
+
+    // ThruMu
+    if ( ev_thrumu_pixels->Pixel2DClusterArray(0).size()!=ev_thrumu_tracks->size() )
+      throw std::runtime_error("size of ThruMu pixelclusters and tracks are not the same!");
+
+    std::vector< larlitecv::TaggerFlashMatchData > flashdata_v;
+    for ( int itrack=0; itrack<(int)ev_thrumu_tracks->size(); itrack++ ) {
+      std::vector< larcv::Pixel2DCluster > pixels;
+      for ( size_t p=0; p<imgs_v.size(); p++)
+        pixels.push_back( ev_thrumu_pixels->Pixel2DClusterArray(p).at(itrack) );
+      larlitecv::TaggerFlashMatchData thrumu_track( larlitecv::TaggerFlashMatchData::kThruMu, pixels, ev_thrumu_tracks->at(itrack) );
+      flashdata_v.emplace_back( std::move(thrumu_track) );
+    }
+
+    // StopMu
+    if ( ev_stopmu_pixels->Pixel2DClusterArray(0).size()!=ev_stopmu_tracks->size() )
+      throw std::runtime_error("size of StopMu pixelclusters and tracks are not the same!");
+
+    for ( int itrack=0; itrack<(int)ev_stopmu_tracks->size(); itrack++ ) {
+      std::vector< larcv::Pixel2DCluster > pixels;
+      for ( size_t p=0; p<imgs_v.size(); p++)
+        pixels.push_back( ev_stopmu_pixels->Pixel2DClusterArray(p).at(itrack) );
+      larlitecv::TaggerFlashMatchData stopmu_track( larlitecv::TaggerFlashMatchData::kStopMu, pixels, ev_stopmu_tracks->at(itrack) );
+      flashdata_v.emplace_back( std::move(stopmu_track) );
+    }
+
+    // Find Contained Clusters
+    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;        
+    for ( auto const& vol : vols_v ) {
+
+      // there should be a selection here...
+      // select by (1) good fraction (2) charge even-ness
+      if ( vol.frac_good_slices<0.8 )
+        continue;
+
+      std::cout << "VOL: clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
+        << " numslices=" << vol.num_slices 
+        << " goodslices=" << vol.num_good_slices 
+        << " fracgood=" << vol.frac_good_slices 
+        << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
+        << std::endl;
+
+      // we need to make a larlite::track object for this. we use the centroid of the slices
+      std::vector< std::vector<float> > xyz_v;
+      std::vector< float > slice_charge;
+      for ( size_t islice=0; islice<vol.slices.size(); islice++ ) {
+
+        const larlitecv::Slice_t& slice = vol.slices.at(islice);
+
+        if ( slice.inside_tpc_boundary.size()==0 )
+          continue;
+
+        // for each slice volume, we are going to do the easy thing first and represent charge at centroid
+        // of volume. not great, I know.
+        float centroid[2] = {0.0};
+        for ( auto const pt : slice.inside_tpc_boundary ) {
+          for (int i=0; i<2; i++)
+            centroid[i] += pt[i];
+        }
+        for (int i=0; i<2; i++) {
+          centroid[i] /= float(slice.inside_tpc_boundary.size());
+        }
+
+        float tick = imgs_v.front().meta().pos_y( 0.5*(slice.row_interval[0]+slice.row_interval[1]) );
+        float x = (tick-3200.0)*cm_per_tick;
+        std::vector< float > xyz(3,0);
+        xyz[0] = x;
+        xyz[1] = centroid[0];
+        xyz[2] = centroid[1];
+
+        xyz_v.emplace_back( std::move(xyz) );
+
+        // slice charge
+        float ave_charge = 0.;
+        for ( int i=0; i<3; i++ ) {
+          ave_charge += slice.plane_charge[i];
+        }
+        ave_charge /= 3.0;
+        slice_charge.push_back( ave_charge );
+      }
+
+      larlite::track contained_track;
+      for ( int ipt=0; ipt<(int)xyz_v.size()-1; ipt++ ) {
+        const std::vector<float>& xyz = xyz_v.at(ipt);
+        TVector3 pos( xyz[0], xyz[1], xyz[2] );
+        const std::vector<float>& xyz_next = xyz_v.at(ipt+1);
+        float dir[3] = {0};
+        float norm = 0.;        
+        for (int i=0; i<3; i++) {
+          dir[i] = xyz_next[i] - xyz[i];
+          norm += dir[i]*dir[i];
+        }
+        norm = sqrt(norm);
+        for (int i=0; i<3; i++)
+          dir[i] /= norm;
+        TVector3 dirv( dir[0], dir[1], dir[2] );
+        contained_track.add_vertex( pos );
+        contained_track.add_direction( dirv );
+        contained_track.add_momentum( slice_charge.at(ipt) );
+
+        if ( ipt==(int)xyz_v.size()-2) {
+          TVector3 nextpos( xyz_next[0], xyz_next[1], xyz_next[2] );
+          contained_track.add_vertex( nextpos );
+          contained_track.add_direction( dirv );
+          contained_track.add_momentum( slice_charge.at(ipt+1) );
+        }
+      }
+      larlitecv::TaggerFlashMatchData contained_cluster( larlitecv::TaggerFlashMatchData::kUntagged, vol.m_plane_pixels, contained_track );
+      flashdata_v.emplace_back( std::move(contained_cluster) );
+    }// end of vol loop
 
     // SAVE DATA TO OUTPUT FILE
     // ROIs, StopMu Tracks and clusters, ThruMu Tracks and Clusters, Truth ROI, Bad channels
 
     // save the image and bad channels
-    larcv::EventImage2D* out_ev_images = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "tpc" );
-    larcv::EventImage2D* out_ev_badchs = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "badchs" );
-    for ( auto& img : imgs_v )
-      out_ev_images->Append( img );
-    for ( auto& img : badch_v )
-      out_ev_badchs->Append( img );
+    // larcv::EventImage2D* out_ev_images = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "tpc" );
+    // larcv::EventImage2D* out_ev_badchs = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "badchs" );
+    // for ( auto& img : imgs_v )
+    //   out_ev_images->Append( img );
+    // //for ( auto& img : badch_v )
+    // //  out_ev_badchs->Append( img );
 
-    // save contained ROI
-    larcv::EventROI*  out_ev_contained = (larcv::EventROI*)    dataco_output.get_larcv_data( larcv::kProductROI, "containedroi");
-    larcv::EventPixel2D* out_ev_candidates = (larcv::EventPixel2D*) dataco_output.get_larcv_data( larcv::kProductPixel2D, "candidatepixels");
-    out_ev_contained->Emplace( std::move(flash_matched_rois) );
+    // // save contained ROI
+    // larcv::EventROI*  out_ev_contained = (larcv::EventROI*)    dataco_output.get_larcv_data( larcv::kProductROI, "containedroi");
+    // larcv::EventPixel2D* out_ev_candidates = (larcv::EventPixel2D*) dataco_output.get_larcv_data( larcv::kProductPixel2D, "candidatepixels");
+    // out_ev_contained->Emplace( std::move(flash_matched_rois) );
 
-    // truth quantities
-    larcv::EventImage2D* out_ev_segmnt = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "segment");
-    larcv::EventROI*     out_ev_roi    = (larcv::EventROI*)    dataco_output.get_larcv_data( larcv::kProductROI, "tpc");
-    for ( auto& img : ev_seg->Image2DArray() )
-      out_ev_segmnt->Append( img );
-    out_ev_roi->Set( rois->ROIArray() );
+    // // truth quantities
+    // larcv::EventImage2D* out_ev_segmnt = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "segment");
+    // larcv::EventROI*     out_ev_roi    = (larcv::EventROI*)    dataco_output.get_larcv_data( larcv::kProductROI, "tpc");
+    // for ( auto& img : ev_seg->Image2DArray() )
+    //   out_ev_segmnt->Append( img );
+    // out_ev_roi->Set( rois->ROIArray() );
 
     dataco_output.save_entry();
 
   }//end of event loop
 
   dataco_output.finalize();
-  flash_matching.writeCalibTree();
 
   return 0;
 }
