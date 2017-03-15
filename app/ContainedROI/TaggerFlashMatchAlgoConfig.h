@@ -16,14 +16,19 @@ namespace larlitecv {
   	TaggerFlashMatchAlgoConfig();
   	virtual ~TaggerFlashMatchAlgoConfig() {};
 
+  	int verbosity;
   	float qcluster_stepsize;
   	float MeV_per_cm;
   	float fudge_factor;
+  	float us_per_tick;
+  	float pmtflash_thresh;
+  	float flashmatch_chi2_cut;
   	std::vector<int> beam_tick_range;
-  	larlite::PSet flashmatch_config;
+  	fcllite::PSet flashmatch_config;
   	std::vector<float> FVCutX;
-  	TGraph FVCutCurveY;
-  	TGraph FVCutCurveZ;
+  	std::vector<float> FVCutY;
+  	std::vector<float> FVCutZ;
+  	std::vector<float> gain_correction;
 
   	static TaggerFlashMatchAlgoConfig MakeTaggerFlashMatchAlgoConfigFromPSet( const larcv::PSet& pset );
 	};

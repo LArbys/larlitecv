@@ -3,6 +3,8 @@
 
 // LArCV
 #include "Base/PSet.h"
+#include "DataFormat/ROI.h"
+#include "PMTWeights/PMTWireWeights.h"
 
 // larlite
 #include "DataFormat/opflash.h"
@@ -12,13 +14,15 @@
 
 // larlitecv
 #include "TaggerFlashMatchAlgoConfig.h"
+#include "TaggerFlashMatchTypes.h"
+#include "SCE/SpaceChargeMicroBooNE.h"
 
 
 namespace larlitecv {
 
   class TaggerFlashMatchAlgo {
 
-  	TaggerFlashMatchAlgo() {};
+  	TaggerFlashMatchAlgo();
   public:
   	TaggerFlashMatchAlgo( TaggerFlashMatchAlgoConfig& config );
   	virtual ~TaggerFlashMatchAlgo() {};
@@ -38,21 +42,32 @@ namespace larlitecv {
 	  std::vector<larcv::ROI> FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata, 
 	    const std::vector<larlite::event_opflash*>& opflashes_v );
 
+	  void setVerbosity( int verbosity ) { m_verbosity = verbosity; };
+
 
   	flashana::QCluster_t GenerateQCluster( const TaggerFlashMatchData& data );
 	  flashana::Flash_t    GenerateUnfittedFlashHypothesis( const flashana::QCluster_t& qcluster );
 	  flashana::Flash_t    MakeDataFlash( const larlite::opflash& flash );
 	  void GetFlashCenterAndRange( const larlite::opflash& flash, float& zmean, std::vector<float>& zrange );
+    std::vector<flashana::Flash_t>    GetInTimeFlashana( const std::vector<larlite::event_opflash*>& opflashes_v );	  
 	  std::vector<larlite::opflash>     SelectInTimeOpFlashes( const std::vector<larlite::event_opflash*>& opflashes_v );
-    std::vector<flashana::Flash_t>    GetInTimeFlashana( const std::vector<larlite::event_opflash*>& opflashes_v );
-	  std::vector<flashana::QCluster_t> GenerateQClusters( const TaggerFlashMatchData& inputdata );
-	  void ChooseContainedCandidates( const TaggerFlashMatchData& inputdata, std::vector<int>& passes_containment );
+	  std::vector<flashana::Flash_t>    MakeDataFlashes( const std::vector<larlite::opflash>& opflashes );
+	  std::vector<flashana::QCluster_t> GenerateQClusters( const std::vector<TaggerFlashMatchData>& inputdata );	  
+	  void ChooseContainedCandidates( const std::vector<TaggerFlashMatchData>& inputdata, std::vector<int>& passes_containment );
 	  bool IsClusterContained( const TaggerFlashMatchData& data );
+    float InTimeFlashComparison( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster );
+    void ChooseInTimeFlashMatchedCandidates( const std::vector<flashana::QCluster_t>& inputdata, 
+    	const std::vector<flashana::Flash_t>& intime_flashes, std::vector<int>& passes_flashmatch );
+
 
   protected:
 
   	const TaggerFlashMatchAlgoConfig m_config;   //< configuration class
+    larcv::pmtweights::PMTWireWeights m_pmtweights;  	
 		flashana::FlashMatchManager m_flash_matcher; //< Generates Flash Hypothesis producer
+		SpaceChargeMicroBooNE m_sce;           //< Space Charge Effect Calculator
+		int m_verbosity;
+
 
 
   };

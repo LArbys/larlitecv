@@ -23,6 +23,8 @@
 #include "UntaggedClustering/ClusterGroupMatchingTypes.h"
 #include "UntaggedClustering/ClusterGroupMatchingAlgo.h"
 #include "ContainedROI/TaggerFlashMatchTypes.h"
+#include "ContainedROI/TaggerFlashMatchAlgoConfig.h"
+#include "ContainedROI/TaggerFlashMatchAlgo.h"
 
 #ifndef __CINT__
 #ifdef USE_OPENCV
@@ -77,6 +79,7 @@ int main( int nargs, char** argv ) {
 
   // configuration parameters
   larcv::PSet cluster_pset   = cfg.get<larcv::PSet>("ContainedGroupAlgo");
+  larcv::PSet selection_pset = cfg.get<larcv::PSet>("TaggerFlashMatchAlgo");
   bool isMC = cfg.get<bool>("IsMC");
   std::string tpc_image_producername    = cfg.get<std::string>("StopMuInputLArCVImages");
   std::string gapchs_image_producername = cfg.get<std::string>("StopMuBadChLArCVImages");
@@ -92,6 +95,10 @@ int main( int nargs, char** argv ) {
 
   // Cluster Group Match
   larlitecv::ClusterGroupMatchingAlgo matchingalgo;
+
+  // Selection Algo
+  larlitecv::TaggerFlashMatchAlgoConfig selection_cfg = larlitecv::TaggerFlashMatchAlgoConfig::MakeTaggerFlashMatchAlgoConfigFromPSet( selection_pset );
+  larlitecv::TaggerFlashMatchAlgo selectionalgo( selection_cfg );
 
   // Event Loop
   int nentries        = dataco_stopmu.get_nentries("larcv");
@@ -232,15 +239,15 @@ int main( int nargs, char** argv ) {
 
       // there should be a selection here...
       // select by (1) good fraction (2) charge even-ness
-      if ( vol.frac_good_slices<0.8 )
+      if ( vol.frac_good_slices>0.8 )
         continue;
 
       std::cout << "VOL: clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
         << " numslices=" << vol.num_slices 
         << " goodslices=" << vol.num_good_slices 
-        << " fracgood=" << vol.frac_good_slices 
-        << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
-        << std::endl;
+       << " fracgood=" << vol.frac_good_slices 
+       << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
+       << std::endl;
 
       // we need to make a larlite::track object for this. we use the centroid of the slices
       std::vector< std::vector<float> > xyz_v;
@@ -310,6 +317,11 @@ int main( int nargs, char** argv ) {
       larlitecv::TaggerFlashMatchData contained_cluster( larlitecv::TaggerFlashMatchData::kUntagged, vol.m_plane_pixels, contained_track );
       flashdata_v.emplace_back( std::move(contained_cluster) );
     }// end of vol loop
+
+    // --------------------------------------------------------------------
+    // SELECT ROIs
+
+    std::vector<larcv::ROI> selected_rois = selectionalgo.FindFlashMatchedContainedROIs( flashdata_v, opflash_containers );
 
     // SAVE DATA TO OUTPUT FILE
     // ROIs, StopMu Tracks and clusters, ThruMu Tracks and Clusters, Truth ROI, Bad channels
