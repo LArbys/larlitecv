@@ -13,6 +13,7 @@
 
 // larlite
 #include "DataFormat/opflash.h"
+#include "DataFormat/opdetwaveform.h"
 #include "DataFormat/chstatus.h"
 #include "LArUtil/LArProperties.h"
 
@@ -335,21 +336,51 @@ int main( int nargs, char** argv ) {
       flashdata_v.emplace_back( std::move(contained_cluster) );
     }// end of vol loop
 
-    // --------------------------------------------------------------------
+    // --------------------------------------------------------------------//
     // SELECT ROIs
 
-    std::vector<larcv::ROI> selected_rois = selectionalgo.FindFlashMatchedContainedROIs( flashdata_v, opflash_containers );
+    std::vector<int> flashdata_selected_v( flashdata_v.size(), 0 );
+    std::vector<larcv::ROI> selected_rois = selectionalgo.FindFlashMatchedContainedROIs( flashdata_v, opflash_containers, flashdata_selected_v );
 
+
+    // --------------------------------------------------------------------//
     // SAVE DATA TO OUTPUT FILE
+    // We must transfer the data explicitly
+
+    // Save New Untagged Clusters
+    larlite::event_track* evout_tracks_thrumu   = (larlite::event_track*)dataco_output.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
+    larlite::event_track* evout_tracks_stopmu   = (larlite::event_track*)dataco_output.get_larlite_data( larlite::data::kTrack, "stopmu3d" );
+    larlite::event_track* evout_tracks_untagged = (larlite::event_track*)dataco_output.get_larlite_data( larlite::data::kTrack, "untagged3d" );
+    larlite::event_track* evout_tracks_selected = (larlite::event_track*)dataco_output.get_larlite_data( larlite::data::kTrack, "croi3d" );
+
+    for ( auto const& track : *ev_thrumu_tracks ) {
+      evout_tracks_thrumu->push_back( track );
+    }
+    for ( auto const& track : *ev_stopmu_tracks ) {
+      evout_tracks_stopmu->push_back( track );
+    }
+    for ( size_t itrack=0; itrack<flashdata_v.size(); itrack++) {
+      auto const& flashdata = flashdata_v.at(itrack);
+      if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
+        continue;
+      if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kUntagged ) {
+        evout_tracks_untagged->push_back( flashdata.m_track3d );
+      }
+      if ( flashdata_selected_v[itrack] ) {
+        evout_tracks_selected->push_back( flashdata.m_track3d );
+      }
+    }
+
+
     // ROIs, StopMu Tracks and clusters, ThruMu Tracks and Clusters, Truth ROI, Bad channels
 
     // save the image and bad channels
-    // larcv::EventImage2D* out_ev_images = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "tpc" );
-    // larcv::EventImage2D* out_ev_badchs = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "badchs" );
-    // for ( auto& img : imgs_v )
-    //   out_ev_images->Append( img );
-    // //for ( auto& img : badch_v )
-    // //  out_ev_badchs->Append( img );
+    larcv::EventImage2D* out_ev_images = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "tpc" );
+    larcv::EventImage2D* out_ev_gapchs = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "gapchs" );
+    for ( auto& img : imgs_v )
+      out_ev_images->Append( img );
+    for ( auto& img : gapchs_v )
+      out_ev_gapchs->Append( img );
 
     // // save contained ROI
     // larcv::EventROI*  out_ev_contained = (larcv::EventROI*)    dataco_output.get_larcv_data( larcv::kProductROI, "containedroi");
@@ -362,6 +393,17 @@ int main( int nargs, char** argv ) {
     // for ( auto& img : ev_seg->Image2DArray() )
     //   out_ev_segmnt->Append( img );
     // out_ev_roi->Set( rois->ROIArray() );
+
+    // copy over opdigits
+    larlite::event_opdetwaveform* ev_opdigit     = (larlite::event_opdetwaveform*) dataco_source.get_larlite_data( larlite::data::kOpDetWaveform, "saturation" );
+    larlite::event_opdetwaveform* out_ev_opdigit = (larlite::event_opdetwaveform*) dataco_output.get_larlite_data( larlite::data::kOpDetWaveform, "saturation" );
+    for ( auto const& opdigit : *ev_opdigit )
+      out_ev_opdigit->push_back( opdigit );
+
+    // copy over trigger
+    larlite::trigger* ev_trigger    = (larlite::trigger*) dataco_source.get_larlite_data( larlite::data::kTrigger, "triggersim" );
+    larlite::trigger* evout_trigger = (larlite::trigger*) dataco_output.get_larlite_data( larlite::data::kTrigger, "triggersim" );
+
 
     dataco_output.save_entry();
 
