@@ -24,11 +24,11 @@ namespace larlitecv {
   	float pmtflash_thresh;
   	float flashmatch_chi2_cut;
   	std::vector<int> beam_tick_range;
-  	fcllite::PSet flashmatch_config;
   	std::vector<float> FVCutX;
   	std::vector<float> FVCutY;
   	std::vector<float> FVCutZ;
   	std::vector<float> gain_correction;
+  	fcllite::PSet m_flashmatch_config;
 
   	static TaggerFlashMatchAlgoConfig MakeTaggerFlashMatchAlgoConfigFromPSet( const larcv::PSet& pset );
 	};

@@ -232,13 +232,13 @@ namespace larlitecv {
   			if ( bb[v][0]>xyz[v] ) {
   				bb[v][0] = xyz[v];
   				for (int j=0; j<3; j++)
-	  				extrema[v][0][i] = xyz[j];
+	  				extrema[v][0][j] = xyz[j];
   			}
   			// maxvalue
   			if ( bb[v][1]<xyz[v] ) {
   				bb[v][1] = xyz[v];
   				for (int j=0; j<3; j++)
-	  				extrema[v][1][i] = xyz[j];
+	  				extrema[v][1][j] = xyz[j];
   			}
   		}
   	}

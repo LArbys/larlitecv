@@ -5,8 +5,8 @@
 
 namespace larlitecv {
 
-	TaggerFlashMatchAlgoConfig::TaggerFlashMatchAlgoConfig() 
-	 : flashmatch_config("TaggerFlashMatchAlgo") {
+	TaggerFlashMatchAlgoConfig::TaggerFlashMatchAlgoConfig():
+	 m_flashmatch_config(fcllite::PSet("Temp","Temp:{ Default:2.0 }")) {
 		verbosity = 0;
 		qcluster_stepsize = 0.3;
 		MeV_per_cm = 2.3;
@@ -41,10 +41,11 @@ namespace larlitecv {
 		cfg.FVCutY            = pset.get< std::vector<float> >("FVCutY");
 		cfg.FVCutZ            = pset.get< std::vector<float> >("FVCutZ");
 		cfg.flashmatch_chi2_cut = pset.get<float>("FlashMatchChi2Cut");
-		cfg.gain_correction   = pset.get< std::vector<float> >("GainCorrection");
+		//cfg.gain_correction   = pset.get< std::vector<float> >("GainCorrection");
 		larcv::PSet flashmatchman_cfg = pset.get<larcv::PSet>("FlashMatchManager");
-		cfg.flashmatch_config = fcllite::PSet( "temp", flashmatchman_cfg.data_string() ).get<fcllite::PSet>("FlashMatchManager");
+		fcllite::PSet vox( "Manager", flashmatchman_cfg.data_string() );
+		cfg.m_flashmatch_config = vox.get<fcllite::PSet>("FlashMatchManager");
+		//std::cout << cfg.flashmatch_config.dump() << std::endl;
 		return cfg;
 	}
-
 }

@@ -206,6 +206,23 @@ int main( int nargs, char** argv ) {
     std::vector<larlitecv::ChargeVolume> vols_v = matchingalgo.MatchClusterGroups( subimg_v, plane_groups_v );
 
     // ------------------------------------------------------------------------------------------//
+    // OPTIONAL: DUMP JPG
+
+    // image the output of clustergroup matcher
+    std::vector<cv::Mat> cv_matched;
+    for ( size_t p=0; p<imgs_v.size(); p++) {
+      cv::Mat cvimg = larcv::as_mat_greyscale2bgr( imgs_v.at(p), 10, 60 );
+      cv_matched.emplace_back( std::move(cvimg) );
+    }
+    matchingalgo.labelCVImageWithMatchedClusters( cv_matched, imgs_v, vols_v, 0.75 );
+    for ( size_t p=0; p<cv_matched.size(); p++) {
+      cv::Mat& cvimg = cv_matched.at(p);
+      std::stringstream ss;
+      ss << "clustermatch_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
+      imwrite( ss.str(), cvimg );
+    }   
+
+    // ------------------------------------------------------------------------------------------//
     // WE COLLECT OUR CLUSTER DATA, forming TaggerFlashMatchData objects
 
     // ThruMu
@@ -239,11 +256,11 @@ int main( int nargs, char** argv ) {
 
       // there should be a selection here...
       // select by (1) good fraction (2) charge even-ness
-      if ( vol.frac_good_slices>0.8 )
+      if ( vol.frac_good_slices<0.8 )
         continue;
 
       std::cout << "VOL: clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
-        << " numslices=" << vol.num_slices 
+        << " numslices=" << vol.num_slices
         << " goodslices=" << vol.num_good_slices 
        << " fracgood=" << vol.frac_good_slices 
        << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
