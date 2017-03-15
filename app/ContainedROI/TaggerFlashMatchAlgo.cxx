@@ -13,6 +13,12 @@ namespace larlitecv {
 	TaggerFlashMatchAlgo::TaggerFlashMatchAlgo( TaggerFlashMatchAlgoConfig& config )
 	 : m_config(config), m_pmtweights("geoinfo.root") {
 	 	setVerbosity( m_config.verbosity );
+	 	m_flash_matcher.Configure( m_config.m_flashmatch_config );
+
+	 	const larutil::Geometry* geo = ::larutil::Geometry::GetME();
+	 	for ( size_t opch=0; opch<32; opch++) {
+	 		m_opch_from_opdet.insert( std::make_pair<int,int>( geo->OpDetFromOpChannel(opch), opch ) );
+	 	}
 	}
 
 	std::vector<larcv::ROI> TaggerFlashMatchAlgo::FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata, 
@@ -29,8 +35,8 @@ namespace larlitecv {
 
 		// flash-match candidates
 		std::vector<int> passes_flashmatch( inputdata.size(), 0 );
-		//std::vector<flashana::QCluster_t> qclusters_v = GenerateQClusters( inputdata );
-		//ChooseInTimeFlashMatchedCandidates( qclusters_v, data_flashana, passes_flashmatch );
+		std::vector<flashana::QCluster_t> qclusters_v = GenerateQClusters( inputdata );
+		ChooseInTimeFlashMatchedCandidates( qclusters_v, data_flashana, passes_flashmatch );
 
 		std::vector<larcv::ROI> roi_v;
 
@@ -308,19 +314,29 @@ namespace larlitecv {
 
   	float smallest_chi2 = -1.0;
   	for ( auto const& intime_flash : intime_flashes_v ) {
-  		int ndof = 0;
-  		float chi2 = 0.;
+  		float ll = 0.;
+    	float tot_pe = 0.;
+    	float tot_pe_hypo = 0.;
   		for (size_t i=0; i<intime_flash.pe_v.size(); i++) {
-  			if ( flash_hypo.pe_v.at(i)>0 ) {
-    			float dpe = (intime_flash.pe_v.at(i) - flash_hypo.pe_v.at(i))/flash_hypo.pe_v.at(i);
-  				ndof++;
-  				chi2 += dpe;
-  			}
+  			float observed = intime_flash.pe_v.at(i);
+  			float expected = flash_hypo.pe_v.at(i)*m_config.fudge_factor;
+  			std::cout << "\n    [pmt opdet=" << i << ", opch=" << m_opch_from_opdet[i] << "] O=" << observed << " E=" << expected;
+  			tot_pe += observed;
+  			tot_pe_hypo += expected;
+  			if ( observed>0 && expected==0 ) 
+  				expected = 1.0;
+
+    		float dpe = (expected-observed);
+    		if ( observed>0 )
+    				dpe += observed*( log( observed ) - log( expected ) );
+    		ll += 2.0*dpe;
   		}
-  		chi2 /= ndof;
-  		if ( smallest_chi2<0 || chi2<smallest_chi2 )
-  			smallest_chi2 = chi2;
+  		if ( smallest_chi2<0 || ll<smallest_chi2 )
+  			smallest_chi2 = ll;
+      std::cout << "\n    data pe=" << tot_pe << " hypo pe=" << tot_pe_hypo << " -2logL=" << ll << " ";
   	}
+  	std::cout << "\n  smallest -2LL=" << smallest_chi2 << " ";
+  	
   	return smallest_chi2;
   }
 
@@ -331,10 +347,26 @@ namespace larlitecv {
   		passes_flashmatch.resize( inputdata.size(), 0 );
   	}
 
+  	if ( m_verbosity>=2 ) {
+  		std::cout << "[TaggerFlashMatchAlgo::ChooseInTimeFlashMatchedCandidates]" << std::endl;
+  	}
+
   	for ( size_t q = 0; q<inputdata.size(); q++ ) {
   		const flashana::QCluster_t& qcluster = inputdata.at(q);
+
+  		if ( m_verbosity>=2 ) {
+    	  std::cout << " QCandidate #" << q << ": ";
+    	}
+
   		float chi2 = InTimeFlashComparison( intime_flashes, qcluster );
   		passes_flashmatch[q] = ( chi2 < m_config.flashmatch_chi2_cut ) ? 1 : 0;
+
+  		if ( passes_flashmatch[q]==1 ) {
+  			std::cout << " {in-time flash-matched}" << std::endl;
+  		}
+  		else {
+  			std::cout << " {not-matched}" << std::endl;
+  		}
   	}
   }
 

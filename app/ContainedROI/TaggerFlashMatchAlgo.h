@@ -1,6 +1,8 @@
 #ifndef __TAGGER_FLASH_MATCH_ALGO_H__
 #define __TAGGER_FLASH_MATCH_ALGO_H__
 
+#include <map>
+
 // LArCV
 #include "Base/PSet.h"
 #include "DataFormat/ROI.h"
@@ -67,6 +69,7 @@ namespace larlitecv {
 		flashana::FlashMatchManager m_flash_matcher; //< Generates Flash Hypothesis producer
 		SpaceChargeMicroBooNE m_sce;           //< Space Charge Effect Calculator
 		int m_verbosity;
+		std::map<int,int> m_opch_from_opdet;
 
 
 

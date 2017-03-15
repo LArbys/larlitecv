@@ -29,6 +29,7 @@ namespace larlitecv {
   	std::vector<float> FVCutZ;
   	std::vector<float> gain_correction;
   	fcllite::PSet m_flashmatch_config;
+  	static const std::string m_flashman_default;
 
   	static TaggerFlashMatchAlgoConfig MakeTaggerFlashMatchAlgoConfigFromPSet( const larcv::PSet& pset );
 	};
