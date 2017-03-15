@@ -1,0 +1,16 @@
+{ decls }
+namespace std {  }
+namespace larlitecv {  }
+
+[ liblarlitecv.so ]
+# List of selected classes
+class larlitecv::DataCoordinator
+class larlitecv::LarcvFileManager
+class larlitecv::LarliteFileManager
+class map<string,std::vector<string> >
+class map<string,vector<string> >
+header DataCoordinator.h
+header LarcvFileManager.h
+header LarliteFileManager.h
+# List of selected namespaces
+namespace larlitecv
