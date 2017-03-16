@@ -342,6 +342,20 @@ int main( int nargs, char** argv ) {
     std::vector<int> flashdata_selected_v( flashdata_v.size(), 0 );
     std::vector<larcv::ROI> selected_rois = selectionalgo.FindFlashMatchedContainedROIs( flashdata_v, opflash_containers, flashdata_selected_v );
 
+    std::vector<larcv::ROI> croi_v;
+    for ( size_t itrack=0; itrack<flashdata_v.size(); itrack++ ){
+      const larlite::track& track3d = flashdata_v.at(itrack).m_track3d;
+      if ( flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
+        continue;
+      larcv::ROI croi = flashdata_v.at(itrack).MakeROI( imgs_v, true );
+
+      std::cout << "[Selected CROI]" << std::endl;
+      for ( size_t p=0; p<3; p++ ) {
+        std::cout << "  " << croi.BB(p).dump() << std::endl;
+      }
+      croi_v.emplace_back( std::move(croi) );
+    }
+
 
     // --------------------------------------------------------------------//
     // SAVE DATA TO OUTPUT FILE
@@ -373,6 +387,8 @@ int main( int nargs, char** argv ) {
 
 
     // ROIs, StopMu Tracks and clusters, ThruMu Tracks and Clusters, Truth ROI, Bad channels
+    larcv::EventROI* out_ev_roi = (larcv::EventROI*)dataco_output.get_larcv_data( larcv::kProductROI, "croi" );
+    out_ev_roi->Set( croi_v );
 
     // save the image and bad channels
     larcv::EventImage2D* out_ev_images = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "tpc" );
@@ -382,20 +398,72 @@ int main( int nargs, char** argv ) {
     for ( auto& img : gapchs_v )
       out_ev_gapchs->Append( img );
 
-    // save tagged images
-    
+    // Save Pixels
+    larcv::EventPixel2D* evout_pixels_thrumu   = (larcv::EventPixel2D*)dataco_output.get_larcv_data( larcv::kProductPixel2D, "thrumupixels" );
+    larcv::EventPixel2D* evout_pixels_stopmu   = (larcv::EventPixel2D*)dataco_output.get_larcv_data( larcv::kProductPixel2D, "stopmupixels" );
+    larcv::EventPixel2D* evout_pixels_untagged = (larcv::EventPixel2D*)dataco_output.get_larcv_data( larcv::kProductPixel2D, "untaggedpixels" );
+    larcv::EventPixel2D* evout_pixels_croi     = (larcv::EventPixel2D*)dataco_output.get_larcv_data( larcv::kProductPixel2D, "croipixels" );
 
-    // // save contained ROI
-    // larcv::EventROI*  out_ev_contained = (larcv::EventROI*)    dataco_output.get_larcv_data( larcv::kProductROI, "containedroi");
-    // larcv::EventPixel2D* out_ev_candidates = (larcv::EventPixel2D*) dataco_output.get_larcv_data( larcv::kProductPixel2D, "candidatepixels");
-    // out_ev_contained->Emplace( std::move(flash_matched_rois) );
+    for ( size_t itrack=0; itrack<flashdata_v.size(); itrack++ ) {
+      auto const& trackdata = flashdata_v.at(itrack);
 
-    // // truth quantities
-    // larcv::EventImage2D* out_ev_segmnt = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "segment");
-    // larcv::EventROI*     out_ev_roi    = (larcv::EventROI*)    dataco_output.get_larcv_data( larcv::kProductROI, "tpc");
-    // for ( auto& img : ev_seg->Image2DArray() )
-    //   out_ev_segmnt->Append( img );
-    // out_ev_roi->Set( rois->ROIArray() );
+      if ( trackdata.m_track3d.NumberTrajectoryPoints()==0 )
+        continue;
+
+      if ( flashdata_selected_v.at(itrack)==0 ) {
+        if ( trackdata.m_type==larlitecv::TaggerFlashMatchData::kThruMu ) {
+          for ( size_t p=0; p<3; p++ )
+            evout_pixels_thrumu->Append( (larcv::PlaneID_t)p, trackdata.m_pixels.at(p) );
+        }
+        else if ( trackdata.m_type==larlitecv::TaggerFlashMatchData::kStopMu ) {
+          for ( size_t p=0; p<3; p++ )
+            evout_pixels_stopmu->Append( (larcv::PlaneID_t)p, trackdata.m_pixels.at(p) );      
+        }
+        else if ( trackdata.m_type==larlitecv::TaggerFlashMatchData::kUntagged ) {
+          for ( size_t p=0; p<3; p++ )
+            evout_pixels_untagged->Append( (larcv::PlaneID_t)p, trackdata.m_pixels.at(p) );
+        }
+      }
+      else {
+        for ( size_t p=0; p<3; p++ ) {
+          evout_pixels_croi->Append( (larcv::PlaneID_t)p, trackdata.m_pixels.at(p) );
+        }
+      }
+    }
+
+    // Produce Tagged Image
+    std::vector< larcv::Image2D > combined_tagged_v;
+    for ( size_t p=0; p<imgs_v.size(); p++) {
+      larcv::Image2D combined_tagged( imgs_v.at(p).meta() );
+      combined_tagged.paint(0);
+
+      for ( size_t itrack=0; itrack<flashdata_v.size(); itrack++ ) {
+        auto const& trackdata = flashdata_v.at(itrack);
+        auto const& trackpixels = trackdata.m_pixels.at(p);
+        int tag_val = 0;
+        if ( flashdata_selected_v.at(itrack)==1 )
+          tag_val = 1;
+        else
+          tag_val = 2;
+
+        for ( auto const& pix : trackpixels ) {
+          combined_tagged.set_pixel( pix.Y(), pix.X(), tag_val );
+        }
+      }
+
+      combined_tagged_v.emplace_back( std::move(combined_tagged) );
+    }
+    larcv::EventImage2D* out_ev_combined_tagged = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "combinedtagged" );
+    out_ev_combined_tagged->Emplace( std::move(combined_tagged_v) );
+
+    // copy over truth quantities
+    if ( isMC ) {
+      larcv::EventImage2D* out_ev_segmnt = (larcv::EventImage2D*)dataco_output.get_larcv_data( larcv::kProductImage2D, "segment");
+      larcv::EventROI*     out_ev_roi    = (larcv::EventROI*)    dataco_output.get_larcv_data( larcv::kProductROI, "tpc");
+      for ( auto& img : ev_seg->Image2DArray() )
+         out_ev_segmnt->Append( img );
+      out_ev_roi->Set( rois->ROIArray() );
+    }
 
     // copy over opdigits
     larlite::event_opdetwaveform* ev_opdigit     = (larlite::event_opdetwaveform*) dataco_source.get_larlite_data( larlite::data::kOpDetWaveform, "saturation" );
