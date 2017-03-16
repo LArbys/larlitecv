@@ -42,7 +42,7 @@ namespace larlitecv {
     // (2) containment, where we are being cautious. containment includes out-of-tpc consideration
 
 	  std::vector<larcv::ROI> FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata, 
-	    const std::vector<larlite::event_opflash*>& opflashes_v );
+	    const std::vector<larlite::event_opflash*>& opflashes_v, std::vector<int>& flashdata_selected );
 
 	  void setVerbosity( int verbosity ) { m_verbosity = verbosity; };
 

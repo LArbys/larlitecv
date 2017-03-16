@@ -22,7 +22,11 @@ namespace larlitecv {
 	}
 
 	std::vector<larcv::ROI> TaggerFlashMatchAlgo::FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata, 
-	  const std::vector<larlite::event_opflash*>& opflashes_v ) {
+	  const std::vector<larlite::event_opflash*>& opflashes_v, std::vector<int>& flashdata_selected ) {
+
+		if (flashdata_selected.size()!=inputdata.size()) {
+			flashdata_selected.resize( inputdata.size(), 0 );
+		}
 
 		// get the in-beam flashes
 		std::vector<flashana::Flash_t> data_flashana = GetInTimeFlashana( opflashes_v );
@@ -31,18 +35,65 @@ namespace larlitecv {
 
 		// choose contained candidates
 		std::vector<int> passes_containment( inputdata.size(), 0 );
-		ChooseContainedCandidates( inputdata, passes_containment ); // simply check then 3D bounding box
+		std::vector<int> passes_flashmatch(  inputdata.size(), 0 );
 
-		// flash-match candidates
-		std::vector<int> passes_flashmatch( inputdata.size(), 0 );
-		std::vector<flashana::QCluster_t> qclusters_v = GenerateQClusters( inputdata );
-		ChooseInTimeFlashMatchedCandidates( qclusters_v, data_flashana, passes_flashmatch );
+		for ( size_t i=0; i<inputdata.size(); i++ ) {
+
+    	if ( m_verbosity>=2 ) {
+    	  std::cout << " Candidate #" << i << ", ";
+    	  if ( inputdata.at(i).m_type==TaggerFlashMatchData::kThruMu )
+    	  	std::cout << "ThruMu";
+    	  else if ( inputdata.at(i).m_type==TaggerFlashMatchData::kStopMu )
+    	  	std::cout << "StopMu";
+    	  else if ( inputdata.at(i).m_type==TaggerFlashMatchData::kUntagged )
+    	  	std::cout << "Untagged";
+    	  std::cout << ": ";
+    	}
+
+			passes_containment[i] = ( IsClusterContained( inputdata.at(i) ) ) ? 1 : 0;
+
+    	if ( m_verbosity>=2 ) {
+      	if ( passes_containment[i] )
+      		std::cout << " {contained}" << std::endl;
+      	else
+    	  	std::cout << "{uncontained}" << std::endl;
+    	}
+
+		  // flash-match candidates
+		  flashana::QCluster_t qcluster = GenerateQCluster( inputdata.at(i) );
+
+		  float ll_flash = InTimeFlashComparison( data_flashana, qcluster );
+			passes_flashmatch[i] = ( ll_flash < m_config.flashmatch_chi2_cut ) ? 1 : 0;
+
+			if ( m_verbosity>=2 ) {
+
+				std::cout << "  ";
+
+      	if ( passes_containment[i] )
+      		std::cout << " {contained}";
+      	else
+    	  	std::cout << "{uncontained}";
+
+  		  if ( passes_flashmatch[i]==1 ) {
+  		  	std::cout << " {in-time flash-matched}";
+  		  }
+  		  else {
+  		  	std::cout << " {not-matched}";
+  		  }
+
+  		  if ( passes_flashmatch[i] && passes_containment[i] )
+  		  	std::cout << " **PASSES**";
+
+  		  std::cout << std::endl;
+  		}  		
+  	}//end of input data loop
 
 		std::vector<larcv::ROI> roi_v;
 
 		for ( size_t i=0; i<inputdata.size(); i++) {
-			if ( passes_containment[i] || passes_flashmatch[i] ) {
+			if ( passes_containment[i] && passes_flashmatch[i] ) {
 				// Make ROI
+				flashdata_selected[i] = 1;
 			}
 		}
 
@@ -107,6 +158,8 @@ namespace larlitecv {
 		std::vector<larlite::opflash> beam_flashes;
 		for ( auto const& ptr_ev_flash : opflashes_v ) {
 			for ( auto const& opflash : *ptr_ev_flash ) {
+				if ( opflash.TotalPE()<m_config.flashpe_thresh )
+					continue;
 				int tick = opflash.Time()/m_config.us_per_tick;
 				if ( tick>=m_config.beam_tick_range[0] && tick <=m_config.beam_tick_range[1] ) {
 					if ( m_verbosity>0 )
@@ -178,7 +231,7 @@ namespace larlitecv {
 		std::vector<float> wire_range;
 		GetFlashCenterAndRange( flash, wire_mean, wire_range );
 		if ( m_verbosity>0 )
-			std::cout << "Flash: wire_mean=" << wire_mean << " wire_range=[" << (int)wire_range[0] << "," << (int)wire_range[1] << "]" << std::endl;
+			std::cout << "Flash: pe=" << flash.TotalPE() << " wire_mean=" << wire_mean << " wire_range=[" << (int)wire_range[0] << "," << (int)wire_range[1] << "]" << std::endl;
 
 		// also load flash info into flash manager
 		flashana::Flash_t f;
@@ -311,31 +364,42 @@ namespace larlitecv {
 
   float TaggerFlashMatchAlgo::InTimeFlashComparison( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster ) {
   	flashana::Flash_t flash_hypo = GenerateUnfittedFlashHypothesis( qcluster );
+		const larutil::Geometry* geo = ::larutil::Geometry::GetME();
 
   	float smallest_chi2 = -1.0;
+  	float tot_pe_hypo = 0.;
   	for ( auto const& intime_flash : intime_flashes_v ) {
   		float ll = 0.;
     	float tot_pe = 0.;
-    	float tot_pe_hypo = 0.;
   		for (size_t i=0; i<intime_flash.pe_v.size(); i++) {
   			float observed = intime_flash.pe_v.at(i);
   			float expected = flash_hypo.pe_v.at(i)*m_config.fudge_factor;
-  			std::cout << "\n    [pmt opdet=" << i << ", opch=" << m_opch_from_opdet[i] << "] O=" << observed << " E=" << expected;
   			tot_pe += observed;
-  			tot_pe_hypo += expected;
+  			tot_pe_hypo += expected;  			
   			if ( observed>0 && expected==0 ) 
-  				expected = 1.0;
+  				expected = 1.0e-3;
 
     		float dpe = (expected-observed);
     		if ( observed>0 )
     				dpe += observed*( log( observed ) - log( expected ) );
     		ll += 2.0*dpe;
   		}
+  		ll /= 32.0;
   		if ( smallest_chi2<0 || ll<smallest_chi2 )
   			smallest_chi2 = ll;
-      std::cout << "\n    data pe=" << tot_pe << " hypo pe=" << tot_pe_hypo << " -2logL=" << ll << " ";
+  		std::cout << "  [observed] ";
+  		for (int ich=0; ich<32; ich++ ) {
+  			std::cout << std::setw(5) << (int)intime_flash.pe_v.at(  geo->OpDetFromOpChannel(ich) );
+  		}
+      std::cout << " TOT=" << tot_pe << " LL=" << ll << std::endl;
   	}
-  	std::cout << "\n  smallest -2LL=" << smallest_chi2 << " ";
+  	tot_pe_hypo /= float( intime_flashes_v.size() );
+
+  	std::cout << "  [expected] ";
+  	for ( int ich=0; ich<32; ich++ ) {
+  		std::cout << std::setw(5) << (int)(flash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
+  	}
+  	std::cout << " TOT=" << tot_pe_hypo << " BestLL=" << smallest_chi2 << std::endl;
   	
   	return smallest_chi2;
   }
@@ -360,13 +424,14 @@ namespace larlitecv {
 
   		float chi2 = InTimeFlashComparison( intime_flashes, qcluster );
   		passes_flashmatch[q] = ( chi2 < m_config.flashmatch_chi2_cut ) ? 1 : 0;
-
+  		/*
   		if ( passes_flashmatch[q]==1 ) {
   			std::cout << " {in-time flash-matched}" << std::endl;
   		}
   		else {
   			std::cout << " {not-matched}" << std::endl;
   		}
+  		*/
   	}
   }
 

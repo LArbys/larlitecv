@@ -18,6 +18,7 @@ namespace larlitecv {
 		beam_tick_range[1] = 400;
 		us_per_tick = 0.015625;
 		pmtflash_thresh = 3;
+		flashpe_thresh = 10.0;
 		flashmatch_chi2_cut = 10.0;
 		FVCutX.resize(2);
 		FVCutY.resize(2);
@@ -38,6 +39,7 @@ namespace larlitecv {
 		cfg.MeV_per_cm        = pset.get<float>("MeV_per_cm");
 		cfg.fudge_factor      = pset.get<float>("FudgeFactor");
 		cfg.pmtflash_thresh   = pset.get<float>("PMTFlashThreshold");
+		cfg.flashpe_thresh    = pset.get<float>("FlashPEThreshold");
 		cfg.beam_tick_range   = pset.get< std::vector<int> >("BeamTickRange");
 		cfg.FVCutX            = pset.get< std::vector<float> >("FVCutX");
 		cfg.FVCutY            = pset.get< std::vector<float> >("FVCutY");

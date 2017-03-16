@@ -382,6 +382,9 @@ int main( int nargs, char** argv ) {
     for ( auto& img : gapchs_v )
       out_ev_gapchs->Append( img );
 
+    // save tagged images
+    
+
     // // save contained ROI
     // larcv::EventROI*  out_ev_contained = (larcv::EventROI*)    dataco_output.get_larcv_data( larcv::kProductROI, "containedroi");
     // larcv::EventPixel2D* out_ev_candidates = (larcv::EventPixel2D*) dataco_output.get_larcv_data( larcv::kProductPixel2D, "candidatepixels");
