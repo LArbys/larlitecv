@@ -44,15 +44,15 @@ namespace larlitecv {
 
 		std::sort( vols.begin(), vols.end() );
 
-		std::cout << "Charge Volumes: " << std::endl;
-		for ( auto const& vol : vols ) {
-			std::cout << " clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
-			  << " numslices=" << vol.num_slices 
-			  << " goodslices=" << vol.num_good_slices 
-			  << " fracgood=" << vol.frac_good_slices 
-			  << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
-			  << std::endl;
-		}
+		// std::cout << "Charge Volumes: " << std::endl;
+		// for ( auto const& vol : vols ) {
+		// 	std::cout << " clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
+		// 	  << " numslices=" << vol.num_slices 
+		// 	  << " goodslices=" << vol.num_good_slices 
+		// 	  << " fracgood=" << vol.frac_good_slices 
+		// 	  << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
+		// 	  << std::endl;
+		// }
 
 		return vols;
 	}
@@ -107,7 +107,7 @@ namespace larlitecv {
 
 	ChargeVolume ClusterGroupMatchingAlgo::GetIntersectionVolume( const std::vector<larcv::Image2D>& untagged_v, const PreMatchMetric_t& prematch ) {
 
-		bool debug_verbose = true;
+		bool debug_verbose = false;
 		if ( m_debug_targetcombo.size()>0 )
 			debug_verbose = true;
 
@@ -197,9 +197,9 @@ namespace larlitecv {
    		}
 
    		// within the narrowed slice, we sum pixel charge
-   		std::vector<float> plane_charge = SumContainedCharge( prematch, untagged_v, theslice.wire_intervals, theslice.row_interval[0], theslice.row_interval[1] );
-   		for (size_t p=0; p<plane_charge.size(); p++)
-   			tot_plane_charge[p] += plane_charge[p];
+   		theslice.plane_charge = SumContainedCharge( prematch, untagged_v, theslice.wire_intervals, theslice.row_interval[0], theslice.row_interval[1] );
+   		for (size_t p=0; p<theslice.plane_charge.size(); p++)
+   			tot_plane_charge[p] += theslice.plane_charge[p];
 
    		// store the slice
    		area_slices.emplace_back( std::move(theslice) );
@@ -209,6 +209,7 @@ namespace larlitecv {
    	}
 
    	// Build the ChargeVolume Data product
+   	// This is poorly coupled. Rethink this.
 	  int num_good_slices = 0;
 	  for ( auto const& slice : area_slices ) {
 	  	if ( slice.inside_tpc_boundary.size()>=3 )
@@ -226,6 +227,8 @@ namespace larlitecv {
   	}
 		vol.m_clustergroups = prematch.m_clusters;
 		vol._clustergroup_indices = prematch.m_index_combo;
+		vol.m_plane_pixels = vol.GetPixelsInsideVolume( untagged_v );
+
 		std::swap( vol.slices, area_slices );			
 		std::swap( vol.plane_charge, tot_plane_charge );
 

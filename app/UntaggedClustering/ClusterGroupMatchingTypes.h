@@ -4,6 +4,8 @@
 #include <vector>
 #include "ClusterGroupAlgo.h"
 
+#include "DataFormat/Pixel2DCluster.h"
+
 namespace larlitecv {
 
 	// The object returned by ClusterGroupMatchingAlgo is ChargeVolume, which you can find later on in the file.
@@ -111,6 +113,7 @@ namespace larlitecv {
   	Point_t centroid;
   	WireIntervalList_t wire_intervals;
   	std::vector<int> row_interval;
+  	std::vector<float> plane_charge;
   };
 
   typedef std::vector<Slice_t> SliceList_t;
@@ -135,7 +138,9 @@ namespace larlitecv {
   	int num_good_slices;
   	int num_slices;
   	std::vector<float> plane_charge;
-  	std::vector< const ClusterGroup* > m_clustergroups;
+  	std::vector<larcv::Pixel2DCluster> m_plane_pixels;
+
+  	std::vector< const ClusterGroup* > m_clustergroups; ///< this doesn't survive a copy...
   	std::vector<int> _clustergroup_indices; ///< this is meaningless once object leaves algo
 
 		bool operator<(const ChargeVolume& rhs ) {
@@ -150,6 +155,7 @@ namespace larlitecv {
 			return false;
 		};
 
+  	std::vector< larcv::Pixel2DCluster > GetPixelsInsideVolume( const std::vector<larcv::Image2D>& img_v );
 
 	};	
 
