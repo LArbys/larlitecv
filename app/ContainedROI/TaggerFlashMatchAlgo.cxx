@@ -24,12 +24,19 @@ namespace larlitecv {
 	std::vector<larcv::ROI> TaggerFlashMatchAlgo::FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata, 
 	  const std::vector<larlite::event_opflash*>& opflashes_v, std::vector<int>& flashdata_selected ) {
 
+    // the output
+    std::vector<larcv::ROI> roi_v;
+
 		if (flashdata_selected.size()!=inputdata.size()) {
 			flashdata_selected.resize( inputdata.size(), 0 );
 		}
 
 		// get the in-beam flashes
 		std::vector<flashana::Flash_t> data_flashana = GetInTimeFlashana( opflashes_v );
+    if ( data_flashana.size()==0 ) {
+      return roi_v;
+    }
+
 
 		// merge objects [later if needed]
 
@@ -87,8 +94,6 @@ namespace larlitecv {
   		  std::cout << std::endl;
   		}  		
   	}//end of input data loop
-
-		std::vector<larcv::ROI> roi_v;
 
 		for ( size_t i=0; i<inputdata.size(); i++) {
 			if ( passes_containment[i] && passes_flashmatch[i] ) {
