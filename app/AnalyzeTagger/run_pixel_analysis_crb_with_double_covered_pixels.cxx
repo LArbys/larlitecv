@@ -6,6 +6,11 @@
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
 
+// CRB: For the information for the pixels in each event.
+#include "DataFormat/EventPixel2D.h"
+#include "DataFormat/Pixel2DCluster.h"
+#include "DataFormat/Pixel2D.h"
+
 // larlite
 #include "DataFormat/mctruth.h"
 #include "DataFormat/mcpart.h"
@@ -72,7 +77,7 @@ int main( int nargs, char** argv ) {
   dataco_source.add_inputfile( data_folder+"/output_larlite.root", "larlite"); //source larlite file
 
   larlitecv::DataCoordinator dataco_thrumu;
-	dataco_thrumu.add_inputfile( data_folder+"/output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" ); // thrumu-tagger info, larcv
+  dataco_thrumu.add_inputfile( data_folder+"/output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" ); // thrumu-tagger info, larcv
   dataco_thrumu.add_inputfile( data_folder+"/output_larlite_testmcbnbcosmic_signalnumu.root", "larlite"); //thrumu-tagged info, larlite
 
   larlitecv::DataCoordinator dataco_stopmu;
@@ -132,6 +137,36 @@ int main( int nargs, char** argv ) {
   float lepton_cosz;
   float lepton_phiz;
   float fpos[3];       // vertex
+
+  // Declare variables for the quantities that I am interested in plotting.  These are for the quantities including ALL of the planes.
+  float _frac_all_pixels_tagged_more_than_once;
+  float _frac_cosmic_pixels_tagged_once_or_more;
+  float _frac_cosmic_pixels_tagged_more_than_once;
+  float _frac_cosmic_pixels_not_tagged;
+  float _frac_neutrino_pixels_not_tagged;
+
+  // Declare the same information but specific to each plane.
+  // u
+  float _u_plane_frac_all_pixels_tagged_more_than_once;
+  float _u_plane_frac_cosmic_pixels_tagged_once_or_more;
+  float _u_plane_frac_cosmic_pixels_tagged_more_than_once;
+  float _u_plane_frac_cosmic_pixels_not_tagged;
+  float _u_plane_frac_neutrino_pixels_not_tagged;
+
+  // v
+  float _v_plane_frac_all_pixels_tagged_more_than_once;
+  float _v_plane_frac_cosmic_pixels_tagged_once_or_more;
+  float _v_plane_frac_cosmic_pixels_tagged_more_than_once;
+  float _v_plane_frac_cosmic_pixels_not_tagged;
+  float _v_plane_frac_neutrino_pixels_not_tagged;
+
+  // y
+  float _y_plane_frac_all_pixels_tagged_more_than_once;
+  float _y_plane_frac_cosmic_pixels_tagged_once_or_more;
+  float _y_plane_frac_cosmic_pixels_tagged_more_than_once;
+  float _y_plane_frac_cosmic_pixels_not_tagged;
+  float _y_plane_frac_neutrino_pixels_not_tagged;
+
   tree->Branch("run",&run,"run/I");
   tree->Branch("subrun",&subrun,"subrun/I");
   tree->Branch("event",&event,"event/I");
@@ -158,6 +193,36 @@ int main( int nargs, char** argv ) {
   tree->Branch("pos",fpos,"pos[3]/F");
   tree->Branch("lepton_cosz", &lepton_cosz, "lepton_cosz/F");
   tree->Branch("lepton_phiz", &lepton_phiz, "lepton_phiz/F");
+
+  // Create branches for the quantities that I am interested in plotting.
+  tree->Branch("_frac_all_pixels_tagged_more_than_once", &_frac_all_pixels_tagged_more_than_once, "frac_all_pixels_tagged_more_than_once/F");
+  tree->Branch("_frac_cosmic_pixels_tagged_once_or_more", &_frac_cosmic_pixels_tagged_once_or_more, "frac_cosmic_pixels_tagged_once_or_more/F");
+  tree->Branch("_frac_cosmic_pixels_tagged_more_than_once", &_frac_cosmic_pixels_tagged_more_than_once, "frac_cosmic_pixels_tagged_more_than_once/F");
+  tree->Branch("_frac_cosmic_pixels_not_tagged", &_frac_cosmic_pixels_not_tagged, "frac_cosmic_pixels_not_tagged/F");
+  tree->Branch("_frac_neutrino_pixels_not_tagged", &_frac_neutrino_pixels_not_tagged, "frac_neutrino_pixels_not_tagged/F");
+
+  // Create branches for the same quantities but for each of the wire planes.
+  // u
+  tree->Branch("_u_plane_frac_all_pixels_tagged_more_than_once", &_u_plane_frac_all_pixels_tagged_more_than_once, "u_plane_frac_all_pixels_tagged_more_than_once/F");
+  tree->Branch("_u_plane_frac_cosmic_pixels_tagged_once_or_more", &_u_plane_frac_cosmic_pixels_tagged_once_or_more, "u_plane_frac_cosmic_pixels_tagged_once_or_more/F");
+  tree->Branch("_u_plane_frac_cosmic_pixels_tagged_more_than_once", &_u_plane_frac_cosmic_pixels_tagged_more_than_once, "u_plane_frac_cosmic_pixels_tagged_more_than_once/F");
+  tree->Branch("_u_plane_frac_cosmic_pixels_not_tagged", &_u_plane_frac_cosmic_pixels_not_tagged, "u_plane_frac_cosmic_pixels_not_tagged/F");
+  tree->Branch("_u_plane_frac_neutrino_pixels_not_tagged", &_u_plane_frac_neutrino_pixels_not_tagged, "u_plane_frac_neutrino_pixels_not_tagged/F");
+
+  // v
+  tree->Branch("_v_plane_frac_all_pixels_tagged_more_than_once", &_v_plane_frac_all_pixels_tagged_more_than_once, "v_plane_frac_all_pixels_tagged_more_than_once/F");
+  tree->Branch("_v_plane_frac_cosmic_pixels_tagged_once_or_more", &_v_plane_frac_cosmic_pixels_tagged_once_or_more, "v_plane_frac_cosmic_pixels_tagged_once_or_more/F");
+  tree->Branch("_v_plane_frac_cosmic_pixels_tagged_more_than_once", &_v_plane_frac_cosmic_pixels_tagged_more_than_once, "v_plane_frac_cosmic_pixels_tagged_more_than_once/F");
+  tree->Branch("_v_plane_frac_cosmic_pixels_not_tagged", &_v_plane_frac_cosmic_pixels_not_tagged, "v_plane_frac_cosmic_pixels_not_tagged/F");
+  tree->Branch("_v_plane_frac_neutrino_pixels_not_tagged", &_v_plane_frac_neutrino_pixels_not_tagged, "v_plane_frac_neutrino_pixels_not_tagged/F");
+
+  // y
+  tree->Branch("_y_plane_frac_all_pixels_tagged_more_than_once", &_y_plane_frac_all_pixels_tagged_more_than_once, "y_plane_frac_all_pixels_tagged_more_than_once/F");
+  tree->Branch("_y_plane_frac_cosmic_pixels_tagged_once_or_more", &_y_plane_frac_cosmic_pixels_tagged_once_or_more, "y_plane_frac_cosmic_pixels_tagged_once_or_more/F");
+  tree->Branch("_y_plane_frac_cosmic_pixels_tagged_more_than_once", &_y_plane_frac_cosmic_pixels_tagged_more_than_once, "y_plane_frac_cosmic_pixels_tagged_more_than_once/F");
+  tree->Branch("_y_plane_frac_cosmic_pixels_not_tagged", &_y_plane_frac_cosmic_pixels_not_tagged, "y_plane_frac_cosmic_pixels_not_tagged/F");
+  tree->Branch("_y_plane_frac_neutrino_pixels_not_tagged", &_y_plane_frac_neutrino_pixels_not_tagged, "y_plane_frac_neutrino_pixels_not_tagged/F");
+
 
   int nentries = dataco_stopmu.get_nentries("larcv");
 
@@ -202,17 +267,350 @@ int main( int nargs, char** argv ) {
     // ok now to do damage
 
     // get the original, segmentation, and tagged images
-    larcv::EventImage2D* ev_segs   = (larcv::EventImage2D*)dataco_source.get_larcv_data(larcv::kProductImage2D,"segment");
+    larcv::EventImage2D* ev_segs   = (larcv::EventImage2D*)dataco_source.get_larcv_data(larcv::kProductImage2D,"seg_comb_tpc"); // Previously 'segment' in the second entry.
     larcv::EventImage2D* ev_imgs   = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"modimgs");
-    //larcv::EventImage2D* ev_badch  = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"badch");	
+    larcv::EventImage2D* ev_badch  = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"badch");	
     larcv::EventImage2D* ev_thrumu = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"marked3d");
     larcv::EventImage2D* ev_stopmu = (larcv::EventImage2D*)dataco_stopmu.get_larcv_data(larcv::kProductImage2D,"stopmu");  	
 
     const std::vector<larcv::Image2D>& imgs_v   = ev_imgs->Image2DArray();
-    //const std::vector<larcv::Image2D>& badch_v  = ev_badch->Image2DArray();
+    const std::vector<larcv::Image2D>& badch_v  = ev_badch->Image2DArray();
     const std::vector<larcv::Image2D>& segs_v   = ev_segs->Image2DArray();
     const std::vector<larcv::Image2D>& thrumu_v = ev_thrumu->Image2DArray();
     const std::vector<larcv::Image2D>& stopmu_v = ev_stopmu->Image2DArray();
+
+    // Declare variables for the total number of both types of pixels, and pixels in general, on each of the planes.
+    // These data types will have to be of type 'float' so that they can be used in the fractional values that I am looking at.
+    float _all_planes_cosmic_pixels   = 0.;
+    float _all_planes_neutrino_pixels = 0.;
+    float _all_planes_all_pixels      = 0.;
+
+    // Declare variables for the number of pixels (of each type) tagged once or more than once on all three planes.
+    float _all_planes_cosmic_pixels_tagged_once_or_more     = 0.;
+    float _all_planes_cosmic_pixels_tagged_more_than_once   = 0.; 
+    float _all_planes_neutrino_pixels_tagged_once_or_more   = 0.;
+    float _all_planes_neutrino_pixels_tagged_more_than_once = 0.;
+    float _all_planes_all_pixels_tagged_once_or_more        = 0.;
+    float _all_planes_all_pixels_tagged_more_than_once      = 0.;
+
+    // Declare variables for the number of pixels not_tagged on all of the planes.
+    float _all_planes_cosmic_pixels_not_tagged   = 0.;
+    float _all_planes_neutrino_pixels_not_tagged = 0.;
+    float _all_planes_all_pixels_not_tagged      = 0.;
+
+    // Start a loop over the pixels on each of the planes by looping over each of the planes.
+
+    // Loop over the planes.
+    for (size_t plane = 0; plane < 2; plane++) {
+
+      // Declare three empty images: (1) Neutrino Pixel Image, (2) Cosmic Pixel Image (Based on which was tagged), (3) Entire Pixel Image.
+      // I fill the image with the same dimensions as the image at this location in imgs_v.at(plane) ('plane' corresponds to the plane number).                   
+      larcv::Image2D neutrino_pixels_tagged_info_img( imgs_v.at(plane).meta() );
+      larcv::Image2D cosmic_pixels_tagged_info_img( imgs_v.at(plane).meta() );
+      larcv::Image2D all_pixels_tagged_info_img( imgs_v.at(plane).meta() );
+
+      // Empty each of these vectors.
+      neutrino_pixels_tagged_info_img.paint(0.0);
+      cosmic_pixels_tagged_info_img.paint(0.0);
+      all_pixels_tagged_info_img.paint(0.0);
+
+      // Declare values for the number of cosmic, neutrino, and all pixels on the three planes.
+      float _single_plane_cosmic_pixels   = 0.;
+      float _single_plane_neutrino_pixels = 0.;
+      float _single_plane_all_pixels      = 0.;
+
+      // Declare variables for the number of pixels (of each type) tagged once or more than once on a single plane.
+      float _single_plane_cosmic_pixels_tagged_once_or_more     = 0.;
+      float _single_plane_cosmic_pixels_tagged_more_than_once   = 0.;
+      float _single_plane_neutrino_pixels_tagged_once_or_more   = 0.;
+      float _single_plane_neutrino_pixels_tagged_more_than_once = 0.;
+      float _single_plane_all_pixels_tagged_once_or_more        = 0.;
+      float _single_plane_all_pixels_tagged_more_than_once      = 0.;
+
+      // Declare variables for the number of pixels not_tagged on all of the planes.                                                                
+      float _single_plane_cosmic_pixels_not_tagged   = 0.;
+      float _single_plane_neutrino_pixels_not_tagged = 0.;
+      float _single_plane_all_pixels_not_tagged      = 0.;
+
+      // Define five types of images on this plane: (1) the StopMu image, (2) the ThruMu image, (3) the DeadCh image, (4) the Seg image, and (5) the Event image.
+      const larcv::Image2D& stopmuimg = stopmu_v.at(plane);
+      const larcv::Image2D& thrumuimg = thrumu_v.at(plane);
+      const larcv::Image2D& badchimg  = badch_v.at(plane);
+      const larcv::Image2D& segimg    = segs_v.at(plane);
+      const larcv::Image2D& eventimg  = imgs_v.at(plane);
+
+      // Set the plane value to the correct type based on which plane we're on.
+      const ::larcv::PlaneID_t plane_correct_type;
+
+      if (plane == 0) {
+
+	plane_correct_type = 0;
+
+      }
+
+      if (plane == 1) {
+
+	plane_correct_type = 1;
+
+      } 
+
+      if (plane == 2) {
+
+	plane_correct_type = 2;
+
+      } 
+
+      // Finally declare the vector of 'Pixel2DCluster' objects, which themselves are vectors of type 'Pixel2D'.  These contain the row and column of the places in the image that the track passed through.
+      const std::vector<larcv::Pixel2DCluster>& plane_pixel_info_from_event   = const std::vector<larcv::Pixel2DCluster>& Pixel2DClusterArray(plane_correct_type);
+
+      // Now, I will begin a loop over the tracks in order to fill the 'neutrino_pixels_tagged_info_img' and 'cosmic_pixels_tagged_info_img' vectors.
+      for (size_t track_iter = 0; track_iter < plane_pixel_info_from_event.size(); track_iter++) {
+
+	// Declare an object of type 'Pixel2DCluster' for this entry of 'plane_pixel_info_from_event'.
+	const larcv::Pixel2DCluster& track_pixels = plane_pixel_info_from_event.at(track_iter);
+	
+	// Start a loop over the pixels in this vector.
+	for (size_t pixel_iter = 0; pixel_iter < track_pixels.size(); pixel_iter++) {
+
+	  // Declare a variable for the pixel at this particular value.
+	  const larcv::Pixel2D& pixel = track_pixels.at(pixel_iter);
+
+	  // Declare a variable for the row and the col for this particular pixel.
+	  // col - x()
+	  size_t col = pixel.y();
+	  // row - y()
+	  size_t row = pixel.x();
+
+	  // Check if this pixel is a neutrino pixel. 
+	  // Declare a boolean for if it is a neutrino pixel.
+	  bool is_neutrino_pixel = false;
+
+	  // Find the x-coordinate and y-coordinate in the event image, and then convert it into coordinates in the 'segimg'.
+	  float x = eventimg.meta().pos_x(col);
+          float y = eventimg.meta().pos_y(row);
+          bool in_seg_image = false;
+          int seg_row = -1;
+          int seg_col = -1;
+          if ( x>segimg.meta().min_x() && x<segimg.meta().max_x()
+	       && y>segimg.meta().min_y() && y<segimg.meta().max_y() ) {
+            in_seg_image = true;
+
+	    // Find the coordinates in the 'segimg' now.
+            seg_row = segimg.meta().row(y);
+            seg_col = segimg.meta().col(x);
+          }
+	  
+	  // If the particle is a neutrino pixel, then you can set 'is_neutrino_pixel' to 'true'. 
+          if ( in_seg_image && segimg.pixel(seg_row,seg_col)>0 ) {
+
+	    is_neutrino_pixel = true;
+
+	  }
+
+	  // See if the pixel has been tagged if it is a neutrino pixel.
+	  if (is_neutrino_pixel) {
+
+	    // Check to make sure that the pixel is not a dead pixel.
+	    if (fabs(badchimg.pixel(row,col)) < 0.001) {
+
+	      // Increment '_all_planes_neutrino_pixels', '_single_plane_neutrino_pixels', '_all_planes_all_pixels', and '_single_plane_all_pixels' if this entry of the 'neutrino_pixels_tagged_info_img' is approximately 0 and this is not a bad channel.
+	      if (fabs(neutrino_pixels_tagged_info_img.pixel(row, col)) < 0.001) {
+
+		_single_plane_neutrino_pixels += 1.0;
+		_all_planes_neutrino_pixels   += 1.0;
+		
+		_single_plane_all_pixels      += 1.0;
+		_all_planes_all_pixels        += 1.0;
+
+		// Check the other case now in which they both are less than 0.001, which means that this is a not_tagged neutrino pixel.                             
+		if (stopmuimg.pixel(row,col) < 0.001 && thrumuimg.pixel(row,col) < 0.001) {
+
+		  _single_plane_neutrino_pixels_not_tagged += 1.0;
+		  _all_planes_neutrino_pixels_not_tagged   += 1.0;
+
+		  _single_plane_all_pixels_not_tagged      += 1.0;
+		  _all_planes_all_pixels_not_tagged        += 1.0;
+
+		} // End of the loop over the untagged pixels.                                                                                                                      
+
+	      } // End of the loop over the count of neutrino pixels.
+
+	      // The values before had to be greater than 0 to see if the pixel had been tagged.  But for now, they just have to be greater than 0.001.
+	      if (stopmuimg.pixel(row,col) > 0.001  || thrumuimg.pixel(row,col) > 0.001) {
+
+		neutrino_pixels_tagged_info_img.pixel(row, col) += 1;
+		all_pixels_tagged_info_img.pixel(row, col)      += 1;
+
+	      } // End of the loop over if the pixel is tagged by ThruMu or StopMu.
+
+	    } // End of the conditional for if the pixel is dead.
+
+	  } // End of the conditional for if the pixel is a neutrino pixel.
+
+
+	  // If 'is_neutrino_pixel' is false, then this is a cosmic pixel.  I can fill out the analogous information for the cosmic pixels.
+	  if (!is_neutrino_pixel) {
+
+	    // Check to make sure that the pixel is not a dead pixel.
+	    if (fabs(badchimg.pixel(row,col)) < 0.001) {
+
+	      // Increment '_all_planes_cosmic_pixels', '_single_plane_cosmic_pixels', _all_planes_all_pixels', and '_single_plane_all_pixels' if this entry of the 'cosmic_pixels_tagged_info_img' is approximately 0 and this is not a bad channel.
+	      if (fabs(cosmic_pixels_tagged_info_img.pixel(row, col)) < 0.001) {
+
+		_single_plane_cosmic_pixels += 1.0;
+		_all_planes_cosmic_pixels   += 1.0;
+	
+		_single_plane_all_pixels    += 1.0;
+		_all_planes_all_pixels      += 1.0;
+
+		// Check the other case now in which they both are less than 0.001, which means that this is a not_tagged neutrino pixel.                                
+		if (stopmuimg.pixel(row,col) < 0.001 && thrumuimg.pixel(row,col) < 0.001) {
+
+                  _single_plane_cosmic_pixels_not_tagged += 1.0;
+		  _all_planes_cosmic_pixels_not_tagged   += 1.0;
+
+		  _single_plane_all_pixels_not_tagged    += 1.0;
+		  _all_planes_all_pixels_not_tagged      += 1.0;
+
+                } // End of the loop over the untagged pixels.                                                                                                                      
+
+	      } // End of the loop over the count of cosmic pixels.
+	     
+	      // The values before had to be greater than 0 to see if the pixel had been tagged.  But for now, they just have to be greater than 0.001.                
+	      if (stopmuimg.pixel(row,col) > 0.001  || thrumuimg.pixel(row,col) > 0.001) {
+
+                cosmic_pixels_tagged_info_img.pixel(row, col)   += 1;
+                all_pixels_tagged_info_img.pixel(row, col)      += 1;
+
+              } // End of the loop over if the pixel is tagged by ThruMu or StopMu.                                                                                          
+	    
+	    } // End of the conditional for if the pixel is dead.                                                                                                            
+	  
+	  } // End of the conditional for if the pixel is a cosmic pixel.                                                                                                         
+	  
+	} // End of the loop over the pixels in each of the Pixel2DCluster objects.
+
+      } // End of the loops over the tracks within the event.
+
+      // Now, I can do conditionals for which plane I am on and calculate the correct values based on that.
+
+	// Use a loop over the 'cosmic_pixels_tagged_info_img' vector to count the number of pixels that are tagged once or more and those tagged more than once.
+	for (size_t row_iter = 0; row_iter < cosmic_pixels_tagged_info_img.meta().rows(); row_iter++) {
+
+	  for (size_t col_iter = 0; col_iter < cosmic_pixels_tagged_info_img.meta().cols(); col_iter++) {
+
+	    // Check to see if the pixel has been tagged at least once.
+	    // '0.5' is the value that I will use to tell if a pixel has been tagged at least once.  It would be '0' if it has never been tagged.
+	    if ( cosmic_pixels_tagged_info_img.pixel(row, col) > 0.5) {
+
+	      // Increment '_single_plane_cosmic_pixels_tagged_once_or_more' and '_single_plane_all_pixels_tagged_once_or_more'.
+	      _single_plane_cosmic_pixels_tagged_once_or_more += 1.0;
+	      _single_plane_all_pixels_tagged_once_or_more    += 1.0;
+
+	      // Also increment '_all_planes_cosmic_pixels_tagged_once_or_more' and '_all_planes_all_pixels_tagged_once_or_more'.  This will be a running variable.
+	      _all_planes_cosmic_pixels_tagged_once_or_more   += 1.0;
+	      _all_planes_all_pixels_tagged_once_or_more      += 1.0;
+
+	    } // End of the conditional over cosmic pixels tagged once or more.
+
+	    // Check to see if the pixel has been tagged more than once.
+	    // '1.5' is the value that I will use to tell if a pixel has been tagged more than once.  It would be at least '2.0', but this value will give the same result.
+	    else if ( cosmic_pixels_tagged_info_img.pixel(row, col) > 1.5 ) {
+
+	      // Increment '_single_plane_cosmic_pixels_tagged_more_than_once' and '_single_plane_all_pixels_tagged_more_than_once'.
+	      _single_plane_cosmic_pixels_tagged_more_than_once += 1.0;
+	      _single_plane_all_pixels_tagged_more_than_once    += 1.0;
+
+	      // Also increment '_all_planes_cosmic_pixels_tagged_more_than_once' and '_all_planes_all_pixels_tagged_more_than_once'.  This will be a running variable.
+	      _all_planes_cosmic_pixels_tagged_more_than_once += 1.0;
+	      _all_planes_all_pixels_tagged_more_than_once    += 1.0;
+
+	    } // End of the conditional over the cosmic pixels tagged more than once.
+
+	  } // End of the loop over the columns.
+
+	} // End of the loop over the rows.
+	
+	// Use a loop over the 'neutrino_pixels_tagged_info_img' vector to count the number of pixels that are tagged once or more and those tagged more than once.
+	// Use the same variables as before.
+	for (row_iter = 0; row_iter < neutrino_pixels_tagged_info_img.meta().rows(); row_iter++) {
+
+	  for (col_iter = 0; col_iter < neutrino_pixels_tagged_info_img.meta().cols(); col_iter++) {
+
+	    // Check to see if the pixel has been tagged more than once. 
+	    // '0.5' is the value that I will use to tell if a pixel has been tagged at least once.  It would be '0' if it has never been tagged.
+	    if ( neutrino_pixels_tagged_info_img.pixel(row, col) > 0.5 ) {
+
+	      // Increment '_single_plane_neutrino_pixels_tagged_once_or_more' and '_single_plane_all_pixels_tagged_once_or_more'.                          
+	      _single_plane_neutrino_pixels_tagged_once_or_more += 1.0;
+	      _single_plane_all_pixels_tagged_once_or_more      += 1.0;
+
+	      // Also increment '_all_planes_neutrino_pixels_tagged_once_or_more' and '_all_planes_all_pixels_tagged_once_or_more'.  This will be a running variable.    
+	      _all_planes_neutrino_pixels_tagged_once_or_more += 1.0;
+	      _all_planes_all_pixels_tagged_once_or_more      += 1.0;
+	      
+	    } // End of the conditional over the neutrino pixels tagged once or more.
+
+	    // Check to see if the pixel has been tagged more than once.                                                      
+	    // '1.5' is the value that I will use to tell if a pixel has been tagged more than once.  It would be at least '2.0', but this value will give the same result.   
+	    else if ( neutrino_pixels_tagged_info_img.pixel(row, col) > 1.5 ) {
+
+	      // Increment '_single_plane_neutrino_pixels_tagged_more_than_once'                                         
+	      _single_plane_neutrino_pixels_tagged_more_than_once += 1.0;
+	      _single_plane_all_pixels_tagged_more_than_once    += 1.0;
+
+	      // Also increment '_all_planes_neutrino_pixels_tagged_more_than_once' and '_all_planes_all_pixels_tagged_more_than_once'.  This will be a running variable.  
+	      _all_planes_neutrino_pixels_tagged_more_than_once += 1.0;
+	      _all_planes_all_pixels_tagged_more_than_once      += 1.0;
+
+	      
+	    } // End of the contional over the neutrino pixels that are tagged more than once.
+
+	  } // End of the loop over the columns.
+
+	} // End of the loop over the rows.
+
+	      
+	// Calculate the correct fractions based on which plane I am on.  You can calculate all of the fractions from the variables that have been formed.
+	if (plane == 0) {
+
+	  _u_plane_frac_all_pixels_tagged_more_than_once    = _single_plane_all_pixels_tagged_more_than_once    / _single_plane_all_pixels;
+	  _u_plane_frac_cosmic_pixels_tagged_once_or_more   = _single_plane_cosmic_pixels_tagged_once_or_more   / _single_plane_cosmic_pixels;
+	  _u_plane_frac_cosmic_pixels_tagged_more_than_once = _single_plane_cosmic_pixels_tagged_more_than_once / _single_plane_cosmic_pixels;
+	  _u_plane_frac_cosmic_pixels_not_tagged            = _single_plane_cosmic_pixels_not_tagged            / _single_plane_cosmic_pixels;
+	  _u_plane_frac_neutrino_pixels_not_tagged          = _single_plane_neutrino_pixels_not_tagged          / _single_plane_neutrino_pixels;
+	 
+	} // End of the conditional for the u-plane pixels.
+
+	if (plane == 1) {
+
+          _v_plane_frac_all_pixels_tagged_more_than_once    = _single_plane_all_pixels_tagged_more_than_once    / _single_plane_all_pixels;
+	  _v_plane_frac_cosmic_pixels_tagged_once_or_more   = _single_plane_cosmic_pixels_tagged_once_or_more   / _single_plane_cosmic_pixels;
+          _v_plane_frac_cosmic_pixels_tagged_more_than_once = _single_plane_cosmic_pixels_tagged_more_than_once / _single_plane_cosmic_pixels;
+          _v_plane_frac_cosmic_pixels_not_tagged            = _single_plane_cosmic_pixels_not_tagged            / _single_plane_cosmic_pixels;
+          _v_plane_frac_neutrino_pixels_not_tagged          = _single_plane_neutrino_pixels_not_tagged          / _single_plane_neutrino_pixels;
+
+	} // End of the conditional for the v-plane pixels.
+
+	if (plane == 2) {
+
+          _y_plane_frac_all_pixels_tagged_more_than_once    = _single_plane_all_pixels_tagged_more_than_once    / _single_plane_all_pixels;
+	  _y_plane_frac_cosmic_pixels_tagged_once_or_more   = _single_plane_cosmic_pixels_tagged_once_or_more   / _single_plane_cosmic_pixels;
+          _y_plane_frac_cosmic_pixels_tagged_more_than_once = _single_plane_cosmic_pixels_tagged_more_than_once / _single_plane_cosmic_pixels;
+          _y_plane_frac_cosmic_pixels_not_tagged            = _single_plane_cosmic_pixels_not_tagged            / _single_plane_cosmic_pixels;
+          _y_plane_frac_neutrino_pixels_not_tagged          = _single_plane_neutrino_pixels_not_tagged          / _single_plane_neutrino_pixels;
+
+	} // End of the conditional for the y-plane pixels.
+
+    }
+
+    // Calculate the same quantites for all of the planes using the '_all_planes' variables.
+    _frac_all_pixels_tagged_more_than_once    = _all_planes_all_pixels_tagged_more_than_once    / _all_planes_all_pixels;
+    _frac_cosmic_pixels_tagged_once_or_more   = _all_planes_cosmic_pixels_tagged_once_or_more   / _all_planes_cosmic_pixels;
+    _frac_cosmic_pixels_tagged_more_than_once = _all_planes_cosmic_pixels_tagged_more_than_once / _all_planes_cosmic_pixels;
+    _frac_cosmic_pixels_not_tagged            = _all_planes_cosmic_pixels_not_tagged            / _all_planes_cosmic_pixels;
+    _frac_neutrino_pixels_not_tagged          = _all_planes_neutrino_pixels_not_tagged          / _all_planes_neutrino_pixels;
+
 
     // get the result of the contained ROI analysis
     larcv::EventROI* ev_contained_roi = (larcv::EventROI*)dataco_nucand.get_larcv_data(larcv::kProductROI,"containedroi");
@@ -357,6 +755,8 @@ int main( int nargs, char** argv ) {
     std::vector < larcv::Image2D > init_markedimgs;
     std::vector < larcv::Image2D > final_markedimgs;
 
+    // Test code....
+    // Declare vectors for the cosmic pixels in the image
     // Taken from BMTrackCluster3D....
     for (size_t i = 0; i < 3; i++) {
       // I fill the image with the same dimensions as the image at this location in imgs_v.at(i) ('i' corresponds to the plane number).
@@ -364,6 +764,8 @@ int main( int nargs, char** argv ) {
       init_markedimg.paint(0.0);
       init_markedimgs.emplace_back( std::move(init_markedimg) );
       final_markedimgs.emplace_back( std::move(init_markedimg) );
+
+      // Cosmic Images 
     }
   }
 
@@ -376,9 +778,6 @@ int main( int nargs, char** argv ) {
         for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
 	  // check if this is a pixel of interest
           if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
-
-	  // Increment this element in 'markedimgs' by 1.
-	  markedimgs.at(p).pixel(row, col) += 1;
 
           bool near_vertex = false;
 	  // are we some radius from the vertex?
@@ -433,28 +832,6 @@ int main( int nargs, char** argv ) {
         }//end of col loop
       }//end of row loop
     }//end of loop over planes for counting neutrino/cosmic pixels
-
-    // Use the same variables as before, so they do not have to be redeclared.
-    // This time, I will fill the contents of 'final_markedimgs'.
-    for (p=0; p<3; p++) {
-      for (row=0; row<imgs_v.at(p).meta().rows(); row++) {
-	for (col=0; col<imgs_v.at(p).meta().cols(); col++) {
-	  
-	  // Check the value of 'init_markedimgs' at this particular value is > 1.  That means that more than one pixel is at this row and column in the image.
-	  if (init_markedimgs.at(p).pixel(row, col) > 1) {
-
-	    final_markedimgs.at(p).pixel(row, col) += 1;
-
-	  }
-
-	}
-
-      }
-
-    }
-
-    // After the conclusion of this loop, 'final_markedimgs' contains the information that we need.
-    // If a value of an entry at a value of (pixel, column) is '1', that means that more than one track in the plane was above threshold within this pixel.
 
     if ( nnu_pixels>0 )
       frac_inroi = float(num_nupixels_inroi)/float(nnu_pixels);
