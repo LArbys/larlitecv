@@ -23,12 +23,12 @@ namespace larlitecv {
 		FVCutX.resize(2);
 		FVCutY.resize(2);
 		FVCutZ.resize(2);				
-		FVCutX[0] = 5.0;
-		FVCutX[1] = 270.0;
-		FVCutY[0] = -113.0;
-		FVCutY[1] = 113.0;
-		FVCutZ[0] = 5.0;
-		FVCutZ[1] = 1032.0;
+		FVCutX[0] = 0.0;
+		FVCutX[1] = 275.0;
+		FVCutY[0] = -118.0;
+		FVCutY[1] = 118.0;
+		FVCutZ[0] = 0.0;
+		FVCutZ[1] = 1037.0;
 		gain_correction.resize(32,1.0);
 	}
 
