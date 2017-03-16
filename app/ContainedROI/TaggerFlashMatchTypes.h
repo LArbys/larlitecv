@@ -5,6 +5,8 @@
 
 // LArCV
 #include "DataFormat/Pixel2DCluster.h"
+#include "DataFormat/ROI.h"
+#include "DataFormat/Image2D.h"
 
 // LArLite
 #include "DataFormat/track.h"
@@ -22,6 +24,8 @@ namespace larlitecv {
 	  ClusterType_t m_type;
 		std::vector<larcv::Pixel2DCluster> m_pixels;
 		larlite::track m_track3d;
+
+	  larcv::ROI MakeROI( const std::vector<larcv::Image2D>& img_v, const bool iscroi_candidate=false );
 
 	};
  
