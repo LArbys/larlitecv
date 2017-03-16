@@ -1,1 +1,0 @@
-/home/barnchri/CV_Directories_Test/larlitecv/app/ThruMu/bin/output_thrumu_larlite_nueevents.root
