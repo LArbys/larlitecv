@@ -51,6 +51,7 @@ namespace larlitecv {
 
       PassOutput_t pass_data = performPass( m_config.pass_configs.at(ipass), img_v, badch_v, marked_v, endpts_v, endpts_used );
 
+#ifdef USE_OPENCV
       // dump out pass data
       if ( m_config.save_pass_images ) {
         std::vector<cv::Mat> passcv = makeBaseClusterImageOCV( pass_data, img_v, marked_v );
@@ -63,6 +64,7 @@ namespace larlitecv {
           cv::imwrite( ss.str(), passcv.at(p) );
         }
       }
+#endif
 
       for ( size_t ipath=0; ipath<pass_data.m_paths.size(); ipath++) {
         if ( pass_data.m_path_goalreached.at(ipath)==1 ) {
@@ -85,6 +87,7 @@ namespace larlitecv {
     std::cout << "StopMu Tracks Found: " << stopmu_tracks.size() << std::endl;
 
     // dump out an image
+#ifdef USE_OPENCV
     for (size_t p=0; p<thrumu_v.size(); p++) {
       cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img_v.at(p), 0, 50.0 );
       for (size_t c=0; c<img_v.at(p).meta().cols(); c++) {        
@@ -121,8 +124,8 @@ namespace larlitecv {
           ss << m_cvout_stem << "_tagged_p" << p << ".jpg";
         cv::imwrite( ss.str(), cvimg );
       }
-
     }
+#endif
 
     return stopmu_tracks;
   }
@@ -765,9 +768,9 @@ namespace larlitecv {
 
         // in-time
         int crosses = 0;
-        std::vector<float> intersection_zy;
-        int otherplane;
-        int otherwire;
+        std::vector<float> intersection_zy(2,0.0);
+        int otherplane = -1;
+        int otherwire  = -1;
         larcv::UBWireTool::getMissingWireAndPlane( pt_i.plane, wire_i, pt_j.plane, wire_j, otherplane, otherwire, intersection_zy, crosses );
 
         if ( crosses==0 ) {

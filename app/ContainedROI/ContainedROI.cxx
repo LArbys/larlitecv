@@ -1,13 +1,16 @@
 #include "ContainedROI.h"
 #include <array>
+#include <sstream>
 
 // larcv
 #include "UBWireTool/UBWireTool.h"
 
 #ifndef __CINT__
+#ifdef USE_OPENCV
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include "CVUtil/CVUtil.h"
+#endif
 #endif
 
 namespace larlitecv {
@@ -51,7 +54,9 @@ namespace larlitecv {
  			m_untagged_cluster_info_v.emplace_back( std::move(plane_cluster) );
  		}
 
+#ifdef USE_OPENCV
  		std::vector< cv::Mat > cvimgs_v;
+#endif
 
  		// with the clusters in hand (or in vector), we filter out the clusters we find interesting and locate extrema points.
  		// the extrema points serve as key points to use to try and match the cluster across planes
@@ -60,8 +65,9 @@ namespace larlitecv {
 			std::vector< ContainedROI::analyzed_cluster_t > plane_clusters = AnalyzeClusters( m_untagged_cluster_info_v.at(p), img_v.at(p) );
 			std::cout << "plane " << p << " has " << plane_clusters.size() << " untagged clusters." << std::endl;
 			const larcv::ImageMeta& meta = untagged_v.at(p).meta();
-
+#ifdef USE_OPENCV
 			cv::Mat imgmat = larcv::as_mat_greyscale2bgr( img_v.at(p), 5.0, 50.0 );
+#endif
 
 			for ( size_t icluster=0; icluster<plane_clusters.size(); icluster++ ) {
 				const analyzed_cluster_t& cluster = plane_clusters.at(icluster);
@@ -76,16 +82,19 @@ namespace larlitecv {
 				  << " smallest row=(" << cluster.extrema_pts.at(3).X() << "," << meta.pos_y(cluster.extrema_pts.at(3).Y()) << ") "
 				  << std::endl;
 				  */
+#ifdef USE_OPENCV
 				if (cluster.total_charge>m_config.min_cluster_plane_charge.at(p)) {
 					cv::circle(imgmat,cv::Point(cluster.extrema_pts.at(0).X(),cluster.extrema_pts.at(0).Y()), 5, cv::Scalar(0,255,0),-1);
 					cv::circle(imgmat,cv::Point(cluster.extrema_pts.at(1).X(),cluster.extrema_pts.at(1).Y()), 5, cv::Scalar(255,255,0),-1);
 					cv::circle(imgmat,cv::Point(cluster.extrema_pts.at(2).X(),cluster.extrema_pts.at(2).Y()), 5, cv::Scalar(0,255,255),-1);
 					cv::circle(imgmat,cv::Point(cluster.extrema_pts.at(3).X(),cluster.extrema_pts.at(3).Y()), 5, cv::Scalar(0,0,255),-1);
 				}
+#endif
 			}
 
-
+#ifdef USE_OPENCV
 			cvimgs_v.emplace_back( std::move(imgmat) );
+#endif
 
 			analyzed_clusters.emplace_back( std::move(plane_clusters) );
 		}
@@ -174,6 +183,7 @@ namespace larlitecv {
 				break;
 		}
 
+#ifdef USE_OPENCV
 		for ( size_t p=0; p<3; p++ ) {
 			std::stringstream ss;
 			ss << "contained_roi_";
@@ -192,6 +202,7 @@ namespace larlitecv {
 			}
 			//cv::imwrite( ss.str(), cvimgs_v.at(p) );
 		}
+#endif
 
 		return output;
 
