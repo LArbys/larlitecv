@@ -765,9 +765,9 @@ namespace larlitecv {
 
         // in-time
         int crosses = 0;
-        std::vector<float> intersection_zy;
-        int otherplane;
-        int otherwire;
+        std::vector<float> intersection_zy(2,0.0);
+        int otherplane = -1;
+        int otherwire  = -1;
         larcv::UBWireTool::getMissingWireAndPlane( pt_i.plane, wire_i, pt_j.plane, wire_j, otherplane, otherwire, intersection_zy, crosses );
 
         if ( crosses==0 ) {
