@@ -41,6 +41,15 @@ namespace larlitecv {
 
     // run side tagger
     sidetagger.searchforboundarypixels3D( input.img_v, input.badch_v, output.side_spacepoint_v, output.boundarypixel_image_v, output.realspacehit_image_v );
+    int nsides[4] = {0};
+    for ( auto const& sp : output.side_spacepoint_v ) {
+    	nsides[ sp.at(0).type ]++;
+    }
+    std::cout << " Side Tagger End Points: " << output.side_spacepoint_v.size() << std::endl;
+    std::cout << "  Top: "        << nsides[0] << std::endl;
+    std::cout << "  Bottom: "     << nsides[1] << std::endl;
+    std::cout << "  Upstream: "   << nsides[2] << std::endl;
+    std::cout << "  Downstream: " << nsides[3] << std::endl;
 
     // run flash tagger
     anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v );
@@ -70,7 +79,7 @@ namespace larlitecv {
 
     // filter spacepoints
     std::vector<int> endpoint_passes( all_endpoints.size(), 1 );
-    endptfilter.removeBoundaryAndFlashDuplicates( all_endpoints, input.img_v, input.badch_v, endpoint_passes );
+    endptfilter.removeBoundaryAndFlashDuplicates( all_endpoints, input.img_v, input.gapch_v, endpoint_passes );
 
     // remove the filtered end points
     std::vector< const larlitecv::BoundarySpacePoint* > filtered_endpoints;
@@ -82,7 +91,7 @@ namespace larlitecv {
 
     // make track clusters
     std::vector<int> used_filtered_endpoints( filtered_endpoints.size(), 0 );
-    sidetagger.makeTrackClusters3D( input.img_v, input.badch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
+    sidetagger.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
 
     // collect unused endpoints
     for ( size_t isp=0; isp<filtered_endpoints.size(); isp++ ) {

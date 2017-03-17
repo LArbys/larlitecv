@@ -133,20 +133,20 @@ int main(int nargs, char** argv ) {
     // ------------------------------------------------------------------------------------------//
     // LABEL BAD CHANNELS
 
-    std::vector< larcv::Image2D > badchimgs;
+    input_data.badch_v.clear();
     if ( chstatus_datatype=="LARLITE" ) {
       larlite::event_chstatus* ev_status = (larlite::event_chstatus*)dataco.get_larlite_data( larlite::data::kChStatus, "chstatus" );
-      badchimgs = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+      input_data.badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
     }
     else if ( chstatus_datatype=="LARCV" ) {
       larcv::EventChStatus* ev_status = (larcv::EventChStatus*)dataco.get_larcv_data( larcv::kProductChStatus, "chstatus" );
-      badchimgs = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+      input_data.badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
     }
     else {
       throw std::runtime_error("ERROR: ChStatusDataType must be either LARCV or LARLITE");
     }
 
-    if ( badchimgs.size()!=3 ) {
+    if ( input_data.badch_v.size()!=3 ) {
     	throw std::runtime_error("Number of Bad Channels not correct.");
     }
 
@@ -154,19 +154,19 @@ int main(int nargs, char** argv ) {
     // MAKE GAP CHANNEL IMAGE
 
     int maxgap = 200;
-    std::vector< larcv::Image2D> gapchimgs_v = emptyalgo.findMissingBadChs( input_data.img_v, badchimgs, 5, maxgap );
+    std::vector< larcv::Image2D> gapchimgs_v = emptyalgo.findMissingBadChs( input_data.img_v, input_data.badch_v, 5, maxgap );
     // combine with badchs
     for ( size_t p=0; p<gapchimgs_v.size(); p++ ) {
       larcv::Image2D& gapchimg = gapchimgs_v.at(p);
-      gapchimg += badchimgs.at(p);
+      gapchimg += input_data.badch_v.at(p);
     }
 
     // Set BadCh in input data
     for ( size_t p=0; p<gapchimgs_v.size(); p++ ) {
-      input_data.badch_v.emplace_back( std::move(gapchimgs_v.at(p)) );
+      input_data.gapch_v.emplace_back( std::move(gapchimgs_v.at(p)) );
     }
-    if ( input_data.badch_v.size()!=3 ) 
-    	throw std::runtime_error("Number of GapChs not correct.");
+    if ( input_data.gapch_v.size()!=3 ) 
+    	throw std::runtime_error("Number of Gap Channels not correct.");
 
     // -------------------------------------------------------------------------------------------//
     // COLLECT FLASH INFORMATION

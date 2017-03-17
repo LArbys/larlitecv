@@ -29,7 +29,8 @@ namespace larlitecv {
 		virtual ~InputPayload() {};
 
 		std::vector<larcv::Image2D>            img_v;       //< input image
-		std::vector<larcv::Image2D>            badch_v;     //< image marking gap and bad channels
+		std::vector<larcv::Image2D>            badch_v;     //< image marking bad channels
+		std::vector<larcv::Image2D>            gapch_v;     //< image marking gap channels		
 		std::vector< larlite::event_opflash* > opflashes_v; //< container of opflashes to consider
 
 	};
