@@ -14,6 +14,8 @@ namespace larlitecv {
     larcv::PSet sidetagger_pset;
     larcv::PSet flashtagger_pset;
     
+    static TaggerCROIAlgoConfig makeConfigFromFile( std::string );
+
   };
 
 }
