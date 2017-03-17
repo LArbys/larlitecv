@@ -150,7 +150,7 @@ namespace larlitecv {
     return kOK;
   }
 
-  int BoundaryMuonTaggerAlgo::makeTrackClusters3D( std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
+  int BoundaryMuonTaggerAlgo::makeTrackClusters3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
                                                    const std::vector< const BoundarySpacePoint* >& spacepts,
                                                    std::vector< larlitecv::BMTrackCluster3D >& trackclusters, 
                                                    std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices) {
