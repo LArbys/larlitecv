@@ -84,7 +84,7 @@ int main(int nargs, char** argv ) {
       continue;
 
     // ------------------------------------------------------------------------------------------//
-    // Fill Images
+    // FILL IMAGES
     
     for ( auto const &img : event_imgs->Image2DArray() ) {
       larcv::Image2D dejebbed( img );
@@ -118,6 +118,7 @@ int main(int nargs, char** argv ) {
 
     // ------------------------------------------------------------------------------------------//
     // LABEL BAD CHANNELS
+
     std::vector< larcv::Image2D > badchimgs;
     if ( chstatus_datatype=="LARLITE" ) {
       larlite::event_chstatus* ev_status = (larlite::event_chstatus*)dataco.get_larlite_data( larlite::data::kChStatus, "chstatus" );
@@ -134,7 +135,7 @@ int main(int nargs, char** argv ) {
     std::cout << "number of bad ch imgs: " << badchimgs.size() << std::endl;
 
     // ------------------------------------------------------------------------------------------//
-    // LABEL GAP CHANNELS
+    // MAKE GAP CHANNEL IMAGE
 
     int maxgap = 200;
     std::vector< larcv::Image2D> gapchimgs_v = emptyalgo.findMissingBadChs( event_imgs->Image2DArray(), badchimgs, 5, maxgap );
@@ -163,9 +164,11 @@ int main(int nargs, char** argv ) {
 
     larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
 
+    dataco.save_entry();
+
   }
 
-
+  dataco.finalize();
 
   return 0;
 
