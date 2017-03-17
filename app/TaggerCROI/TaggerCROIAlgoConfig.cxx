@@ -17,11 +17,15 @@ namespace larlitecv {
 		larcv::PSet flashtagger_pset    = tagger_pset.get<larcv::PSet>("BMTFlashTagger");
 		larcv::PSet stopmu_filter_pset  = tagger_pset.get<larcv::PSet>("StopMuSpacePointsFilter");
 		larcv::PSet stopmu_cluster_pset = tagger_pset.get<larcv::PSet>("StopMuCluster");
-		
+		larcv::PSet untagged_cluster_ps = tagger_pset.get<larcv::PSet>("ContainedGroupAlgo");
+		larcv::PSet untagged_match_pset = tagger_pset.get<larcv::PSet>("TaggerFlashMatchAlgo");
+
 		cfg.sidetagger_cfg       = larlitecv::MakeConfigBoundaryMuonTaggerAlgoFromPSet( sidetagger_pset );
     cfg.flashtagger_cfg      = larlitecv::MakeFlashMuonTaggerConfigFromPSet( flashtagger_pset );
     cfg.stopmu_filterpts_cfg = larlitecv::MakeStopMuFilterSpacePointsConfigFromPSet( stopmu_filter_pset );
     cfg.stopmu_cluster_cfg   = larlitecv::makeStopMuClusterConfigFromPSet( stopmu_cluster_pset );
+    cfg.untagged_cluster_cfg = larlitecv::ClusterGroupAlgoConfig::MakeClusterGroupAlgoConfigFromPSet( untagged_cluster_ps );
+    cfg.croi_selection_cfg   = larlitecv::TaggerFlashMatchAlgoConfig::MakeTaggerFlashMatchAlgoConfigFromPSet( untagged_match_pset );
 
 		return cfg;
 	}

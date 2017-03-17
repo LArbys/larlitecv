@@ -20,6 +20,7 @@
 // larlitecv
 #include "ThruMu/BoundarySpacePoint.h"
 #include "ThruMu/BMTrackCluster3D.h"
+#include "ContainedROI/TaggerFlashMatchTypes.h"
 
 namespace larlitecv {
 
@@ -77,6 +78,7 @@ namespace larlitecv {
   	larcv::EventPixel2D                                 stopmu_pixel_endpt_v;     // bad design. fix this garbage.
   	std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpt_v; // refers to previous line. terrible!
   	std::vector< larlitecv::BMTrackCluster3D >          stopmu_trackcluster_v;
+  	std::vector< larcv::Image2D >                       stopmu_v;
 
   	virtual void saveSpace() {};
   };
@@ -85,6 +87,10 @@ namespace larlitecv {
   public:
   	CROIPayload() : TaggerCROIVPayload("CROI") {};
   	virtual ~CROIPayload() {};
+
+    std::vector< larcv::Image2D > tagged_v;
+    std::vector< larcv::Image2D > subimg_v;    
+    std::vector< larlitecv::TaggerFlashMatchData > flashdata_v;
 
   	virtual void saveSpace() {};
   };

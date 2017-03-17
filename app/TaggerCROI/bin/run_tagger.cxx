@@ -182,6 +182,7 @@ int main(int nargs, char** argv ) {
     std::cout << "[ RUN ALGOS ]" << std::endl;
     larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
     larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
+    larlitecv::CROIPayload   croi_data   = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
 
     dataco.save_entry();
 

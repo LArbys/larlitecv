@@ -24,6 +24,7 @@ namespace larlitecv {
     };
 
     bool checkOK() { return true; }; // dummy for now
+    void print();
     
     std::vector<float> emptych_thresh; ///< pixel thresholds below which if wire stays, it is marked as empty (value per plane)
     std::vector<float> thresholds;    ///< pixel threshold to count as a hit

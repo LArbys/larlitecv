@@ -9,6 +9,8 @@
 #include "ThruMu/FlashMuonTaggerAlgo.h"
 #include "StopMu/StopMuFilterSpacePoints.h"
 #include "StopMu/StopMuClusterConfig.h"
+#include "UntaggedClustering/ClusterGroupAlgo.h"
+#include "ContainedROI/TaggerFlashMatchAlgoConfig.h"
 
 namespace larlitecv {
 
@@ -17,10 +19,13 @@ namespace larlitecv {
     TaggerCROIAlgoConfig() {};
     virtual ~TaggerCROIAlgoConfig() {};
 
-    larlitecv::ConfigBoundaryMuonTaggerAlgo  sidetagger_cfg;
-		larlitecv::FlashMuonTaggerConfig         flashtagger_cfg;
-		larlitecv::StopMuFilterSpacePointsConfig stopmu_filterpts_cfg;
-		larlitecv::StopMuClusterConfig           stopmu_cluster_cfg;
+    ConfigBoundaryMuonTaggerAlgo  sidetagger_cfg;
+		FlashMuonTaggerConfig         flashtagger_cfg;
+		StopMuFilterSpacePointsConfig stopmu_filterpts_cfg;
+		StopMuClusterConfig           stopmu_cluster_cfg;
+		ClusterGroupAlgoConfig        untagged_cluster_cfg;
+		TaggerFlashMatchAlgoConfig    croi_selection_cfg;
+
 
     static TaggerCROIAlgoConfig makeConfigFromFile( std::string );
 

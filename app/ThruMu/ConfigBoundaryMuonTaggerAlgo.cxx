@@ -30,6 +30,28 @@ namespace larlitecv {
     astar3d_min_majfrac = 0.2;
   }
 
+  void ConfigBoundaryMuonTaggerAlgo::print() {
+    std::cout << "==================================================" << std::endl;
+    std::cout << "ConfigBoundaryMuonTaggerAlgo" << std::endl;
+
+    std::cout << " Pixel Thresholds: "; for ( size_t i=0; i<thresholds.size(); i++ ) std::cout << thresholds[i] << " "; std::cout << std::endl;
+    std::cout << " Search Neighborhood: "; for ( size_t i=0; i<neighborhoods.size(); i++ ) std::cout << neighborhoods[i] << " "; std::cout << std::endl; 
+    std::cout << " Hit Search Uses BadChs: " << hitsearch_uses_badchs << std::endl;
+    std::cout << " Boundary Cluster Min Pixels: "; for ( size_t i=0; i<boundary_cluster_minpixels.size(); i++ ) std::cout << boundary_cluster_minpixels[i] << " "; std::cout << std::endl;
+    std::cout << " Boundary Cluster Radius: "; for ( size_t i=0; i<boundary_cluster_radius.size(); i++ ) std::cout << boundary_cluster_radius[i] << " "; std::cout << std::endl;
+    std::cout << " Tag Neighborhood: "; for ( size_t i=0; i<tag_neighborhood.size(); i++ ) std::cout << tag_neighborhood[i] << " "; std::cout << std::endl;
+    std::cout << " Type Modifer: "; for ( size_t i=0; i<type_modifier.size(); i++ ) std::cout << type_modifier[i] << " "; std::cout << std::endl;
+    std::cout << " Linear3D Min Majority Charge Fraction: " << linear3d_min_majoritychargefraction << std::endl;
+    std::cout << " Linear3D Min Good Fraction: " << linear3d_min_goodfraction << std::endl;
+    std::cout << " Linear3D Min Track Size: " << linear3d_min_tracksize << std::endl;
+    std::cout << " AStar3D Min Good Fraction: " << astar3d_min_goodfrac << std::endl;
+    std::cout << " AStar3D Min Majority Fraction: " << astar3d_min_majfrac << std::endl;
+    std::cout << " TicksPerFullDrift: " << ticks_per_full_drift << std::endl;
+    std::cout << " Verbosity: " << verbosity << std::endl;
+    std::cout << " Save Endpoint Images: " << save_endpt_images << std::endl;
+    std::cout << "==================================================" << std::endl;    
+  }
+
   ConfigBoundaryMuonTaggerAlgo MakeConfigBoundaryMuonTaggerAlgoFromPSet( const larcv::PSet& pset ) {
 
     ConfigBoundaryMuonTaggerAlgo config;
@@ -42,8 +64,7 @@ namespace larlitecv {
     config.edge_win_hitthresh         = pset.get< std::vector<float> >( "EdgeWinHitThreshold" );
     config.boundary_cluster_minpixels = pset.get< std::vector<int> >( "BoundaryClusterMinPixels" );
     config.boundary_cluster_radius    = pset.get< std::vector<float> >( "BoundaryClusterRadius" );
-    //config.astar_thresholds           = pset.get< std::vector<float> >( "AStarThresholds" );
-    //config.astar_neighborhood         = pset.get< std::vector<int> >( "AStarNeighborhood" );
+
     config.tag_neighborhood           = pset.get< std::vector<int> >("TaggingNeighborhood");    
     config.save_endpt_images          = pset.get<bool>("SaveMatchImages",false);
     config.hitsearch_uses_badchs      = pset.get<bool>("UseBadChannels",true);

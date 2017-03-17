@@ -6,6 +6,7 @@
 
 // larcv
 #include "DataFormat/Pixel2D.h"
+#include "DataFormat/ROI.h"
 
 // larlitecv
 #include "ThruMu/ConfigBoundaryMuonTaggerAlgo.h"
@@ -16,6 +17,9 @@
 #include "ThruMu/EndPointFilter.h"
 #include "StopMu/StopMuFilterSpacePoints.h"
 #include "StopMu/StopMuCluster.h"
+#include "UntaggedClustering/ClusterGroupAlgo.h"
+#include "UntaggedClustering/ClusterGroupMatchingAlgo.h"
+#include "ContainedROI/TaggerFlashMatchAlgo.h"
 
 namespace larlitecv {
 
@@ -160,11 +164,193 @@ namespace larlitecv {
   	output.stopmu_trackcluster_v = stopmu_cluster.findStopMuTracks( input.img_v, input.gapch_v, thrumu.tagged_v, output.stopmu_candidate_endpt_v );
   	std::cout << "  Number of candidate StopMu tracks: " << output.stopmu_trackcluster_v.size() << std::endl;
 
+  	// make stopmu-tagged image
+    for (size_t p=0; p<input.img_v.size(); p++) {
+      larcv::Image2D stopmu_img( input.img_v.at(p).meta() );
+      stopmu_img.paint(0);
+      output.stopmu_v.emplace_back( std::move(stopmu_img) );
+    }
+    for ( size_t itrack=0; itrack<output.stopmu_trackcluster_v.size(); itrack++ ) {
+      const larlitecv::BMTrackCluster3D& track3d = output.stopmu_trackcluster_v.at(itrack);
+      for (size_t p=0; p<output.stopmu_v.size(); p++) {
+        const larcv::Pixel2DCluster& trackpixs = track3d.plane_paths.at(p).pixelpath;
+        for ( auto const& pix : trackpixs ) {
+          output.stopmu_v.at(p).set_pixel( pix.Y(), pix.X(), 255 );
+        }
+      }
+    }  	
+
   	return output;
 
   }
 
   CROIPayload TaggerCROIAlgo::runCROISelection( const InputPayload& input, const ThruMuPayload& thrumu, const StopMuPayload& stopmu ) {
-  	
+  	CROIPayload output;
+
+  	ClusterGroupAlgo         clusteralgo(   m_config.untagged_cluster_cfg );
+  	ClusterGroupMatchingAlgo matchingalgo;
+  	TaggerFlashMatchAlgo     selectionalgo( m_config.croi_selection_cfg );
+
+  	// Make Thrumu/StopMu tagged and subtracted images
+    //std::vector< larcv::Image2D > tagged_v;
+    //std::vector< larcv::Image2D > subimg_v;    
+    for ( size_t p=0; p<input.img_v.size(); p++) {
+      larcv::Image2D tagged( input.img_v.at(p).meta() );
+      tagged.paint(0.0);
+      larcv::Image2D sub( input.img_v.at(p) );
+
+      for ( size_t r=0; r<tagged.meta().rows(); r++ ) {
+        for ( size_t c=0; c<tagged.meta().cols(); c++ ) {
+          // tagged image
+          if ( thrumu.tagged_v.at(p).pixel(r,c)>0 || stopmu.stopmu_v.at(p).pixel(r,c)>0 )
+            tagged.set_pixel(r,c,255);
+
+          // subtraction image: below threshold and tagged pixels get zeroed (for clustering)
+          if ( sub.pixel(r,c)<10.0 || thrumu.tagged_v.at(p).pixel(r,c)>0 || stopmu.stopmu_v.at(p).pixel(r,c)>0 )
+            sub.set_pixel(r,c,0.0);
+        }
+      }
+      output.tagged_v.emplace_back( std::move(tagged) );
+      output.subimg_v.emplace_back( std::move(sub) );
+    } 	
+
+    // ----------------------
+    //  RUN ALGOS
+
+    std::vector< larlitecv::PlaneClusterGroups > plane_groups_v = clusteralgo.MakeClusterGroups( input.img_v, input.gapch_v, output.tagged_v );
+
+    std::vector< larlitecv::ChargeVolume > vols_v = matchingalgo.MatchClusterGroups( output.subimg_v, plane_groups_v );
+
+    // ------------------------------------------------------------------
+    // WE COLLECT OUR CLUSTER DATA, forming TaggerFlashMatchData objects
+    // Collect Pixel2D clusters for each plane. Define LArLite Track
+    //std::vector< larlitecv::TaggerFlashMatchData > flashdata_v;
+
+    // ThruMu
+    for ( int itrack=0; itrack<(int)thrumu.trackcluster3d_v.size(); itrack++ ) {
+    	const BMTrackCluster3D& track = thrumu.trackcluster3d_v.at(itrack);
+      std::vector< larcv::Pixel2DCluster > pixels;
+      for ( size_t p=0; p<input.img_v.size(); p++)
+        pixels.push_back( track.plane_paths.at(p).pixelpath );
+      larlitecv::TaggerFlashMatchData thrumu_track( larlitecv::TaggerFlashMatchData::kThruMu, pixels, track.makeTrack() );
+      output.flashdata_v.emplace_back( std::move(thrumu_track) );
+    }
+
+    // StopMu
+    for ( int itrack=0; itrack<(int)stopmu.stopmu_trackcluster_v.size(); itrack++ ) {
+    	const BMTrackCluster3D& track = stopmu.stopmu_trackcluster_v.at(itrack);
+      std::vector< larcv::Pixel2DCluster > pixels;
+      for ( size_t p=0; p<input.img_v.size(); p++)
+        pixels.push_back( track.plane_paths.at(p).pixelpath );
+      larlitecv::TaggerFlashMatchData stopmu_track( larlitecv::TaggerFlashMatchData::kStopMu, pixels, track.makeTrack() );
+      output.flashdata_v.emplace_back( std::move(stopmu_track) );
+    }
+
+    // Find Contained Clusters
+    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;        
+    for ( auto const& vol : vols_v ) {
+
+      // there should be a selection here...
+      // select by (1) good fraction (2) charge even-ness
+      if ( vol.frac_good_slices<0.8 )
+        continue;
+
+      std::cout << "VOL: clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
+        << " numslices=" << vol.num_slices
+        << " goodslices=" << vol.num_good_slices 
+       << " fracgood=" << vol.frac_good_slices 
+       << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
+       << std::endl;
+
+      // we need to make a larlite::track object for this. we use the centroid of the slices
+      std::vector< std::vector<float> > xyz_v;
+      std::vector< float > slice_charge;
+      for ( size_t islice=0; islice<vol.slices.size(); islice++ ) {
+
+        const larlitecv::Slice_t& slice = vol.slices.at(islice);
+
+        if ( slice.inside_tpc_boundary.size()==0 )
+          continue;
+
+        // for each slice volume, we are going to do the easy thing first and represent charge at centroid
+        // of volume. not great, I know.
+        float centroid[2] = {0.0};
+        for ( auto const pt : slice.inside_tpc_boundary ) {
+          for (int i=0; i<2; i++)
+            centroid[i] += pt[i];
+        }
+        for (int i=0; i<2; i++) {
+          centroid[i] /= float(slice.inside_tpc_boundary.size());
+        }
+
+        float tick = input.img_v.front().meta().pos_y( 0.5*(slice.row_interval[0]+slice.row_interval[1]) );
+        float x = (tick-3200.0)*cm_per_tick;
+        std::vector< float > xyz(3,0);
+        xyz[0] = x;
+        xyz[1] = centroid[0];
+        xyz[2] = centroid[1];
+
+        xyz_v.emplace_back( std::move(xyz) );
+
+        // slice charge
+        float ave_charge = 0.;
+        for ( int i=0; i<3; i++ ) {
+          ave_charge += slice.plane_charge[i];
+        }
+        ave_charge /= 3.0;
+        slice_charge.push_back( ave_charge );
+      }
+
+      larlite::track contained_track;
+      for ( int ipt=0; ipt<(int)xyz_v.size()-1; ipt++ ) {
+        const std::vector<float>& xyz = xyz_v.at(ipt);
+        TVector3 pos( xyz[0], xyz[1], xyz[2] );
+        const std::vector<float>& xyz_next = xyz_v.at(ipt+1);
+        float dir[3] = {0};
+        float norm = 0.;        
+        for (int i=0; i<3; i++) {
+          dir[i] = xyz_next[i] - xyz[i];
+          norm += dir[i]*dir[i];
+        }
+        norm = sqrt(norm);
+        for (int i=0; i<3; i++)
+          dir[i] /= norm;
+        TVector3 dirv( dir[0], dir[1], dir[2] );
+        contained_track.add_vertex( pos );
+        contained_track.add_direction( dirv );
+        contained_track.add_momentum( slice_charge.at(ipt) );
+
+        if ( ipt==(int)xyz_v.size()-2) {
+          TVector3 nextpos( xyz_next[0], xyz_next[1], xyz_next[2] );
+          contained_track.add_vertex( nextpos );
+          contained_track.add_direction( dirv );
+          contained_track.add_momentum( slice_charge.at(ipt+1) );
+        }
+      }
+      larlitecv::TaggerFlashMatchData contained_cluster( larlitecv::TaggerFlashMatchData::kUntagged, vol.m_plane_pixels, contained_track );
+      output.flashdata_v.emplace_back( std::move(contained_cluster) );
+    }// end of vol loop
+
+    // --------------------------------------------------------------------//
+    // SELECT ROIs
+
+    std::vector<int> flashdata_selected_v( output.flashdata_v.size(), 0 );
+    std::vector<larcv::ROI> selected_rois = selectionalgo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, flashdata_selected_v );
+
+    std::vector<larcv::ROI> croi_v;
+    for ( size_t itrack=0; itrack<output.flashdata_v.size(); itrack++ ){
+      const larlite::track& track3d = output.flashdata_v.at(itrack).m_track3d;
+      if ( flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
+        continue;
+      larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, true );
+
+      std::cout << "[Selected CROI]" << std::endl;
+      for ( size_t p=0; p<3; p++ ) {
+        std::cout << "  " << croi.BB(p).dump() << std::endl;
+      }
+      croi_v.emplace_back( std::move(croi) );
+    } 
+
+    return output;
   }
 }

@@ -73,6 +73,8 @@ namespace larlitecv {
 
     BoundaryEnd_t CrossingToBoundaryEnd( Crossings_t cross ) { return (BoundaryEnd_t)cross; }; // should be a switch, but I am lazy.
 
+    void printConfiguration() { _config.print(); };
+
     // Wire Geometry info
     int fNPMTs;
     float pmtpos[32][3];

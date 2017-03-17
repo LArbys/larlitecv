@@ -69,6 +69,8 @@ int main( int nargs, char** argv ) {
   larlitecv::ConfigBoundaryMuonTaggerAlgo sidetagger_cfg = larlitecv::MakeConfigBoundaryMuonTaggerAlgoFromPSet( sidetagger_pset );
   sidetagger.configure(sidetagger_cfg);
 
+  sidetagger_cfg.print();
+
   // flash-tagger
   larlitecv::FlashMuonTaggerAlgo anode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kAnode );
   larlitecv::FlashMuonTaggerAlgo cathode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kCathode );
