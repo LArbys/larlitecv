@@ -84,6 +84,8 @@ namespace larlitecv {
 
     std::vector< std::vector<ClusterGroup> > groups;
 
+#ifndef __CINT__
+#ifdef USE_OPENCV
     if ( m_config.save_jpg_images ) {
       std::vector<cv::Mat> cvimgs_v = makeBaseClusterImageOCV( img_v, badch_v, tagged_v, &data );
       for ( size_t p=0; p<cvimgs_v.size(); p++) {
@@ -96,7 +98,8 @@ namespace larlitecv {
         cv::imwrite( ss.str(), cvimg );
       }
     }
-
+#endif
+#endif
     //std::swap( groups, data.plane_groups_v );
     std::swap( m_stored_algodata, data );
 
