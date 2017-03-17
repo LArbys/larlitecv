@@ -1,8 +1,11 @@
 #include "TaggerCROIAlgo.h"
 
 // larlite
+#include "LArUtil/LArProperties.h"
+#include "LArUtil/Geometry.h"
 
 // larcv
+#include "DataFormat/Pixel2D.h"
 
 // larlitecv
 #include "ThruMu/ConfigBoundaryMuonTaggerAlgo.h"
@@ -11,6 +14,8 @@
 #include "ThruMu/BoundaryMuonTaggerAlgo.h"
 #include "ThruMu/FlashMuonTaggerAlgo.h"
 #include "ThruMu/EndPointFilter.h"
+#include "StopMu/StopMuFilterSpacePoints.h"
+#include "StopMu/StopMuCluster.h"
 
 namespace larlitecv {
 
@@ -46,15 +51,20 @@ namespace larlitecv {
     	nsides[ sp.at(0).type ]++;
     }
     std::cout << " Side Tagger End Points: " << output.side_spacepoint_v.size() << std::endl;
-    std::cout << "  Top: "        << nsides[0] << std::endl;
-    std::cout << "  Bottom: "     << nsides[1] << std::endl;
-    std::cout << "  Upstream: "   << nsides[2] << std::endl;
-    std::cout << "  Downstream: " << nsides[3] << std::endl;
+    std::cout << "   Top: "        << nsides[0] << std::endl;
+    std::cout << "   Bottom: "     << nsides[1] << std::endl;
+    std::cout << "   Upstream: "   << nsides[2] << std::endl;
+    std::cout << "   Downstream: " << nsides[3] << std::endl;
 
     // run flash tagger
     anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v );
     cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v );
-    imgends_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.imgends_spacepoint_v );
+    imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v );
+    int totalflashes = (int)output.anode_spacepoint_v.size() + (int)output.cathode_spacepoint_v.size() + (int)output.imgends_spacepoint_v.size();
+    std::cout << " Flash Tagger End Points: " << totalflashes << std::endl;
+    std::cout << "  Anode: "      << output.anode_spacepoint_v.size() << std::endl;
+    std::cout << "  Cathode: "    << output.cathode_spacepoint_v.size() << std::endl;
+    std::cout << "  Image Ends: " << output.imgends_spacepoint_v.size() << std::endl;
 
     // we collect pointers to all the end points
     std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
@@ -103,5 +113,54 @@ namespace larlitecv {
 
     // return stage output
     return output;
+  }
+
+  StopMuPayload TaggerCROIAlgo::runStopMu( const InputPayload& input, const ThruMuPayload& thrumu ) {
+  	StopMuPayload output;
+
+  	float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+
+  	// Algos
+  	larlitecv::StopMuFilterSpacePoints stopmu_filterpts( m_config.stopmu_filterpts_cfg );
+  	larlitecv::StopMuCluster           stopmu_cluster( m_config.stopmu_cluster_cfg );
+
+  	// We strip the unused pixel locations into vector of pixels.
+  	std::vector< std::vector< const larcv::Pixel2D* > > unused_spacepoint_v;
+
+  	const larcv::ImageMeta& meta = input.img_v.front().meta();
+
+  	for ( auto const& pt : thrumu.unused_spacepoint_v ) {
+
+  		Double_t xyz[3];
+  		for (int i=0; i<3; i++)
+  			xyz[i] = pt.pos()[i];
+
+  		float tick = xyz[0]/cm_per_tick + 3200.0;
+  		if ( tick<=meta.min_y() ) tick = meta.min_y()+1;
+  		if ( tick>=meta.max_y() ) tick = meta.max_y()-1;
+  		int row = meta.row( tick );
+  		std::vector<float> wid( input.img_v.size(),0.0);
+  		for (size_t p=0; p<input.img_v.size(); p++) {
+        float wire = larutil::Geometry::GetME()->WireCoordinate(xyz,p);
+        if ( wire<0 ) wire = 0;
+        if ( wire>=3456 ) wire = 3455;
+        int col = input.img_v.at(p).meta().col( wire );
+        larcv::Pixel2D pix( col, row );
+  		  output.stopmu_pixel_endpt_v.Emplace( p, std::move(pix) );
+  		}
+
+  	}
+
+  	std::vector< larcv::EventPixel2D* > unused_spacepoints;
+  	unused_spacepoints.push_back( &(output.stopmu_pixel_endpt_v) );
+
+  	output.stopmu_candidate_endpt_v = stopmu_filterpts.filterSpacePoints( unused_spacepoints, thrumu.tagged_v, input.badch_v );
+  	std::cout << "  Number of candidate stop-mu start points: " << output.stopmu_candidate_endpt_v.size() << std::endl;
+
+  	output.stopmu_trackcluster_v = stopmu_cluster.findStopMuTracks( input.img_v, input.gapch_v, thrumu.tagged_v, output.stopmu_candidate_endpt_v );
+  	std::cout << "  Number of candidate StopMu tracks: " << output.stopmu_trackcluster_v.size() << std::endl;
+
+  	return output;
+
   }
 }

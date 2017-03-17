@@ -17,6 +17,7 @@ namespace larlitecv {
 
 
     ThruMuPayload runThruMu( const InputPayload& data );
+    StopMuPayload runStopMu( const InputPayload& input, const ThruMuPayload& thrumu );
 
   protected:
 

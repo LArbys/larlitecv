@@ -21,6 +21,8 @@ namespace larlitecv {
   		return false;
   	};
 
+    virtual void saveSpace() = 0;
+
   protected:
 
   	const std::string m_payloadname;

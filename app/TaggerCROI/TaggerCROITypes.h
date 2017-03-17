@@ -33,6 +33,8 @@ namespace larlitecv {
 		std::vector<larcv::Image2D>            gapch_v;     //< image marking gap channels		
 		std::vector< larlite::event_opflash* > opflashes_v; //< container of opflashes to consider
 
+		virtual void saveSpace() {};
+
 	};
 
   class ThruMuPayload : public TaggerCROIVPayload {
@@ -65,6 +67,18 @@ namespace larlitecv {
   		imgends_spacepoint_v.clear();
   	};
 
+  };
+
+  class StopMuPayload : public TaggerCROIVPayload {
+  public:
+  	StopMuPayload() : TaggerCROIVPayload("StopMu") {};
+  	virtual ~StopMuPayload() {};
+
+  	larcv::EventPixel2D                                 stopmu_pixel_endpt_v;     // bad design. fix this garbage.
+  	std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpt_v; // refers to previous line. terrible!
+  	std::vector< larlitecv::BMTrackCluster3D >          stopmu_trackcluster_v;
+
+  	virtual void saveSpace() {};
   };
 
 }
