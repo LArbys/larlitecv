@@ -1,6 +1,8 @@
 #include "BMTrackCluster3D.h"
 #include <cmath>
 
+#include "TVector.h"
+
 namespace larlitecv {
 
   BMTrackCluster3D::BMTrackCluster3D() {
@@ -71,6 +73,25 @@ namespace larlitecv {
 
     }//end of img loop
     
+  }
+
+  larlite::track BMTrackCluster3D::makeTrack() const {
+
+    larlite::track lltrack;
+    int istep = 0;
+    for ( auto const& point3d : path3d ) {
+      TVector3 vec( point3d[0], point3d[1], point3d[2] );
+      lltrack.add_vertex( vec );
+      if ( istep+1<(int)path3d.size() ) {
+        TVector3 dir( path3d.at(istep+1)[0]-point3d[0], path3d.at(istep+1)[1]-point3d[1], path3d.at(istep+1)[2]-point3d[2] );
+        lltrack.add_direction( dir );
+      }
+      else {
+        TVector3 dir( point3d[0]-path3d.at(istep-1)[0], point3d[1]-path3d.at(istep-1)[1], point3d[2]-path3d.at(istep-1)[2] );
+        lltrack.add_direction( dir );
+      }
+    }
+    return lltrack;
   }
 
 }

@@ -3,6 +3,9 @@
 
 #include <vector>
 
+// larlite
+#include "DataFormat/track.h"
+
 // LArCV
 #include "DataFormat/Image2D.h"
 
@@ -57,6 +60,7 @@ namespace larlitecv {
       const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size, 
       std::vector<larcv::Image2D>& markedimgs, const float markvalue=255.0 ) const;
 
+    larlite::track makeTrack() const;
     
   };
 
