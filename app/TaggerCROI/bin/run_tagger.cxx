@@ -34,7 +34,7 @@ int main(int nargs, char** argv ) {
   std::string larcv_image_producer = pset.get<std::string>("LArCVImageProducer");
   bool DeJebWires = pset.get<bool>("DeJebWires");
   float jebwiresfactor = pset.get<float>("JebWiresFactor");
-  std::vector<float> emptych_thresh = pset.get< std::vector<float> >("EmptryChannelThreshold");
+  std::vector<float> emptych_thresh = pset.get< std::vector<float> >("EmptyChannelThreshold");
   std::string chstatus_datatype = pset.get<std::string>("ChStatusDataType");
   std::vector<std::string> opflash_producers = pset.get< std::vector<std::string> >( "OpflashProducers" );
 
@@ -43,7 +43,7 @@ int main(int nargs, char** argv ) {
   larlitecv::DataCoordinator dataco;
 
   dataco.set_filelist( pset.get<std::string>("LArCVInputFilelist"),   "larcv"   );
-  dataco.set_filelist( pset.get<std::string>("LArLiteInputFilelist"), "lalrite" );
+  dataco.set_filelist( pset.get<std::string>("LArLiteInputFilelist"), "larlite" );
 
   // Configure
   dataco.configure( cfg_file, "StorageManager", "IOManager", "TaggerCROI" );
@@ -65,12 +65,21 @@ int main(int nargs, char** argv ) {
       endentry = user_nentries+startentry;
   }
 
-  // Setup the TaggerCROIAlgo
+  // SETUP THE ALGOS
+  larlitecv::EmptyChannelAlgo emptyalgo;  
   larlitecv::TaggerCROIAlgo tagger_algo( tagger_cfg );
 
   for (int ientry=startentry; ientry<endentry; ientry++) {
 
     dataco.goto_entry(ientry,"larcv");
+    int run,subrun,event;
+    dataco.get_id(run,subrun,event);    
+
+    std::cout << "=====================================================" << std::endl;
+    std::cout << "--------------------" << std::endl;
+    std::cout << " Entry " << ientry << " : " << run << " " << subrun << " " << event << std::endl;
+    std::cout << "--------------------" << std::endl;
+    std::cout << "=====================================================" << std::endl;
 
     // ------------------------------------------------------------------------------------------//
     // PREPARE THE INPUT
@@ -79,9 +88,13 @@ int main(int nargs, char** argv ) {
 
     // get images (from larcv)
     larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, larcv_image_producer );
-    std::cout << "get data: number of images=" << event_imgs->Image2DArray().size() << std::endl;
-    if ( event_imgs->Image2DArray().size()==0 )
+    if ( event_imgs->Image2DArray().size()==0) {
+    	std::cout << "  Number of images=0. Skipping Entry." << std::endl;
       continue;
+    }
+    else if ( event_imgs->Image2DArray().size()!=3 ) {
+    	throw std::runtime_error("  Number of Images!=3. Weird.");
+    }
 
     // ------------------------------------------------------------------------------------------//
     // FILL IMAGES
@@ -104,11 +117,12 @@ int main(int nargs, char** argv ) {
       }
       input_data.img_v.emplace_back( dejebbed );
     }
+    if ( input_data.img_v.size()!=3 ) 
+    	throw std::runtime_error("Number of Images incorrect.");
     
     // ------------------------------------------------------------------------------------------//
     // LABEL EMPTY CHANNELS
     
-    larlitecv::EmptyChannelAlgo emptyalgo;
     std::vector< larcv::Image2D > emptyimgs;
     for ( auto const &img : event_imgs->Image2DArray() ) {
       int p = img.meta().plane();
@@ -129,18 +143,20 @@ int main(int nargs, char** argv ) {
       badchimgs = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
     }
     else {
-      std::cout << "ERROR: ChStatusDataType must be either LARCV or LARLITE" << std::endl;
-      return 0;
+      throw std::runtime_error("ERROR: ChStatusDataType must be either LARCV or LARLITE");
     }
-    std::cout << "number of bad ch imgs: " << badchimgs.size() << std::endl;
+
+    if ( badchimgs.size()!=3 ) {
+    	throw std::runtime_error("Number of Bad Channels not correct.");
+    }
 
     // ------------------------------------------------------------------------------------------//
     // MAKE GAP CHANNEL IMAGE
 
     int maxgap = 200;
-    std::vector< larcv::Image2D> gapchimgs_v = emptyalgo.findMissingBadChs( event_imgs->Image2DArray(), badchimgs, 5, maxgap );
+    std::vector< larcv::Image2D> gapchimgs_v = emptyalgo.findMissingBadChs( input_data.img_v, badchimgs, 5, maxgap );
     // combine with badchs
-    for ( size_t p=0; p<badchimgs.size(); p++ ) {
+    for ( size_t p=0; p<gapchimgs_v.size(); p++ ) {
       larcv::Image2D& gapchimg = gapchimgs_v.at(p);
       gapchimg += badchimgs.at(p);
     }
@@ -149,6 +165,8 @@ int main(int nargs, char** argv ) {
     for ( size_t p=0; p<gapchimgs_v.size(); p++ ) {
       input_data.badch_v.emplace_back( std::move(gapchimgs_v.at(p)) );
     }
+    if ( input_data.badch_v.size()!=3 ) 
+    	throw std::runtime_error("Number of GapChs not correct.");
 
     // -------------------------------------------------------------------------------------------//
     // COLLECT FLASH INFORMATION
@@ -161,7 +179,7 @@ int main(int nargs, char** argv ) {
 
     // -------------------------------------------------------------------------------------------//
     // RUN ALGOS
-
+    std::cout << "[ RUN ALGOS ]" << std::endl;
     larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
 
     dataco.save_entry();

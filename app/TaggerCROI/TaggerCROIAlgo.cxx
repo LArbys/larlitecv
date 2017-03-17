@@ -21,18 +21,18 @@ namespace larlitecv {
     // configure different stages
 
     // side tagger
-    larlitecv::ConfigBoundaryMuonTaggerAlgo sidetagger_cfg = larlitecv::MakeConfigBoundaryMuonTaggerAlgoFromPSet( m_config.sidetagger_pset );
     larlitecv::BoundaryMuonTaggerAlgo sidetagger;
-    sidetagger.configure( sidetagger_cfg );
+    sidetagger.configure( m_config.sidetagger_cfg );
+    sidetagger.printConfiguration();
 
     // flash tagger
     larlitecv::FlashMuonTaggerAlgo anode_flash_tagger(   larlitecv::FlashMuonTaggerAlgo::kAnode );
     larlitecv::FlashMuonTaggerAlgo cathode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kCathode );
     larlitecv::FlashMuonTaggerAlgo imgends_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kOutOfImage );
-    larlitecv::FlashMuonTaggerConfig flashtagger_cfg = larlitecv::MakeFlashMuonTaggerConfigFromPSet( m_config.flashtagger_pset );
-    anode_flash_tagger.configure( flashtagger_cfg );
-    cathode_flash_tagger.configure( flashtagger_cfg );
-    imgends_flash_tagger.configure( flashtagger_cfg );
+
+    anode_flash_tagger.configure(   m_config.flashtagger_cfg );
+    cathode_flash_tagger.configure( m_config.flashtagger_cfg );
+    imgends_flash_tagger.configure( m_config.flashtagger_cfg );
 
     // end point filter
     larlitecv::EndPointFilter endptfilter;
@@ -60,7 +60,7 @@ namespace larlitecv {
       all_endpoints.push_back( pts );
     }
     for (int isp=0; isp<(int)output.cathode_spacepoint_v.size(); isp++) {
-      const larlitecv::BoundarySpacePoint* pts = &(output.imgends_spacepoint_v.at(isp));
+      const larlitecv::BoundarySpacePoint* pts = &(output.cathode_spacepoint_v.at(isp));
       all_endpoints.push_back( pts );
     }
     for (int isp=0; isp<(int)output.imgends_spacepoint_v.size(); isp++) {

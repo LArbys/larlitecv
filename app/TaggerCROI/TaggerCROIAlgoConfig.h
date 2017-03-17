@@ -4,6 +4,10 @@
 // larcv
 #include "Base/PSet.h"
 
+// larlitecv
+#include "ThruMu/BoundaryMuonTaggerAlgo.h"
+#include "ThruMu/FlashMuonTaggerAlgo.h"
+
 namespace larlitecv {
 
   class TaggerCROIAlgoConfig {
@@ -11,9 +15,9 @@ namespace larlitecv {
     TaggerCROIAlgoConfig() {};
     virtual ~TaggerCROIAlgoConfig() {};
 
-    larcv::PSet sidetagger_pset;
-    larcv::PSet flashtagger_pset;
-    
+    larlitecv::ConfigBoundaryMuonTaggerAlgo sidetagger_cfg;
+		larlitecv::FlashMuonTaggerConfig        flashtagger_cfg;
+
     static TaggerCROIAlgoConfig makeConfigFromFile( std::string );
 
   };
