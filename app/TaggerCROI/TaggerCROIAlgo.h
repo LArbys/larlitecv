@@ -2,6 +2,7 @@
 #define __TAGGER_CROI_ALGO_H__
 
 #include "TaggerCROIAlgoConfig.h"
+#include "TaggerCROITypes.h"
 
 namespace larlitecv {
 
@@ -13,6 +14,11 @@ namespace larlitecv {
 
   	TaggerCROIAlgo( const TaggerCROIAlgoConfig& config ) : m_config(config) {};
     virtual ~TaggerCROIAlgo() {};
+
+
+    ThruMuPayload runThruMu( const InputPayload& data );
+
+  protected:
 
     TaggerCROIAlgoConfig m_config;
 
