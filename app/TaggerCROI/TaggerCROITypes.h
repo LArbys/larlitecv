@@ -81,6 +81,14 @@ namespace larlitecv {
   	virtual void saveSpace() {};
   };
 
+  class CROIPayload : public TaggerCROIVPayload {
+  public:
+  	CROIPayload() : TaggerCROIVPayload("CROI") {};
+  	virtual ~CROIPayload() {};
+
+  	virtual void saveSpace() {};
+  };
+
 }
 
 #endif

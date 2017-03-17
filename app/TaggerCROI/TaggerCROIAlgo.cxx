@@ -163,4 +163,8 @@ namespace larlitecv {
   	return output;
 
   }
+
+  CROIPayload TaggerCROIAlgo::runCROISelection( const InputPayload& input, const ThruMuPayload& thrumu, const StopMuPayload& stopmu ) {
+  	
+  }
 }

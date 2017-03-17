@@ -18,6 +18,7 @@ namespace larlitecv {
 
     ThruMuPayload runThruMu( const InputPayload& data );
     StopMuPayload runStopMu( const InputPayload& input, const ThruMuPayload& thrumu );
+    CROIPayload   runCROISelection( const InputPayload& input, const ThruMuPayload& thrumu, const StopMuPayload& stopmu );    
 
   protected:
 
