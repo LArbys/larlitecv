@@ -35,7 +35,7 @@ namespace larlitecv {
 		PreMatchMetric_t( const ClusterGroup& p1, const ClusterGroup& p2, const ClusterGroup& p3 );
 		virtual ~PreMatchMetric_t() {};
 
-		bool operator()(const PreMatchMetric_t& lhs, const PreMatchMetric_t& rhs ) { //< sorting comparator
+		bool operator()(const PreMatchMetric_t lhs, const PreMatchMetric_t rhs ) { //< sorting comparator
 			if ( lhs.dtSpan + lhs.dtEnd < rhs.dtSpan+rhs.dtEnd ) 
 				return true;
 			return false;
@@ -46,7 +46,7 @@ namespace larlitecv {
 			// return false;
 		};
 
-		bool operator<( const PreMatchMetric_t& rhs ) { //< sorting comparator
+		bool operator<( const PreMatchMetric_t rhs ) { //< sorting comparator
 			return (*this)( *this, rhs );
 		};
 

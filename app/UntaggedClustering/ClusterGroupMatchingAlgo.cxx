@@ -383,7 +383,7 @@ namespace larlitecv {
 			};
 			std::vector<float> m_yz;
 			float m_phi;
-			bool operator<( const BoundaryPt& rhs ) const {
+			bool operator<( const BoundaryPt rhs ) const {
 				if ( m_phi<rhs.m_phi)
 					return true;
 				return false;

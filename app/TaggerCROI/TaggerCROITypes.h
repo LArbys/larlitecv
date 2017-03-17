@@ -30,7 +30,7 @@ namespace larlitecv {
 
 		std::vector<larcv::Image2D>           img_v;       //< input image
 		std::vector<larcv::Image2D>           badch_v;     //< image marking gap and bad channels
-		std::vector< larlite::event_opflash > opflashes_v; //< container of opflashes to consider
+		std::vector< larlite::event_opflash* > opflashes_v; //< container of opflashes to consider
 
 	};
 
@@ -49,7 +49,7 @@ namespace larlitecv {
   	std::vector< BoundarySpacePoint > cathode_spacepoint_v;
   	std::vector< BoundarySpacePoint > imgends_spacepoint_v;
 
-  	std::vector< BMTrackCluster3D >   trackclusters3d_v;
+  	std::vector< BMTrackCluster3D >   trackcluster3d_v;
 
   	std::vector< BoundarySpacePoint > used_spacepoint_v;
   	std::vector< BoundarySpacePoint > unused_spacepoint_v;

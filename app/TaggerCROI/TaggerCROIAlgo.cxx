@@ -10,6 +10,7 @@
 
 #include "ThruMu/BoundaryMuonTaggerAlgo.h"
 #include "ThruMu/FlashMuonTaggerAlgo.h"
+#include "ThruMu/EndPointFilter.h"
 
 namespace larlitecv {
 
@@ -50,19 +51,19 @@ namespace larlitecv {
     std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
 
     // gather endpoints from space points
-    for (int isp=0; isp<(int)data.side_spacepoint_v.size(); isp++) {
+    for (int isp=0; isp<(int)output.side_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.side_spacepoint_v.at( isp ));
       all_endpoints.push_back( pts );
     }
-    for (int isp=0; isp<(int)data.anode_spacepoint_v.size(); isp++) {
+    for (int isp=0; isp<(int)output.anode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.anode_spacepoint_v.at(isp));
       all_endpoints.push_back( pts );
     }
-    for (int isp=0; isp<(int)data.cathode_spacepoint_v.size(); isp++) {
+    for (int isp=0; isp<(int)output.cathode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_spacepoint_v.at(isp));
       all_endpoints.push_back( pts );
     }
-    for (int isp=0; isp<(int)data.imgends_spacepoint_v.size(); isp++) {
+    for (int isp=0; isp<(int)output.imgends_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_spacepoint_v.at(isp));
       all_endpoints.push_back( pts );
     }
@@ -85,7 +86,7 @@ namespace larlitecv {
 
     // collect unused endpoints
     for ( size_t isp=0; isp<filtered_endpoints.size(); isp++ ) {
-    	if ( used_filerered_endpoints.at(isp)==1 ) 
+    	if ( used_filtered_endpoints.at(isp)==1 ) 
     		output.used_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
     	else
     		output.unused_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
