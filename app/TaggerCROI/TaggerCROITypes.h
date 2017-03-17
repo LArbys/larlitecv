@@ -15,6 +15,7 @@
 #include "DataFormat/opflash.h"
 
 // larcv
+#include "DataFormat/EventPixel2D.h"
 #include "DataFormat/Image2D.h"
 
 // larlitecv

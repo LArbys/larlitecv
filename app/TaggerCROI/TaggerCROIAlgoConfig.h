@@ -26,6 +26,10 @@ namespace larlitecv {
 		ClusterGroupAlgoConfig        untagged_cluster_cfg;
 		TaggerFlashMatchAlgoConfig    croi_selection_cfg;
 
+		larcv::PSet input_write_cfg;
+		larcv::PSet thrumu_write_cfg;
+		larcv::PSet stopmu_write_cfg;
+		larcv::PSet croi_write_cfg;
 
     static TaggerCROIAlgoConfig makeConfigFromFile( std::string );
 
