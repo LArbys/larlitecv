@@ -9,6 +9,7 @@ namespace larlitecv {
   class TaggerCROIVPayload {
 
   protected:
+    TaggerCROIVPayload() : m_payloadname("undefined") {};
   	TaggerCROIVPayload(std::string payloadname)
   	: m_payloadname(payloadname) {};
   	virtual ~TaggerCROIVPayload() {};

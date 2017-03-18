@@ -15,6 +15,7 @@
 #include "TaggerCROI/TaggerCROIAlgoConfig.h"
 #include "TaggerCROI/TaggerCROIAlgo.h"
 #include "TaggerCROI/TaggerCROITypes.h"
+#include "TaggerCROI/PayloadWriteMethods.h"
 
 int main(int nargs, char** argv ) {
 
@@ -37,19 +38,21 @@ int main(int nargs, char** argv ) {
   std::vector<float> emptych_thresh = pset.get< std::vector<float> >("EmptyChannelThreshold");
   std::string chstatus_datatype = pset.get<std::string>("ChStatusDataType");
   std::vector<std::string> opflash_producers = pset.get< std::vector<std::string> >( "OpflashProducers" );
+  bool RunThruMu = pset.get<bool>("RunThruMu");
+  bool RunStopMu = pset.get<bool>("RunStopMu");
+  bool RunCROI   = pset.get<bool>("RunCROI");    
 
-
-  // Configure Data coordinator
+  // Setup Input Data Coordindator  
   larlitecv::DataCoordinator dataco;
-
   dataco.set_filelist( pset.get<std::string>("LArCVInputFilelist"),   "larcv"   );
   dataco.set_filelist( pset.get<std::string>("LArLiteInputFilelist"), "larlite" );
-
-  // Configure
   dataco.configure( cfg_file, "StorageManager", "IOManager", "TaggerCROI" );
-  
-  // Initialize
   dataco.initialize();
+
+  // Output Data Coordinator
+  larlitecv::DataCoordinator dataco_out;
+  dataco_out.configure( cfg_file, "StorageManagerOut", "IOManagerOut", "TaggerCROI" );
+  dataco_out.initialize();
 
   // Get run entries
   int nentries = dataco.get_nentries("larcv");
@@ -73,7 +76,8 @@ int main(int nargs, char** argv ) {
 
     dataco.goto_entry(ientry,"larcv");
     int run,subrun,event;
-    dataco.get_id(run,subrun,event);    
+    dataco.get_id(run,subrun,event);
+    dataco_out.set_id(run,subrun,event); 
 
     std::cout << "=====================================================" << std::endl;
     std::cout << "--------------------" << std::endl;
@@ -139,8 +143,15 @@ int main(int nargs, char** argv ) {
       input_data.badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
     }
     else if ( chstatus_datatype=="LARCV" ) {
-      larcv::EventChStatus* ev_status = (larcv::EventChStatus*)dataco.get_larcv_data( larcv::kProductChStatus, "chstatus" );
+      larcv::EventChStatus* ev_status = (larcv::EventChStatus*)dataco.get_larcv_data( larcv::kProductChStatus, "tpc" );
       input_data.badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+    }
+    else if ( chstatus_datatype=="NONE" ) {
+      for ( auto const& img : input_data.img_v ) {
+	larcv::Image2D badch( img.meta() );
+	badch.paint(0.0);
+	input_data.badch_v.emplace_back( std::move(badch) );
+      }
     }
     else {
       throw std::runtime_error("ERROR: ChStatusDataType must be either LARCV or LARLITE");
@@ -180,15 +191,33 @@ int main(int nargs, char** argv ) {
     // -------------------------------------------------------------------------------------------//
     // RUN ALGOS
     std::cout << "[ RUN ALGOS ]" << std::endl;
-    larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
-    larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
-    larlitecv::CROIPayload   croi_data   = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
+    
+    if ( RunThruMu ) {
+      larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
 
-    dataco.save_entry();
+	    if ( RunStopMu ) {
+        larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
+    
+    	  if ( RunCROI ) {
+			    larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
+			  }
+			}
+
+			WriteThruMuPayload( thrumu_data, tagger_cfg, dataco_out );
+		}
+
+
+    // -------------------------------------------------------------------------------------------//
+    // SAVE DATA
+
+    WriteInputPayload( input_data, tagger_cfg, dataco_out );
+
+    dataco_out.save_entry();
 
   }
 
   dataco.finalize();
+  dataco_out.finalize();
 
   return 0;
 

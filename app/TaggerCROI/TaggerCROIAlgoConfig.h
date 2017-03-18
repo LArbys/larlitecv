@@ -16,7 +16,7 @@ namespace larlitecv {
 
   class TaggerCROIAlgoConfig {
   public:
-    TaggerCROIAlgoConfig() {};
+    TaggerCROIAlgoConfig();
     virtual ~TaggerCROIAlgoConfig() {};
 
     ConfigBoundaryMuonTaggerAlgo  sidetagger_cfg;

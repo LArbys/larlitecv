@@ -7,6 +7,15 @@
 
 namespace larlitecv {
 	
+	TaggerCROIAlgoConfig::TaggerCROIAlgoConfig() 
+	 : input_write_cfg(larcv::PSet("input")), 
+	 	 thrumu_write_cfg(larcv::PSet("thrumu")), 
+	 	 stopmu_write_cfg(larcv::PSet("stopmu")),
+	 	 croi_write_cfg(larcv::PSet("croi"))
+	{
+
+	}
+
 	TaggerCROIAlgoConfig TaggerCROIAlgoConfig::makeConfigFromFile( std::string filepath ) {
 
 		TaggerCROIAlgoConfig cfg;
@@ -19,6 +28,9 @@ namespace larlitecv {
 		larcv::PSet stopmu_cluster_pset = tagger_pset.get<larcv::PSet>("StopMuCluster");
 		larcv::PSet untagged_cluster_ps = tagger_pset.get<larcv::PSet>("ContainedGroupAlgo");
 		larcv::PSet untagged_match_pset = tagger_pset.get<larcv::PSet>("TaggerFlashMatchAlgo");
+
+		cfg.input_write_cfg = tagger_pset.get<larcv::PSet>("InputWriteConfig");
+		cfg.thrumu_write_cfg = tagger_pset.get<larcv::PSet>("ThruMuWriteConfig");
 
 		cfg.sidetagger_cfg       = larlitecv::MakeConfigBoundaryMuonTaggerAlgoFromPSet( sidetagger_pset );
     cfg.flashtagger_cfg      = larlitecv::MakeFlashMuonTaggerConfigFromPSet( flashtagger_pset );
