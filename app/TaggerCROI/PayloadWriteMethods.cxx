@@ -149,4 +149,45 @@ namespace larlitecv {
     }
 
 	}
+
+	void WriteStopMuPayload( const StopMuPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
+
+    // save 3D track object
+    if ( config.stopmu_write_cfg.get<bool>("WriteStopMuTracks") ) {
+      larlite::event_track* ev_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "stopmu3d" );
+    
+      // convert BMTrackCluster3D to larlite::track
+      for ( int itrack=0; itrack<(int)data.stopmu_trackcluster_v.size(); itrack++ ) {
+        const larlitecv::BMTrackCluster3D& track3d = data.stopmu_trackcluster_v.at(itrack);
+        larlite::track lltrack = track3d.makeTrack();
+        lltrack.set_track_id( itrack );
+        ev_tracks->emplace_back( std::move(lltrack) );
+      }
+    }
+
+    // output: stopmu-tagged pixels
+    // use pixel2dclusters to fill out image
+    if ( config.stopmu_write_cfg.get<bool>("WriteStopMuTaggedImage") ) {
+      larcv::EventImage2D* stopmu_eventimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmu" );    	
+      for ( auto const& stopmu : data.stopmu_v ) {
+        stopmu_eventimgs->Append( stopmu );
+      }
+    }
+
+    // finally, store 2D pixels
+    if ( config.stopmu_write_cfg.get<bool>("WriteStopMuPixels") ) {
+      larcv::EventPixel2D* ev_stopmupixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "stopmupixels" );
+      for ( size_t itrack=0; itrack<data.stopmu_trackcluster_v.size(); itrack++ ) {
+        const larlitecv::BMTrackCluster3D& track3d = data.stopmu_trackcluster_v.at(itrack);
+        const std::vector< larlitecv::BMTrackCluster2D >& trackpixs_v = track3d.plane_paths;
+        for (size_t p=0; p<trackpixs_v.size(); p++) {
+          ev_stopmupixels->Append( (larcv::PlaneID_t)p, trackpixs_v.at(p).pixelpath );
+        }
+      }
+    }
+	}	
+
+	void WriteCROIPayload( const CROIPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {	
+		
+	}
 }

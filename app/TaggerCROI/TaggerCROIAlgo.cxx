@@ -258,9 +258,9 @@ namespace larlitecv {
       std::cout << "VOL: clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
         << " numslices=" << vol.num_slices
         << " goodslices=" << vol.num_good_slices 
-       << " fracgood=" << vol.frac_good_slices 
-       << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
-       << std::endl;
+        << " fracgood=" << vol.frac_good_slices 
+        << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
+        << std::endl;
 
       // we need to make a larlite::track object for this. we use the centroid of the slices
       std::vector< std::vector<float> > xyz_v;

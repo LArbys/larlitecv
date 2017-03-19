@@ -29,8 +29,9 @@ namespace larlitecv {
 		larcv::PSet untagged_cluster_ps = tagger_pset.get<larcv::PSet>("ContainedGroupAlgo");
 		larcv::PSet untagged_match_pset = tagger_pset.get<larcv::PSet>("TaggerFlashMatchAlgo");
 
-		cfg.input_write_cfg = tagger_pset.get<larcv::PSet>("InputWriteConfig");
+		cfg.input_write_cfg  = tagger_pset.get<larcv::PSet>("InputWriteConfig");
 		cfg.thrumu_write_cfg = tagger_pset.get<larcv::PSet>("ThruMuWriteConfig");
+		cfg.stopmu_write_cfg = tagger_pset.get<larcv::PSet>("StopMuWriteConfig");
 
 		cfg.sidetagger_cfg       = larlitecv::MakeConfigBoundaryMuonTaggerAlgoFromPSet( sidetagger_pset );
     cfg.flashtagger_cfg      = larlitecv::MakeFlashMuonTaggerConfigFromPSet( flashtagger_pset );
