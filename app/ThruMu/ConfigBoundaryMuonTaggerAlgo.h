@@ -33,7 +33,7 @@ namespace larlitecv {
     std::vector<int>   edge_win_times;
     std::vector<float> edge_win_hitthresh;
     std::vector<int>   boundary_cluster_minpixels; ///< min number of pixels for dbscan clustering of boundary pixels
-    std::vector<float>   boundary_cluster_radius;    ///< nearest neighbor radius for dbscan clustering of boundary pixels
+    std::vector<float> boundary_cluster_radius;    ///< nearest neighbor radius for dbscan clustering of boundary pixels
     std::vector<float> astar_thresholds; //< passed to astar config
     std::vector<int>   astar_neighborhood; //< passed to astar config
     std::vector<int>   tag_neighborhood; //< neighborhood around track path that will be tagged as thrumu
@@ -49,6 +49,7 @@ namespace larlitecv {
     float linear3d_min_majoritychargefraction;
     float astar3d_min_goodfrac;
     float astar3d_min_majfrac;
+    float track_step_size;
 
     void setdefaults();
     const AStar3DAlgoConfig& getAStarConfig() { return astar_cfg; };

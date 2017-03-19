@@ -21,6 +21,7 @@
 #include "BoundaryEndPt.h"
 #include "BoundaryIntersectionAlgo.h"
 #include "LineRegionTest.h"
+#include "AStarNodes2BMTrackCluster3D.h"
 
 #include "TFile.h"
 #include "TTree.h"
@@ -640,22 +641,7 @@ namespace larlitecv {
     astar_config.min_nplanes_w_hitpixel = 3;
     */
 
-    // fill track3d data
     const int nplanes = img_v.size();
-    track3d.start_type = start_pt.type();
-    track3d.end_type   = end_pt.type();    
-    track3d.row_start = start_pt.front().row;
-    track3d.row_end   = end_pt.front().row;
-    track3d.tick_start = img_v.front().meta().pos_y( track3d.row_start );
-    track3d.tick_end   = img_v.front().meta().pos_y( track3d.row_end );
-    track3d.start_wire.resize(nplanes,0);
-    track3d.end_wire.resize(nplanes,0);
-    track3d.start3D.resize(nplanes,0);
-    track3d.end3D.resize(nplanes,0);
-    for (int i=0; i<nplanes; i++) {
-      track3d.start3D[i] = start_pt.pos()[i];
-      track3d.end3D[i] = end_pt.pos()[i];
-    }
 
     // collect meta/translate start/goal tick/wires to row/col in compressed image
     std::vector< const larcv::ImageMeta* > meta_compressed_v;
@@ -663,6 +649,8 @@ namespace larlitecv {
     std::vector<int> start_rows(img_compressed_v.size(),0);
     std::vector<int> goal_cols(img_compressed_v.size(),0);
     std::vector<int> goal_rows(img_compressed_v.size(),0);    
+    std::vector< const larcv::Pixel2D* > start_pix;
+    std::vector< const larcv::Pixel2D* > goal_pix;
 
     for (size_t p=0; p<img_compressed_v.size(); p++) {
 
@@ -672,17 +660,12 @@ namespace larlitecv {
       const larlitecv::BoundaryEndPt& start_endpt = start_pt.at(p);
       start_rows[p] =  ptr_meta->row( img_v.at(p).meta().pos_y( start_endpt.row ) );
       start_cols[p] =  ptr_meta->col( img_v.at(p).meta().pos_x( start_endpt.col ) );
+      start_pix.push_back( new larcv::Pixel2D( start_endpt.getcol(), start_endpt.getrow() ) );
 
       const larlitecv::BoundaryEndPt& goal_endpt  = end_pt.at(p);
       goal_rows[p]  =  ptr_meta->row( img_v.at(p).meta().pos_y( goal_endpt.row ) );
       goal_cols[p]  =  ptr_meta->col( img_v.at(p).meta().pos_x( goal_endpt.col ) );
-
-      // make container for track2d info
-      BMTrackCluster2D track2d;
-      track2d.start = start_endpt;
-      track2d.end   = goal_endpt;
-      track2d.plane = (int)p;
-      track3d.plane_paths.emplace_back( std::move(track2d) );
+      goal_pix.push_back( new larcv::Pixel2D( goal_endpt.getcol(), goal_endpt.getrow() ) );      
 
       meta_compressed_v.push_back( ptr_meta );
     }
@@ -700,6 +683,11 @@ namespace larlitecv {
     }
     catch (const std::exception& e) {
       std::cout << "exception running astar3dalgo::findpath: " << e.what() << std::endl;
+      BMTrackCluster3D track3d;
+      for (int p=0; p<3; p++ ) {
+        delete start_pix.at(p);
+        delete goal_pix.at(p);
+      }
       return track3d; // return empty track
     }
 
@@ -709,40 +697,18 @@ namespace larlitecv {
       if ( node.badchnode )
         nbad_nodes+=1.0;
       total_nodes+=1.0;
-      for ( size_t p=0; p<img_v.size(); p++) {
-
-        int compressed_tick = img_compressed_v.at(p).meta().pos_y(node.row);
-        if ( compressed_tick<img_v.at(p).meta().min_y() ) 
-          compressed_tick = img_v.at(p).meta().min_y()+0.1;
-        else if ( compressed_tick>=img_v.at(p).meta().max_y() ) 
-          compressed_tick = img_v.at(p).meta().max_y()-0.1;
-        int row = img_v.at(p).meta().row( compressed_tick );
-
-        int compressed_wire  = img_compressed_v.at(p).meta().pos_x(node.cols.at(p));
-        if (compressed_wire<img_v.at(p).meta().min_x()) 
-          compressed_wire = img_v.at(p).meta().min_x()+0.1;
-        else if ( compressed_wire>=img_v.at(p).meta().max_x()) 
-          compressed_wire = img_v.at(p).meta().max_x()-0.1;
-        int col = img_v.at(p).meta().col( compressed_wire );
-
-        BMTrackCluster2D& track2d = track3d.plane_paths.at(p);
-        larcv::Pixel2D pixel( col, row ); // back in original image space
-        pixel.Intensity( (int)start_pt.type() );
-        track2d.pixelpath += pixel;
-
-      }
-      // define xyz position for node
-      std::vector<double> pos3d(3);      
-      for (int i=1; i<3; i++){
-        pos3d[i] = node.tyz[i];
-      }
-      pos3d[0] = (node.tyz[0]-3200)*cm_per_tick;
-      track3d.path3d.emplace_back( std::move(pos3d) );
     }
 
     // if majority are bad ch nodes, reject this track
     if ( nbad_nodes/total_nodes>0.5 )
       goal_reached = false;
+
+    track3d = AStarNodes2BMTrackCluster3D( path, img_v, badch_v, start_pix, goal_pix, 
+      _config.tag_neighborhood[0], _config.track_step_size, _config.thresholds );
+    for (int p=0; p<3; p++ ) {
+      delete start_pix.at(p);
+      delete goal_pix.at(p);
+    }    
 
     return track3d;
   }
@@ -1990,7 +1956,9 @@ namespace larlitecv {
       idx_cluster++;
     }//end of cluster loop
 
-  }// end of functionn
+  }// end of function
+
+
 
 
 }//end of namespace
