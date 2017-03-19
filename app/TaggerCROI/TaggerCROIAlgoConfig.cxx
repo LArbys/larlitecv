@@ -32,6 +32,7 @@ namespace larlitecv {
 		cfg.input_write_cfg  = tagger_pset.get<larcv::PSet>("InputWriteConfig");
 		cfg.thrumu_write_cfg = tagger_pset.get<larcv::PSet>("ThruMuWriteConfig");
 		cfg.stopmu_write_cfg = tagger_pset.get<larcv::PSet>("StopMuWriteConfig");
+		cfg.croi_write_cfg   = tagger_pset.get<larcv::PSet>("CROIWriteConfig");
 
 		cfg.sidetagger_cfg       = larlitecv::MakeConfigBoundaryMuonTaggerAlgoFromPSet( sidetagger_pset );
     cfg.flashtagger_cfg      = larlitecv::MakeFlashMuonTaggerConfigFromPSet( flashtagger_pset );

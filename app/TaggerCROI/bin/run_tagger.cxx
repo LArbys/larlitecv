@@ -200,7 +200,9 @@ int main(int nargs, char** argv ) {
     
     	  if ( RunCROI ) {
 			    larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
+			    WriteCROIPayload( croi_data, tagger_cfg, dataco_out );
 			  }
+			  
    			WriteStopMuPayload( stopmu_data, tagger_cfg, dataco_out );
 			}
 

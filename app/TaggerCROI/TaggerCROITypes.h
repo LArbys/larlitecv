@@ -22,6 +22,7 @@
 #include "ThruMu/BoundarySpacePoint.h"
 #include "ThruMu/BMTrackCluster3D.h"
 #include "ContainedROI/TaggerFlashMatchTypes.h"
+#include "UntaggedClustering/ClusterGroupMatchingTypes.h"
 
 namespace larlitecv {
 
@@ -89,9 +90,15 @@ namespace larlitecv {
   	CROIPayload() : TaggerCROIVPayload("CROI") {};
   	virtual ~CROIPayload() {};
 
+  	std::vector< larlitecv::PlaneClusterGroups > plane_groups_v;
+  	std::vector< larlitecv::ChargeVolume > vols_v;
     std::vector< larcv::Image2D > tagged_v;
     std::vector< larcv::Image2D > subimg_v;    
     std::vector< larlitecv::TaggerFlashMatchData > flashdata_v;
+    std::vector< int > flashdata_selected_v;
+
+    std::vector< larcv::ROI > croi_v;
+    std::vector< larcv::Image2D > combined_v;
 
   	virtual void saveSpace() {};
   };

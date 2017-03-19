@@ -217,9 +217,9 @@ namespace larlitecv {
     // ----------------------
     //  RUN ALGOS
 
-    std::vector< larlitecv::PlaneClusterGroups > plane_groups_v = clusteralgo.MakeClusterGroups( input.img_v, input.gapch_v, output.tagged_v );
+    output.plane_groups_v = clusteralgo.MakeClusterGroups( input.img_v, input.gapch_v, output.tagged_v );
 
-    std::vector< larlitecv::ChargeVolume > vols_v = matchingalgo.MatchClusterGroups( output.subimg_v, plane_groups_v );
+    output.vols_v = matchingalgo.MatchClusterGroups( output.subimg_v, output.plane_groups_v );
 
     // ------------------------------------------------------------------
     // WE COLLECT OUR CLUSTER DATA, forming TaggerFlashMatchData objects
@@ -248,7 +248,7 @@ namespace larlitecv {
 
     // Find Contained Clusters
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;        
-    for ( auto const& vol : vols_v ) {
+    for ( auto const& vol : output.vols_v ) {
 
       // there should be a selection here...
       // select by (1) good fraction (2) charge even-ness
@@ -334,13 +334,13 @@ namespace larlitecv {
     // --------------------------------------------------------------------//
     // SELECT ROIs
 
-    std::vector<int> flashdata_selected_v( output.flashdata_v.size(), 0 );
-    std::vector<larcv::ROI> selected_rois = selectionalgo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, flashdata_selected_v );
+    output.flashdata_selected_v.resize( output.flashdata_v.size(), 0 );
+    std::vector<larcv::ROI> selected_rois = selectionalgo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, output.flashdata_selected_v );
 
-    std::vector<larcv::ROI> croi_v;
+    output.croi_v.clear();
     for ( size_t itrack=0; itrack<output.flashdata_v.size(); itrack++ ){
       const larlite::track& track3d = output.flashdata_v.at(itrack).m_track3d;
-      if ( flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
+      if ( output.flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
         continue;
       larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, true );
 
@@ -348,8 +348,34 @@ namespace larlitecv {
       for ( size_t p=0; p<3; p++ ) {
         std::cout << "  " << croi.BB(p).dump() << std::endl;
       }
-      croi_v.emplace_back( std::move(croi) );
+      output.croi_v.emplace_back( std::move(croi) );
     } 
+
+    // ------------------------------------------------------------------------//
+    // Make Combined Tagged Image
+
+    for ( size_t p=0; p<input.img_v.size(); p++ ) {
+    	larcv::Image2D combined( input.img_v.at(p).meta() );
+    	combined.paint(0.0);
+    	output.combined_v.emplace_back( std::move(combined) );
+    }
+
+    for ( size_t itrack=0; itrack<output.flashdata_v.size(); itrack++ ) {
+    	const larlitecv::TaggerFlashMatchData& flashdata = output.flashdata_v.at(itrack);
+      if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 ) {
+        continue;
+      }
+    	const std::vector<larcv::Pixel2DCluster>& pixels = flashdata.m_pixels;
+    	int tagval = 10.0*((int)flashdata.m_type + 1);
+      std::cout << "mark track type=" << flashdata.m_type << " tag=" << tagval << " numpixs=" << pixels.at(0).size() << std::endl;    	
+    	for ( size_t p=0; p<output.combined_v.size(); p++ ) {
+      	for ( auto const& pix : pixels.at(p) ) {
+      		int pixval = output.combined_v.at(p).pixel( pix.Y(), pix.X() );
+      		if ( tagval > pixval )
+      			output.combined_v.at(p).set_pixel( pix.Y(), pix.X(), tagval );
+      	}
+    	}
+    }
 
     return output;
   }
