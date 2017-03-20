@@ -155,7 +155,8 @@ namespace larlitecv {
 			return false;
 		};
 
-  	std::vector< larcv::Pixel2DCluster > GetPixelsInsideVolume( const std::vector<larcv::Image2D>& img_v );
+  	std::vector< larcv::Pixel2DCluster > GetPixelsInsideVolume( const std::vector<larcv::Image2D>& img_v,
+     	const std::vector<const ClusterGroup*>& clustergroups );
 
 	};	
 

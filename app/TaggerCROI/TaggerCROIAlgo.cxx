@@ -366,8 +366,10 @@ namespace larlitecv {
         continue;
       }
     	const std::vector<larcv::Pixel2DCluster>& pixels = flashdata.m_pixels;
-    	int tagval = 10.0*((int)flashdata.m_type + 1);
-      std::cout << "mark track type=" << flashdata.m_type << " tag=" << tagval << " numpixs=" << pixels.at(0).size() << std::endl;    	
+    	int tagval = 10.0*((int)flashdata.m_type + 1); // 0= nothing, 10 = thrumu, 20=stopmu, 30=untagged/contained, 40=selected CROI
+    	if ( output.flashdata_selected_v.at(itrack)==1 ) {
+    		tagval = 40.0;
+    	}
     	for ( size_t p=0; p<output.combined_v.size(); p++ ) {
       	for ( auto const& pix : pixels.at(p) ) {
       		int pixval = output.combined_v.at(p).pixel( pix.Y(), pix.X() );

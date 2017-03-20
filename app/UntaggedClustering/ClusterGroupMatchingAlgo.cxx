@@ -23,12 +23,19 @@ namespace larlitecv {
 		//debugSetTargetCombo( debug_target );
 
 		GenPreMatches( plane_groups, data );
-		// for (size_t i=0; i<data.prematch_combos_v.size(); i++) {
-			// PreMatchMetric_t& prematch = data.prematch_combos_v.at(i);
-			// std::cout << "prematch[" << i << "]: " 
-			  // << "(" << prematch.m_index_combo[0] << "," << prematch.m_index_combo[1] << "," << prematch.m_index_combo[2] << ") "
-			  // << prematch.dtSpan << " " << prematch.dtEnd << std::endl;
-		// }
+		for (size_t i=0; i<data.prematch_combos_v.size(); i++) {
+			PreMatchMetric_t& prematch = data.prematch_combos_v.at(i);
+			//std::cout << "prematch[" << i << "]: " 
+			//  << "(" << prematch.m_index_combo[0] << "," << prematch.m_index_combo[1] << "," << prematch.m_index_combo[2] << ") "
+			//  << prematch.dtSpan << " " << prematch.dtEnd 
+			//  << std::endl;
+			//for ( size_t cl=0; cl<prematch.m_clusters.size(); cl++ ) {
+			//	std::cout << " cluster group #" << cl << std::endl;
+			//	for ( auto const& pixels : prematch.m_clusters.at(cl)->m_clusters_v ) {
+			//		std::cout << " num pixels=" << pixels.size() << std::endl;
+			//	}
+			//}
+		}
 
 		std::vector<ChargeVolume> vols;
 		for (auto const& prematch : data.prematch_combos_v ) {
@@ -140,7 +147,8 @@ namespace larlitecv {
    	if ( rows%slice_size!=0 ) ntime_slices++;
 
    	SliceList_t area_slices;
-   	std::vector<float> tot_plane_charge( untagged_v.size(), 0.0 );
+   	std::vector<float> tot_plane_charge( untagged_v.size(), 0.0 );  //< store total charge
+   	std::vector< larcv::Pixel2DCluster > contained_pixels(untagged_v.size()); //< container to store pixelsx
 
    	for (int islice=0; islice<ntime_slices; islice++) {
 
@@ -197,7 +205,8 @@ namespace larlitecv {
    		}
 
    		// within the narrowed slice, we sum pixel charge
-   		theslice.plane_charge = SumContainedCharge( prematch, untagged_v, theslice.wire_intervals, theslice.row_interval[0], theslice.row_interval[1] );
+   		theslice.plane_charge = SumContainedCharge( prematch, untagged_v, theslice.wire_intervals, 
+   			theslice.row_interval[0], theslice.row_interval[1], contained_pixels );
    		for (size_t p=0; p<theslice.plane_charge.size(); p++)
    			tot_plane_charge[p] += theslice.plane_charge[p];
 
@@ -225,12 +234,13 @@ namespace larlitecv {
   	else {
   		vol.frac_good_slices = 0.;
   	}
-		vol.m_clustergroups = prematch.m_clusters;
 		vol._clustergroup_indices = prematch.m_index_combo;
-		vol.m_plane_pixels = vol.GetPixelsInsideVolume( untagged_v );
+		//vol.m_clustergroups       = prematch.m_clusters;		
+		//vol.m_plane_pixels        = vol.GetPixelsInsideVolume( untagged_v, prematch.m_clusters );
 
 		std::swap( vol.slices, area_slices );			
 		std::swap( vol.plane_charge, tot_plane_charge );
+		std::swap( vol.m_plane_pixels, contained_pixels );
 
    	// volume is the set of slices
    	return vol;
@@ -634,7 +644,7 @@ namespace larlitecv {
 	}
 
   std::vector<float> ClusterGroupMatchingAlgo::SumContainedCharge( const PreMatchMetric_t& prematch, const std::vector<larcv::Image2D>& untagged_v, 
-  	const std::vector<WireInterval>& overlap_intervals, const int row_start, const int row_end ) {
+  	const std::vector<WireInterval>& overlap_intervals, const int row_start, const int row_end, std::vector<larcv::Pixel2DCluster>& contained_pixels ) {
 
   	std::vector<float> plane_charge(prematch.m_clusters.size(),0.0);
 
@@ -648,8 +658,10 @@ namespace larlitecv {
 			for (auto const& pixels : group.m_clusters_v ) {
 				for ( auto const& pix : pixels ) {
 					if ( (int)pix.Y()>=row_start && (int)pix.Y()<=row_end
-						&& meta.pos_x(pix.X())>=winterval[0] && meta.pos_x(pix.X())<=winterval[1] )
+						&& meta.pos_x(pix.X())>=winterval[0] && meta.pos_x(pix.X())<=winterval[1] ) {
 						plane_cluster_charge += untagged_v.at(p).pixel( pix.Y(), pix.X() );
+					  contained_pixels.at(p).push_back( pix );
+				  }
 				}
 			}
 

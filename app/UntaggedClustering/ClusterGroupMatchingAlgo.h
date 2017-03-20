@@ -59,7 +59,7 @@ namespace larlitecv {
 	  PointList_t EnforceTPCBounds( const PointList_t& yzboundary );
 
   	std::vector<float> SumContainedCharge( const PreMatchMetric_t& prematch, const std::vector<larcv::Image2D>& untagged_v, 
-  		const std::vector<WireInterval>& overlap_intervals, const int row_start, const int row_end );
+  		const std::vector<WireInterval>& overlap_intervals, const int row_start, const int row_end, std::vector<larcv::Pixel2DCluster>& contained_pixels );
 
 	};
 
