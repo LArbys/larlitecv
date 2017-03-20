@@ -124,7 +124,7 @@ namespace larlitecv {
         const std::vector< larlitecv::BMTrackCluster2D >& trackcluster2d = track3d.plane_paths;
         for (int p=0; p<3; p++) {
           const larlitecv::BMTrackCluster2D& track = trackcluster2d.at(p);
-          ev_tracks2d->Append( (larcv::PlaneID_t)p, track.pixelpath );
+          ev_tracks2d->Append( (larcv::PlaneID_t)p, track.pixelpath, data.tagged_v.at(p).meta() );
         }
       }
     }
@@ -182,7 +182,7 @@ namespace larlitecv {
         const larlitecv::BMTrackCluster3D& track3d = data.stopmu_trackcluster_v.at(itrack);
         const std::vector< larlitecv::BMTrackCluster2D >& trackpixs_v = track3d.plane_paths;
         for (size_t p=0; p<trackpixs_v.size(); p++) {
-          ev_stopmupixels->Append( (larcv::PlaneID_t)p, trackpixs_v.at(p).pixelpath );
+          ev_stopmupixels->Append( (larcv::PlaneID_t)p, trackpixs_v.at(p).pixelpath, data.stopmu_v.at(p).meta() );
         }
       }
     }
