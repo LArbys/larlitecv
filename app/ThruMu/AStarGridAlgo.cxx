@@ -24,9 +24,9 @@ namespace larlitecv {
     
     // extend the the bounding box
     min_r = ( min_r-10>0 ) ? min_r - 10 : 0;
-    max_r = ( max_r+10<=meta.rows() ) ? max_r + 10 : meta.rows()-1;
+    max_r = ( max_r+10<=(int)meta.rows() ) ? max_r + 10 : (int)meta.rows()-1;
     min_c = ( min_c-10>0 ) ? min_c - 10 : 0;
-    max_c = ( max_c+10<=meta.cols() ) ? max_c + 10 : meta.cols()-1;
+    max_c = ( max_c+10<=(int)meta.cols() ) ? max_c + 10 : (int)meta.cols()-1;
     int win_r = std::abs( max_r-min_r )+1;
     int win_c = std::abs( max_c-min_c )+1;
 
@@ -82,8 +82,6 @@ namespace larlitecv {
       }
       int r_current = current.row;
       int c_current = current.col;
-      bool already_jumped_gap_forward = false; // marks when we have added neighbors across a bad ch gap, so we don't do it again
-      bool already_jumped_gap_backward = false; // marks when we have added neighbors across a bad ch gap, so we don't do it again
 
       // scan through neighors, make open set
       for (int dr=-neighborhood_size; dr<=neighborhood_size; dr++) {
@@ -95,7 +93,7 @@ namespace larlitecv {
 	  // check if out of bounds inside the search region
 	  if ( r_neigh<0 || r_neigh>=win_r || c_neigh<0 || c_neigh>=win_c ) continue;
 	  // check if out of the image
-	  if ( r_neigh+min_r<0 || r_neigh+min_r>=meta.rows() || c_neigh+min_c<0 || c_neigh+min_c>=meta.cols() ) continue; 
+	  if ( r_neigh+min_r<0 || r_neigh+min_r>=(int)meta.rows() || c_neigh+min_c<0 || c_neigh+min_c>=(int)meta.cols() ) continue; 
 
 	  // is the neighbor within the start and end pad? then its forgiven if point is below charge
 	  bool within_pad = false;
@@ -175,13 +173,13 @@ namespace larlitecv {
 
 	    int cnext = neighbor.col + stepdir;
 	    
-	    while ( cnext+min_c>=0 && cnext+min_c<meta.cols() ) {
+	    while ( cnext+min_c>=0 && cnext+min_c<(int)meta.cols() ) {
 	      if ( m_badchimg->pixel( r_neigh+min_r, cnext+min_c )<1.0 )
 		break;
 	      cnext += stepdir;
 	    }
 
-	    if ( cnext+min_c<0 || cnext+min_c>=meta.cols() ) {
+	    if ( cnext+min_c<0 || cnext+min_c>=(int)meta.cols() ) {
 	      continue;
 	    }
 
@@ -198,9 +196,9 @@ namespace larlitecv {
 	    // we load in neighbors along the jumping col (and one more in case of bad wires)
 	    for (int ic=0; ic<2; ic++) {
 	      int cskip = cnext + ic*stepdir;
-	      if ( cskip+min_c<0 || cskip+min_c>=meta.cols() ) continue;
+	      if ( cskip+min_c<0 || cskip+min_c>=(int)meta.cols() ) continue;
 	      for (int jrow=0; jrow<win_r; jrow++ ) {
-		if ( jrow+min_r<meta.rows() && img.pixel( jrow+min_r, cskip+min_c )>_config.astar_threshold.at((int)meta.plane()) ) {
+		if ( jrow+min_r<(int)meta.rows() && img.pixel( jrow+min_r, cskip+min_c )>_config.astar_threshold.at((int)meta.plane()) ) {
 		  
 		  AStarNode jneighbor( cskip, jrow );
 		  

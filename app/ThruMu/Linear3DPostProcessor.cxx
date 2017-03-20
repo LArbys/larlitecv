@@ -73,7 +73,7 @@ namespace larlitecv {
 				geoalgo::LineSegment* shorter_lineseg = &seg_b;
 				geoalgo::LineSegment* longer_lineseg  = &seg_a;
 				size_t shorter_seg_idx = itrack_b;
-				size_t longer_seg_idx  = itrack_a;
+				//size_t longer_seg_idx  = itrack_a;
 				if ( seg_a.Dir().Length()<seg_b.Dir().Length() ) {
 					// flip it
 					shorter_lineseg = &seg_a;

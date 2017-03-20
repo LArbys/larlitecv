@@ -85,17 +85,6 @@ namespace larlitecv {
 
       // fill the candidate neighbors list
       std::vector< AStarDirNode* > neighborhood_list;
-      struct neighboor_compare_t {
-        bool operator()( AStarDirNode* lhs, AStarDirNode* rhs ) {
-          if ( lhs->jump_cost>rhs->jump_cost ) return true;
-          return false;
-        };
-      } neighbor_compare;
-
-      int r_current = current->row;
-      int c_current = current->col;
-      bool already_jumped_gap_forward = false; // marks when we have added neighbors across a bad ch gap, so we don't do it again
-      bool already_jumped_gap_backward = false; // marks when we have added neighbors across a bad ch gap, so we don't do it again
 
       // scan through neighors, and ID the candidate successor node
       evaluateNeighborNodes( current, start, goal, openset, closedset, neighborhood_size, 
@@ -239,7 +228,7 @@ namespace larlitecv {
         float drow_goal = goal->row-neighbor_node->row;
         float hscore = sqrt( dcol_goal*dcol_goal + drow_goal*drow_goal );
 
-        float sscore = sqrt( (goal->col-start->col)*(goal->col-start->col) + (goal->row-start->row)*(goal->row-start->row) );
+        //float sscore = sqrt( (goal->col-start->col)*(goal->col-start->col) + (goal->row-start->row)*(goal->row-start->row) );
 
         // calculate the potential g-score if we connect current to this neighboor
         float gscore = current->gscore + norm;//neighbor_node->jump_cost*0.0;

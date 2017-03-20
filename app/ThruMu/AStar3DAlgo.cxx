@@ -77,7 +77,6 @@ namespace larlitecv {
     // next, define the lattice
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]
     float cm_per_wire = 0.3;
-    float cm_per_row  = cm_per_tick*meta.pixel_height();
     float cm_per_col  = cm_per_wire*meta.pixel_width();
 
     std::vector<float> cm_per_pixel(3);

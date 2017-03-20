@@ -335,7 +335,7 @@ namespace larlitecv {
             badcombo.fracMajCharge = straight_track.fractionHasChargeOnMajorityOfPlanes();
 
 
-            if ( straight_track.size() > _config.linear3d_min_tracksize
+            if ( (int)straight_track.size() > _config.linear3d_min_tracksize
                   && straight_track.fractionGood() > _config.linear3d_min_goodfraction
                   && straight_track.fractionHasChargeOnMajorityOfPlanes() > _config.linear3d_min_majoritychargefraction ) {
               std::cout << "  - straight-track accepted." << std::endl;
@@ -626,7 +626,6 @@ namespace larlitecv {
     // Run AStar3DAlgo
 
     // configure
-    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]    
     const larlitecv::AStar3DAlgoConfig& astar_config = _config.getAStarConfig();
     /*
     astar_config.astar_threshold.resize(3,0);
@@ -640,8 +639,6 @@ namespace larlitecv {
     astar_config.accept_badch_nodes = true;
     astar_config.min_nplanes_w_hitpixel = 3;
     */
-
-    const int nplanes = img_v.size();
 
     // collect meta/translate start/goal tick/wires to row/col in compressed image
     std::vector< const larcv::ImageMeta* > meta_compressed_v;
