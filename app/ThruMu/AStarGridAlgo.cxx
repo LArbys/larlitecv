@@ -188,10 +188,6 @@ namespace larlitecv {
 	      std::cout << "  was going in direction=(" << dir[0] << "," << dir[1] << ")" << std::endl; 
 	      std::cout << "  to jump gap, go to col=" << cnext << " in abs ch=" << cnext+min_c << std::endl;
 	    }
-	    if ( stepdir>0 )
-	      already_jumped_gap_forward = true;
-	    else
-	      already_jumped_gap_backward = true;
 
 	    // we load in neighbors along the jumping col (and one more in case of bad wires)
 	    for (int ic=0; ic<2; ic++) {
