@@ -188,17 +188,33 @@ namespace larlitecv {
     }
 	}	
 
-	void WriteCROIPayload( const CROIPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {	
+  void WriteCROIPayload( const CROIPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {	
 
-		// ROIs, StopMu Tracks and clusters, ThruMu Tracks and Clusters, Truth ROI, Bad channels
+    // CRITICAL OUTPUT: NO FLAGS 
+
+    // ROIs, StopMu Tracks and clusters, ThruMu Tracks and Clusters, Truth ROI, Bad channels
     larcv::EventROI* out_ev_roi = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "croi" );
     out_ev_roi->Set( data.croi_v );
+
+    // store CROI pixels
+    larcv::EventPixel2D* out_croi_pixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "croipixels" );
+    for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
+      auto const& flashdata = data.flashdata_v.at(itrack);
+      if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
+	continue;
+      if ( data.flashdata_selected_v[itrack]==0 ) 
+	continue;
+
+      for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
+	out_croi_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), data.combined_v.at(p).meta() );
+      }
+    }
 
     // untagged track
     if ( config.croi_write_cfg.get<bool>("WriteUntaggedTracks")) {
       larlite::event_track* evout_tracks_untagged = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "untagged3d" );
 
-	    for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
+      for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
         auto const& flashdata = data.flashdata_v.at(itrack);
         if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
           continue;
@@ -208,10 +224,27 @@ namespace larlitecv {
       }
     }    
 
+    // store untagged pixels
+    if ( config.croi_write_cfg.get<bool>("WriteUntaggedPixels") ) {
+      larcv::EventPixel2D* out_untagged_pixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "untaggedpixels" );
+      for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
+	auto const& flashdata = data.flashdata_v.at(itrack);
+	if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
+	  continue;
+
+	if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kUntagged ) {
+	  for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
+	    out_untagged_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), data.combined_v.at(p).meta() );
+	  }
+	}
+      }
+    }
+
+    // selected tracks
     if ( config.croi_write_cfg.get<bool>("WriteSelectedTracks")) {
       larlite::event_track* evout_tracks_selected = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "croi3d" );
-
-	    for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
+      
+      for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
         auto const& flashdata = data.flashdata_v.at(itrack);
         if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
           continue;
@@ -220,13 +253,15 @@ namespace larlitecv {
         }
       }
     }
-
+    
+    // combined tagged image
     if ( config.croi_write_cfg.get<bool>("WriteCombinedTaggedImage") ) {
-    	larcv::EventImage2D* evout_combined_v = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "combinedtags");
-    	for ( auto const& combined : data.combined_v ) {
-    		evout_combined_v->Append( combined );
-    	}
+      larcv::EventImage2D* evout_combined_v = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "combinedtags");
+      for ( auto const& combined : data.combined_v ) {
+	evout_combined_v->Append( combined );
+      }
     }
+    
+  }
 
-	}
 }

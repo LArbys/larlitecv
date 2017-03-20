@@ -44,7 +44,7 @@ wait
 
 echo "run_tagger tagger_${jobid}.cfg"
 
-/usr/bin/time -v ${sw_dir}/larlitecv/app/TaggerCROI/bin/./run_tagger tagger_${jobid}.cfg
+/usr/bin/time -v ${sw_dir}/larlitecv/app/TaggerCROI/bin/./run_tagger tagger_${jobid}.cfg > /dev/null
 
 scp output_*.root ${out_dir}/
 
@@ -54,6 +54,6 @@ cat input_larlite.txt
 
 cd ..
 
-#rm -r ./tmp
+rm -r ./tmp
 
 echo "COMPLETE"

@@ -68,6 +68,7 @@ namespace larlitecv {
   		anode_spacepoint_v.clear();
   		cathode_spacepoint_v.clear();
   		imgends_spacepoint_v.clear();
+		used_spacepoint_v.clear();
   	};
 
   };
@@ -82,7 +83,10 @@ namespace larlitecv {
   	std::vector< larlitecv::BMTrackCluster3D >          stopmu_trackcluster_v;
   	std::vector< larcv::Image2D >                       stopmu_v;
 
-  	virtual void saveSpace() {};
+  	virtual void saveSpace() {
+	  stopmu_candidate_endpt_v.clear();
+	  stopmu_pixel_endpt_v.clear();
+	};
   };
 
   class CROIPayload : public TaggerCROIVPayload {
@@ -100,7 +104,9 @@ namespace larlitecv {
     std::vector< larcv::ROI > croi_v;
     std::vector< larcv::Image2D > combined_v;
 
-  	virtual void saveSpace() {};
+  	virtual void saveSpace() {
+	  
+	};
   };
 
 }

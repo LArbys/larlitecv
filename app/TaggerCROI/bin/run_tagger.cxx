@@ -41,6 +41,9 @@ int main(int nargs, char** argv ) {
   bool RunThruMu = pset.get<bool>("RunThruMu");
   bool RunStopMu = pset.get<bool>("RunStopMu");
   bool RunCROI   = pset.get<bool>("RunCROI");    
+  bool save_thrumu_space = pset.get<bool>("SaveThruMuSpace", true);
+  bool save_stopmu_space = pset.get<bool>("SaveStopMuSpace", true);
+  bool save_croi_space   = pset.get<bool>("SaveCROISpace", true);
 
   // Setup Input Data Coordindator  
   larlitecv::DataCoordinator dataco;
@@ -97,7 +100,7 @@ int main(int nargs, char** argv ) {
       continue;
     }
     else if ( event_imgs->Image2DArray().size()!=3 ) {
-    	throw std::runtime_error("  Number of Images!=3. Weird.");
+      throw std::runtime_error("  Number of Images!=3. Weird.");
     }
 
     // ------------------------------------------------------------------------------------------//
@@ -158,7 +161,7 @@ int main(int nargs, char** argv ) {
     }
 
     if ( input_data.badch_v.size()!=3 ) {
-    	throw std::runtime_error("Number of Bad Channels not correct.");
+      throw std::runtime_error("Number of Bad Channels not correct.");
     }
 
     // ------------------------------------------------------------------------------------------//
@@ -194,20 +197,26 @@ int main(int nargs, char** argv ) {
     
     if ( RunThruMu ) {
       larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
+      if ( save_thrumu_space )
+	thrumu_data.saveSpace();
 
-	    if ( RunStopMu ) {
+      if ( RunStopMu ) {
         larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
-    
-    	  if ( RunCROI ) {
-			    larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
-			    WriteCROIPayload( croi_data, tagger_cfg, dataco_out );
-			  }
-			  
-   			WriteStopMuPayload( stopmu_data, tagger_cfg, dataco_out );
-			}
+	if ( save_stopmu_space )
+	  stopmu_data.saveSpace();
 
-			WriteThruMuPayload( thrumu_data, tagger_cfg, dataco_out );
-		}
+	if ( RunCROI ) {
+	  larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
+	  if ( save_croi_space )
+	    croi_data.saveSpace();
+	  WriteCROIPayload( croi_data, tagger_cfg, dataco_out );
+	}
+	
+	WriteStopMuPayload( stopmu_data, tagger_cfg, dataco_out );
+      }
+      
+      WriteThruMuPayload( thrumu_data, tagger_cfg, dataco_out );
+    }
 
 
     // -------------------------------------------------------------------------------------------//
