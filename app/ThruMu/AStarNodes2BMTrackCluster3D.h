@@ -6,8 +6,8 @@
 #include "DataFormat/Image2D.h"
 #include "DataFormat/Pixel2D.h"
 
-#include "ThruMu/BMTrackCluster3D.h"
-#include "ThruMu/AStar3DAlgo.h"
+#include "BMTrackCluster3D.h"
+#include "AStar3DAlgo.h"
 
 
 namespace larlitecv {
