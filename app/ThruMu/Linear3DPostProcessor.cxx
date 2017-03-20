@@ -79,7 +79,7 @@ namespace larlitecv {
 					shorter_lineseg = &seg_a;
 					longer_lineseg  = &seg_b;
 					shorter_seg_idx = itrack_a;
-					longer_seg_idx = itrack_b;
+					//longer_seg_idx = itrack_b;
 				}
 				geoalgo::Line longer_line( longer_lineseg->Start(), longer_lineseg->End() );
 				float start_dist = algo.SqDist( shorter_lineseg->Start(), longer_line );
