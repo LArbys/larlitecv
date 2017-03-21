@@ -92,6 +92,8 @@ namespace larlitecv {
 	  			for ( size_t i=0; i<3; i++ )
   					xyz[i] = extrema[j][ex][i];
 	  			float wire = larutil::Geometry::GetME()->WireCoordinate(xyz,p);
+				wire = (wire<0) ? 0 : wire;
+				wire = (wire>=meta.max_x()) ? meta.max_x()-1.0 : wire;
 	  			if ( wire<wire_extremes[0] )
 	  				wire_extremes[0] = wire;
 	  			if ( wire>wire_extremes[1] )
@@ -106,9 +108,9 @@ namespace larlitecv {
 	  	//  enforce bounds
 	  	if ( wire_extremes[0]<0 )
 	  		wire_extremes[0] = 0;
-	  	if ( p<2 && wire_extremes[0]>=2400 )
+	  	if ( p<2 && wire_extremes[1]>=2400 )
 	  		wire_extremes[1] = 2399;
-	  	if ( p==2 && wire_extremes[0]>=3456 )
+	  	if ( p==2 && wire_extremes[1]>=3456 )
 	  		wire_extremes[1] = 3455;
 
 	  	int col_min = meta.col( wire_extremes[0] );
