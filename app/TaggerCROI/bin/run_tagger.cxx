@@ -130,6 +130,7 @@ int main(int nargs, char** argv ) {
     }
     if ( input_data.img_v.size()!=3 ) 
     	throw std::runtime_error("Number of Images incorrect.");
+    // clear the images. we've made a copy
     event_imgs->clear();
     
     // ------------------------------------------------------------------------------------------//
@@ -149,12 +150,12 @@ int main(int nargs, char** argv ) {
     if ( chstatus_datatype=="LARLITE" ) {
       larlite::event_chstatus* ev_status = (larlite::event_chstatus*)dataco.get_larlite_data( larlite::data::kChStatus, "chstatus" );
       input_data.badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
-      ev_status->clear();
+      ev_status->clear(); // clear, we copied the info
     }
     else if ( chstatus_datatype=="LARCV" ) {
       larcv::EventChStatus* ev_status = (larcv::EventChStatus*)dataco.get_larcv_data( larcv::kProductChStatus, "tpc" );
       input_data.badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
-      ev_status->clear();
+      ev_status->clear(); // clear, we copied the info      
     }
     else if ( chstatus_datatype=="NONE" ) {
       for ( auto const& img : input_data.img_v ) {
@@ -170,6 +171,7 @@ int main(int nargs, char** argv ) {
     if ( input_data.badch_v.size()!=3 ) {
       throw std::runtime_error("Number of Bad Channels not correct.");
     }
+    
 
     // ------------------------------------------------------------------------------------------//
     // MAKE GAP CHANNEL IMAGE
@@ -196,7 +198,7 @@ int main(int nargs, char** argv ) {
       larlite::event_opflash* opdata = (larlite::event_opflash*)dataco.get_larlite_data(larlite::data::kOpFlash, flashproducer );
       std::cout << "search for flash hits from " << flashproducer << ": " << opdata->size() << " flashes" << std::endl;
       input_data.opflashes_v.push_back( opdata );
-    }   
+    }
 
     // -------------------------------------------------------------------------------------------//
     // RUN ALGOS
