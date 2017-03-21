@@ -44,8 +44,12 @@ namespace larlitecv {
       Double_t xyz_end[3];
       for (int i=0; i<nplanes; i++) 
         xyz_end[i] = track3d.end3D[i];    
-      for (int i=0; i<nplanes; i++)
-        track3d.end_wire[i] = (int)larutil::Geometry::GetME()->WireCoordinate(xyz_end,i);
+      for (int i=0; i<nplanes; i++) {}
+        float fwire = larutil::Geometry::GetME()->WireCoordinate(xyz_end,i);
+        fwire = ( fwire<0 ) ? 0 : fwire;
+        fwire = ( fwire>=meta.max_x() ) ? meta.max_x()-1.0 : fwire;
+        track3d.end_wire[i] = (int)fwire;
+      }
     }
     else {
       track3d.start_type = (larlitecv::BoundaryEnd_t) int(end_pt.front()->Intensity());
@@ -126,7 +130,10 @@ namespace larlitecv {
         int row = meta.row( tick );        
         std::vector<int> cols(3);
         for (int p=0; p<nplanes; p++) {
-          cols[p] = meta.col( larutil::Geometry::GetME()->WireCoordinate(xyz,p) );
+          float fwire = larutil::Geometry::GetME()->WireCoordinate(xyz,p);
+          fwire = ( fwire<0 ) ? 0 : fwire;
+          fwire = ( fwire>=meta.max_x() ) ? meta.max_x()-1.0 : fwire;
+          cols[p] = meta.col( fwire );
 
           for (int dr=-pixel_tag_neighborhood; dr<=pixel_tag_neighborhood; dr++) {
             int r = row+dr;
