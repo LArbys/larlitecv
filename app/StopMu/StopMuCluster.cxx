@@ -82,7 +82,7 @@ namespace larlitecv {
       }
 
       std::cout << "PASS " << ipass+1 << ": number of tracks=" << stopmu_tracks.size() << std::endl;
-    }
+    }// end of pass loop
 
     std::cout << "StopMu Tracks Found: " << stopmu_tracks.size() << std::endl;
 
@@ -570,8 +570,8 @@ namespace larlitecv {
         //           << " start row=" << start_row  << "; "
         //           << " start col: " << endpt.at(0)->X() << " " << endpt.at(1)->X() << " " << endpt.at(2)->X() << "; "
         //           << std::endl;
-        std::cout << "goal tick=" << goal_tick << "; goal row=" << goal_row << "; " 
-                  << "goal cols: " << goal_cols[0] << " " << goal_cols[1] << " " << goal_cols[2] << std::endl;
+        //std::cout << "goal tick=" << goal_tick << "; goal row=" << goal_row << "; " 
+        //          << "goal cols: " << goal_cols[0] << " " << goal_cols[1] << " " << goal_cols[2] << std::endl;
 
 
         // first run linear tracker 
@@ -902,8 +902,11 @@ namespace larlitecv {
     Double_t xyz_end[3];
     for (int i=0; i<nplanes; i++) 
       xyz_end[i] = track3d.end3D[i];    
-    for (int i=0; i<nplanes; i++)
+    for (int i=0; i<nplanes; i++) {
       track3d.end_wire[i] = (int)larutil::Geometry::GetME()->WireCoordinate(xyz_end,i);
+      track3d.end_wire[i] = ( track3d.end_wire[i]< 0) ? 0 : track3d.end_wire[i];
+      track3d.end_wire[i] = ( track3d.end_wire[i]>=meta.max_x()) ? meta.max_x()-1.0 : track3d.end_wire[i];
+    }
 
 
     // Prepare Track2D objects and an empty image to track which pixels we've marked
@@ -963,7 +966,10 @@ namespace larlitecv {
         int row = meta.row( tick );        
         std::vector<int> cols(3);
         for (int p=0; p<nplanes; p++) {
-          cols[p] = meta.col( larutil::Geometry::GetME()->WireCoordinate(xyz,p) );
+          float fwire = larutil::Geometry::GetME()->WireCoordinate(xyz,p);
+          fwire = ( fwire<0 ) ? 0 : fwire;
+          fwire = ( fwire>=meta.max_x() ) ? meta.max_x()-1 : fwire;
+          cols[p] = meta.col( fwire );
 
           for (int dr=-m_config.start_point_pixel_neighborhood; dr<=m_config.start_point_pixel_neighborhood; dr++) {
             int r = row+dr;
@@ -997,8 +1003,7 @@ namespace larlitecv {
     Linear3DFitter lineartrack( cfg );
     PointInfoList path = lineartrack.findpath( img_v, badch_v, start_row, goal_row, start_cols, goal_cols );
 
-    std::cout << "linear track result: goodfrac=" << path.fractionGood() << " majfrac=" << path.fractionHasChargeOnMajorityOfPlanes() << std::endl;
-
+    //std::cout << "linear track result: goodfrac=" << path.fractionGood() << " majfrac=" << path.fractionHasChargeOnMajorityOfPlanes() << std::endl;
 
     // now we need to decide the quality of the fit
     goodpath = false;
@@ -1187,10 +1192,14 @@ namespace larlitecv {
           float tick_start = path.at(inode).tyz.at(0);
           Double_t xyz_start[3] = { (tick_start-3200.0)*0.5*0.110, path.at(inode).tyz.at(1), path.at(inode).tyz.at(2) };
           float wid_start  = larutil::Geometry::GetME()->WireCoordinate( xyz_start, p );
+          wid_start = ( wid_start<0 ) ? 0 : wid_start;
+          wid_start = ( wid_start>=3456 ) ? 3455 : wid_start;          
 
           float tick_end = path.at(inode+1).tyz.at(0);
           Double_t xyz_end[3] = { (tick_start-3200.0)*0.5*0.110, path.at(inode+1).tyz.at(1), path.at(inode+1).tyz.at(2) };
           float wid_end  = larutil::Geometry::GetME()->WireCoordinate( xyz_end, p );
+          wid_end = ( wid_end<0 ) ? 0 : wid_end;
+          wid_end = ( wid_end>=3456 ) ? 3455 : wid_end;
 
           if ( data.m_path_goalreached.at(ipath) )
             cv::line( cvimg, cv::Point( meta.col(wid_start), meta.row(tick_start)), cv::Point( meta.col(wid_end), meta.row(tick_end) ), cv::Scalar(0,255,0), 3 );
