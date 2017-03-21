@@ -70,6 +70,10 @@ int main(int nargs, char** argv ) {
     if ( user_nentries+startentry<nentries )
       endentry = user_nentries+startentry;
   }
+  if ( startentry>=nentries ) {
+    std::cout << "Starting beyond end of file. Nothing to do." << std::endl;
+    return 0;
+  }
 
   // SETUP THE ALGOS
   larlitecv::EmptyChannelAlgo emptyalgo;  
@@ -126,6 +130,7 @@ int main(int nargs, char** argv ) {
     }
     if ( input_data.img_v.size()!=3 ) 
     	throw std::runtime_error("Number of Images incorrect.");
+    event_imgs->clear();
     
     // ------------------------------------------------------------------------------------------//
     // LABEL EMPTY CHANNELS
@@ -144,10 +149,12 @@ int main(int nargs, char** argv ) {
     if ( chstatus_datatype=="LARLITE" ) {
       larlite::event_chstatus* ev_status = (larlite::event_chstatus*)dataco.get_larlite_data( larlite::data::kChStatus, "chstatus" );
       input_data.badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+      ev_status->clear();
     }
     else if ( chstatus_datatype=="LARCV" ) {
       larcv::EventChStatus* ev_status = (larcv::EventChStatus*)dataco.get_larcv_data( larcv::kProductChStatus, "tpc" );
       input_data.badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
+      ev_status->clear();
     }
     else if ( chstatus_datatype=="NONE" ) {
       for ( auto const& img : input_data.img_v ) {
