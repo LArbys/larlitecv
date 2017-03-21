@@ -461,7 +461,7 @@ namespace larlitecv {
 			// we make a qcluster object with this cluster
 			larcv::Pixel2DCluster expanded_cluster;
 			candidate.qcluster = MakeTPCFlashObject( untagged_cluster.at(2), img_v.at(2), expanded_cluster );
-			if ( candidate.qcluster.size()>m_config.min_qcluster_size ) {
+			if ( (int)candidate.qcluster.size()>m_config.min_qcluster_size ) {
 				// we will keep this one
 				candidate.qcluster_idx = qcluster_idx;
 				candidate.source_type = 0; // untagged roi
@@ -510,7 +510,7 @@ namespace larlitecv {
 			// we make a qcluster object with this cluster
 			larcv::Pixel2DCluster expanded_cluster;			
 			candidate.qcluster = MakeTPCFlashObject( pixel_cluster, img_v.at(2), expanded_cluster );
-			if ( candidate.qcluster.size()>m_config.min_qcluster_size ) {
+			if ( (int)candidate.qcluster.size()>m_config.min_qcluster_size ) {
 				// we will keep this one
 				candidate.qcluster_idx = qcluster_idx;
 				candidate.source_type = 1; // thrumu
@@ -561,7 +561,7 @@ namespace larlitecv {
 			// we make a qcluster object with this cluster
 			larcv::Pixel2DCluster expanded_cluster;			
 			candidate.qcluster = MakeTPCFlashObject( pixel_cluster, img_v.at(2), expanded_cluster );
-			if ( candidate.qcluster.size()>m_config.min_qcluster_size ) {
+			if ( (int)candidate.qcluster.size()>m_config.min_qcluster_size ) {
 				// we will keep this one
 				candidate.qcluster_idx = qcluster_idx;
 				candidate.source_type = 2; // stopmu
@@ -697,10 +697,10 @@ namespace larlitecv {
 			extrema.at(3) = plane_cluster.front().Y();			
 
 			for ( auto const& pixel : plane_cluster ) {
-				if ( extrema[0]>pixel.X() ) extrema[0] = pixel.X();
-				if ( extrema[1]<pixel.X() ) extrema[1] = pixel.X();
-				if ( extrema[2]>pixel.Y() ) extrema[2] = pixel.Y();
-				if ( extrema[3]<pixel.Y() ) extrema[3] = pixel.Y();
+			  if ( extrema[0]>(int)pixel.X() ) extrema[0] = (int)pixel.X();
+			  if ( extrema[1]<(int)pixel.X() ) extrema[1] = (int)pixel.X();
+			  if ( extrema[2]>(int)pixel.Y() ) extrema[2] = (int)pixel.Y();
+			  if ( extrema[3]<(int)pixel.Y() ) extrema[3] = (int)pixel.Y();
 			}
 
 			int drow = extrema[3]-extrema[2];
