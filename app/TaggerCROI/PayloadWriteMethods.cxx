@@ -206,7 +206,7 @@ namespace larlitecv {
 	continue;
 
       for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
-	out_croi_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), data.combined_v.at(p).meta() );
+	out_croi_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
       }
     }
 
