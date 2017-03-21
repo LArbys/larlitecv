@@ -210,7 +210,7 @@ namespace larlitecv {
         for ( size_t c=0; c<tagged.meta().cols(); c++ ) {
           // tagged image
           if ( thrumu.tagged_v.at(p).pixel(r,c)>0 || stopmu.stopmu_v.at(p).pixel(r,c)>0 )
-            tagged.set_pixel(r,c,255);
+           tagged.set_pixel(r,c,255);
 
           // subtraction image: below threshold and tagged pixels get zeroed (for clustering)
           if ( sub.pixel(r,c)<10.0 || thrumu.tagged_v.at(p).pixel(r,c)>0 || stopmu.stopmu_v.at(p).pixel(r,c)>0 )
@@ -349,12 +349,16 @@ namespace larlitecv {
       const larlite::track& track3d = output.flashdata_v.at(itrack).m_track3d;
       if ( output.flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
         continue;
+      
       larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, true );
 
       std::cout << "[Selected CROI]" << std::endl;
       for ( size_t p=0; p<3; p++ ) {
         std::cout << "  " << croi.BB(p).dump() << std::endl;
       }
+
+      output.event_opflash.emplace_back(input.opflashes_v[itrack]);
+      
       output.croi_v.emplace_back( std::move(croi) );
     } 
 

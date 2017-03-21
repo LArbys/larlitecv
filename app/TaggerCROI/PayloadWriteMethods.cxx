@@ -261,7 +261,14 @@ namespace larlitecv {
 	evout_combined_v->Append( combined );
       }
     }
-    
-  }
+
+    // Store opflashes for all tracks
+    if (config.croi_write_cfg.get<bool>("WriteTrackOpFlashes") ) {
+      larlite::event_opflash* track_opflash_out = (larlite::event_opflash*)dataco.get_larlite_data( larlite::data::kOpFlash, "opflash");
+
+      for ( auto const& opflash : data.track_opflash_v) {
+	track_opflash_out->push_back(opflash)
+      }
+    }
 
 }
