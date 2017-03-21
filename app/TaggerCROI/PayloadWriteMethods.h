@@ -20,7 +20,7 @@ namespace larlitecv {
 
 	void WriteStopMuPayload( const StopMuPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco );		
 
-	void WriteCROIPayload( const CROIPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco );	
+	void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco );	
 
 }
 

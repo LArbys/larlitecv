@@ -47,7 +47,7 @@ namespace larlitecv {
 	}
 
 
-	void WriteThruMuPayload( const ThruMuPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
+  void WriteThruMuPayload( const ThruMuPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
 
     // side tagger -- real space hits
     if ( config.sidetagger_cfg.save_endpt_images ) {
@@ -188,7 +188,7 @@ namespace larlitecv {
     }
 	}	
 
-  void WriteCROIPayload( const CROIPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {	
+  void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {	
 
     // CRITICAL OUTPUT: NO FLAGS 
 
@@ -234,7 +234,7 @@ namespace larlitecv {
 
 	if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kUntagged ) {
 	  for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
-	    out_untagged_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), data.combined_v.at(p).meta() );
+	    out_untagged_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
 	  }
 	}
       }
