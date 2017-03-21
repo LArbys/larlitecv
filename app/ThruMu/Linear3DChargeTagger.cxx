@@ -163,7 +163,7 @@ namespace larlitecv {
       for (int wire_plane_iterator = 0; wire_plane_iterator < nplanes; wire_plane_iterator++) {
 	float fwire = larutil::Geometry::GetME()->WireCoordinate( xyz , wire_plane_iterator );
 	fwire = ( fwire<0 ) ? 0 : fwire;
-	fwire = ( fwire>=img_v.front().meta().max_c() ) ? img_v.front().meta().max_x()-1.0 : fwire;
+	fwire = ( fwire>=img_v.front().meta().max_x() ) ? img_v.front().meta().max_x()-1.0 : fwire;
         pt.wire_id[wire_plane_iterator] = round( fwire );
       }
 
