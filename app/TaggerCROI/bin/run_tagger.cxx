@@ -44,6 +44,7 @@ int main(int nargs, char** argv ) {
   bool save_thrumu_space = pset.get<bool>("SaveThruMuSpace", true);
   bool save_stopmu_space = pset.get<bool>("SaveStopMuSpace", true);
   bool save_croi_space   = pset.get<bool>("SaveCROISpace", true);
+  bool do_not_skip_entry  = pset.get<bool>("DoNotSkipEntry", true);
 
   // Setup Input Data Coordindator  
   larlitecv::DataCoordinator dataco;
@@ -101,6 +102,8 @@ int main(int nargs, char** argv ) {
     larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, larcv_image_producer );
     if ( event_imgs->Image2DArray().size()==0) {
     	std::cout << "  Number of images=0. Skipping Entry." << std::endl;
+      if ( do_not_skip_entry )
+        dataco_out.save_entry(); // create empty entry in order to keep entry alignment
       continue;
     }
     else if ( event_imgs->Image2DArray().size()!=3 ) {
@@ -159,9 +162,9 @@ int main(int nargs, char** argv ) {
     }
     else if ( chstatus_datatype=="NONE" ) {
       for ( auto const& img : input_data.img_v ) {
-	larcv::Image2D badch( img.meta() );
-	badch.paint(0.0);
-	input_data.badch_v.emplace_back( std::move(badch) );
+	      larcv::Image2D badch( img.meta() );
+	      badch.paint(0.0);
+	      input_data.badch_v.emplace_back( std::move(badch) );
       }
     }
     else {
@@ -207,21 +210,19 @@ int main(int nargs, char** argv ) {
     if ( RunThruMu ) {
       larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
       if ( save_thrumu_space )
-	thrumu_data.saveSpace();
+        thrumu_data.saveSpace();
 
       if ( RunStopMu ) {
         larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
-	if ( save_stopmu_space )
-	  stopmu_data.saveSpace();
-
-	if ( RunCROI ) {
-	  larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
-	  if ( save_croi_space )
-	    croi_data.saveSpace();
-	  WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out );
-	}
-	
-	WriteStopMuPayload( stopmu_data, tagger_cfg, dataco_out );
+        if ( save_stopmu_space )
+          stopmu_data.saveSpace();
+        if ( RunCROI ) {
+          larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
+          if ( save_croi_space )
+            croi_data.saveSpace();
+          WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out );
+        }
+        WriteStopMuPayload( stopmu_data, tagger_cfg, dataco_out );
       }
       
       WriteThruMuPayload( thrumu_data, tagger_cfg, dataco_out );
