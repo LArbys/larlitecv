@@ -161,7 +161,10 @@ namespace larlitecv {
       // Declare a vector of the three coordinates within the detector.  I will continue down this route, because I am not sure that all of the starting points come from the same set of channels.  This allows me to do it myself instead of going back into the 'wireIntersection' function.
       pt.wire_id.resize(nplanes,0);
       for (int wire_plane_iterator = 0; wire_plane_iterator < nplanes; wire_plane_iterator++) {
-        pt.wire_id[wire_plane_iterator] = round( larutil::Geometry::GetME()->WireCoordinate( xyz , wire_plane_iterator ) );
+	float fwire = larutil::Geometry::GetME()->WireCoordinate( xyz , wire_plane_iterator );
+	fwire = ( fwire<0 ) ? 0 : fwire;
+	fwire = ( fwire>=img_v.front().meta().max_c() ) ? img_v.front().meta().max_x()-1.0 : fwire;
+        pt.wire_id[wire_plane_iterator] = round( fwire );
       }
 
       // Once you have this information, you can convert the 'wire_id' values to the columns and row in the image based on the compression factor

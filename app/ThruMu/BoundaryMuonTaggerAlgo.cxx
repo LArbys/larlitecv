@@ -966,6 +966,7 @@ namespace larlitecv {
         double worldpos[3] = { 0, (double)intersection[1], (double)intersection[0] };
         wireid[2] = larutil::Geometry::GetME()->WireCoordinate( worldpos, pid[2] );
         if ( wireid[2]<0 ) wireid[2]=0;
+	wireid[2] = ( wireid[2]>=img_v.at(0).meta().max_x() ) ? img_v.at(0).meta().max_x()-1.0 : wireid[2];
         imgcol[2] = wireid[2]/img_v.at(0).meta().pixel_width();
         // we can backfill the missing bad plane
         larcv::Pixel2D pix( imgcol[2], (int)img_v.at(pid[2]).meta().row( avetick ) );
