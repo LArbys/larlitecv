@@ -44,7 +44,7 @@ namespace larlitecv {
       Double_t xyz_end[3];
       for (int i=0; i<nplanes; i++) 
         xyz_end[i] = track3d.end3D[i];    
-      for (int i=0; i<nplanes; i++) {}
+      for (int i=0; i<nplanes; i++) {
         float fwire = larutil::Geometry::GetME()->WireCoordinate(xyz_end,i);
         fwire = ( fwire<0 ) ? 0 : fwire;
         fwire = ( fwire>=meta.max_x() ) ? meta.max_x()-1.0 : fwire;
