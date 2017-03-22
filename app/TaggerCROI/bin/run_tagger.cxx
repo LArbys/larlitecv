@@ -96,6 +96,10 @@ int main(int nargs, char** argv ) {
     // PREPARE THE INPUT
 
     larlitecv::InputPayload input_data;
+    input_data.run = run;
+    input_data.subrun = subrun;
+    input_data.event  = event;
+    input_data.entry  = ientry;
 
     // get images (from larcv)
     larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, larcv_image_producer );

@@ -1,5 +1,7 @@
 #include "TaggerCROIAlgo.h"
 
+#include <sstream>
+
 // larlite
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
@@ -129,6 +131,11 @@ namespace larlitecv {
   	// Algos
   	larlitecv::StopMuFilterSpacePoints stopmu_filterpts( m_config.stopmu_filterpts_cfg );
   	larlitecv::StopMuCluster           stopmu_cluster( m_config.stopmu_cluster_cfg );
+    if ( m_config.stopmu_cluster_cfg.save_pass_images || m_config.stopmu_cluster_cfg.dump_tagged_images  ) {
+      std::stringstream ss;
+      ss << "smc_r" << input.run << "_s" << input.subrun << "_e" << input.event << "_i" << input.entry;
+      stopmu_cluster.setOpenCVImageStemName( ss.str() );
+    }
 
   	// We strip the unused pixel locations into vector of pixels.
   	std::vector< std::vector< const larcv::Pixel2D* > > unused_spacepoint_v;
@@ -363,28 +370,28 @@ namespace larlitecv {
 
     if ( m_config.croi_write_cfg.get<bool>("WriteCombinedTaggedImage") ) {
       for ( size_t p=0; p<input.img_v.size(); p++ ) {
-	larcv::Image2D combined( input.img_v.at(p).meta() );
-	combined.paint(0.0);
-	output.combined_v.emplace_back( std::move(combined) );
+	      larcv::Image2D combined( input.img_v.at(p).meta() );
+	      combined.paint(0.0);
+	      output.combined_v.emplace_back( std::move(combined) );
       }
 
       for ( size_t itrack=0; itrack<output.flashdata_v.size(); itrack++ ) {
-	const larlitecv::TaggerFlashMatchData& flashdata = output.flashdata_v.at(itrack);
-	if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 ) {
-	  continue;
-	}
-	const std::vector<larcv::Pixel2DCluster>& pixels = flashdata.m_pixels;
-	int tagval = 10.0*((int)flashdata.m_type + 1); // 0= nothing, 10 = thrumu, 20=stopmu, 30=untagged/contained, 40=selected CROI
-	if ( output.flashdata_selected_v.at(itrack)==1 ) {
-	  tagval = 40.0;
-	}
-	for ( size_t p=0; p<output.combined_v.size(); p++ ) {
-	  for ( auto const& pix : pixels.at(p) ) {
-	    int pixval = output.combined_v.at(p).pixel( pix.Y(), pix.X() );
-	    if ( tagval > pixval )
-	      output.combined_v.at(p).set_pixel( pix.Y(), pix.X(), tagval );
-	  }
-	}
+	      const larlitecv::TaggerFlashMatchData& flashdata = output.flashdata_v.at(itrack);
+	      if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 ) {
+	        continue;
+	    }
+	    const std::vector<larcv::Pixel2DCluster>& pixels = flashdata.m_pixels;
+	    int tagval = 10.0*((int)flashdata.m_type + 1); // 0= nothing, 10 = thrumu, 20=stopmu, 30=untagged/contained, 40=selected CROI
+	    if ( output.flashdata_selected_v.at(itrack)==1 ) {
+	      tagval = 40.0;
+	    }
+	    for ( size_t p=0; p<output.combined_v.size(); p++ ) {
+	      for ( auto const& pix : pixels.at(p) ) {
+	        int pixval = output.combined_v.at(p).pixel( pix.Y(), pix.X() );
+	        if ( tagval > pixval )
+	          output.combined_v.at(p).set_pixel( pix.Y(), pix.X(), tagval );
+	        }
+	      }
       }
     }
     

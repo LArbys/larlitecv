@@ -35,6 +35,10 @@ namespace larlitecv {
 		std::vector<larcv::Image2D>            badch_v;     //< image marking bad channels
 		std::vector<larcv::Image2D>            gapch_v;     //< image marking gap channels		
 		std::vector< larlite::event_opflash* > opflashes_v; //< container of opflashes to consider
+    int run;
+    int subrun;
+    int event;
+    int entry;
 
 		virtual void saveSpace() {};
 
@@ -68,7 +72,7 @@ namespace larlitecv {
   		anode_spacepoint_v.clear();
   		cathode_spacepoint_v.clear();
   		imgends_spacepoint_v.clear();
-		used_spacepoint_v.clear();
+		  used_spacepoint_v.clear();
   	};
 
   };
