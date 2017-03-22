@@ -243,6 +243,7 @@ int main(int nargs, char** argv ) {
 
     // SAVE MC DATA, IF SPECIFIED, TRANSFER FROM INPUT TO OUTPUT
     if ( save_mc && pset.get<larcv::PSet>("MCWriteConfig").get<bool>("WriteSegment") ) {
+      std::cout << "WRITE SEGMENTATION IMAGE INFORMATION" << std::endl;      
       larcv::PSet mcwritecfg = pset.get<larcv::PSet>("MCWriteConfig");
       larcv::EventImage2D* ev_segment  = (larcv::EventImage2D*)dataco.get_larcv_data(     larcv::kProductImage2D, mcwritecfg.get<std::string>("SegmentProducer") );
       larcv::EventImage2D* out_segment = (larcv::EventImage2D*)dataco_out.get_larcv_data( larcv::kProductImage2D, mcwritecfg.get<std::string>("SegmentProducer") );
@@ -250,14 +251,15 @@ int main(int nargs, char** argv ) {
     }
 
     if ( save_mc && pset.get<larcv::PSet>("MCWriteConfig").get<bool>("WriteTrackShower") ) {
+      std::cout << "WRITE MC TRACK SHOWER INFORMATION" << std::endl;
       larcv::PSet mcwritecfg = pset.get<larcv::PSet>("MCWriteConfig");      
       larlite::event_mctrack* event_mctrack = (larlite::event_mctrack*)dataco.get_larlite_data(     larlite::data::kMCTrack, mcwritecfg.get<std::string>("MCTrackShowerProducer") );
       larlite::event_mctrack* evout_mctrack = (larlite::event_mctrack*)dataco_out.get_larlite_data( larlite::data::kMCTrack, mcwritecfg.get<std::string>("MCTrackShowerProducer") );
-      (*evout_mctrack) = (*event_mctrack);
+      for ( auto const& track : *event_mctrack ) evout_mctrack->push_back( track  );
 
       larlite::event_mcshower* event_mcshower = (larlite::event_mcshower*)dataco.get_larlite_data(     larlite::data::kMCShower, mcwritecfg.get<std::string>("MCTrackShowerProducer") );
       larlite::event_mcshower* evout_mcshower = (larlite::event_mcshower*)dataco_out.get_larlite_data( larlite::data::kMCShower, mcwritecfg.get<std::string>("MCTrackShowerProducer") );
-      (*evout_mcshower) = (*event_mcshower);
+      for ( auto const& shower : *event_mcshower ) evout_mcshower->push_back( shower  );      
     }
 
     dataco_out.save_entry();
