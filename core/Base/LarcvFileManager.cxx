@@ -26,7 +26,6 @@ namespace larlitecv {
   void LarcvFileManager::user_build_index( const std::vector<std::string>& input, 
 					   std::vector<std::string>& finallist,
 					   std::map< RSE, int >& rse2entry, std::map< int, RSE >& entry2rse ) {
-    
     std::set<std::string> producers;
     std::set<std::string> datatypes;
     std::set<std::string> treeflavors;
@@ -56,39 +55,37 @@ namespace larlitecv {
       
       for (int ikey=0; ikey<nkeys; ikey++) {
 	
-	std::string keyname = rfile.GetListOfKeys()->At(ikey)->GetName();
-	size_t foundlast = keyname.find_last_of("_");
-	std::string tail = keyname.substr(foundlast+1,std::string::npos);
-	if ( tail!="tree") 
-	  continue;
-	size_t found1 = keyname.find("_");
-	std::string dtype    = keyname.substr(0,found1);
-	std::string producer = keyname.substr(found1+1,foundlast-found1-1 );
-	if ( (!found_id_tree) or (found_id_tree && dtype=="partroi" )) {
-	  found_id_tree = true;
-	  idtreename = keyname;
-	  idtreetype = dtype;
-	  idtreeproducer = producer;
-	}
-	  
-	producers.insert( producer );
-	datatypes.insert( dtype );
-	trees.insert( keyname );
-
+        std::string keyname = rfile.GetListOfKeys()->At(ikey)->GetName();
+      	size_t foundlast = keyname.find_last_of("_");
+        std::string tail = keyname.substr(foundlast+1,std::string::npos);
+	       if ( tail!="tree") 
+	         continue;
+         size_t found1 = keyname.find("_");
+         std::string dtype    = keyname.substr(0,found1);
+         std::string producer = keyname.substr(found1+1,foundlast-found1-1 );
+         if ( (!found_id_tree) or (found_id_tree && dtype=="partroi" ) ) {
+          found_id_tree = true;
+          idtreename = keyname;
+          idtreetype = dtype;
+          idtreeproducer = producer;
+        }
+        producers.insert( producer );
+        datatypes.insert( dtype );
+        trees.insert( keyname );
       }
       
       if ( !found_id_tree )
-	continue; // skip this file, we won't know how to index it.
+        continue; // skip this file, we won't know how to index it.
 
       // make a hash out of the name of tree is the file. will be used to define the flavor of this file
       std::string treehashname = ":";
       for ( std::set<std::string>::iterator it=trees.begin(); it!=trees.end(); it++ ) {
-	treehashname += (*it)+":";
+        treehashname += (*it)+":";
       }
       hashwrapper *myWrapper = new md5wrapper();
       std::string treehash = myWrapper->getHashFromString( treehashname.c_str() );
       if ( treeflavors.find(treehash)==treeflavors.end() ) {
-	flavorfiles.insert( std::pair< std::string, std::vector<std::string> >( treehash, std::vector<std::string>() ) );
+        flavorfiles.insert( std::pair< std::string, std::vector<std::string> >( treehash, std::vector<std::string>() ) );
       }
       delete myWrapper;
       treeflavors.insert(treehash);
@@ -102,52 +99,73 @@ namespace larlitecv {
       //idtree->SetBranchAddress("_run",&run);
       //idtree->SetBranchAddress("_subrun",&subrun);
       //idtree->SetBranchAddress("_event",&event);
-      larcv::EventBase* product_ptr; 
+      larcv::EventBase* product_ptr = nullptr; 
       if ( idtreetype=="image2d" )
-	product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductImage2D,idtreeproducer));
+        product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductImage2D,idtreeproducer));
       else if ( idtreetype=="partroi" ) 
-	product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductROI,idtreeproducer));
-      else
-	assert(false);
+        product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductROI,idtreeproducer));
+      else {
+        throw std::runtime_error( "could not find a LArCV tree to build an index with." );
+      }
+
       std::string brname = idtreetype + "_" + idtreeproducer + "_branch";
       idtree->SetBranchAddress( brname.c_str(), &(product_ptr) );
 
       long idtree_entry = 0;
       long bytes = idtree->GetEntry(idtree_entry);
-      while ( bytes>0 ) {
-	run = product_ptr->run();
-	subrun = product_ptr->subrun();
-	event = product_ptr->event();
-	RSE entry( (int)run, (int)subrun, (int)event );
-	fileentry_rse.emplace_back( entry );
-	bytes = idtree->GetEntry( ++idtree_entry );
+
+      if ( product_ptr==nullptr || !product_ptr->valid() ) {
+        std::string msg = "LarcvFileManageer product_ptr not good. Can't build event index using "+idtreetype+" tree with name="+idtreeproducer;
+        throw std::runtime_error(msg);
       }
+
+      std::set<RSE> file_entries;
+      std::map<RSE,int> duplicate_counter;
+      while ( bytes>0 ) {
+        run = product_ptr->run();
+        subrun = product_ptr->subrun();
+        event = product_ptr->event();
+        RSE entry( (int)run, (int)subrun, (int)event );
+	if ( file_entries.find(entry)!=file_entries.end() ) {
+	  // duplicate RSE!
+	  RSE duplicate((int)run,(int)subrun,(int)event);
+	  if ( duplicate_counter.find(duplicate)==duplicate_counter.end() )
+	    duplicate_counter.insert( std::pair<RSE,int>(duplicate,0) );
+	  // add subevent number
+	  entry.subevent = ++duplicate_counter[duplicate];
+	}
+	file_entries.insert(entry);
+        fileentry_rse.emplace_back( std::move(entry) );
+        idtree_entry++;
+        bytes = idtree->GetEntry( idtree_entry );
+      }
+      //std::cout << "last idtree entry: " << idtree_entry << " " << fileentry_rse.size() << std::endl;
       file_rselist.insert( std::pair< std::string, RSElist >( fpath, fileentry_rse ) );
 
       // we associate an event list to a list of file flavors
       bool found_similar_eventlist = false;
       for ( auto &iter : rse_flavors ) {
-	if ( iter.first.isequal( fileentry_rse ) ) {
-	  found_similar_eventlist = true;
-	  iter.second.insert( treehash );
-	}
+        if ( iter.first.isequal( fileentry_rse ) ) {
+          found_similar_eventlist = true;
+          iter.second.insert( treehash );
+        }
       }
       if ( !found_similar_eventlist ) {
-	std::set<std::string> firstfile;
-	firstfile.insert(treehash);
-	rse_flavors.insert( std::pair< RSElist, std::set<std::string> >( fileentry_rse, std::move(firstfile) ) );
+        std::set<std::string> firstfile;
+        firstfile.insert(treehash);
+        rse_flavors.insert( std::pair< RSElist, std::set<std::string> >( fileentry_rse, std::move(firstfile) ) );
       }
 
       // associate rselist to filelist
       auto iter_rse2flist = rse_filelist.find(fileentry_rse);
       if ( iter_rse2flist==rse_filelist.end() ) {
-	// make a new filelist
-	std::vector<std::string> newflist;
-	newflist.push_back( fpath );
-	rse_filelist.insert( std::pair< RSElist, std::vector<std::string> >( fileentry_rse, std::move(newflist) ) );
+        // make a new filelist
+        std::vector<std::string> newflist;
+        newflist.push_back( fpath );
+        rse_filelist.insert( std::pair< RSElist, std::vector<std::string> >( fileentry_rse, std::move(newflist) ) );
       }
       else {
-	iter_rse2flist->second.push_back(fpath);
+        iter_rse2flist->second.push_back(fpath);
       }
 
       // std::cout << "File flavor: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
@@ -167,7 +185,7 @@ namespace larlitecv {
     for ( auto& iter : rse_flavors ) {
       // have we already seen this flavor set? (if this doesn't work, can hash the flavor sets first
       if ( numevents_per_flavorset.find( iter.second )==numevents_per_flavorset.end() ) {
-	numevents_per_flavorset.insert( std::pair< std::set<std::string>, int >(iter.second, 0 ) );
+        numevents_per_flavorset.insert( std::pair< std::set<std::string>, int >(iter.second, 0 ) );
       }
       numevents_per_flavorset.find( iter.second  )->second += (int)iter.first.size();
     }
@@ -177,8 +195,8 @@ namespace larlitecv {
     std::set<std::string> maxset;
     for ( auto& iter: numevents_per_flavorset ) {
       if ( iter.second>num_in_maxset ) {
-	num_in_maxset = iter.second;
-	maxset = iter.first;
+        num_in_maxset = iter.second;
+        maxset = iter.first;
       }
     }
 
@@ -192,39 +210,38 @@ namespace larlitecv {
     for ( auto &flavorset : maxset ) {
       std::vector<std::string>& files = flavorfiles.find( flavorset )->second;
       for ( auto &file : files ) {
-	RSElist& rselist = file_rselist.find( file )->second;
-	finalrseset.insert( rselist );
+        RSElist& rselist = file_rselist.find( file )->second;
+        finalrseset.insert( rselist );
       }
     }
     std::vector< RSElist > finalrse_v;
     for ( auto &rselist : finalrseset ) {
       finalrse_v.push_back( rselist );
     }
-    sort( finalrse_v.begin(), finalrse_v.end() );
+    if ( isSorted() )
+      sort( finalrse_v.begin(), finalrse_v.end() );
 
     // make rse dictionaries
     int entrynum = 0;
     for ( auto &rselist : finalrse_v ) {
       for ( auto &rse: rselist ) {
-	rse2entry.insert( std::pair< RSE, int >( rse, entrynum ) );
-	entry2rse.insert( std::pair< int, RSE >( entrynum, rse ) );
-	entrynum++;
+        rse2entry.insert( std::pair< RSE, int >( rse, entrynum ) );
+        entry2rse.insert( std::pair< int, RSE >( entrynum, rse ) );
+	//std::cout << entrynum << " " << rse << std::endl;	
+        entrynum++;
       }
-
+      
       auto iter_rse2flist = rse_filelist.find( rselist );
       for ( auto &fpath : iter_rse2flist->second ) {
-	finallist.push_back( fpath ); // we end up resorting
-	std::cout << "final list: " << fpath << std::endl;
+        finallist.push_back( fpath ); // we end up resorting
       }
-
+      
     }
     
-//     std::cout << "Max flavor set has " << numevents_per_flavorset.find(maxset)->second << " entries. "
-// 	      << "Consists of " << maxset.size() << " different tree flavors." << std::endl;
-//     std::cout << "Index sizes: " << rse2entry.size() << " vs. entries: "<< entrynum << std::endl;
-//     std::cout << "Final file list size: " << ffinallist.size() << std::endl;
-
-    
+    // std::cout << "Max flavor set has " << numevents_per_flavorset.find(maxset)->second << " entries. "
+    //   << "Consists of " << maxset.size() << " different tree flavors." << std::endl;
+    //std::cout << "Index sizes: " << rse2entry.size() << " vs. entries: "<< entrynum << std::endl;
+    //std::cout << "Final file list size: " << ffinallist.size() << std::endl;
       
   }//end of user_build_index
 
