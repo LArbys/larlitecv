@@ -356,8 +356,6 @@ namespace larlitecv {
       for ( size_t p=0; p<3; p++ ) {
         std::cout << "  " << croi.BB(p).dump() << std::endl;
       }
-
-      output.event_opflash.emplace_back(input.opflashes_v[itrack]);
       
       output.croi_v.emplace_back( std::move(croi) );
     } 
@@ -366,6 +364,8 @@ namespace larlitecv {
     // Make Combined Tagged Image
 
     if ( m_config.croi_write_cfg.get<bool>("WriteCombinedTaggedImage") ) {
+
+
       for ( size_t p=0; p<input.img_v.size(); p++ ) {
 	larcv::Image2D combined( input.img_v.at(p).meta() );
 	combined.paint(0.0);
@@ -391,6 +391,8 @@ namespace larlitecv {
 	}
       }
     }
+
+    output.track_opflash_v = opflash_hypos;
     
     return output;
   }

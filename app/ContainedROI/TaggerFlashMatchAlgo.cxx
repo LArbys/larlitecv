@@ -258,6 +258,40 @@ namespace larlitecv {
 		return f;
 	}
 
+  larlite::event_opflash TaggerFlashMatchAlgo::MakeOpFlashFromFlash(const flashana::Flash_t& inFlash) {
+
+    const larutil::Geometry* geo = ::larutil::Geometry::GetME();
+
+    std::map<unsigned int,unsigned int> OpChFromOpDet;
+
+    for (unsigned int i = 0 ; i < geo->NOpDets() ; i++) { 
+      OpChFromOpDet[geo->OpDetFromOpChannel(i)] = i;
+    }
+
+    larlite::event_opflash f;
+
+    f.YCenter() = inFlash.y;
+    f.ZCenter() = inFlash.z;    
+    f.YWidth()  = inFlash.y_err;
+    f.ZWidth()  = inFlash.z_err;
+
+    for (unsigned int i = 0; i < inFlash.pe_v-size(); i++) {
+      unsigned int femch = OpChFromOpDet[i];
+      f.PE(femch) = inFlash.pe_v[i]*m_config.gain_correction[femch];
+      f.Time()    = inFlash.time;
+    }
+    
+    return f;
+  }
+	
+
+
+
+
+
+
+
+	
 	std::vector<flashana::Flash_t> TaggerFlashMatchAlgo::MakeDataFlashes( const std::vector<larlite::opflash>& opflash_v ) {
 		std::vector<flashana::Flash_t> flashes_v;
 		for ( auto const& opflash : opflash_v ) {
@@ -371,6 +405,9 @@ namespace larlitecv {
   	flashana::Flash_t flash_hypo = GenerateUnfittedFlashHypothesis( qcluster );
 		const larutil::Geometry* geo = ::larutil::Geometry::GetME();
 
+	larlite::opflash opflash_hypo = MakeOpFlashFromFlash(flash_hypo);
+	opflash_hypos.push_back(opflash_hypo);
+		
   	float smallest_chi2 = -1.0;
   	float tot_pe_hypo = 0.;
   	for ( auto const& intime_flash : intime_flashes_v ) {

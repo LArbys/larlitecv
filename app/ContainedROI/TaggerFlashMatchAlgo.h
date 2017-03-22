@@ -61,6 +61,7 @@ namespace larlitecv {
    void ChooseInTimeFlashMatchedCandidates( const std::vector<flashana::QCluster_t>& inputdata, 
 					     const std::vector<flashana::Flash_t>& intime_flashes, std::vector<int>& passes_flashmatch );
 
+   std::vector<larlite::opflash> opflash_hypos;
 
   protected:
 
