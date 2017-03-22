@@ -2,6 +2,10 @@
 #include <string>
 #include <vector>
 
+// larlite
+#include "DataFormat/mctrack.h"
+#include "DataFormat/mcshower.h"
+
 // larcv
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
@@ -44,6 +48,7 @@ int main(int nargs, char** argv ) {
   bool save_thrumu_space = pset.get<bool>("SaveThruMuSpace", true);
   bool save_stopmu_space = pset.get<bool>("SaveStopMuSpace", true);
   bool save_croi_space   = pset.get<bool>("SaveCROISpace", true);
+  bool save_mc           = pset.get<bool>("SaveMC",false);
 
   // Setup Input Data Coordindator  
   larlitecv::DataCoordinator dataco;
@@ -59,6 +64,8 @@ int main(int nargs, char** argv ) {
 
   // Get run entries
   int nentries = dataco.get_nentries("larcv");
+  std::cout << "NUMBER OF ENTRIES: LARCV=" << nentries << " LARLITE=" << dataco.get_nentries("larlite") << std::endl;
+  
   int user_nentries =   pset.get<int>("NumEntries",-1);
   int user_startentry = pset.get<int>("StartEntry",-1);
   int startentry = 0;
@@ -233,6 +240,25 @@ int main(int nargs, char** argv ) {
     // SAVE DATA
 
     WriteInputPayload( input_data, tagger_cfg, dataco_out );
+
+    // SAVE MC DATA, IF SPECIFIED, TRANSFER FROM INPUT TO OUTPUT
+    if ( save_mc && pset.get<larcv::PSet>("MCWriteConfig").get<bool>("WriteSegment") ) {
+      larcv::PSet mcwritecfg = pset.get<larcv::PSet>("MCWriteConfig");
+      larcv::EventImage2D* ev_segment  = (larcv::EventImage2D*)dataco.get_larcv_data(     larcv::kProductImage2D, mcwritecfg.get<std::string>("SegmentProducer") );
+      larcv::EventImage2D* out_segment = (larcv::EventImage2D*)dataco_out.get_larcv_data( larcv::kProductImage2D, mcwritecfg.get<std::string>("SegmentProducer") );
+      for ( auto const& img : ev_segment->Image2DArray() ) out_segment->Append( img );
+    }
+
+    if ( save_mc && pset.get<larcv::PSet>("MCWriteConfig").get<bool>("WriteTrackShower") ) {
+      larcv::PSet mcwritecfg = pset.get<larcv::PSet>("MCWriteConfig");      
+      larlite::event_mctrack* event_mctrack = (larlite::event_mctrack*)dataco.get_larlite_data(     larlite::data::kMCTrack, mcwritecfg.get<std::string>("MCTrackShowerProducer") );
+      larlite::event_mctrack* evout_mctrack = (larlite::event_mctrack*)dataco_out.get_larlite_data( larlite::data::kMCTrack, mcwritecfg.get<std::string>("MCTrackShowerProducer") );
+      (*evout_mctrack) = (*event_mctrack);
+
+      larlite::event_mcshower* event_mcshower = (larlite::event_mcshower*)dataco.get_larlite_data(     larlite::data::kMCShower, mcwritecfg.get<std::string>("MCTrackShowerProducer") );
+      larlite::event_mcshower* evout_mcshower = (larlite::event_mcshower*)dataco_out.get_larlite_data( larlite::data::kMCShower, mcwritecfg.get<std::string>("MCTrackShowerProducer") );
+      (*evout_mcshower) = (*event_mcshower);
+    }
 
     dataco_out.save_entry();
 
