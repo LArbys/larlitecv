@@ -68,6 +68,10 @@ namespace larlitecv {
 		// make pre-matches
 		// factorial fun!
 
+		if ( plane_groups[0].size()==0 || plane_groups[1].size()==0 || plane_groups[2].size()==0 ) {
+			return;
+		}
+
 		Combinator< ClusterGroup > combo( plane_groups );
 
 		do {
