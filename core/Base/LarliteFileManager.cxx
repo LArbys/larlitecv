@@ -133,7 +133,7 @@ namespace larlitecv {
       }
       
       
-      std::cout << "File flavor: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
+      std::cout << "File " << fpath << " flavor-hash: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
 		<< fileentry_rse.run() 
 		<< " " << fileentry_rse.subrun() 
  		<< " "  << fileentry_rse.event() << std::endl;
@@ -170,19 +170,20 @@ namespace larlitecv {
     entry2rse.clear();
 
     // make filelist
-    std::set<RSElist> finalrseset;
+    std::vector<RSElist> finalrseset;
     for ( auto &flavorset : maxset ) {
       std::vector<std::string>& files = flavorfiles.find( flavorset )->second;
       for ( auto &file : files ) {
 	RSElist& rselist = file_rselist.find( file )->second;
-	finalrseset.insert( rselist );
+	finalrseset.push_back( rselist );
       }
     }
     std::vector< RSElist > finalrse_v;
     for ( auto &rselist : finalrseset ) {
       finalrse_v.push_back( rselist );
     }
-    sort( finalrse_v.begin(), finalrse_v.end() );
+    if ( isSorted() )
+      sort( finalrse_v.begin(), finalrse_v.end() );
 
     // make rse dictionaries
     int entrynum = 0;
@@ -198,7 +199,7 @@ namespace larlitecv {
       auto iter_rse2flist = rse_filelist.find( rselist );
       for ( auto &fpath : iter_rse2flist->second ) {
 	finallist.push_back( fpath ); // we end up resorting
-	std::cout << "final list: " << fpath << " (ientry=" << entrynum << ",rse=" << rselist.run() << "," << rselist.subrun() << ")" << std::endl;
+	//std::cout << "final list: " << fpath << " (ientry=" << entrynum << ",rse=" << rselist.run() << "," << rselist.subrun() << ")" << std::endl;
       }
     }
     
