@@ -17,7 +17,7 @@
 // larlitecv
 #include "TaggerFlashMatchAlgoConfig.h"
 #include "TaggerFlashMatchTypes.h"
-#include "SCE/SpaceChargeMicroBooNE.h"
+//#include "SCE/SpaceChargeMicroBooNE.h"
 
 
 namespace larlitecv {
@@ -67,7 +67,7 @@ namespace larlitecv {
   	const TaggerFlashMatchAlgoConfig m_config;   //< configuration class
     larcv::pmtweights::PMTWireWeights m_pmtweights;  	
 		flashana::FlashMatchManager m_flash_matcher; //< Generates Flash Hypothesis producer
-		SpaceChargeMicroBooNE m_sce;           //< Space Charge Effect Calculator
+		//SpaceChargeMicroBooNE m_sce;           //< Space Charge Effect Calculator
 		int m_verbosity;
 		std::map<int,int> m_opch_from_opdet;
 

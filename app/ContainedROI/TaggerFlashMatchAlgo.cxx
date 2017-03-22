@@ -310,10 +310,15 @@ namespace larlitecv {
 
 
   	// we adjust for space charge effects
-  	std::vector<double> delta_ymin = m_sce.GetPosOffsets( extrema[1][0][0], -118.0, extrema[1][0][2] );
-  	std::vector<double> delta_ymax = m_sce.GetPosOffsets( extrema[1][1][0],  118.0, extrema[1][1][2] );
-  	std::vector<double> delta_zmin = m_sce.GetPosOffsets( extrema[2][0][0], extrema[2][0][1], 0.0    );
-  	std::vector<double> delta_zmax = m_sce.GetPosOffsets( extrema[2][1][0], extrema[2][1][1], 1037.0 );
+  	//std::vector<double> delta_ymin = m_sce.GetPosOffsets( extrema[1][0][0], -118.0, extrema[1][0][2] );
+  	//std::vector<double> delta_ymax = m_sce.GetPosOffsets( extrema[1][1][0],  118.0, extrema[1][1][2] );
+  	//std::vector<double> delta_zmin = m_sce.GetPosOffsets( extrema[2][0][0], extrema[2][0][1], 0.0    );
+  	//std::vector<double> delta_zmax = m_sce.GetPosOffsets( extrema[2][1][0], extrema[2][1][1], 1037.0 );
+  	std::vector<double> delta_ymin(3,0);
+  	std::vector<double> delta_ymax(3,0);
+  	std::vector<double> delta_zmin(3,0);
+  	std::vector<double> delta_zmax(3,0);
+	
 
   	if ( m_verbosity>=2 ) {
     	std::cout << "bounds: x=[" << bb[0][0] << "," << bb[0][1] << "] "
