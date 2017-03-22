@@ -43,8 +43,8 @@
 
 #include "ThruMu/BoundarySpacePoint.h"
 #include "ThruMu/AStar3DAlgo.h"
-#include "ThruMu/Linear3DFitter.h"
 #include "ThruMu/BMTrackCluster3D.h"
+#include "ThruMu/Linear3DChargeTagger.h"
 #include "StopMuClusterConfig.h"
 #include "SMClusterTypes.h"
 

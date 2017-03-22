@@ -14,13 +14,10 @@
 // larcv
 #include "UBWireTool/UBWireTool.h"
 
-#include "AStarDirAlgo.h"
 #include "AStar3DAlgo.h"
 #include "Linear3DChargeTagger.h"
 #include "Linear3DPostProcessor.h"
 #include "BoundaryEndPt.h"
-#include "BoundaryIntersectionAlgo.h"
-#include "LineRegionTest.h"
 #include "AStarNodes2BMTrackCluster3D.h"
 
 #include "TFile.h"
@@ -165,9 +162,6 @@ namespace larlitecv {
     // poor-man's profiling
     const clock_t begin_time = clock();
     std::vector<int> modimg(nendpts,0);
-
-    // track tests: acts as a first filter. is there enouguh charge in between the start and end point?
-    LineRegionTest lrt( 30, 0.9, 5.0 ); // (region width, pass threshold, pixel threshold)
 
     // linear 3D track
     Linear3DChargeTagger linetrackalgo( _config.linear3d_cfg ); // finds charge along a line in 3D space
@@ -424,60 +418,6 @@ namespace larlitecv {
                           << " fracmajcharge=" << (*it_combo).second.fracMajCharge << " "                            
                           << std::endl;
             
-            // one last heuristic
-
-
-            // use line region test to decide to go
-            /*
-            std::vector< BMTrackCluster2D > test_track(3);
-            bool shallwe = lrt.test( pts_a, pts_b, img_v, badchimg_v, &test_track );
-            if ( _config.verbosity>1 )
-              std::cout << "  line region test: " << lrt.last_fractions[0] << ", " << lrt.last_fractions[1] << ", " << lrt.last_fractions[2] << std::endl;
-            if ( !shallwe ) { 
-              if ( _config.verbosity>1 )
-                std::cout << "  failed heuristic." << std::endl;
-              continue; // we shant
-            }
-            //check max deviation from straight line
-            for (size_t p=0; p<3; p++) {
-              int maxdev = -1;
-              const BMTrackCluster2D& ttrack = test_track.at(p);
-              for (size_t ipix=0; ipix<ttrack.pixelpath.size(); ipix++) {
-                if ( maxdev < (int)fabs(ttrack.pixelpath.at(ipix).Intensity()) ) {
-                  maxdev = (int)fabs(ttrack.pixelpath.at(ipix).Intensity());
-                }
-              }
-              //std::cout << "  plane " << p << " number of nodes=" << ttrack.pixelpath.size() << " maxdev=" << maxdev << std::endl;
-            }
-            */
-        
-            /*
-            // OLD AStar done on each plane individually
-            std::vector< BMTrackCluster2D > planetracks;
-            int ncompleted = 0;
-            for (size_t p=0; p<3; p++) {
-              std::cout << "  plane=" << p << ": "
-                        << " (c,r): (" << pts_a.at(p).w << "," << pts_a.at(p).t << ") ->"
-                        << " (" << pts_b.at(p).w << "," << pts_b.at(p).t << "), "
-                        << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
-                        << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
-                        << std::endl;
-            
-              // old 2D astar
-              BMTrackCluster2D track = runAstar( pts_a.at(p), pts_b.at(p), img_v.at(p), badchimg_v.at(p), 5, 5, 0, true );
-              // book keeping
-              track.start_pix_idx = i;
-              track.end_pix_idx = j;
-              if ( _config.verbosity>1 ) {
-                std::cout << "  p=" << p 
-                          << " (" << img_v.at(p).meta().pos_x(track.start.col) << "," << img_v.at(p).meta().pos_y(track.start.row) << ") "
-                          << " -> (" << img_v.at(p).meta().pos_x(track.end.col) << "," << img_v.at(p).meta().pos_y(track.end.row) << "): "
-                          << " pathsize=" << track.pixelpath.size() << std::endl;
-              }
-              if ( track.pixelpath.size()>3 ) ncompleted++;
-            }
-            */
-
             // 3D A* path-finding
             bool goal_reached = false;
             track3d = runAstar3D( pts_a, pts_b, img_v, badchimg_v, tagged_v, img_compressed_v, badch_compressed_v, past_tagged_compressed_v, goal_reached );
@@ -495,8 +435,6 @@ namespace larlitecv {
 
           if ( track_made ) {
             // if we made a good track, we mark the end points as used. we also tag the path through the image
-            //space_point_used.at(i) = true;
-            //space_point_used.at(j) = true;
             track3d.markImageWithTrack( img_v, badchimg_v, _config.thresholds, _config.tag_neighborhood, pass_tagged_v );
             pass_tracks.emplace_back( std::move(track3d) );
           }
@@ -562,50 +500,6 @@ namespace larlitecv {
     
     return 0;
   }
-
-  BMTrackCluster2D BoundaryMuonTaggerAlgo::runAstar( const BoundaryEndPt& start_pt, const BoundaryEndPt& end_pt, 
-                                                     const larcv::Image2D& img, const larcv::Image2D& badchimg,
-                                                     int start_pad, int end_pad, int verbose, bool use_badchs ) {
-    // This wraps/interfaces with the AStar algorithm on our image. runs one start to end check.
-    // 2D A* is deprecated.
-    // inputs
-    // ------
-    //  start: starting boundary point
-    //  end: ending boundary point
-    //  img: image with charge deposition we will follow
-    //  start_pad: radius around starting point where we will include all hits in case not start point directly on track
-    //  end_pad:   radius around ending point where we will include all hits in case end point not directly on track
-
-    BMTrackCluster2D track2d;
-    track2d.start = start_pt;
-    track2d.end   = end_pt;
-    track2d.pixelpath.clear();
-    if ( abs(start_pt.row-end_pt.row)>820 ) { // make this a parameter 
-      return track2d; // empty track
-    }
-
-    // Run AStarDirAlgo
-    larlitecv::AStarDirAlgoConfig astar_config;
-    astar_config.astar_threshold     = _config.astar_thresholds;
-    astar_config.astar_neighborhood  = _config.astar_neighborhood;
-    astar_config.astar_start_padding = start_pad;
-    astar_config.astar_end_padding   = end_pad;
-    astar_config.image_padding = 20;
-
-    larlitecv::AStarDirAlgo algo( astar_config );
-    algo.setVerbose(verbose);
-    algo.setBadChImage( badchimg );
-    std::vector<larlitecv::AStarDirNode> path = algo.findpath( img, start_pt.row, start_pt.col, end_pt.row, end_pt.col, 
-                                                              astar_config.astar_threshold.at((int)img.meta().plane()), false );
-
-    for ( auto& node : path ) {
-      larcv::Pixel2D pixel( node.col, node.row );
-      if ( node.row<0 || node.row>=(int)img.meta().rows() || node.col<0 || node.col>=(int)img.meta().cols() ) continue;
-      pixel.Intensity( img.pixel( node.row, node.col ) );
-      track2d.pixelpath += pixel; // uniary operator!
-    }
-    return track2d;
-  }  
  
   BMTrackCluster3D BoundaryMuonTaggerAlgo::runAstar3D( const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt, 
         const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,

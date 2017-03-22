@@ -20,6 +20,7 @@
 
 // larlitecv
 #include "ThruMu/BoundaryEndPt.h"
+#include "ThruMu/Linear3DChargeTagger.h"
 
 namespace larlitecv {
 
@@ -998,9 +999,9 @@ namespace larlitecv {
     const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath ) {
 
     // linear track
-    Linear3DFitterConfig cfg;
+    Linear3DChargeTaggerConfig cfg;
     cfg.step_size = 3.0;
-    Linear3DFitter lineartrack( cfg );
+    Linear3DChargeTagger lineartrack( cfg );
     PointInfoList path = lineartrack.findpath( img_v, badch_v, start_row, goal_row, start_cols, goal_cols );
 
     //std::cout << "linear track result: goodfrac=" << path.fractionGood() << " majfrac=" << path.fractionHasChargeOnMajorityOfPlanes() << std::endl;
