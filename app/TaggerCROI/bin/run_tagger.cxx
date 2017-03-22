@@ -13,6 +13,7 @@
 #include "DataFormat/EventImage2D.h"
 #include "DataFormat/Image2D.h"
 #include "DataFormat/ImageMeta.h"
+#include "ANN/ANNAlgo.h"
 
 // larlitecv
 #include "GapChs/EmptyChannelAlgo.h"
@@ -56,6 +57,8 @@ int main(int nargs, char** argv ) {
   dataco.set_filelist( pset.get<std::string>("LArLiteInputFilelist"), "larlite" );
   dataco.configure( cfg_file, "StorageManager", "IOManager", "TaggerCROI" );
   dataco.initialize();
+
+  //dataco.get_larlite_io().set_read_cache_size(0);
 
   // Output Data Coordinator
   larlitecv::DataCoordinator dataco_out;
@@ -119,11 +122,11 @@ int main(int nargs, char** argv ) {
 
     // ------------------------------------------------------------------------------------------//
     // FILL IMAGES
-    
-    for ( auto const &img : event_imgs->Image2DArray() ) {
-      larcv::Image2D dejebbed( img );
-      if ( DeJebWires ) {
-      	const larcv::ImageMeta& meta = img.meta();
+    input_data.img_v.clear();
+    event_imgs->Move( input_data.img_v );
+    if ( DeJebWires ) {    
+      for ( auto &img : input_data.img_v ) {
+        const larcv::ImageMeta& meta = img.meta();
         for ( int col=0; col<(int)meta.cols(); col++) {
           for (int row=0; row<(int)meta.rows(); row++) {
             float val = img.pixel( row, col );
@@ -132,16 +135,13 @@ int main(int nargs, char** argv ) {
                 val *= jebwiresfactor;
               }
             }
-            dejebbed.set_pixel(row,col,val);
+            img.set_pixel(row,col,val);
           }
         }
       }
-      input_data.img_v.emplace_back( dejebbed );
     }
     if ( input_data.img_v.size()!=3 ) 
     	throw std::runtime_error("Number of Images incorrect.");
-    // clear the images. we've made a copy
-    event_imgs->clear();
     
     // ------------------------------------------------------------------------------------------//
     // LABEL EMPTY CHANNELS
@@ -264,6 +264,7 @@ int main(int nargs, char** argv ) {
 
     dataco_out.save_entry();
 
+    ann::ANNAlgo::cleanup();
   }
 
   dataco.finalize();
