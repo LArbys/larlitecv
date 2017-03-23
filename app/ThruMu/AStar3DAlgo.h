@@ -264,7 +264,7 @@ namespace larlitecv {
   // ALGO 
   class AStar3DAlgo {
 
-    AStar3DAlgo() { verbose=2; };
+      AStar3DAlgo() { verbose=2; doPxValEstimate = false; };
   public:
 
     AStar3DAlgo( AStar3DAlgoConfig config ) { 
@@ -274,6 +274,7 @@ namespace larlitecv {
     virtual ~AStar3DAlgo() {};
     
     void setVerbose( int v ) { verbose = v; };
+      void setPixelValueEsitmation( bool doIt ) { doPxValEstimate = doIt; };
 
     std::vector<AStar3DNode> findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
       const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached );
@@ -300,6 +301,7 @@ namespace larlitecv {
 
     AStar3DAlgoConfig _config;
     int verbose;
+      bool doPxValEstimate;
 
    // void evaluateBadChNeighbors( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
    //    AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, 
