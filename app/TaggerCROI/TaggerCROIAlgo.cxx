@@ -111,7 +111,7 @@ namespace larlitecv {
 
     // collect unused endpoints
     for ( size_t isp=0; isp<filtered_endpoints.size(); isp++ ) {
-    	if ( used_filtered_endpoints.at(isp)==1 ) 
+    	if ( used_filtered_endpoints.at(isp)==1 )
     		output.used_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
     	else
     		output.unused_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
@@ -189,7 +189,7 @@ namespace larlitecv {
       }
     }
 
-    std::cout << "End of StopMu Algo" << std::endl;  	
+    std::cout << "End of StopMu Algo" << std::endl;
 
   	return output;
 
@@ -207,7 +207,7 @@ namespace larlitecv {
 
   	// Make Thrumu/StopMu tagged and subtracted images
     //std::vector< larcv::Image2D > tagged_v;
-    //std::vector< larcv::Image2D > subimg_v;    
+    //std::vector< larcv::Image2D > subimg_v;
     for ( size_t p=0; p<input.img_v.size(); p++) {
       larcv::Image2D tagged( input.img_v.at(p).meta() );
       tagged.paint(0.0);
@@ -226,7 +226,7 @@ namespace larlitecv {
       }
       output.tagged_v.emplace_back( std::move(tagged) );
       output.subimg_v.emplace_back( std::move(sub) );
-    } 	
+    }
 
     // ----------------------
     //  RUN ALGOS
@@ -261,7 +261,7 @@ namespace larlitecv {
     }
 
     // Find Contained Clusters
-    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;        
+    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
     for ( auto const& vol : output.vols_v ) {
 
       // there should be a selection here...
@@ -271,8 +271,8 @@ namespace larlitecv {
 
       std::cout << "VOL: clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
         << " numslices=" << vol.num_slices
-        << " goodslices=" << vol.num_good_slices 
-        << " fracgood=" << vol.frac_good_slices 
+        << " goodslices=" << vol.num_good_slices
+        << " fracgood=" << vol.frac_good_slices
         << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
         << std::endl;
 
@@ -321,7 +321,7 @@ namespace larlitecv {
         TVector3 pos( xyz[0], xyz[1], xyz[2] );
         const std::vector<float>& xyz_next = xyz_v.at(ipt+1);
         float dir[3] = {0};
-        float norm = 0.;        
+        float norm = 0.;
         for (int i=0; i<3; i++) {
           dir[i] = xyz_next[i] - xyz[i];
           norm += dir[i]*dir[i];
@@ -363,7 +363,7 @@ namespace larlitecv {
         std::cout << "  " << croi.BB(p).dump() << std::endl;
       }
       output.croi_v.emplace_back( std::move(croi) );
-    } 
+    }
 
     // ------------------------------------------------------------------------//
     // Make Combined Tagged Image
@@ -386,7 +386,9 @@ namespace larlitecv {
 	      tagval = 40.0;
 	    }
 	    for ( size_t p=0; p<output.combined_v.size(); p++ ) {
+        const larcv::ImageMeta& meta = input.img_v.at(p).meta();
 	      for ( auto const& pix : pixels.at(p) ) {
+          if ( (int)pix.X()<0 ||  pix.X()>=meta.cols() || (int)pix.Y()<0 || pix.Y()>=meta.rows() ) continue;
 	        int pixval = output.combined_v.at(p).pixel( pix.Y(), pix.X() );
 	        if ( tagval > pixval )
 	          output.combined_v.at(p).set_pixel( pix.Y(), pix.X(), tagval );
@@ -394,7 +396,7 @@ namespace larlitecv {
 	      }
       }
     }
-    
+
     return output;
   }
 }
