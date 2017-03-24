@@ -4,9 +4,9 @@ CXXFLAGS += -I. $(shell root-config --cflags) -g
 CXXFLAGS += $(shell larlite-config --includes)
 CXXFLAGS += $(shell larlite-config --includes)/../UserDev
 CXXFLAGS += $(shell larcv-config --includes)
-CXXFLAGS += $(shell larcv-config --includes)/../app
+CXXFLAGS += -I$(LARCV_BASEDIR)/app
 CXXFLAGS += $(shell larlitecv-config --includes)
-CXXFLAGS += $(shell larlitecv-config --includes)/../app
+CXXFLAGS += -I$(LARLITECV_BASEDIR)/app
 
 # Include your shared object lib location
 LDFLAGS += $(shell larlitecv-config --libs)
@@ -23,13 +23,23 @@ include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 # Add your program below with a space after the previous one.
 # This makefile compiles all binaries specified below.
-PROGRAMS = run_pixel_analysis
+PROGRAMS = run_pixel_analysis_old_version run_pixel_analysis
+EXCLUDE_PROGRAMS = plot_flash_timing run_pixel_analysis_crb_with_double_covered_pixels run_pixel_analysis_for_Taritree
+PROGRAM_SRC = $(PROGRAMS:=.cxx)
+EX_PROGRAM_SRC = $(EXCLUDE_PROGRAMS:=.cxx)
+SOURCES = $(filter-out $(PROGRAM_SRC) $(EX_PROGRAM_SRC), $(wildcard *.cxx))
+OBJS    = $(SOURCES:.cxx=.o)
 
 all:		$(PROGRAMS)
 
-$(PROGRAMS): $(PROGRAMS).cxx
+%.o: %.cxx
 	@echo '<<compiling' $@'>>'
-	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS)
+	$(CXX) $(CXXFLAGS) -c $^ -o $@
+
+$(PROGRAMS): $(PROGRAMS).cxx $(OBJS)
+	@echo '<<compiling' $@'>>'
+	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(OBJS) $(LDFLAGS)
 	@rm -rf *.dSYM
 clean:	
 	rm -f $(PROGRAMS)
+

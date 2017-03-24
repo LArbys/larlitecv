@@ -1,7 +1,16 @@
 #include "Base/DataCoordinator.h"
 
+#include <iostream>
+#include <string>
+#include <sstream>
+
+// ROOT
+#include "TFile.h"
+#include "TTree.h"
+
 // larcv
 #include "DataFormat/EventImage2D.h"
+#include "DataFormat/EventPixel2D.h"
 #include "DataFormat/EventROI.h"
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
@@ -14,134 +23,100 @@
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
 
-#include "TFile.h"
-#include "TTree.h"
+// larlitecv
+#include "dwall.h"
 
-float dwall( const std::vector<float>& pos, int& boundary_type ) {
-
-  float dx1 = fabs(pos[0]);
-  float dx2 = fabs(255-pos[0]);
-  float dy1 = fabs(116.0-pos[1]);
-  float dy2 = fabs(-116.0-pos[1]);
-  float dz1 = fabs(pos[2]);
-  float dz2 = fabs(1036.0-pos[2]);
-
-  float dwall = 1.0e9;
-
-  if ( dy1<dwall ) {
-  	dwall = dy1;
-  	boundary_type = 0;
-  }
-  if ( dy2<dwall ) {
-  	dwall = dy2;
-  	boundary_type = 1;
-  }
-  if ( dz1<dwall ) {
-  	dwall = dz1;
-  	boundary_type = 2;
-  }
-  if ( dz2<dwall ) {
-  	dwall = dz2;
-  	boundary_type = 3;
-  }
-  if ( dx1<dwall ) {
-  	dwall = dx1;
-  	boundary_type = 4;
-  }
-  if ( dx2<dwall ) {
-  	dwall = dx2;
-  	boundary_type = 5;
-  }
-
-  return dwall;
-
-}
-
+// OpenCV
+#include <opencv2/opencv.hpp>
+#include <opencv2/core/core.hpp>
+#include "CVUtil/CVUtil.h"
 
 int main( int nargs, char** argv ) {
 
-  // run pixel analysis. use 
+  // PIXEL ANALYSIS
 
-  // we need to have a data coordinator for each stage because the number of entries could be different.
-  // we'll coordinate by using event,subrun,run information
-  std::string data_folder = "~/working/data/larbys/cosmic_tagger_dev/";    // blade
-  //std::string data_folder = "~/data/larbys/cosmic_tagger/mcc7_bnbcosmic/"; // nudot
+  if ( nargs!=2 ) {
+    std::cout << "usage: ./run_pixel_analysis_old_version [config file]" << std::endl;
+    return 0;
+  }
+  std::string cfg_file = argv[1];
 
-  larlitecv::DataCoordinator dataco_source;
-  dataco_source.add_inputfile( data_folder+"/output_larcv.root", "larcv" ); // segment image/original image
-  dataco_source.add_inputfile( data_folder+"/output_larlite.root", "larlite"); //source larlite file
+  larcv::PSet cfg_root = larcv::CreatePSetFromFile( cfg_file );
+  larcv::PSet pset = cfg_root.get<larcv::PSet>("AnalyzeTagger");
 
-  larlitecv::DataCoordinator dataco_thrumu;
-	dataco_thrumu.add_inputfile( data_folder+"/output_larcv_testmcbnbcosmic_signalnumu.root", "larcv" ); // thrumu-tagger info, larcv
-  dataco_thrumu.add_inputfile( data_folder+"/output_larlite_testmcbnbcosmic_signalnumu.root", "larlite"); //thrumu-tagged info, larlite
+  enum { kSource=0, kCROIfile, kNumSourceTypes } SourceTypes_t;
+  std::string source_param[2] = { "InputSourceFilelist", "InputCROIFilelist" };
+  larlitecv::DataCoordinator dataco[kNumSourceTypes];
+  for (int isrc=0; isrc<kNumSourceTypes; isrc++ ) {
+    dataco[isrc].set_filelist( pset.get<std::string>(source_param[isrc]+"LArCV"),   "larcv" );
+    dataco[isrc].set_filelist( pset.get<std::string>(source_param[isrc]+"LArLite"), "larlite" );
+    dataco[isrc].configure( cfg_file, "StorageManager", "IOManager", "AnalyzeTagger" );
+    dataco[isrc].initialize();
+  }
 
-  larlitecv::DataCoordinator dataco_stopmu;
-  dataco_stopmu.add_inputfile( data_folder+"/output_stopmu_larcv_p1.root", "larcv" ); //stopmu-tagger output
-
-  larlitecv::DataCoordinator dataco_nucand;
-  dataco_nucand.add_inputfile( "../ContainedROI/bin/output_containedroi_larcv.root", "larcv");
-  dataco_nucand.add_inputfile( "../ContainedROI/bin/output_containedroi_larlite.root", "larlite");
-
-  dataco_source.configure( "config.cfg", "StorageManager", "IOManager", "PixelAnalysis" );
-  dataco_thrumu.configure( "config.cfg", "StorageManager", "IOManager", "PixelAnalysis" );
-  dataco_stopmu.configure( "config.cfg", "StorageManager", "IOManager", "PixelAnalysis" );
-  dataco_nucand.configure( "config.cfg", "StorageManager", "IOManager", "PixelAnalysis" );
-
-  dataco_source.initialize();
-  dataco_thrumu.initialize();
-  dataco_stopmu.initialize();
-  dataco_nucand.initialize();
-
-  std::cout << "data[source] entries=" << dataco_source.get_nentries("larcv") << std::endl;
-  std::cout << "data[thrumu] entries=" << dataco_thrumu.get_nentries("larcv") << std::endl;
-  std::cout << "data[stopmu] entries=" << dataco_stopmu.get_nentries("larcv") << std::endl;
-  std::cout << "data[nucand] entries=" << dataco_nucand.get_nentries("larcv") << std::endl;
+  for (int isrc=0; isrc<kNumSourceTypes; isrc++ ) {
+    std::cout << "data[" << source_param[isrc] << "] entries=" << dataco[isrc].get_nentries("larcv") << std::endl;
+  }
 
   // configuration parameters
-  larcv::PSet cfg = larcv::CreatePSetFromFile( "config.cfg" );
-  larcv::PSet pixana_cfg = cfg.get<larcv::PSet>("PixelAnalysis");
-  float fthreshold   = pixana_cfg.get<float>("PixelThreshold");
-  int fvertex_radius = pixana_cfg.get<int>("PixelRadius");
-  int verbosity      = pixana_cfg.get<int>("Verbosity",0);
+  float fthreshold       = pset.get<float>("PixelThreshold");
+  int tag_neighborhood   = pset.get<int>("TagNeighborhood",10);
+  int fvertex_radius     = pset.get<int>("PixelRadius");
+  int verbosity          = pset.get<int>("Verbosity",0);
 
   // setup output
+  enum { kThruMu=0, kStopMu, kUntagged, kCROI, kNumStages } Stages_t;
+
 
   TFile* rfile = new TFile("output_pixel_analysis.root", "recreate");
   TTree* tree = new TTree("pixana", "Pixel-level analysis");
+
+  // Event Index
   int run, subrun, event;
-  int lepton_boundary; // index of boundary that lepton end point is nearest
-  int vertex_boundary; // index of boundary that vertex is nearest
-  int ncosmic_pixels;  // number of non-neutrino pixels
-  int nnu_pixels;      // number of neutrino pixels
-  int nvertex_pixels;  // number of neutrino pixels within some pixel radius of vertex
-  int ncosmic_tagged;  // number of non-neutrino pixels tagged
-  int nnu_tagged;      // number of neutrino pixels tagged
-  int nvertex_tagged;  // number of neutrino pixels within some pixel radius of vertex tagged
-  int mode;            // interaction mode
-  int current;         // interaction cufrrent
+
+  // Truth Quantities about interaction
+  int mode;                  // interaction mode
+  int current;               // interaction cufrrent
+  int lepton_boundary;       // index of boundary that lepton end point is nearest
+  int vertex_boundary;       // index of boundary that vertex is nearest
   int num_protons_over60mev; // as named
-  int num_rois;        // number of identified ROis
-  float EnuGeV;        // neutrino energy in GeV
-  float fdwall;        // dwall
-  float dwall_lepton;  // dwll for end of lepton
-  float frac_cosmic;   // fraction of cosmic tagged
-  float frac_nu;       // fraction of neutrino pixels tagged
-  float frac_vertex;   // fraction of vertex pixels tagged
-  float frac_inroi;    // fraction of pixels contained in one of the rois
-  float primary_proton_ke; // ke of the proton driving from the hit nucleon
-  float lepton_cosz;
-  float lepton_phiz;
-  float fpos[3];       // vertex
+  float EnuGeV;              // neutrino energy in GeV
+  float fdwall;              // dwall
+  float dwall_lepton;        // dwll for end of lepton
+  float fpos[3];             // vertex
+  float lepton_cosz;         // lepton dir
+  float lepton_phiz;         // lepton dir
+  float primary_proton_ke;   // ke of the proton driving from the hit nucleon
+
+  // Truth Pixel Quantities
+  int nthreshold_pixels[4]; // number of pixels above threshold
+  int ncosmic_pixels[4];    // number of non-neutrino pixels
+  int nnu_pixels[4];        // number of neutrino pixels
+  int nvertex_pixels[4];    // number of neutrino pixels within some pixel radius of vertex
+
+  // Tagged Pixel Quantities
+  int ncosmic_tagged[kNumStages][4];       // number of non-neutrino pixels tagged
+  int ncosmic_tagged_once[kNumStages][4];  // number of non-neutrino pixels tagged
+  int ncosmic_tagged_many[kNumStages][4];  // number of non-neutrino pixels tagged
+  int nnu_tagged[kNumStages][4];           // number of neutrino pixels tagged
+  int nvertex_tagged[kNumStages][4];       // number of neutrino pixels within some pixel radius of vertex tagged
+  std::stringstream s_arr;
+  s_arr << "[" << (int)kNumStages << "][4]/I";
+
+  // ROI quantities
+  int num_rois;     // number of identified ROis
+  int nnu_inroi[4]; // number of nu pixels contained in the CROI
+  // float frac_cosmic;   // fraction of cosmic tagged
+  // float frac_nu;       // fraction of neutrino pixels tagged
+  // float frac_vertex;   // fraction of vertex pixels tagged
+  // float frac_inroi;    // fraction of pixels contained in one of the rois
+
+  // Event
   tree->Branch("run",&run,"run/I");
   tree->Branch("subrun",&subrun,"subrun/I");
   tree->Branch("event",&event,"event/I");
-  tree->Branch("ncosmic_pixels",&ncosmic_pixels,"ncosmic_pixels/I");
-  tree->Branch("nnu_pixels",&nnu_pixels,"nnu_pixels/I");
-  tree->Branch("nvertex_pixels",&nvertex_pixels,"nvertex_pixels/I");
-  tree->Branch("ncosmic_tagged",&ncosmic_tagged,"ncosmic_tagged/I");
-  tree->Branch("nnu_tagged",&nnu_tagged,"nnu_tagged/I");
-  tree->Branch("nvertex_tagged",&nvertex_tagged,"nvertex_tagged/I");
-  tree->Branch("num_rois", &num_rois, "num_rois/I");
+
+  // Truth
   tree->Branch("mode",&mode,"mode/I");
   tree->Branch("current",&current,"current/I");
   tree->Branch("lepton_boundary",&lepton_boundary,"lepton_boundary/I");
@@ -150,51 +125,69 @@ int main( int nargs, char** argv ) {
   tree->Branch("EnuGeV",&EnuGeV,"EnuGeV/F");
   tree->Branch("dwall",&fdwall,"dwall/F");
   tree->Branch("dwall_lepton",&dwall_lepton,"dwall_lepton/F");
-  tree->Branch("frac_cosmic",&frac_cosmic,"frac_cosmic/F");
-  tree->Branch("frac_nu",&frac_nu,"frac_nu/F");
-  tree->Branch("frac_vertex",&frac_vertex,"frac_vertex/F");
-  tree->Branch("frac_inroi", &frac_inroi, "frac_inroi/F");
-  tree->Branch("primary_proton_ke", &primary_proton_ke, "primary_proton_ke/F");
   tree->Branch("pos",fpos,"pos[3]/F");
   tree->Branch("lepton_cosz", &lepton_cosz, "lepton_cosz/F");
   tree->Branch("lepton_phiz", &lepton_phiz, "lepton_phiz/F");
+  tree->Branch("primary_proton_ke", &primary_proton_ke, "primary_proton_ke/F");
 
-  int nentries = dataco_stopmu.get_nentries("larcv");
+  tree->Branch("nthreshold_pixels", nthreshold_pixels, "nthreshold_pixels[4]/I");
+  tree->Branch("ncosmic_pixels",    ncosmic_pixels,    "ncosmic_pixels[4]/I");
+  tree->Branch("nnu_pixels",        nnu_pixels,        "nnu_pixels[4]/I");
+  tree->Branch("nvertex_pixels",    nvertex_pixels,    "nvertex_pixels[4]/I");
 
-  dataco_source.goto_entry(0,"larcv");
-  dataco_thrumu.goto_entry(0,"larcv");
-  dataco_stopmu.goto_entry(0,"larcv");
-  dataco_nucand.goto_entry(0,"larcv");
+  tree->Branch("ncosmic_tagged",      ncosmic_tagged,      std::string("ncosmic_tagged"+s_arr.str()).c_str() );
+  tree->Branch("ncosmic_tagged_once", ncosmic_tagged_once, std::string("ncosmic_tagged_once"+s_arr.str()).c_str() );
+  tree->Branch("ncosmic_tagged_many", ncosmic_tagged_many, std::string("ncosmic_tagged_many"+s_arr.str()).c_str() );
+  tree->Branch("nnu_tagged",          nnu_tagged,          std::string("nnu_tagged"+s_arr.str()).c_str() );
+  tree->Branch("nvertex_tagged",      nvertex_tagged,      std::string("nvertex_tagged"+s_arr.str()).c_str() );
+
+  tree->Branch("num_rois", &num_rois, "num_rois/I");
+  tree->Branch("nnu_inroi", nnu_inroi, "nnu_inroi[4]" );
+  //tree->Branch("frac_cosmic",&frac_cosmic,"frac_cosmic/F");
+  //tree->Branch("frac_nu",&frac_nu,"frac_nu/F");
+  //tree->Branch("frac_vertex",&frac_vertex,"frac_vertex/F");
+  //tree->Branch("frac_inroi", &frac_inroi, "frac_inroi/F");
+
+
+  int nentries = dataco[kCROIfile].get_nentries("larcv");
 
   for (int ientry=0; ientry<nentries; ientry++) {
 
-    dataco_nucand.goto_entry(ientry,"larcv");
+    dataco[kCROIfile].goto_entry(ientry,"larcv");
+    dataco[kCROIfile].get_id(run,subrun,event);
 
-    dataco_nucand.get_id(run,subrun,event);
-
-    if ( ientry%10==0 || verbosity>0 ) {
-      std::cout << "entry " << ientry << std::endl;
-      std::cout << " (r,s,e)=(" << run << ", " << subrun << ", " << event << ")" << std::endl;
+    for ( int isrc=0; isrc<kNumSourceTypes; isrc++ ) {
+      if ( isrc!=kCROIfile ) {
+        dataco[isrc].goto_event(run,subrun,event, "larcv");
+      }
     }
 
-    dataco_thrumu.goto_event(run,subrun,event,"larcv");
-    dataco_source.goto_event(run,subrun,event,"larcv");
-    dataco_nucand.goto_event(run,subrun,event,"larcv");
+    if ( ientry%10==0 || verbosity>0 ) {
+      std::cout << "entry " << ientry << ": (r,s,e)=(" << run << ", " << subrun << ", " << event << ")" << std::endl;
+    }
 
     // initialize the output variables
-    ncosmic_pixels = 0;
-    nnu_pixels = 0;
-    nvertex_pixels = 0;
-    ncosmic_tagged = 0;
-    nnu_tagged = 0;
-    nvertex_tagged = 0;
+    for (int p=0; p<4; p++) {
+      ncosmic_pixels[p] = 0;
+      nnu_pixels[0] = 0;
+      nvertex_pixels[p] = 0;
+      nthreshold_pixels[p] = 0;
+      nnu_inroi[p] = 0;
+      for (int istage=0; istage<kNumStages; istage++) {
+	      ncosmic_tagged[istage][p] = 0;
+	      ncosmic_tagged_once[istage][p] = 0;
+	      ncosmic_tagged_many[istage][p] = 0;
+	      nnu_tagged[istage][p] = 0;
+	      nvertex_tagged[istage][p] = 0;
+      }
+    }
     mode = 0;
     current = 0;
     EnuGeV = 0.;
     fdwall = 0.;
-    frac_cosmic = 0.;
-    frac_vertex = 0.;
-    frac_nu = 0.;
+    //frac_cosmic = 0.;
+    //frac_vertex = 0.;
+    //frac_nu = 0.;
     fpos[0] = fpos[1] = fpos[2] = 0.;
     num_protons_over60mev = 0;
     primary_proton_ke = 0.;
@@ -202,20 +195,22 @@ int main( int nargs, char** argv ) {
     // ok now to do damage
 
     // get the original, segmentation, and tagged images
-    larcv::EventImage2D* ev_segs   = (larcv::EventImage2D*)dataco_source.get_larcv_data(larcv::kProductImage2D,"segment");
-    larcv::EventImage2D* ev_imgs   = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"modimgs");
-    //larcv::EventImage2D* ev_badch  = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"badch");	
-    larcv::EventImage2D* ev_thrumu = (larcv::EventImage2D*)dataco_thrumu.get_larcv_data(larcv::kProductImage2D,"marked3d");
-    larcv::EventImage2D* ev_stopmu = (larcv::EventImage2D*)dataco_stopmu.get_larcv_data(larcv::kProductImage2D,"stopmu");  	
+    larcv::EventImage2D* ev_segs   = (larcv::EventImage2D*)dataco[kSource].get_larcv_data(larcv::kProductImage2D,"segment");
+    larcv::EventImage2D* ev_imgs   = (larcv::EventImage2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductImage2D,"modimg");
+    larcv::EventImage2D* ev_badch  = (larcv::EventImage2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductImage2D,"gapchs");
+
+    larcv::EventPixel2D* ev_pix[kNumStages] = {0};
+    ev_pix[kThruMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"thrumupixels");
+    ev_pix[kStopMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"stopmupixels");
+    ev_pix[kUntagged]  = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"untaggedpixels");
+    ev_pix[kCROI]      = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"croipixels");
 
     const std::vector<larcv::Image2D>& imgs_v   = ev_imgs->Image2DArray();
-    //const std::vector<larcv::Image2D>& badch_v  = ev_badch->Image2DArray();
+    const std::vector<larcv::Image2D>& badch_v  = ev_badch->Image2DArray();
     const std::vector<larcv::Image2D>& segs_v   = ev_segs->Image2DArray();
-    const std::vector<larcv::Image2D>& thrumu_v = ev_thrumu->Image2DArray();
-    const std::vector<larcv::Image2D>& stopmu_v = ev_stopmu->Image2DArray();
 
     // get the result of the contained ROI analysis
-    larcv::EventROI* ev_contained_roi = (larcv::EventROI*)dataco_nucand.get_larcv_data(larcv::kProductROI,"containedroi");
+    larcv::EventROI* ev_contained_roi = (larcv::EventROI*)dataco[kCROIfile].get_larcv_data(larcv::kProductROI,"croi");
     const std::vector<larcv::ROI>& containedrois_v = ev_contained_roi->ROIArray();
     num_rois = (int)containedrois_v.size();
     std::cout << "==ROIs==" << std::endl;
@@ -224,8 +219,9 @@ int main( int nargs, char** argv ) {
     }
 
     // get other information, e.g. truth
-    larlite::event_mctruth* ev_mctruth = (larlite::event_mctruth*)dataco_source.get_larlite_data(larlite::data::kMCTruth,"generator");
-    larlite::event_mctrack* ev_mctrack = (larlite::event_mctrack*)dataco_source.get_larlite_data(larlite::data::kMCTrack,"mcreco");
+    larlite::event_mctruth* ev_mctruth   = (larlite::event_mctruth*) dataco[kSource].get_larlite_data(larlite::data::kMCTruth,"generator");
+    larlite::event_mctrack* ev_mctrack   = (larlite::event_mctrack*) dataco[kSource].get_larlite_data(larlite::data::kMCTrack,"mcreco");
+    larlite::event_mcshower* ev_mcshower = (larlite::event_mcshower*)dataco[kSource].get_larlite_data(larlite::data::kMCShower,"mcreco");
 
     // extract the truth quantities of interest
     const larlite::mcnu& neutrino = ev_mctruth->at(0).GetNeutrino();
@@ -242,7 +238,7 @@ int main( int nargs, char** argv ) {
     dpos[0] = nu_pos.X();
     dpos[1] = nu_pos.Y();
     dpos[2] = nu_pos.Z();
-    fdwall = dwall(fpos_v, vertex_boundary);
+    fdwall = larlitecv::dwall(fpos_v, vertex_boundary);
     if ( verbosity>0 )
       std::cout << " Enu=" << EnuGeV << std::endl;
 
@@ -252,7 +248,7 @@ int main( int nargs, char** argv ) {
     for (size_t p=0; p<3; p++) {
       wid[p] = ::larutil::Geometry::GetME()->WireCoordinate( dpos, p );
       if ( wid[p]>=0 && wid[p]<3456 )
-	vertex_col[p] = imgs_v.at(p).meta().col(wid[p]);
+	      vertex_col[p] = imgs_v.at(p).meta().col(wid[p]);
       fpos[p] = fpos_v[p];
     }
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
@@ -261,7 +257,9 @@ int main( int nargs, char** argv ) {
     if ( ftick >= imgs_v.at(0).meta().min_y() && ftick<=imgs_v.at(0).meta().max_y() )
       vertex_row = imgs_v.at(0).meta().row( ftick );
 
-    // get the initial direction of the leptop
+    std::cout << "VERTEX (" << vertex_row << ", " << vertex_col[0] << "," << vertex_col[1] << "," << vertex_col[2] << ")" << std::endl;
+
+    // get the initial direction of the lepton
     const std::vector<larlite::mcpart>& particles = ev_mctruth->at(0).GetParticles();
     bool found_lepton = false;
     int hit_nucleon_id = 2;
@@ -270,29 +268,29 @@ int main( int nargs, char** argv ) {
     for ( auto  const& particle : particles ) {
       float KE = particle.Trajectory().front().E() - particle.Mass();
       if ( !found_lepton && (particle.PdgCode()==13 || particle.PdgCode()==-13) ) {
-	// found the lepton
+	      // found the lepton
         const larlite::mctrajectory& traj = particle.Trajectory();
-	std::cout << "  lepton E=" << particle.Trajectory().front().E() << " KE=" << KE << std::endl;
+	      std::cout << "  lepton E=" << traj.front().E() << " KE=" << KE << std::endl;
         found_lepton = true;
         lepton_track_id = particle.TrackId();
       }
       else if ( particle.PdgCode()==2212 ) {
-        std::cout << "  a proton. p=" << particle.Momentum(0).Vect().Mag() 
+        std::cout << "  a proton. p=" << particle.Momentum(0).Vect().Mag()
           << " E=" << particle.Trajectory().front().E() << " KE=" << KE
-          << " status=" << particle.StatusCode() 
+          << " status=" << particle.StatusCode()
           << " trackid=" << particle.TrackId() << " mother=" << particle.Mother()
           << std::endl;
-        if ( particle.StatusCode()!=11 && KE>0.060 && protonids.find(particle.Mother())==protonids.end() ) 
-	  num_protons_over60mev++; // status 11 means from genie? threshold cut. check that it isn't from the original proton
+        if ( particle.StatusCode()!=11 && KE>0.060 && protonids.find(particle.Mother())==protonids.end() )
+	        num_protons_over60mev++; // status 11 means from genie? threshold cut. check that it isn't from the original proton
         protonids.insert( particle.TrackId() );
       }
       else if ( particle.PdgCode()==14 || particle.PdgCode()==-14 ) {
         std::cout << "  the neutrino (pdg=" << particle.PdgCode() << ") Enu=" << particle.Trajectory().front().E() << std::endl;
-      } 
+      }
       else {
-        std::cout << "  pdg=" << particle.PdgCode() 
+        std::cout << "  pdg=" << particle.PdgCode()
           << " E=" << particle.Trajectory().front().E() << " KE=" << KE
-          << " status=" << particle.StatusCode() 
+          << " status=" << particle.StatusCode()
           << " end process=" << particle.EndProcess()
           << " trackid=" << particle.TrackId() << " mother=" << particle.Mother() << std::endl;
       }
@@ -350,23 +348,33 @@ int main( int nargs, char** argv ) {
       for (int v=0; v<3; v++) lepton_dir[v] /= norm;
         lepton_cosz = lepton_dir[2];
       lepton_phiz = atan2( lepton_dir[1], lepton_dir[0] );
-      dwall_lepton = dwall( lepton_end, lepton_boundary );
+      dwall_lepton = larlitecv::dwall( lepton_end, lepton_boundary );
     }//end of loop over mc tracks
 
+    // make thruth pixel counts
     // count the pixels. determine if cosmic and neutrino are tagged. also if neutrino is in rois
     // we loop through the rows and cols
-    int num_nupixels_inroi = 0;
+    std::vector<larcv::Image2D> nupix_imgs_v;
     for (size_t p=0; p<3; p++) {
+      // we create a neutrino pixel image, to make things easier downstream
+      larcv::Image2D nupix_img( imgs_v.at(p).meta() );
+      nupix_img.paint(0);
       for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
         for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
-	  // check if this is a pixel of interest
+	        // check if this is a pixel of interest
           if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
+	        nthreshold_pixels[p]++;
+	        nthreshold_pixels[3]++;
 
           bool near_vertex = false;
-	  // are we some radius from the vertex?
+          bool is_nu_pix = false;
+
+	        // are we some radius from the vertex?
           if ( (int)row>=vertex_row-fvertex_radius && (int)row<=vertex_row+fvertex_radius
             && (int)col>=vertex_col[p]-fvertex_radius && (int)col<=vertex_col[p]+fvertex_radius ) {
-            near_vertex = true;		
+            near_vertex = true;
+            nvertex_pixels[p]++;
+            nvertex_pixels[3]++;
           }
 
           // above threshold. is it a neutrino pixel?
@@ -384,48 +392,139 @@ int main( int nargs, char** argv ) {
           }
           if ( in_seg_image && segs_v.at(p).pixel(seg_row,seg_col)>0 ) {
 
-            nnu_pixels++;
-            if (near_vertex)
-              nvertex_pixels++;
+            is_nu_pix = true;
+            nnu_pixels[p]++;
+            nnu_pixels[3]++;
+            //if (near_vertex) {
+            //  nvertex_pixels[p]++;
+            //  nvertex_pixels[3]++;
+	          //}
 
-	    // is it tagged?
-            if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 )  {
-              nnu_tagged++;
-              if ( near_vertex )
-                nvertex_tagged++;
-            }
             // is the neutrino pixel inside the ROI?
             for ( auto const& cand_roi : containedrois_v ) {
               float wired = imgs_v.at(p).meta().pos_x(col);
               float tick  = imgs_v.at(p).meta().pos_y(row);
               const larcv::ImageMeta& cand_roi_bb = cand_roi.BB().at(p);
-              if ( cand_roi_bb.min_x()<wired && wired<cand_roi_bb.max_x() 
-                && cand_roi_bb.min_y()<tick && tick<cand_roi_bb.max_y() )
-                num_nupixels_inroi++;
+              if ( cand_roi_bb.min_x()<wired && wired<cand_roi_bb.max_x()
+		            && cand_roi_bb.min_y()<tick && tick<cand_roi_bb.max_y() )
+              {
+                nnu_inroi[p]++;
+                nnu_inroi[3]++;
+	            }
             }
-          }
+          }//if in semgment image
           else {
-	    // not a neutrino, so cosmic
-            ncosmic_pixels++;
-	    // is it tagged?
-            if ( stopmu_v.at(p).pixel(row,col)>0 || thrumu_v.at(p).pixel(row,col)>0 ) 
-              ncosmic_tagged++;
-          
-          }
+	          // not a neutrino, so cosmic
+            ncosmic_pixels[p]++;
+            ncosmic_pixels[3]++;
+          }//end if cosmic
+
+          if ( is_nu_pix )
+            nupix_img.set_pixel( row, col, 1.0 );
+          if ( near_vertex )
+            nupix_img.set_pixel( row, col, 10.0 );
+
         }//end of col loop
       }//end of row loop
+      nupix_imgs_v.emplace_back( std::move(nupix_img) );
     }//end of loop over planes for counting neutrino/cosmic pixels
 
-    if ( nnu_pixels>0 )
-      frac_inroi = float(num_nupixels_inroi)/float(nnu_pixels);
-    else
-      frac_inroi = 0.;
-    std::cout << "fraction of neutrino pixels inside one of the rois: " << frac_inroi << std::endl;
-    
+
+    // Loop over track pixels
+    // make left over image
+    std::vector<larcv::Image2D> leftover_v;
+    for ( auto const& img : imgs_v ) {
+      larcv::Image2D leftover(img);
+      leftover_v.emplace_back(leftover);
+    }
+
+    for ( int istage=0; istage<kNumStages; istage++ ) {
+      for ( size_t p=0; p<3; p++ ) {
+        // we need images to track the number of times pixels are Tagged
+        larcv::Image2D img_counter( imgs_v.at(p).meta() );
+        img_counter.paint(0);
+
+        for ( auto const& pixcluster : ev_pix[istage]->Pixel2DClusterArray( p ) ) {
+
+          std::set< std::vector<int> > tagged_set;
+          for ( auto const& pix : pixcluster ) {
+
+            for ( int dr=-tag_neighborhood; dr<=tag_neighborhood; dr++ ) {
+              int r = pix.Y()+dr;
+              if ( r<0 || r>=imgs_v.at(p).meta().rows() ) continue;
+              for ( int dc=-tag_neighborhood; dc<=tag_neighborhood; dc++ ) {
+                int c = pix.X()+dc;
+                if ( c<0 || c>=imgs_v.at(p).meta().cols() ) continue;
+                if ( imgs_v.at(p).pixel(r,c)<fthreshold ) continue;
+
+                std::vector<int> pixel(2);
+                pixel[0] = c;
+                pixel[1] = r;
+                tagged_set.insert( pixel );
+              }
+            }
+          }//end of pixel loop
+          //std::cout << "stage " << istage << " pix in cluster=" << pixcluster.size() << " tagged=" << tagged_set.size() << std::endl;
+          for ( auto const& pix : tagged_set ) {
+            float val = img_counter.pixel( pix[1], pix[0]) + 1.0;
+            img_counter.set_pixel( pix[1], pix[0], val );
+            leftover_v.at(p).set_pixel(pix[1],pix[0],0);
+          }
+        }//end of pix cluster loop
+
+        // total the pixels
+        for ( size_t r=0; r<img_counter.meta().rows(); r++) {
+          for ( size_t c=0; c<img_counter.meta().cols(); c++ ) {
+
+	          if ( imgs_v.at(p).pixel(r,c)<fthreshold ) continue;
+
+            // is pixel cosmic or neutrino
+            bool isnupix  = ( nupix_imgs_v.at(p).pixel(r,c)>=1.0  ) ? true : false;
+            bool isvertex = ( nupix_imgs_v.at(p).pixel(r,c)>=10.0 ) ? true : false;
+
+            int count = img_counter.pixel( r, c );
+
+            if ( count>0 ) {
+              if ( isnupix ) {
+                nnu_tagged[istage][p]++;
+                nnu_tagged[istage][3]++;
+              }
+              if ( isvertex ) {
+                nvertex_tagged[istage][p]++;
+                nvertex_tagged[istage][3]++;
+              }
+              if ( !isnupix && !isvertex ) {
+                // is cosmic
+                ncosmic_tagged[istage][p]++;
+                ncosmic_tagged[istage][3]++;
+                if (count==1)  {
+                  ncosmic_tagged_once[istage][p]++;
+                  ncosmic_tagged_once[istage][3]++;
+                }
+                else if ( count>1 ) {
+                  ncosmic_tagged_many[istage][p]++;
+                  ncosmic_tagged_many[istage][3]++;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    /*
+    int p = 0;
+    for ( auto const& leftover : leftover_v ) {
+      cv::Mat cvimg = larcv::as_mat_greyscale2bgr( leftover, fthreshold, 100.0 );
+      std::stringstream ss;
+      ss << "leftover_i" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
+      cv::imwrite( ss.str(), cvimg );
+      p++;
+    }
+    */
+
     tree->Fill();
 
-    if ( ientry>=100 )
-      break;
   }//end of entry loop
 
   rfile->Write();
