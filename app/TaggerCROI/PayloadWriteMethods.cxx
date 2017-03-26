@@ -201,12 +201,12 @@ namespace larlitecv {
     for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
       auto const& flashdata = data.flashdata_v.at(itrack);
       if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
-	continue;
+        continue;
       if ( data.flashdata_selected_v[itrack]==0 )
-	continue;
+        continue;
 
       for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
-	out_croi_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
+        out_croi_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
       }
     }
 
@@ -228,15 +228,15 @@ namespace larlitecv {
     if ( config.croi_write_cfg.get<bool>("WriteUntaggedPixels") ) {
       larcv::EventPixel2D* out_untagged_pixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "untaggedpixels" );
       for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
-	auto const& flashdata = data.flashdata_v.at(itrack);
-	if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
-	  continue;
+        auto const& flashdata = data.flashdata_v.at(itrack);
+        if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
+          continue;
 
-	if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kUntagged ) {
-	  for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
-	    out_untagged_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
-	  }
-	}
+        if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kUntagged ) {
+          for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
+            out_untagged_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
+          }
+        }
       }
     }
 
@@ -258,10 +258,17 @@ namespace larlitecv {
     if ( config.croi_write_cfg.get<bool>("WriteCombinedTaggedImage") ) {
       larcv::EventImage2D* evout_combined_v = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "combinedtags");
       for ( auto const& combined : data.combined_v ) {
-	evout_combined_v->Append( combined );
+        evout_combined_v->Append( combined );
       }
     }
 
-  }
+    // Store opflashes for all tracks
+    if (config.croi_write_cfg.get<bool>("WriteTrackOpFlashes") ) {
+      larlite::event_opflash* track_opflash_out = (larlite::event_opflash*)dataco.get_larlite_data( larlite::data::kOpFlash, "ophypo");
 
+      for ( auto const& opflash : data.track_opflash_v) {
+        track_opflash_out->push_back(opflash);
+      }
+    }
+  }
 }

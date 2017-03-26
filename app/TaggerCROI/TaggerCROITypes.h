@@ -33,7 +33,7 @@ namespace larlitecv {
 
 		std::vector<larcv::Image2D>            img_v;       //< input image
 		std::vector<larcv::Image2D>            badch_v;     //< image marking bad channels
-		std::vector<larcv::Image2D>            gapch_v;     //< image marking gap channels		
+		std::vector<larcv::Image2D>            gapch_v;     //< image marking gap channels
 		std::vector< larlite::event_opflash* > opflashes_v; //< container of opflashes to consider
     int run;
     int subrun;
@@ -101,16 +101,17 @@ namespace larlitecv {
   	std::vector< larlitecv::PlaneClusterGroups > plane_groups_v;
   	std::vector< larlitecv::ChargeVolume > vols_v;
     std::vector< larcv::Image2D > tagged_v;
-    std::vector< larcv::Image2D > subimg_v;    
+    std::vector< larcv::Image2D > subimg_v;
     std::vector< larlitecv::TaggerFlashMatchData > flashdata_v;
     std::vector< int > flashdata_selected_v;
 
     std::vector< larcv::ROI > croi_v;
     std::vector< larcv::Image2D > combined_v;
 
+    std::vector< larlite::opflash > track_opflash_v;
+
   	virtual void saveSpace() {
-	  
-	};
+  	};
   };
 
 }
