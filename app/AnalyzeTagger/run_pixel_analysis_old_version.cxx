@@ -390,6 +390,7 @@ int main( int nargs, char** argv ) {
       cvleftover_v.emplace_back(std::move(cvimg));
     }
 
+    // we need an image to mark how times a pixel has been marked
     std::vector< larcv::Image2D > img_marker_v;
     for (size_t p=0; p<3; p++) {
       larcv::Image2D img_counter( imgs_v.at(p).meta() );
@@ -401,9 +402,14 @@ int main( int nargs, char** argv ) {
       for ( size_t p=0; p<3; p++ ) {
         // we need images to track the number of times pixels are Tagged
         larcv::Image2D& img_counter = img_marker_v.at(p);
+        if ( istage==kCROI ) {
+          // we reset the tracker for the CROI pixel counting
+          img_counter.paint(0);
+        }
 
         for ( auto const& pixcluster : ev_pix[istage]->Pixel2DClusterArray(p) ) {
 
+          // for each track cluster, we loop over pixels and store unique pixels by using a set
           std::set< std::vector<int> > tagged_set;
           for ( auto const& pix : pixcluster ) {
 
@@ -423,6 +429,8 @@ int main( int nargs, char** argv ) {
             }
           }//end of pixel loop
           //std::cout << "stage " << istage << " pix in cluster=" << pixcluster.size() << " tagged=" << tagged_set.size() << std::endl;
+
+          // we loop over the set, tagging image.  We increment the counter of each pixel.
           for ( auto const& pix : tagged_set ) {
             float val = img_counter.pixel( pix[1], pix[0]) + 1.0;
             img_counter.set_pixel( pix[1], pix[0], val );
@@ -488,8 +496,20 @@ int main( int nargs, char** argv ) {
                 }
               }
             }
-          }
-        }
+          }//end of loop over c of counter image
+        }//loop over rows of counter image
+      }//end of plane loop
+    }//end of stage loop
+
+    // for the totals for the thrumu/stop/untagged, we want the new amount of pixels tagged, not the aggregate past that stage
+    for ( int istage=kUntagged; istage>kThruMu; istage-- ) {
+      // we save the difference
+      for (int p=0; p<4; p++) {
+        ncosmic_tagged[istage][p]      = ncosmic_tagged[istage][p] - ncosmic_tagged[istage-1][p];
+        ncosmic_tagged_once[istage][p] = ncosmic_tagged_once[istage][p] - ncosmic_tagged_once[istage-1][p];
+        ncosmic_tagged_many[istage][p] = ncosmic_tagged_many[istage][p] - ncosmic_tagged_many[istage-1][p];
+        nnu_tagged[istage][p]          = nnu_tagged[istage][p] - nnu_tagged[istage-1][p];
+        nvertex_tagged[istage][p]      = nvertex_tagged[istage][p] - nvertex_tagged[istage-1][p];
       }
     }
 
