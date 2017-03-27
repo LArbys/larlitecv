@@ -50,6 +50,7 @@ int main(int nargs, char** argv ) {
   bool save_stopmu_space = pset.get<bool>("SaveStopMuSpace", false);
   bool save_croi_space   = pset.get<bool>("SaveCROISpace",   false);
   bool save_mc           = pset.get<bool>("SaveMC",false);
+  bool skip_empty_events = pset.get<bool>("SkipEmptyEvents",false);
 
   // Setup Input Data Coordindator
   larlitecv::DataCoordinator dataco;
@@ -114,7 +115,12 @@ int main(int nargs, char** argv ) {
     // get images (from larcv)
     larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, larcv_image_producer );
     if ( event_imgs->Image2DArray().size()==0) {
-      throw std::runtime_error("Number of images=0. LArbys.");
+      if ( !skip_empty_events )
+	throw std::runtime_error("Number of images=0. LArbys.");
+      else {
+	std::cout << "Skipping Empty Events." << std::endl;
+	continue;
+      }
     }
     else if ( event_imgs->Image2DArray().size()!=3 ) {
       throw std::runtime_error("Number of Images!=3. Weird.");

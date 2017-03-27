@@ -14,7 +14,6 @@
 #include "DataFormat/EventROI.h"
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
-#include "CVUtil/CVUtil.h"
 #include "UBWireTool/UBWireTool.h"
 
 // larlite
@@ -35,9 +34,11 @@
 
 
 // OpenCV
+#ifdef USE_OPENCV
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include "CVUtil/CVUtil.h"
+#endif
 
 int main( int nargs, char** argv ) {
 
@@ -384,11 +385,13 @@ int main( int nargs, char** argv ) {
 
     // Loop over track pixels
     // make left over image
+#ifdef USE_OPENCV
     std::vector<cv::Mat> cvleftover_v;
     for ( auto const& img : imgs_v ) {
       cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img, fthreshold, 100.0 );
       cvleftover_v.emplace_back(std::move(cvimg));
     }
+#endif
 
     // we need an image to mark how times a pixel has been marked
     std::vector< larcv::Image2D > img_marker_v;
@@ -434,6 +437,7 @@ int main( int nargs, char** argv ) {
           for ( auto const& pix : tagged_set ) {
             float val = img_counter.pixel( pix[1], pix[0]) + 1.0;
             img_counter.set_pixel( pix[1], pix[0], val );
+#ifdef USE_OPENCV
             // set color of tagged pixel
             if ( istage==kCROI ) {
               cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 255;
@@ -458,6 +462,7 @@ int main( int nargs, char** argv ) {
             else {
               throw std::runtime_error("oops.");
             }
+#endif
           }
         }//end of pix cluster loop
 
@@ -600,6 +605,7 @@ int main( int nargs, char** argv ) {
     std::cout << "Tagged Crossing Points: " << tagged_crossingpoints << std::endl;
     std::cout << "True Crossing Points: " << true_crossingpoints << std::endl;
 
+#ifdef USE_OPENCV
     // draw image
     for ( size_t p=0; p<cvleftover_v.size(); p++ ) {
       auto& leftover = cvleftover_v.at(p);
@@ -629,6 +635,7 @@ int main( int nargs, char** argv ) {
       std::cout << "write: " << ss.str() << std::endl;
       cv::imwrite( ss.str(), leftover );
     }
+#endif
 
 
     tree->Fill();
