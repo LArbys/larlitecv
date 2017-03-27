@@ -302,9 +302,8 @@ int main( int nargs, char** argv ) {
       bool start_crosses = false;
       if ( start_pix[0]>imgs_v.front().meta().min_y() && start_pix[0]<imgs_v.front().meta().max_y() ) {
         start_intime = true;
-
-        if ( track_start_dwall < 5.0 ) {
-          start_pix[0] = imgs_v.front().meta().row( start_pix[0] );
+	start_pix[0] = imgs_v.front().meta().row( start_pix[0] );	
+        if ( track_start_dwall < 10.0 ) {
           start_pixels.emplace_back( std::move(start_pix) );
           start_crossingpts.emplace_back( std::move(sce_start) );
           start_crosses = true;
@@ -316,8 +315,8 @@ int main( int nargs, char** argv ) {
       bool end_crosses = false;
       if ( end_pix[0]>imgs_v.front().meta().min_y() && end_pix[0]<imgs_v.front().meta().max_y() ) {
         end_intime = true;
-        if ( track_end_dwall < 5.0 ) {
-          end_pix[0]   = imgs_v.front().meta().row( end_pix[0] );
+	end_pix[0] = imgs_v.front().meta().row( end_pix[0] );
+        if ( track_end_dwall < 10.0 ) {
           end_pixels.emplace_back( std::move(end_pix) );
           end_crossingpts.emplace_back( std::move(sce_end) );
           end_crosses = true;
@@ -327,8 +326,14 @@ int main( int nargs, char** argv ) {
 
       if ( start_intime || end_intime ) {
         intime_cosmics++;
-        if ( start_intime && !start_crosses )
+        if ( start_intime && !start_crosses ) {
+	  std::cout << "start point: (" << fstart[0] << "," << fstart[1] << "," << fstart[2] << ")"
+		    << " dwall=" << track_start_dwall << " intime=" << start_intime
+		    << " tick=" << imgs_v.front().meta().pos_y( start_pix[0] )
+		    << " row=" << start_pix[0]
+		    << std::endl;
           throw std::runtime_error("start point does not cross boundary?");
+	}
         else if ( start_crosses && end_crosses )
           true_intime_thrumu++;
         else if ( start_crosses && !end_crosses )
