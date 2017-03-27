@@ -9,6 +9,10 @@ CXXFLAGS += -I$(LARCV_BASEDIR)/app
 CXXFLAGS += $(shell larlitecv-config --includes)
 CXXFLAGS += -I$(LARLITECV_BASEDIR)/app
 
+ifeq ($(LARCV_OPENCV),1)
+CXXFLAGS += -I$(OPENCV_INCDIR) -DUSE_OPENCV
+endif
+
 # Include your shared object lib location
 LDFLAGS += $(shell larlitecv-config --libs)
 LDFLAGS += $(shell larcv-config --libs)
