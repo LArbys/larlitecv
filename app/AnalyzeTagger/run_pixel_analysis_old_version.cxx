@@ -105,6 +105,8 @@ int main( int nargs, char** argv ) {
   int nnu_inroi[4]; // number of nu pixels contained in the CROI
 
   // Crossing Point tags
+  int true_intime_thrumu;
+  int true_intime_stopmu;
   int true_crossingpoints;
   int tagged_crossingpoints;
   int proposed_crossingpoints;
@@ -130,6 +132,8 @@ int main( int nargs, char** argv ) {
 
   tree->Branch("num_rois", &num_rois, "num_rois/I");
   tree->Branch("nnu_inroi", nnu_inroi, "nnu_inroi[4]" );
+  tree->Branch("true_intime_thrumu",      &true_intime_thrumu,     "true_intime_thrumu/I");
+  tree->Branch("true_intime_stopmu",      &true_intime_stopmu,     "true_intime_stopmu/I");
   tree->Branch("true_crossingpoints",     &true_crossingpoints,     "true_crossingpoints/I");
   tree->Branch("tagged_crossingpoints",   &tagged_crossingpoints,   "tagged_crossingpoints/I");
   tree->Branch("proposed_crossingpoints", &proposed_crossingpoints, "proposed_crossingpoints/I");
@@ -173,6 +177,8 @@ int main( int nargs, char** argv ) {
     proposed_crossingpoints = 0;
     tagged_crossingpoints = 0;
     true_crossingpoints = 0;
+    true_intime_stopmu = 0;
+    true_intime_thrumu = 0;
 
 
     // ok now to do damage
@@ -247,10 +253,19 @@ int main( int nargs, char** argv ) {
       if ( std::abs(track.PdgCode())!=13  ) continue;
       if ( track.size()==0 ) continue;
       const TLorentzVector& track_start = track.front().Position();
-      std::vector<float> fstart(3);
+      std::vector<float> fstart(3,0);
       fstart[0] = track_start.X();
       fstart[1] = track_start.Y();
       fstart[2] = track_start.Z();
+      std::vector<float> fend(3,0);
+      fend[0]   = track.back().Position().X();
+      fend[1]   = track.back().Position().Y();
+      fend[2]   = track.back().Position().Z();
+
+      int track_start_boundary = 0;
+      float track_start_dwall = larlitecv::dwall( fstart, track_start_boundary );
+      int track_end_boundary = 0;
+      float track_end_dwall = larlitecv::dwall( fend, track_end_boundary );
 
       const larlite::mcstep& first_step = track.front();
       const larlite::mcstep& last_step  = track.back();
@@ -282,24 +297,48 @@ int main( int nargs, char** argv ) {
         end_pix[p+1]   = larutil::Geometry::GetME()->WireCoordinate( sce_end_xyz,   p );
       }
 
+      bool start_intime = false;
+      bool start_crosses = false;
       if ( start_pix[0]>imgs_v.front().meta().min_y() && start_pix[0]<imgs_v.front().meta().max_y() ) {
-        start_pix[0] = imgs_v.front().meta().row( start_pix[0] );
-        start_pixels.emplace_back( std::move(start_pix) );
-        start_crossingpts.emplace_back( std::move(sce_start) );
-        intime_cosmics++;
-        true_crossingpoints++;
+        start_intime = true;
+
+        if ( track_start_dwall < 5.0 ) {
+          start_pix[0] = imgs_v.front().meta().row( start_pix[0] );
+          start_pixels.emplace_back( std::move(start_pix) );
+          start_crossingpts.emplace_back( std::move(sce_start) );
+          start_crosses = true;
+          true_crossingpoints++;
+        }
       }
 
+      bool end_intime = false;
+      bool end_crosses = false;
       if ( end_pix[0]>imgs_v.front().meta().min_y() && end_pix[0]<imgs_v.front().meta().max_y() ) {
-        end_pix[0]   = imgs_v.front().meta().row( end_pix[0] );
-        end_pixels.emplace_back( std::move(end_pix) );
-        end_crossingpts.emplace_back( std::move(sce_end) );
-        true_crossingpoints++;
+        end_intime = true;
+        if ( track_end_dwall < 5.0 ) {
+          end_pix[0]   = imgs_v.front().meta().row( end_pix[0] );
+          end_pixels.emplace_back( std::move(end_pix) );
+          end_crossingpts.emplace_back( std::move(sce_end) );
+          end_crosses = true;
+          true_crossingpoints++;
+        }
+      }
+
+      if ( start_intime || end_intime ) {
+        intime_cosmics++;
+        if ( start_intime && !start_crosses )
+          throw std::runtime_error("start point does not cross boundary?");
+        else if ( start_crosses && end_crosses )
+          true_intime_thrumu++;
+        else if ( start_crosses && !end_crosses )
+          true_intime_stopmu++;
       }
 
     }//end of loop over mc tracks
 
     std::cout << "number of intime cosmics: "       << intime_cosmics << std::endl;
+    std::cout << "number of intime thrumu: " << true_intime_thrumu << std::endl;
+    std::cout << "number of intime stopmu: " << true_intime_stopmu << std::endl;
     std::cout << "number of true crossing points: " << true_crossingpoints << std::endl;
 
     // make thruth pixel counts
@@ -579,7 +618,7 @@ int main( int nargs, char** argv ) {
               dist += (spacepoints[d]-crossingpt_tpcx[d])*(spacepoints[d]-crossingpt_tpcx[d]);
             }
             dist = sqrt(dist);
-            std::cout << "true[" << v << "," << ipix << "] vs. proposed[" << i << "," << j << "] dist=" << dist << std::endl;
+            //std::cout << "true[" << v << "," << ipix << "] vs. proposed[" << i << "," << j << "] dist=" << dist << std::endl;
             if (dist<20.0) {
               matched = true;
             }
