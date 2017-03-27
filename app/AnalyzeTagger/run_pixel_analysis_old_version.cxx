@@ -12,8 +12,10 @@
 #include "DataFormat/EventImage2D.h"
 #include "DataFormat/EventPixel2D.h"
 #include "DataFormat/EventROI.h"
+#include "DataFormat/EventChStatus.h"
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
+#include "CVUtil/CVUtil.h"
 #include "UBWireTool/UBWireTool.h"
 
 // larlite
@@ -31,14 +33,13 @@
 #include "dwall.h"
 #include "extractTruthMethods.h"
 #include "SCE/SpaceChargeMicroBooNE.h"
+#include "GapChs/EmptyChannelAlgo.h"
 
 
 // OpenCV
-#ifdef USE_OPENCV
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include "CVUtil/CVUtil.h"
-#endif
 
 int main( int nargs, char** argv ) {
 
@@ -91,6 +92,7 @@ int main( int nargs, char** argv ) {
   int ncosmic_pixels[4];    // number of non-neutrino pixels
   int nnu_pixels[4];        // number of neutrino pixels
   int nvertex_pixels[4];    // number of neutrino pixels within some pixel radius of vertex
+  int nvertex_badch[4];
 
   // Tagged Pixel Quantities
   int ncosmic_tagged[kNumStages][4];       // number of non-neutrino pixels tagged
@@ -125,6 +127,7 @@ int main( int nargs, char** argv ) {
   tree->Branch("ncosmic_pixels",    ncosmic_pixels,    "ncosmic_pixels[4]/I");
   tree->Branch("nnu_pixels",        nnu_pixels,        "nnu_pixels[4]/I");
   tree->Branch("nvertex_pixels",    nvertex_pixels,    "nvertex_pixels[4]/I");
+  tree->Branch("nvertex_badch",     nvertex_badch,     "nvertex_badch[4]/I");
 
   tree->Branch("ncosmic_tagged",      ncosmic_tagged,      std::string("ncosmic_tagged"+s_arr.str()).c_str() );
   tree->Branch("ncosmic_tagged_once", ncosmic_tagged_once, std::string("ncosmic_tagged_once"+s_arr.str()).c_str() );
@@ -143,6 +146,9 @@ int main( int nargs, char** argv ) {
 
   // Space Charge Corrections
   larlitecv::SpaceChargeMicroBooNE sce;
+
+  // Empty Channel Algo
+  larlitecv::EmptyChannelAlgo emptyalgo;
 
   int nentries = dataco[kCROIfile].get_nentries("larcv");
 
@@ -169,6 +175,7 @@ int main( int nargs, char** argv ) {
       nvertex_pixels[p] = 0;
       nthreshold_pixels[p] = 0;
       nnu_inroi[p] = 0;
+      nvertex_badch[p] = 0;
       for (int istage=0; istage<kNumStages; istage++) {
 	      ncosmic_tagged[istage][p] = 0;
 	      ncosmic_tagged_once[istage][p] = 0;
@@ -201,6 +208,10 @@ int main( int nargs, char** argv ) {
     const std::vector<larcv::Image2D>& imgs_v   = ev_imgs->Image2DArray();
     const std::vector<larcv::Image2D>& badch_v  = ev_badch->Image2DArray();
     const std::vector<larcv::Image2D>& segs_v   = ev_segs->Image2DArray();
+
+    // make badch image from ChStatus object
+    larcv::EventChStatus* ev_status = (larcv::EventChStatus*)dataco[kSource].get_larcv_data( larcv::kProductChStatus, "tpc" );
+    std::vector<larcv::Image2D> chstatus_img_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
 
     // get the result of the contained ROI analysis
     larcv::EventROI* ev_contained_roi = (larcv::EventROI*)dataco[kCROIfile].get_larcv_data(larcv::kProductROI,"croi");
@@ -305,8 +316,9 @@ int main( int nargs, char** argv ) {
       bool start_crosses = false;
       if ( start_pix[0]>imgs_v.front().meta().min_y() && start_pix[0]<imgs_v.front().meta().max_y() ) {
         start_intime = true;
-	start_pix[0] = imgs_v.front().meta().row( start_pix[0] );	
-        if ( track_start_dwall < 10.0 ) {
+
+        if ( track_start_dwall < 5.0 ) {
+          start_pix[0] = imgs_v.front().meta().row( start_pix[0] );
           start_pixels.emplace_back( std::move(start_pix) );
           start_crossingpts.emplace_back( std::move(sce_start) );
           start_crosses = true;
@@ -318,8 +330,8 @@ int main( int nargs, char** argv ) {
       bool end_crosses = false;
       if ( end_pix[0]>imgs_v.front().meta().min_y() && end_pix[0]<imgs_v.front().meta().max_y() ) {
         end_intime = true;
-	end_pix[0] = imgs_v.front().meta().row( end_pix[0] );
-        if ( track_end_dwall < 10.0 ) {
+        if ( track_end_dwall < 5.0 ) {
+          end_pix[0]   = imgs_v.front().meta().row( end_pix[0] );
           end_pixels.emplace_back( std::move(end_pix) );
           end_crossingpts.emplace_back( std::move(sce_end) );
           end_crosses = true;
@@ -329,14 +341,8 @@ int main( int nargs, char** argv ) {
 
       if ( start_intime || end_intime ) {
         intime_cosmics++;
-        if ( start_intime && !start_crosses ) {
-	  std::cout << "start point: (" << fstart[0] << "," << fstart[1] << "," << fstart[2] << ")"
-		    << " dwall=" << track_start_dwall << " intime=" << start_intime
-		    << " tick=" << imgs_v.front().meta().pos_y( start_pix[0] )
-		    << " row=" << start_pix[0]
-		    << std::endl;
-          //throw std::runtime_error("start point does not cross boundary?");
-	}
+        if ( start_intime && !start_crosses )
+          throw std::runtime_error("start point does not cross boundary?");
         else if ( start_crosses && end_crosses )
           true_intime_thrumu++;
         else if ( start_crosses && !end_crosses )
@@ -346,8 +352,8 @@ int main( int nargs, char** argv ) {
     }//end of loop over mc tracks
 
     std::cout << "number of intime cosmics: "       << intime_cosmics << std::endl;
-    std::cout << "number of intime thrumu: " << true_intime_thrumu << std::endl;
-    std::cout << "number of intime stopmu: " << true_intime_stopmu << std::endl;
+    std::cout << "number of intime thrumu: "        << true_intime_thrumu << std::endl;
+    std::cout << "number of intime stopmu: "        << true_intime_stopmu << std::endl;
     std::cout << "number of true crossing points: " << true_crossingpoints << std::endl;
 
     // make thruth pixel counts
@@ -361,8 +367,10 @@ int main( int nargs, char** argv ) {
       nupix_img.paint(0);
       for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
         for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
+
 	        // check if this is a pixel of interest
           if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
+
 	        nthreshold_pixels[p]++;
 	        nthreshold_pixels[3]++;
 
@@ -431,15 +439,13 @@ int main( int nargs, char** argv ) {
 
 
     // Loop over track pixels
-#ifdef USE_OPENCV    
     // make left over image
     std::vector<cv::Mat> cvleftover_v;
     for ( auto const& img : imgs_v ) {
       cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img, fthreshold, 100.0 );
       cvleftover_v.emplace_back(std::move(cvimg));
     }
-#endif
-    
+
     // we need an image to mark how times a pixel has been marked
     std::vector< larcv::Image2D > img_marker_v;
     for (size_t p=0; p<3; p++) {
@@ -485,7 +491,6 @@ int main( int nargs, char** argv ) {
           for ( auto const& pix : tagged_set ) {
             float val = img_counter.pixel( pix[1], pix[0]) + 1.0;
             img_counter.set_pixel( pix[1], pix[0], val );
-#ifdef USE_OPENCV	    
             // set color of tagged pixel
             if ( istage==kCROI ) {
               cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 255;
@@ -510,7 +515,6 @@ int main( int nargs, char** argv ) {
             else {
               throw std::runtime_error("oops.");
             }
-#endif	  	    
           }
         }//end of pix cluster loop
 
@@ -573,7 +577,14 @@ int main( int nargs, char** argv ) {
         const larcv::ImageMeta& meta = imgs_v.at(p).meta();
         for ( int c=vertex_col[p]-fvertex_radius; c<=vertex_col[p]+fvertex_radius; c++ ) {
           if ( c<0 || c>=meta.cols() ) continue;
-          if ( imgs_v.at(p).pixel(r,c)>fthreshold ) {
+
+          // is this a bad ch pixel?
+          if ( chstatus_img_v.at(p).pixel(r,c)>0 ) {
+            nvertex_badch[p]++;
+            nvertex_badch[3]++;
+          }
+
+          if ( imgs_v.at(p).pixel(r,c)<fthreshold ) {
 
             float wire = meta.pos_x( c );
             float tick = meta.pos_y( r );
@@ -596,7 +607,6 @@ int main( int nargs, char** argv ) {
         }//end of col loop
       }//end of plane lopp
     }//end of vertex row loop
-    std::cout << "Number of vertex pixels in an ROI: " << nvertex_incroi[3] << " out of " << nvertex_pixels[3] << std::endl;
 
     // analyze proposed boundary points
     std::cout << "Analyze Boundary Points" << std::endl;
@@ -685,7 +695,6 @@ int main( int nargs, char** argv ) {
     std::cout << "Tagged Crossing Points: " << tagged_crossingpoints << std::endl;
     std::cout << "True Crossing Points: " << true_crossingpoints << std::endl;
 
-#ifdef USE_OPENCV
     // draw image
     for ( size_t p=0; p<cvleftover_v.size(); p++ ) {
       auto& leftover = cvleftover_v.at(p);
@@ -715,7 +724,7 @@ int main( int nargs, char** argv ) {
       std::cout << "write: " << ss.str() << std::endl;
       cv::imwrite( ss.str(), leftover );
     }
-#endif
+
 
     tree->Fill();
 
