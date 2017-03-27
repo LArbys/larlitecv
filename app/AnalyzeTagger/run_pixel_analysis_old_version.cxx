@@ -15,7 +15,6 @@
 #include "DataFormat/EventChStatus.h"
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
-#include "CVUtil/CVUtil.h"
 #include "UBWireTool/UBWireTool.h"
 
 // larlite
@@ -37,9 +36,11 @@
 
 
 // OpenCV
+#ifdef USE_OPENCV
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include "CVUtil/CVUtil.h"
+#endif
 
 int main( int nargs, char** argv ) {
 
@@ -316,9 +317,9 @@ int main( int nargs, char** argv ) {
       bool start_crosses = false;
       if ( start_pix[0]>imgs_v.front().meta().min_y() && start_pix[0]<imgs_v.front().meta().max_y() ) {
         start_intime = true;
+        start_pix[0] = imgs_v.front().meta().row( start_pix[0] );
 
-        if ( track_start_dwall < 5.0 ) {
-          start_pix[0] = imgs_v.front().meta().row( start_pix[0] );
+        if ( track_start_dwall < 10.0 ) {
           start_pixels.emplace_back( std::move(start_pix) );
           start_crossingpts.emplace_back( std::move(sce_start) );
           start_crosses = true;
@@ -330,8 +331,8 @@ int main( int nargs, char** argv ) {
       bool end_crosses = false;
       if ( end_pix[0]>imgs_v.front().meta().min_y() && end_pix[0]<imgs_v.front().meta().max_y() ) {
         end_intime = true;
-        if ( track_end_dwall < 5.0 ) {
-          end_pix[0]   = imgs_v.front().meta().row( end_pix[0] );
+        end_pix[0]   = imgs_v.front().meta().row( end_pix[0] );
+        if ( track_end_dwall < 10.0 ) {
           end_pixels.emplace_back( std::move(end_pix) );
           end_crossingpts.emplace_back( std::move(sce_end) );
           end_crosses = true;
@@ -341,8 +342,14 @@ int main( int nargs, char** argv ) {
 
       if ( start_intime || end_intime ) {
         intime_cosmics++;
-        if ( start_intime && !start_crosses )
-          throw std::runtime_error("start point does not cross boundary?");
+        if ( start_intime && !start_crosses ) {
+          std::cout << "start point: (" << fstart[0] << "," << fstart[1] << "," << fstart[2] << ")"
+                    << " dwall=" << track_start_dwall << " intime=" << start_intime
+                    << " tick=" << imgs_v.front().meta().pos_y( start_pix[0] )
+                    << " row=" << start_pix[0]
+                    << std::endl;
+          //throw std::runtime_error("start point does not cross boundary?");
+        }
         else if ( start_crosses && end_crosses )
           true_intime_thrumu++;
         else if ( start_crosses && !end_crosses )
@@ -440,11 +447,13 @@ int main( int nargs, char** argv ) {
 
     // Loop over track pixels
     // make left over image
+#ifdef USE_OPENCV
     std::vector<cv::Mat> cvleftover_v;
     for ( auto const& img : imgs_v ) {
       cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img, fthreshold, 100.0 );
       cvleftover_v.emplace_back(std::move(cvimg));
     }
+#endif
 
     // we need an image to mark how times a pixel has been marked
     std::vector< larcv::Image2D > img_marker_v;
@@ -491,6 +500,8 @@ int main( int nargs, char** argv ) {
           for ( auto const& pix : tagged_set ) {
             float val = img_counter.pixel( pix[1], pix[0]) + 1.0;
             img_counter.set_pixel( pix[1], pix[0], val );
+
+#ifdef USE_OPENCV
             // set color of tagged pixel
             if ( istage==kCROI ) {
               cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 255;
@@ -515,6 +526,7 @@ int main( int nargs, char** argv ) {
             else {
               throw std::runtime_error("oops.");
             }
+#endif
           }
         }//end of pix cluster loop
 
@@ -608,6 +620,9 @@ int main( int nargs, char** argv ) {
       }//end of plane lopp
     }//end of vertex row loop
 
+    std::cout << "Number of vertex pixels in an ROI: " << nvertex_incroi[3] << " out of " << nvertex_pixels[3] << std::endl;
+    std::cout << "Fraction of vertex pixels are badchannels: " << float(nvertex_badch[3])/float(nvertex_pixels[3]) << std::endl;
+
     // analyze proposed boundary points
     std::cout << "Analyze Boundary Points" << std::endl;
     proposed_crossingpoints = 0;
@@ -695,6 +710,7 @@ int main( int nargs, char** argv ) {
     std::cout << "Tagged Crossing Points: " << tagged_crossingpoints << std::endl;
     std::cout << "True Crossing Points: " << true_crossingpoints << std::endl;
 
+#ifdef USE_OPENCV
     // draw image
     for ( size_t p=0; p<cvleftover_v.size(); p++ ) {
       auto& leftover = cvleftover_v.at(p);
@@ -724,7 +740,7 @@ int main( int nargs, char** argv ) {
       std::cout << "write: " << ss.str() << std::endl;
       cv::imwrite( ss.str(), leftover );
     }
-
+#endif
 
     tree->Fill();
 
