@@ -335,7 +335,7 @@ int main( int nargs, char** argv ) {
 		    << " tick=" << imgs_v.front().meta().pos_y( start_pix[0] )
 		    << " row=" << start_pix[0]
 		    << std::endl;
-          throw std::runtime_error("start point does not cross boundary?");
+          //throw std::runtime_error("start point does not cross boundary?");
 	}
         else if ( start_crosses && end_crosses )
           true_intime_thrumu++;
