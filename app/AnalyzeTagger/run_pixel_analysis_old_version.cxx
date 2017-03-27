@@ -591,12 +591,12 @@ int main( int nargs, char** argv ) {
           if ( c<0 || c>=meta.cols() ) continue;
 
           // is this a bad ch pixel?
-          if ( chstatus_img_v.at(p).pixel(r,c)>0 ) {
+          if ( r==vertex_row && chstatus_img_v.at(p).pixel(r,c)>0 ) {
             nvertex_badch[p]++;
             nvertex_badch[3]++;
           }
 
-          if ( imgs_v.at(p).pixel(r,c)<fthreshold ) {
+          if ( imgs_v.at(p).pixel(r,c)>fthreshold ) {
 
             float wire = meta.pos_x( c );
             float tick = meta.pos_y( r );
