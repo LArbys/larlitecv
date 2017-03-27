@@ -14,6 +14,7 @@
 #include "DataFormat/EventROI.h"
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
+#include "CVUtil/CVUtil.h"
 #include "UBWireTool/UBWireTool.h"
 
 // larlite
@@ -34,11 +35,9 @@
 
 
 // OpenCV
-#ifdef USE_OPENCV
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include "CVUtil/CVUtil.h"
-#endif
 
 int main( int nargs, char** argv ) {
 
@@ -98,6 +97,7 @@ int main( int nargs, char** argv ) {
   int ncosmic_tagged_many[kNumStages][4];  // number of non-neutrino pixels tagged
   int nnu_tagged[kNumStages][4];           // number of neutrino pixels tagged
   int nvertex_tagged[kNumStages][4];       // number of neutrino pixels within some pixel radius of vertex tagged
+  int nvertex_incroi[4];                   // number of pixels near neutrino vertex that are in an ROI
   std::stringstream s_arr;
   s_arr << "[" << (int)kNumStages << "][4]/I";
 
@@ -130,6 +130,7 @@ int main( int nargs, char** argv ) {
   tree->Branch("ncosmic_tagged_many", ncosmic_tagged_many, std::string("ncosmic_tagged_many"+s_arr.str()).c_str() );
   tree->Branch("nnu_tagged",          nnu_tagged,          std::string("nnu_tagged"+s_arr.str()).c_str() );
   tree->Branch("nvertex_tagged",      nvertex_tagged,      std::string("nvertex_tagged"+s_arr.str()).c_str() );
+  tree->Branch("nvertex_incroi",      nvertex_incroi,      "nvertex_incroi[4]/I" );
 
   tree->Branch("num_rois", &num_rois, "num_rois/I");
   tree->Branch("nnu_inroi", nnu_inroi, "nnu_inroi[4]" );
@@ -174,6 +175,7 @@ int main( int nargs, char** argv ) {
 	      nnu_tagged[istage][p] = 0;
 	      nvertex_tagged[istage][p] = 0;
       }
+      nvertex_incroi[p] = 0;
     }
     proposed_crossingpoints = 0;
     tagged_crossingpoints = 0;
@@ -424,13 +426,11 @@ int main( int nargs, char** argv ) {
 
     // Loop over track pixels
     // make left over image
-#ifdef USE_OPENCV
     std::vector<cv::Mat> cvleftover_v;
     for ( auto const& img : imgs_v ) {
       cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img, fthreshold, 100.0 );
       cvleftover_v.emplace_back(std::move(cvimg));
     }
-#endif
 
     // we need an image to mark how times a pixel has been marked
     std::vector< larcv::Image2D > img_marker_v;
@@ -440,6 +440,7 @@ int main( int nargs, char** argv ) {
       img_marker_v.emplace_back( std::move(img_counter) );
     }
 
+    // loop over tagger stage results
     for ( int istage=0; istage<kNumStages; istage++ ) {
       for ( size_t p=0; p<3; p++ ) {
         // we need images to track the number of times pixels are Tagged
@@ -476,7 +477,6 @@ int main( int nargs, char** argv ) {
           for ( auto const& pix : tagged_set ) {
             float val = img_counter.pixel( pix[1], pix[0]) + 1.0;
             img_counter.set_pixel( pix[1], pix[0], val );
-#ifdef USE_OPENCV
             // set color of tagged pixel
             if ( istage==kCROI ) {
               cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 255;
@@ -501,7 +501,6 @@ int main( int nargs, char** argv ) {
             else {
               throw std::runtime_error("oops.");
             }
-#endif
           }
         }//end of pix cluster loop
 
@@ -556,6 +555,37 @@ int main( int nargs, char** argv ) {
         nvertex_tagged[istage][p]      = nvertex_tagged[istage][p] - nvertex_tagged[istage-1][p];
       }
     }
+
+    // did any of the ROIs catch neutrino pixels?
+    for ( int r=vertex_row-fvertex_radius; r<=vertex_row+fvertex_radius; r++ ) {
+      if ( r<0 || r>=imgs_v.front().meta().rows() ) continue;
+      for (size_t p=0; p<3; p++) {
+        const larcv::ImageMeta& meta = imgs_v.at(p).meta();
+        for ( int c=vertex_col[p]-fvertex_radius; c<=vertex_col[p]+fvertex_radius; c++ ) {
+          if ( c<0 || c>=meta.cols() ) continue;
+          if ( imgs_v.at(p).pixel(r,c)<fthreshold ) {
+
+            float wire = meta.pos_x( c );
+            float tick = meta.pos_y( r );
+
+            // a vertex pixel!
+            // let's loop over ROIs
+            bool inroi = false;
+            for ( auto const& croi : containedrois_v ) {
+              if ( wire>=croi.BB(p).min_x() && wire<=croi.BB(p).max_x()
+                && tick>=croi.BB(p).min_y() && tick<=croi.BB(p).max_y() ) {
+                inroi = true;
+                break;
+              }
+            }
+            if ( inroi ) {
+              nvertex_incroi[p]++;
+              nvertex_incroi[3]++;
+            }
+          }
+        }//end of col loop
+      }//end of plane lopp
+    }//end of vertex row loop
 
     // analyze proposed boundary points
     std::cout << "Analyze Boundary Points" << std::endl;
@@ -644,7 +674,6 @@ int main( int nargs, char** argv ) {
     std::cout << "Tagged Crossing Points: " << tagged_crossingpoints << std::endl;
     std::cout << "True Crossing Points: " << true_crossingpoints << std::endl;
 
-#ifdef USE_OPENCV
     // draw image
     for ( size_t p=0; p<cvleftover_v.size(); p++ ) {
       auto& leftover = cvleftover_v.at(p);
@@ -674,7 +703,6 @@ int main( int nargs, char** argv ) {
       std::cout << "write: " << ss.str() << std::endl;
       cv::imwrite( ss.str(), leftover );
     }
-#endif
 
 
     tree->Fill();
