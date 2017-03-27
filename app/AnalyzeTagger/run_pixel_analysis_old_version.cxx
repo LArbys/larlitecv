@@ -14,7 +14,6 @@
 #include "DataFormat/EventROI.h"
 #include "Base/PSet.h"
 #include "Base/LArCVBaseUtilFunc.h"
-#include "CVUtil/CVUtil.h"
 #include "UBWireTool/UBWireTool.h"
 
 // larlite
@@ -35,9 +34,11 @@
 
 
 // OpenCV
+#ifdef USE_OPENCV
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
 #include "CVUtil/CVUtil.h"
+#endif
 
 int main( int nargs, char** argv ) {
 
@@ -430,13 +431,15 @@ int main( int nargs, char** argv ) {
 
 
     // Loop over track pixels
+#ifdef USE_OPENCV    
     // make left over image
     std::vector<cv::Mat> cvleftover_v;
     for ( auto const& img : imgs_v ) {
       cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img, fthreshold, 100.0 );
       cvleftover_v.emplace_back(std::move(cvimg));
     }
-
+#endif
+    
     // we need an image to mark how times a pixel has been marked
     std::vector< larcv::Image2D > img_marker_v;
     for (size_t p=0; p<3; p++) {
@@ -482,6 +485,7 @@ int main( int nargs, char** argv ) {
           for ( auto const& pix : tagged_set ) {
             float val = img_counter.pixel( pix[1], pix[0]) + 1.0;
             img_counter.set_pixel( pix[1], pix[0], val );
+#ifdef USE_OPENCV	    
             // set color of tagged pixel
             if ( istage==kCROI ) {
               cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 255;
@@ -506,6 +510,7 @@ int main( int nargs, char** argv ) {
             else {
               throw std::runtime_error("oops.");
             }
+#endif	  	    
           }
         }//end of pix cluster loop
 
@@ -568,7 +573,7 @@ int main( int nargs, char** argv ) {
         const larcv::ImageMeta& meta = imgs_v.at(p).meta();
         for ( int c=vertex_col[p]-fvertex_radius; c<=vertex_col[p]+fvertex_radius; c++ ) {
           if ( c<0 || c>=meta.cols() ) continue;
-          if ( imgs_v.at(p).pixel(r,c)<fthreshold ) {
+          if ( imgs_v.at(p).pixel(r,c)>fthreshold ) {
 
             float wire = meta.pos_x( c );
             float tick = meta.pos_y( r );
@@ -591,6 +596,7 @@ int main( int nargs, char** argv ) {
         }//end of col loop
       }//end of plane lopp
     }//end of vertex row loop
+    std::cout << "Number of vertex pixels in an ROI: " << nvertex_incroi[3] << " out of " << nvertex_pixels[3] << std::endl;
 
     // analyze proposed boundary points
     std::cout << "Analyze Boundary Points" << std::endl;
@@ -679,6 +685,7 @@ int main( int nargs, char** argv ) {
     std::cout << "Tagged Crossing Points: " << tagged_crossingpoints << std::endl;
     std::cout << "True Crossing Points: " << true_crossingpoints << std::endl;
 
+#ifdef USE_OPENCV
     // draw image
     for ( size_t p=0; p<cvleftover_v.size(); p++ ) {
       auto& leftover = cvleftover_v.at(p);
@@ -708,7 +715,7 @@ int main( int nargs, char** argv ) {
       std::cout << "write: " << ss.str() << std::endl;
       cv::imwrite( ss.str(), leftover );
     }
-
+#endif
 
     tree->Fill();
 
