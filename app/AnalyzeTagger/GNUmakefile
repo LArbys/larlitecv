@@ -2,7 +2,9 @@
 CXXFLAGS += -I. $(shell root-config --cflags) -g
 
 CXXFLAGS += $(shell larlite-config --includes)
-CXXFLAGS += $(shell larlite-config --includes)/../UserDev
+CXXFLAGS += -I$(LARLITE_BASEDIR)/UserDev
+CXXFLAGS += -I$(LARLITE_BASEDIR)/UserDev/SelectionTool
+CXXFLAGS += -I$(LARLITE_BASEDIR)/UserDev/BasicTool
 CXXFLAGS += $(shell larcv-config --includes)
 CXXFLAGS += -I$(LARCV_BASEDIR)/app/Supera/APILArLite
 CXXFLAGS += -I$(LARCV_BASEDIR)/app
