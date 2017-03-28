@@ -81,6 +81,8 @@ int main( int nargs, char** argv ) {
 
 
   // flash metrics output
+
+  // binned poisson likelihood ratio
   std::vector<float> smallest_chi2_falseflash_v; // chi2 to flash hypothesis not corresponding to true source of trigger
   std::vector<float> smallest_chi2_trueflash_v;  // chi2 to flash hypothesis corresponding to true source of trigger
   std::vector<float> totpe_data_v;               // total pe for in-time flashes in the data
@@ -91,6 +93,18 @@ int main( int nargs, char** argv ) {
   tree->Branch("totpe_data",                 &totpe_data_v );
   tree->Branch("totpe_hypo_trueflashes",     &totpe_hypo_trueflash_v );
   tree->Branch("totpe_hypo_falseflashes",    &totpe_hypo_falseflash_v );
+
+  // unbinned negative log-likelihood using multivariate guassian distribution
+  std::vector<float> smallest_gausll_falseflash_v; // chi2 to flash hypothesis not corresponding to true source of trigger
+  std::vector<float> smallest_gausll_trueflash_v;  // chi2 to flash hypothesis corresponding to true source of trigger
+  tree->Branch("smallest_gausll_falseflashes", &smallest_gausll_falseflash_v );
+  tree->Branch("smallest_gausll_trueflashes",  &smallest_gausll_trueflash_v );
+
+
+  // containment metric: most negative dwall value, from bounding box
+  std::vector<float> roi_dwallx;
+  std::vector<float> roi_dwally;
+  std::vector<float> roi_dwallz;
 
   // Truth Quantities about interaction and lepton
   larlitecv::TruthData_t truthdata;
@@ -201,6 +215,10 @@ int main( int nargs, char** argv ) {
       float totpe_hypo = 0.;
       float smallest_chi2 = larlitecv::CalculateFlashMatchChi2( intime_data, ophypo, totpe_data, totpe_hypo, 20000.0, false );
 
+      float tot_temp = 0;
+      float tot_temp2 = 0;
+      float smallest_gausll = larlitecv::CalculateShapeOnlyUnbinnedLL( intime_data, ophypo, tot_temp, tot_temp2, false );
+
       // need to determine if this track is the intime track or not
       // we do this by checking if track gets close to true vertex. slow AF.
       std::vector< std::vector<float> > bbox = larlitecv::TaggerFlashMatchAlgo::GetAABoundingBox( track );
@@ -214,11 +232,13 @@ int main( int nargs, char** argv ) {
 
       if ( inbbox ) {
         smallest_chi2_trueflash_v.push_back( smallest_chi2 );
+        smallest_gausll_trueflash_v.push_back( smallest_gausll );
         totpe_hypo_trueflash_v.push_back( totpe_hypo );
         num_true_bbox++;
       }
       else {
         smallest_chi2_falseflash_v.push_back( smallest_chi2 );
+        smallest_gausll_falseflash_v.push_back( smallest_gausll );
         totpe_hypo_falseflash_v.push_back( totpe_hypo );
       }
     }

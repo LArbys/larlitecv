@@ -11,6 +11,8 @@ namespace larlitecv {
   float CalculateFlashMatchChi2( const std::vector<larlite::opflash>& flash_data_v, const larlite::opflash& flash_hypothesis,
     float& totpe_data, float& totpe_hypo, const float fudge_factor, const bool verbose=false );
 
+  float CalculateShapeOnlyUnbinnedLL( const std::vector<larlite::opflash>& flash_data_v, const larlite::opflash& flash_hypothesis,
+    float& totpe_data, float& totpe_hypo, const bool verbose );
 
 }
 
