@@ -291,6 +291,40 @@ namespace larlitecv {
     return intime_flashana_v;
   }
 
+  std::vector< std::vector<float> > TaggerFlashMatchAlgo::GetAABoundingBox( const larlite::track& track )  {
+
+    std::vector< std::vector<float> > bb(3);
+    for (int v=0; v<3; v++) {
+      bb.at(v).resize(2,0.0);
+    }
+
+    float extrema[3][2][3] = {-1.0e6 }; // each extrema point stored here. (dim,min/max,xyz)
+    for ( int v=0; v<3; v++) {
+      bb[v][0] = 1.0e6;
+      bb[v][1] = -1.0e6;
+    }
+
+    for ( size_t i=0; i<track.NumberTrajectoryPoints(); i++ ) {
+      const TVector3& xyz = track.LocationAtPoint(i);
+      for (int v=0; v<3; v++) {
+        // minvalue
+        if ( bb[v][0]>xyz[v] ) {
+          bb[v][0] = xyz[v];
+          for (int j=0; j<3; j++)
+            extrema[v][0][j] = xyz[j];
+        }
+        // maxvalue
+        if ( bb[v][1]<xyz[v] ) {
+          bb[v][1] = xyz[v];
+          for (int j=0; j<3; j++)
+            extrema[v][1][j] = xyz[j];
+        }
+      }
+    }
+
+    return bb;
+  }
+
   bool TaggerFlashMatchAlgo::IsClusterContained( const TaggerFlashMatchData& data ) {
     // simple selection
     // we make a cut on fiducial volume as a function of x

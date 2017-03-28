@@ -153,27 +153,44 @@ int main( int nargs, char** argv ) {
       }
     }
     std::cout << "Number of in-time (data) flashes: " << intime_data.size() << std::endl;
-    std::cout << "Number of in-time flash hypotheses: " << ev_data_ophypo->size() << std::endl;
+
+    // select non-zero flash hypotheses
+    std::vector<larlite::opflash> flash_hypo_v;
+    int nflash_cut = 0;
+    for ( auto const& flash : *ev_data_ophypo ) {
+      float totpe_hypo = 0.;
+      for (int ich=0; ich<32; ich++) {
+        totpe_hypo += flash.PE(ich)*20000.0;
+      }
+      flash_hypo_v.push_back( flash );
+    }
+    std::cout << "Number of in-time flash hypotheses: " <<flash_hypo_v.size() << ". Num zero-pe hypotheses=" << nflash_cut << std::endl;
 
     // get track data
     // --------------
     int ntracks = 0;
+    int ntracks_cut = 0;
     larlite::event_track* ev_tagger_tracks[kNumStages];
     std::vector<const larlite::track*> track_list;
     for ( int istage=0; istage<=kUntagged; istage++ ) {
       ev_tagger_tracks[istage] = (larlite::event_track*)dataco[kCROIfile].get_larlite_data( larlite::data::kTrack, stages_track_producers[istage] );
       for ( auto const& track : *(ev_tagger_tracks[istage]) ) {
-        //if ( track.NumberTrajectoryPoints()==0 )
-        //  continue;
+        if ( istage==kUntagged && track.NumberTrajectoryPoints()==0 ) {
+        //if ( track.NumberTrajectoryPoints()==0 ) {
+          ntracks_cut++;
+          continue;
+        }
         track_list.push_back( &track );
       }
     }
-    std::cout << "Number of tracks: " << track_list.size() << std::endl;
+    std::cout << "Number of tracks: " << track_list.size() << ". number removed=" << ntracks_cut << "." << std::endl;
 
-    if ( track_list.size()!=ev_data_ophypo->size() ) {
-      continue; // freak out and skip event
+    if ( flash_hypo_v.size()>0 && track_list.size()!=flash_hypo_v.size() ) {
+      //continue; // freak out and skip event
       throw std::runtime_error("Number of tracks and number of flash hypotheses do not match.");
     }
+    else if ( flash_hypo_v.size()==0 )
+      continue;
 
     // loop through tracks and flash hypotheses. Get metrics for each.
     int num_true_bbox = 0;

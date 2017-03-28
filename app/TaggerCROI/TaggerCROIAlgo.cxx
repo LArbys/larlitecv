@@ -341,6 +341,8 @@ namespace larlitecv {
           contained_track.add_momentum( slice_charge.at(ipt+1) );
         }
       }
+      if ( contained_track.NumberTrajectoryPoints()==0 )
+        continue;
       larlitecv::TaggerFlashMatchData contained_cluster( larlitecv::TaggerFlashMatchData::kUntagged, vol.m_plane_pixels, contained_track );
       output.flashdata_v.emplace_back( std::move(contained_cluster) );
     }// end of vol loop
