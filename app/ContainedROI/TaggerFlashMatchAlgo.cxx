@@ -485,15 +485,44 @@ namespace larlitecv {
       }
 
       float chi2 = InTimeFlashComparison( intime_flashes, qcluster );
-      passes_flashmatch[q] = ( chi2 < m_config.flashmatch_chi2_cut ) ? 1 : 0;
-      /*
+
+      // our cut needs to be position dependent, so we need a position. we get the q-weighted mean and the intervals.
+      float totw = 0.;
+      float mean[3] = {0};
+      float min_x = 1.0e6;
+      float max_x = -1.0e6;
+      for ( auto const& qpt : qcluster ) {
+        mean[0] += qpt.x*qpt.q;
+        mean[1] += qpt.y*qpt.q;
+        mean[2] += qpt.z*qpt.q;
+        totw += qpt.q;
+        if ( qpt.x < min_x ) min_x = qpt.x;
+        if ( qpt.x > max_x ) max_x = qpt.x;
+      }
+      if ( totw==0 ) {
+        passes_flashmatch[q] = 0;
+      }
+      else {
+        for (int i=0; i<3; i++) mean[i] /= totw;
+      }
+
+      //  still a dumb cut
+      if ( mean[0] < 100.0 && chi2< 400 )
+        passes_flashmatch[q] = 1;
+      else if ( mean[0]>100.0 && chi2<200 )
+        passes_flashmatch[q] = 1;
+      else
+        passes_flashmatch[q] = 0;
+
+      //passes_flashmatch[q] = ( chi2 < m_config.flashmatch_chi2_cut ) ? 1 : 0;
+
       if ( passes_flashmatch[q]==1 ) {
       std::cout << " {in-time flash-matched}" << std::endl;
       }
       else {
       std::cout << " {not-matched}" << std::endl;
       }
-      */
+
     }
   }
 
