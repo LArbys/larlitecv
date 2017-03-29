@@ -17,6 +17,7 @@
 #include "Base/DataCoordinator.h"
 #include "ContainedROI/TaggerFlashMatchAlgo.h"
 #include "ContainedROI/FlashMatchMetricMethods.h"
+#include "SCE/SpaceChargeMicroBooNE.h"
 #include "extractTruthMethods.h"
 
 // ROOT
@@ -61,6 +62,9 @@ int main( int nargs, char** argv ) {
   beam_tick_range[1] = 400.0;
   const float us_per_tick = 0.015625;
   const float bbox_buffer = 20.0;
+
+  // space charge correction class
+  larlitecv::SpaceChargeMicroBooNE sce;
 
   // Flash Match Metrics we want to test
 
@@ -225,8 +229,13 @@ int main( int nargs, char** argv ) {
       // we do this by checking if track gets close to true vertex. slow AF.
       std::vector< std::vector<float> > bbox = larlitecv::TaggerFlashMatchAlgo::GetAABoundingBox( track );
       bool inbbox = true;
+      std::vector<double> sce_offsets = sce.GetPosOffsets( truthdata.pos[0], truthdata.pos[1], truthdata.pos[2] );
+      std::vector<double> apparent_vtx(3,0);
+      apparent_vtx[0] = truthdata.pos[0] - sce_offsets[0] - 0.17;
+      apparent_vtx[1] = truthdata.pos[1] + sce_offsets[1];
+      apparent_vtx[2] = truthdata.pos[2] + sce_offsets[2];
       for ( int v=0; v<3; v++ ) {
-        if ( truthdata.pos[v]<bbox[v][0]-bbox_buffer || truthdata.pos[v]>bbox[v][1]+bbox_buffer ) {
+        if ( apparent_vtx[v]<bbox[v][0]-bbox_buffer || apparent_vtx[v]>bbox[v][1]+bbox_buffer ) {
           inbbox = false;
           break;
         }
