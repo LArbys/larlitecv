@@ -60,7 +60,7 @@ int main( int nargs, char** argv ) {
   beam_tick_range[0] = 100;
   beam_tick_range[1] = 400.0;
   const float us_per_tick = 0.015625;
-  const float bbox_buffer = 10.0;
+  const float bbox_buffer = 20.0;
 
   // Flash Match Metrics we want to test
 
@@ -133,6 +133,8 @@ int main( int nargs, char** argv ) {
     totpe_data_v.clear();
     totpe_hypo_trueflash_v.clear();
     totpe_hypo_falseflash_v.clear();
+    smallest_gausll_trueflash_v.clear();
+    smallest_gausll_falseflash_v.clear();
 
     // we get wnat to get:
     //  (1) truth info
