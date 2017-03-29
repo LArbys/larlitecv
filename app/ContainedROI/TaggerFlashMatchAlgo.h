@@ -68,6 +68,8 @@ namespace larlitecv {
 
     static std::vector< std::vector<float> > GetAABoundingBox( const larlite::track& track );
 
+    bool DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster );
+
   protected:
 
     const TaggerFlashMatchAlgoConfig m_config;   //< configuration class
