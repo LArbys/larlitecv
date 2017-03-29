@@ -47,7 +47,7 @@ namespace larlitecv {
   class ThruMuPayload : public TaggerCROIVPayload {
   public:
 
-  ThruMuPayload() : TaggerCROIVPayload("ThruMu") {};
+  ThruMuPayload() : TaggerCROIVPayload("ThruMu") { clear(); };
     virtual ~ThruMuPayload() {};
 
     std::vector< larcv::Image2D >     boundarypixel_image_v;
@@ -61,7 +61,7 @@ namespace larlitecv {
 
     std::vector< BMTrackCluster3D >      trackcluster3d_v;
     std::vector< larlite::track >        track_v;
-    std::vector< larcv::Pixel2DCluster > pixelcluster_v; 
+    std::vector< std::vector<larcv::Pixel2DCluster> > pixelcluster_v;
 
     std::vector< BoundarySpacePoint > used_spacepoint_v;
     std::vector< BoundarySpacePoint > unused_spacepoint_v;
@@ -77,6 +77,21 @@ namespace larlitecv {
       used_spacepoint_v.clear();
     };
 
+    void clear() {
+      boundarypixel_image_v.clear();
+      realspacehit_image_v.clear();
+      tagged_v.clear();
+      side_spacepoint_v.clear();
+      anode_spacepoint_v.clear();
+      cathode_spacepoint_v.clear();
+      imgends_spacepoint_v.clear();
+      trackcluster3d_v.clear();
+      track_v.clear();
+      pixelcluster_v.clear();
+      used_spacepoint_v.clear();
+      unused_spacepoint_v.clear();
+    }
+
   };
 
   class StopMuPayload : public TaggerCROIVPayload {
@@ -87,10 +102,10 @@ namespace larlitecv {
     larcv::EventPixel2D                                 stopmu_pixel_endpt_v;     // bad design. fix this garbage.
     std::vector< std::vector< const larcv::Pixel2D* > > stopmu_candidate_endpt_v; // refers to previous line. terrible!
 
-    std::vector< larlitecv::BMTrackCluster3D > stopmu_trackcluster_v;
-    std::vector< larlite::track >              track_v;
-    std::vector< larcv::Pixel2DCluster >       pixelcluster_v; 
-    
+    std::vector< larlitecv::BMTrackCluster3D >        stopmu_trackcluster_v;
+    std::vector< larlite::track >                     track_v;
+    std::vector< std::vector<larcv::Pixel2DCluster> > pixelcluster_v;
+
     std::vector< larcv::Image2D > stopmu_v;
 
     virtual void saveSpace() {
