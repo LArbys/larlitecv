@@ -108,6 +108,7 @@ int main( int nargs, char** argv ) {
   // ROI quantities
   int num_rois;     // number of identified ROis
   int nnu_inroi[4]; // number of nu pixels contained in the CROI
+  int vertex_in_croi; // is vertex in an CROI
 
   // Crossing Point tags
   int true_intime_thrumu;
@@ -139,6 +140,7 @@ int main( int nargs, char** argv ) {
 
   tree->Branch("num_rois", &num_rois, "num_rois/I");
   tree->Branch("nnu_inroi", nnu_inroi, "nnu_inroi[4]" );
+  tree->Branch("vtx_in_croi",             &vertex_in_croi,         "vtx_in_croi/I" );
   tree->Branch("true_intime_thrumu",      &true_intime_thrumu,     "true_intime_thrumu/I");
   tree->Branch("true_intime_stopmu",      &true_intime_stopmu,     "true_intime_stopmu/I");
   tree->Branch("true_crossingpoints",     &true_crossingpoints,     "true_crossingpoints/I");
@@ -178,11 +180,11 @@ int main( int nargs, char** argv ) {
       nnu_inroi[p] = 0;
       nvertex_badch[p] = 0;
       for (int istage=0; istage<kNumStages; istage++) {
-	      ncosmic_tagged[istage][p] = 0;
-	      ncosmic_tagged_once[istage][p] = 0;
-	      ncosmic_tagged_many[istage][p] = 0;
-	      nnu_tagged[istage][p] = 0;
-	      nvertex_tagged[istage][p] = 0;
+	ncosmic_tagged[istage][p] = 0;
+	ncosmic_tagged_once[istage][p] = 0;
+	ncosmic_tagged_many[istage][p] = 0;
+	nnu_tagged[istage][p] = 0;
+	nvertex_tagged[istage][p] = 0;
       }
       nvertex_incroi[p] = 0;
     }
@@ -191,6 +193,7 @@ int main( int nargs, char** argv ) {
     true_crossingpoints = 0;
     true_intime_stopmu = 0;
     true_intime_thrumu = 0;
+    vertex_in_croi = 0;
 
 
     // ok now to do damage
@@ -245,19 +248,38 @@ int main( int nargs, char** argv ) {
     std::vector<int> vertex_col(3,-1);
     std::vector<double> dpos(3);
     for (int i=0; i<3; i++ ) dpos[i] = truthdata.pos[i];
+    std::vector<double> vtx_offset = sce.GetPosOffsets( dpos[0], dpos[1], dpos[2] );
+    std::vector<double> vtx_sce(3,0);
+    for (int i=1; i<3; i++ ) vtx_sce[i] = dpos[i] + vtx_offset[i];
+    vtx_sce[0] = dpos[0] - vtx_offset[0] + 0.7;
+    
     for (size_t p=0; p<3; p++) {
-      wid[p] = ::larutil::Geometry::GetME()->WireCoordinate( dpos, p );
+      wid[p] = ::larutil::Geometry::GetME()->WireCoordinate( vtx_sce, p );
       if ( wid[p]>=0 && wid[p]<3456 )
-	      vertex_col[p] = imgs_v.at(p).meta().col(wid[p]);
+	vertex_col[p] = imgs_v.at(p).meta().col(wid[p]);
     }
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
-    float ftick = truthdata.pos[0]/cm_per_tick + 3200.0;
+    float vertex_tick = vtx_sce[0]/cm_per_tick + 3200.0;
     int vertex_row = -1;
-    if ( ftick >= imgs_v.at(0).meta().min_y() && ftick<=imgs_v.at(0).meta().max_y() )
-      vertex_row = imgs_v.at(0).meta().row( ftick );
+    if ( vertex_tick >= imgs_v.at(0).meta().min_y() && vertex_tick<=imgs_v.at(0).meta().max_y() )
+      vertex_row = imgs_v.at(0).meta().row( vertex_tick );
 
+    std::cout << "Vertex Pixel Coordinates (SCE corrected): (" << vertex_row << ", " << vertex_col[0] << "," << vertex_col[1] << "," << vertex_col[2] << ")" << std::endl;
 
-    std::cout << "Vertex Pixel Coordinates (" << vertex_row << ", " << vertex_col[0] << "," << vertex_col[1] << "," << vertex_col[2] << ")" << std::endl;
+    // did any of the ROIs contain the vertex?
+    vertex_in_croi = 0;
+    for ( auto& roi : containedrois_v ) {
+      int nplanes_in_roi = 0;
+      for (size_t p=0; p<3; p++ ) {
+	const larcv::ImageMeta& bb = roi.BB( (larcv::PlaneID_t)p );
+	if ( vertex_tick>=bb.min_y() && vertex_tick<=bb.max_y() && vertex_col[p]>=bb.min_x() && vertex_col[p]<=bb.max_x() )
+	  nplanes_in_roi++;
+      }
+      if (nplanes_in_roi==3) {
+	vertex_in_croi = 1;
+	break;
+      }
+    }
 
     // loop over MC tracks, get end points of muons
     std::vector< std::vector<int> > start_pixels;
@@ -363,7 +385,7 @@ int main( int nargs, char** argv ) {
     std::cout << "number of intime stopmu: "        << true_intime_stopmu << std::endl;
     std::cout << "number of true crossing points: " << true_crossingpoints << std::endl;
 
-    // make thruth pixel counts
+    // make truth pixel counts
     // count the pixels. determine if cosmic and neutrino are tagged. also if neutrino is in rois
     // we loop through the rows and cols
     std::vector<larcv::Image2D> nupix_imgs_v;
@@ -425,7 +447,7 @@ int main( int nargs, char** argv ) {
               {
                 nnu_inroi[p]++;
                 nnu_inroi[3]++;
-	            }
+	      }
             }
           }//if in semgment image
           else {
@@ -734,6 +756,10 @@ int main( int nargs, char** argv ) {
       for ( auto const& roi : containedrois_v ) {
         larcv::draw_bb( leftover, imgs_v.front().meta(), roi.BB(p), 255, 0, 255, 2 );
       }
+
+      // sce vertex
+      cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), cv::Scalar(0,0,255), 3, -1 );
+      cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), cv::Scalar(0,255,255), 2, -1 );      
 
       std::stringstream ss;
       ss << "leftover_i" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
