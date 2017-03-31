@@ -379,7 +379,7 @@ namespace larlitecv {
       if ( output.flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
         continue;
 
-      larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, true );
+      larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, m_config.croi_selection_cfg.bbox_pad , true );
 
       std::cout << "[Selected CROI]" << std::endl;
       for ( size_t p=0; p<3; p++ ) {
