@@ -24,6 +24,7 @@ namespace larlitecv {
   	float pmtflash_thresh;
   	float flashmatch_chi2_cut;
   	float flashpe_thresh;
+	float bbox_pad;	
   	std::vector<int> beam_tick_range;
   	std::vector<float> FVCutX;
   	std::vector<float> FVCutY;

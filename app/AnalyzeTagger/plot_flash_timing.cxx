@@ -68,7 +68,7 @@ int main( int nargs, char** argv ) {
 
   // Flash Match Metrics we want to test
 
-  TFile* rfile = new TFile("output_flash_timing_rerun.root", "recreate");
+  TFile* rfile = new TFile( pset.get<std::string>("OutputAnaFile").c_str(), "recreate");
   TTree* tree = new TTree("flashtimes", "Flash Times");
   int run, subrun, event;
 
