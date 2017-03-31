@@ -79,7 +79,7 @@ int main( int nargs, char** argv ) {
   enum { kThruMu=0, kStopMu, kUntagged, kCROI, kNumStages } Stages_t;
 
 
-  TFile* rfile = new TFile("output_pixel_analysis.root", "recreate");
+  TFile* rfile = new TFile("output_pixel_analysis_rerunpad20.root", "recreate");
   TTree* tree = new TTree("pixana", "Pixel-level analysis");
 
   // Event Index

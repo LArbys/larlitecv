@@ -217,8 +217,11 @@ int main(int nargs, char** argv ) {
     larlite::event_track* ev_thrumu_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
     if ( ev_thrumu_tracks==NULL )
       throw std::runtime_error("Could not load thrumu tracks from larlite file.");
-    if ( ev_thrumu_pixels.size()!=ev_thrumu_tracks.size() )
-      throw std::runtime_error("number of tracks and pixel objects are not the same");
+    if ( ev_thrumu_tracks->size()!=ev_thrumu_pixels->Pixel2DClusterArray((larcv::PlaneID_t)0).size() ) {
+      std::cout << "number of tracks (" << ev_thrumu_tracks->size() << ")"
+		<< " does not match number of pixel clusters (" << ev_thrumu_pixels->Pixel2DClusterArray((larcv::PlaneID_t)0).size() << ")" << std::endl;
+      throw std::runtime_error("Not good.");
+    }
 
     larlitecv::ThruMuPayload thrumu_data;
     for (size_t itrack=0; itrack<ev_thrumu_tracks->size(); itrack++) {

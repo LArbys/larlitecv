@@ -38,6 +38,7 @@ namespace larlitecv {
 		config.draw_truth_roi = ps.get<bool>("DrawTruthROI",false);
 
 		return config;
+
 	}
 
 

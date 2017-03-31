@@ -68,7 +68,7 @@ int main( int nargs, char** argv ) {
 
   // Flash Match Metrics we want to test
 
-  TFile* rfile = new TFile("output_flash_timing.root", "recreate");
+  TFile* rfile = new TFile( pset.get<std::string>("OutputAnaFile").c_str(), "recreate");
   TTree* tree = new TTree("flashtimes", "Flash Times");
   int run, subrun, event;
 
@@ -104,6 +104,12 @@ int main( int nargs, char** argv ) {
   tree->Branch("smallest_gausll_falseflashes", &smallest_gausll_falseflash_v );
   tree->Branch("smallest_gausll_trueflashes",  &smallest_gausll_trueflash_v );
 
+  // obvious containment
+  std::vector<int> containment_trueflash_v;    // chi2 to flash hypothesis not corresponding to true source of trigger
+  std::vector<int> containment_falseflash_v;  // chi2 to flash hypothesis corresponding to true source of trigger
+  tree->Branch("containment_falseflashes", &containment_falseflash_v );
+  tree->Branch("containment_trueflashes",  &containment_trueflash_v );
+
 
   // containment metric: most negative dwall value, from bounding box
   std::vector<float> roi_dwallx;
@@ -115,6 +121,9 @@ int main( int nargs, char** argv ) {
   truthdata.bindToTree( tree );
 
   int nentries = dataco[kCROIfile].get_nentries("larcv");
+
+  std::cout << "Start event loop with [enter]" << std::endl;
+  std::cin.get();
 
   for (int ientry=0; ientry<nentries; ientry++) {
 
@@ -137,6 +146,10 @@ int main( int nargs, char** argv ) {
     totpe_data_v.clear();
     totpe_hypo_trueflash_v.clear();
     totpe_hypo_falseflash_v.clear();
+    smallest_gausll_trueflash_v.clear();
+    smallest_gausll_falseflash_v.clear();
+    containment_trueflash_v.clear();
+    containment_falseflash_v.clear();
 
     // we get wnat to get:
     //  (1) truth info
@@ -239,17 +252,30 @@ int main( int nargs, char** argv ) {
         }
       }
 
+      bool contained = false;
+      if ( bbox[0][0]>=-10 && bbox[0][0]<=275 && bbox[0][1]>=-10 && bbox[0][1]<=275 )
+	contained = true;
+
       if ( inbbox ) {
         smallest_chi2_trueflash_v.push_back( smallest_chi2 );
         smallest_gausll_trueflash_v.push_back( smallest_gausll );
         totpe_hypo_trueflash_v.push_back( totpe_hypo );
         num_true_bbox++;
+	if ( contained )
+	  containment_trueflash_v.push_back( 1 );
+	else
+	  containment_trueflash_v.push_back( 0 );
       }
       else {
         smallest_chi2_falseflash_v.push_back( smallest_chi2 );
         smallest_gausll_falseflash_v.push_back( smallest_gausll );
         totpe_hypo_falseflash_v.push_back( totpe_hypo );
+	if ( contained )
+	  containment_falseflash_v.push_back( 1 );
+	else
+	  containment_falseflash_v.push_back( 0 );	
       }
+
     }
     std::cout << "Number of Vertex Enclosing BBox: " << num_true_bbox << std::endl;
 
