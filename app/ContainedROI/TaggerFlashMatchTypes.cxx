@@ -15,7 +15,7 @@
 
 namespace larlitecv {
 
-  larcv::ROI TaggerFlashMatchData::MakeROI( const std::vector<larcv::Image2D>& img_v, const bool iscroi_candidate ) {
+  larcv::ROI TaggerFlashMatchData::MakeROI( const std::vector<larcv::Image2D>& img_v, const float bbox_pad_cm, const bool iscroi_candidate ) {
 
     larcv::ROIType_t    roitype = larcv::kROIUnknown;
     larcv::ShapeType_t roishape = larcv::kShapeUnknown;
@@ -53,11 +53,26 @@ namespace larlitecv {
       }
     }
 
+    // pad the box
+    std::vector< std::vector<float> > corners(8);
+    int icorner = 0;
+    for (int i=0; i<2; i++) {
+      for (int j=0; j<2; j++) {
+	for (int k=0; k<2; k++) {
+	  corners.at(icorner).resize(3,0);
+	  corners[icorner][0] = bb[0][i] + (2*i-1)*bbox_pad_cm; // corner comes from different bboxes end
+	  corners[icorner][1] = bb[1][j] + (2*j-1)*bbox_pad_cm;
+	  corners[icorner][2] = bb[2][k] + (2*k-1)*bbox_pad_cm;
+	  icorner++;
+	}
+      }
+    }
+    
     /// convert bounds into image coordinates
     const larcv::ImageMeta& meta = img_v.front().meta();
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
-    float min_tick = bb[0][0]/cm_per_tick + 3200.0;
-    float max_tick = bb[0][1]/cm_per_tick + 3200.0;
+    float min_tick = (bb[0][0]-bbox_pad_cm)/cm_per_tick + 3200.0;
+    float max_tick = (bb[0][1]+bbox_pad_cm)/cm_per_tick + 3200.0;
 
     // pad
     min_tick -= 120.0;
@@ -86,24 +101,18 @@ namespace larlitecv {
       // need to check each Y-Z.
       // find the wire-extrema for each
       float wire_extremes[2] = { 1.0e6, -1.0e6 };
-      for ( int j=1; j<3; j++) {
-	for (int ex=0; ex<2; ex++) {
-	  Double_t xyz[3] = {0};
-	  for ( size_t i=0; i<3; i++ )
-	    xyz[i] = extrema[j][ex][i];
-	  float wire = larutil::Geometry::GetME()->WireCoordinate(xyz,p);
-	  wire = (wire<0) ? 0 : wire;
-	  wire = (wire>=meta.max_x()) ? meta.max_x()-1.0 : wire;
-	  if ( wire<wire_extremes[0] )
-	    wire_extremes[0] = wire;
-	  if ( wire>wire_extremes[1] )
-	    wire_extremes[1] = wire;
-	}
+      for ( auto const& corner : corners ) {
+	Double_t xyz[3] = {0};
+	for ( size_t i=0; i<3; i++ )
+	  xyz[i] = corner[i];
+	float wire = larutil::Geometry::GetME()->WireCoordinate(xyz,p);
+	wire = (wire<0) ? 0 : wire;
+	wire = (wire>=meta.max_x()) ? meta.max_x()-1.0 : wire;
+	if ( wire<wire_extremes[0] )
+	  wire_extremes[0] = wire;
+	if ( wire>wire_extremes[1] )
+	  wire_extremes[1] = wire;
       }
-
-      // pad
-      wire_extremes[0] -= 20.0;
-      wire_extremes[1] += 20.0;
 
       //  enforce bounds
       if ( wire_extremes[0]<0 )

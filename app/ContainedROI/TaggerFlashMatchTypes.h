@@ -25,7 +25,7 @@ namespace larlitecv {
     std::vector<larcv::Pixel2DCluster> m_pixels;
     larlite::track m_track3d;
 
-    larcv::ROI MakeROI( const std::vector<larcv::Image2D>& img_v, const bool iscroi_candidate=false );
+    larcv::ROI MakeROI( const std::vector<larcv::Image2D>& img_v, const float bbox_pad_cm=0.0, const bool iscroi_candidate=false );
 
   };
  
