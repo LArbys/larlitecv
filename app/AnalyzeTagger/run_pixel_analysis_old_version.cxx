@@ -758,8 +758,8 @@ int main( int nargs, char** argv ) {
       }
 
       // sce vertex
-      cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), cv::Scalar(0,0,255), 3, -1 );
-      cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), cv::Scalar(0,255,255), 2, -1 );      
+      cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), 4, cv::Scalar(0,0,255),   2, -1 );
+      cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), 3, cv::Scalar(0,255,255), 1, -1 );      
 
       std::stringstream ss;
       ss << "leftover_i" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";

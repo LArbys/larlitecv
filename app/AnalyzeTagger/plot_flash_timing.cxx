@@ -61,7 +61,7 @@ int main( int nargs, char** argv ) {
   beam_tick_range[0] = 100;
   beam_tick_range[1] = 400.0;
   const float us_per_tick = 0.015625;
-  const float bbox_buffer = 10.0;
+  const float bbox_buffer = 0.0;
 
   // space charge correction class
   larlitecv::SpaceChargeMicroBooNE sce;
