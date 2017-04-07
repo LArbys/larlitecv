@@ -49,11 +49,14 @@ int main( int nargs, char** argv ) {
   larcv::PSet FlashMgr_cfg_root        = larcv::CreatePSetFromFile( FlashMgr_cfg_file );
   const larcv::PSet& FlashMgr_pset     = FlashMgr_cfg_root.get<larcv::PSet>("ContainedROI");
 
+  FlashMgr_cfg_root.get<larcv::PSet>("ContainedROI").get<larcv::PSet>(“TaggerFlashMatchAlgo”);
+  TaggerFlashMatchAlgo
+
   // Create an object of class 'TaggerMatchAlgoConfig'.
-  larlitecv::TaggerFlashMatchAlgoConfig& first_Config_obj;
+  larlitecv::TaggerFlashMatchAlgoConfig first_Config_obj;
   
   // Use this object to produce another object of the same class that will initialize the flash manager.
-  larlitecv::TaggerFlashMatchAlgoConfig& second_Config_obj = first_Config_obj.MakeTaggerFlashMatchAlgoConfigFromPSet( FlashMgr_pset );
+  larlitecv::TaggerFlashMatchAlgoConfig second_Config_obj = first_Config_obj.MakeTaggerFlashMatchAlgoConfigFromPSet( FlashMgr_pset );
 
   // With this information, I can feed this second object into an object of class 'TaggerFlashMatchAlgo', which will then configure the 'm_flash_matcher' for me.
   // This is the function that I can also use to run the chi hypotheses with as well.
@@ -61,6 +64,8 @@ int main( int nargs, char** argv ) {
 
   // Declare a constant at the top for the number of cm in the x-direction per tick in the wire-plane images.
   const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec] * [usec/tick] = [cm/tick]
+
+  larlitecv::TaggerFlashMatchAlgoConfig cfg = larlitecv::TaggerFlashMatchAlgoConfig::MakeTaggerFlashMatchAlgoConfigFromPSet( set ); // Give to the 
 
   // Setup the Data Coordinators
   enum { kSource=0, kCROIfile, kNumSourceTypes } SourceTypes_t;
@@ -366,14 +371,14 @@ int main( int nargs, char** argv ) {
 	      }
 
 	      // Within the loop over the planes, I can now declare a 'constant' vector for the pixel clusters to give the first function the correct input.
-	      const larcv::Pixel2DCluster& constant_pixel_cluster = pixel_clusters;
+	      // const larcv::Pixel2DCluster& constant_pixel_cluster = pixel_clusters;
 
 	      // Declare an 'extended_cluster' that will be fed as input into the next function.
 	      // It is a greater cluster of points around the original cluster that is formed in the process of generating a flash.
 	      larcv::Pixel2DCluster& expanded_cluster;
 
 	      // Generate a 'QCluster_t' object with the 'MakeTPCFlashObject' function.
-	      flashana::QCluster_t current_qcluster = FlashROIMatching::MakeTPCFlashObject(pixel_clusters, img, expanded_cluster);
+	      flashana::QCluster_t current_qcluster = FlashROIMatching::MakeTPCFlashObject(constant_pixel_cluster, img, expanded_cluster);
 
 	      // With this, I can calculate an unfitted hypothesis for the chi squared using the 'current_qcluster' variable.
 	      // Place the qcluster output into the same format as it is in the 'GenerateUnfittedFlashHypothesis' function.
