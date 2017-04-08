@@ -220,7 +220,16 @@ int main(int nargs, char** argv ) {
         thrumu_data.saveSpace();
 
       if ( RunStopMu ) {
-        larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
+        //larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
+	// we skip stopmu. we mimic instead.
+	larlitecv::StopMuPayload stopmu_data;
+	// make empty tagged pixel images
+	for ( auto const& img : input_data.img_v ) {
+	  larcv::Image2D stopmu_fake( img.meta() );
+	  stopmu_fake.paint(0);
+	  stopmu_data.stopmu_v.emplace_back( std::move(stopmu_fake) );
+	}
+	
         if ( save_stopmu_space )
           stopmu_data.saveSpace();
         if ( RunCROI ) {
