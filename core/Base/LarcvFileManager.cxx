@@ -168,10 +168,10 @@ namespace larlitecv {
         iter_rse2flist->second.push_back(fpath);
       }
 
-      // std::cout << "File flavor: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
-      // 		<< fileentry_rse.run() 
-      // 		<< " " << fileentry_rse.subrun() 
-      // 		<< " "  << fileentry_rse.event() << std::endl;
+      std::cout << "File " << fpath << " file-flavor: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
+       		<< fileentry_rse.run() 
+       		<< " " << fileentry_rse.subrun() 
+       		<< " "  << fileentry_rse.event() << std::endl;
       delete product_ptr;
 	
     }//end of file list loop
@@ -206,12 +206,12 @@ namespace larlitecv {
     entry2rse.clear();
 
     // make filelist
-    std::set<RSElist> finalrseset;
+    std::vector<RSElist> finalrseset;
     for ( auto &flavorset : maxset ) {
       std::vector<std::string>& files = flavorfiles.find( flavorset )->second;
       for ( auto &file : files ) {
         RSElist& rselist = file_rselist.find( file )->second;
-        finalrseset.insert( rselist );
+        finalrseset.push_back( rselist ); // this use to be a set....
       }
     }
     std::vector< RSElist > finalrse_v;

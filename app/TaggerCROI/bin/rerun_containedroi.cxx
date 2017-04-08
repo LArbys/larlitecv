@@ -22,12 +22,21 @@
 #include "TaggerCROI/TaggerCROITypes.h"
 #include "TaggerCROI/PayloadWriteMethods.h"
 
+/* ========================================
+//  ReRun Contained ROI Selection
+//  Takes in stopmu/thrumu output.
+//
+//  Allows one to rerun CROI selection
+//   since thrumu/stopmu can be expensive
+//   steps in terms of time.
+// =======================================*/
+
 int main(int nargs, char** argv ) {
 
-  std::cout << "Cosmic Muon Tagger and Contained ROI Selection" << std::endl;
+  std::cout << "Contained ROI Selection" << std::endl;
 
   if ( nargs!=2 ) {
-  	std::cout << "usage: ./run_tagger [config file]" << std::endl;
+  	std::cout << "usage: ./rerun_containedroi [config file]" << std::endl;
   	return 0;
   }
 
@@ -113,42 +122,23 @@ int main(int nargs, char** argv ) {
     input_data.entry  = ientry;
 
     // get images (from larcv)
-    larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, larcv_image_producer );
+    larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "modimg" );
     if ( event_imgs->Image2DArray().size()==0) {
       if ( !skip_empty_events )
-	throw std::runtime_error("Number of images=0. LArbys.");
+        throw std::runtime_error("Number of images=0. LArbys.");
       else {
-	std::cout << "Skipping Empty Events." << std::endl;
-	continue;
+        std::cout << "Skipping Empty Events." << std::endl;
+        continue;
       }
     }
     else if ( event_imgs->Image2DArray().size()!=3 ) {
       throw std::runtime_error("Number of Images!=3. Weird.");
     }
-
-    // ------------------------------------------------------------------------------------------//
-    // FILL IMAGES
-    input_data.img_v.clear();
     event_imgs->Move( input_data.img_v );
-    if ( DeJebWires ) {
-      for ( auto &img : input_data.img_v ) {
-        const larcv::ImageMeta& meta = img.meta();
-        for ( int col=0; col<(int)meta.cols(); col++) {
-          for (int row=0; row<(int)meta.rows(); row++) {
-            float val = img.pixel( row, col );
-            if (meta.plane()==0 ) {
-              if ( (col>=2016 && col<=2111) || (col>=2176 && 2212) ) {
-                val *= jebwiresfactor;
-              }
-            }
-            img.set_pixel(row,col,val);
-          }
-        }
-      }
-    }
-    if ( input_data.img_v.size()!=3 )
-    	throw std::runtime_error("Number of Images incorrect.");
+    const std::vector<larcv::Image2D>& imgs_v = input_data.img_v;
 
+
+    /*
     // ------------------------------------------------------------------------------------------//
     // LABEL EMPTY CHANNELS
 
@@ -206,50 +196,102 @@ int main(int nargs, char** argv ) {
     }
     if ( input_data.gapch_v.size()!=3 )
     	throw std::runtime_error("Number of Gap Channels not correct.");
+    */
+    larcv::EventImage2D* ev_gapchs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "gapchs" );
+    ev_gapchs->Move( input_data.gapch_v );
 
     // -------------------------------------------------------------------------------------------//
     // COLLECT FLASH INFORMATION
-
-    for ( auto &flashproducer : opflash_producers ) {
-      larlite::event_opflash* opdata = (larlite::event_opflash*)dataco.get_larlite_data(larlite::data::kOpFlash, flashproducer );
-      std::cout << "search for flash hits from " << flashproducer << ": " << opdata->size() << " flashes" << std::endl;
-      input_data.opflashes_v.push_back( opdata );
-    }
+    std::string flashproducer = "opflash";
+    larlite::event_opflash* opdata = (larlite::event_opflash*)dataco.get_larlite_data(larlite::data::kOpFlash, flashproducer );
+    std::cout << "search for flash hits from " << flashproducer << ": " << opdata->size() << " flashes" << std::endl;
+    input_data.opflashes_v.push_back( opdata );
 
     // -------------------------------------------------------------------------------------------//
     // RUN ALGOS
     std::cout << "[ RUN ALGOS ]" << std::endl;
 
-    if ( RunThruMu ) {
-      larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
-      if ( save_thrumu_space )
-        thrumu_data.saveSpace();
 
-      if ( RunStopMu ) {
-        //larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
-	// we skip stopmu. we mimic instead.
-	larlitecv::StopMuPayload stopmu_data;
-	// make empty tagged pixel images
-	for ( auto const& img : input_data.img_v ) {
-	  larcv::Image2D stopmu_fake( img.meta() );
-	  stopmu_fake.paint(0);
-	  stopmu_data.stopmu_v.emplace_back( std::move(stopmu_fake) );
-	}
-	
-        if ( save_stopmu_space )
-          stopmu_data.saveSpace();
-        if ( RunCROI ) {
-          larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
-          if ( save_croi_space )
-            croi_data.saveSpace();
-          WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out );
-        }
-        WriteStopMuPayload( stopmu_data, tagger_cfg, dataco_out );
-      }
-
-      WriteThruMuPayload( thrumu_data, tagger_cfg, dataco_out );
+    // reload ThruMu payload data: need track points and pixels. and tagged image.
+    larcv::EventPixel2D*  ev_thrumu_pixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumupixels" );
+    larlite::event_track* ev_thrumu_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
+    if ( ev_thrumu_tracks==NULL )
+      throw std::runtime_error("Could not load thrumu tracks from larlite file.");
+    if ( ev_thrumu_tracks->size()!=ev_thrumu_pixels->Pixel2DClusterArray((larcv::PlaneID_t)0).size() ) {
+      std::cout << "number of tracks (" << ev_thrumu_tracks->size() << ")"
+		<< " does not match number of pixel clusters (" << ev_thrumu_pixels->Pixel2DClusterArray((larcv::PlaneID_t)0).size() << ")" << std::endl;
+      throw std::runtime_error("Not good.");
     }
 
+    larlitecv::ThruMuPayload thrumu_data;
+    for (size_t itrack=0; itrack<ev_thrumu_tracks->size(); itrack++) {
+      thrumu_data.track_v.push_back( ev_thrumu_tracks->at(itrack) );
+      std::vector<larcv::Pixel2DCluster> pixelcluster_v;
+      for ( size_t p=0; p<imgs_v.size(); p++ ) {
+        const larcv::Pixel2DCluster& pixels = ev_thrumu_pixels->Pixel2DClusterArray((larcv::PlaneID_t)p).at(itrack);
+        pixelcluster_v.push_back( pixels );
+      }
+      thrumu_data.pixelcluster_v.emplace_back( std::move(pixelcluster_v) );
+    }
+
+    thrumu_data.tagged_v.clear();
+    for ( size_t p=0; p<imgs_v.size(); p++ ) {
+      larcv::Image2D thrumu_img( imgs_v.at(p).meta() );
+      thrumu_img.paint(0);
+      for ( auto const& pixelcluster_v : thrumu_data.pixelcluster_v ) {
+        for ( auto const& pixel : pixelcluster_v.at(p) ) {
+          for (int dr=-5; dr<=5; dr++) {
+            int row = dr + (int)pixel.Y();
+            if ( row<0 || row>=(int)imgs_v.at(p).meta().rows() ) continue;
+            for (int dc=-5; dc<5; dc++) {
+              int col=dc+(int)pixel.X();
+              if ( col<0 || col>=(int)imgs_v.at(p).meta().cols() ) continue;
+              thrumu_img.set_pixel(row,col,255);
+            }//end of col loop
+          }//end of row loop
+        }//end of pixel loop
+      }//end of cluster loop
+      thrumu_data.tagged_v.emplace_back( std::move(thrumu_img) );
+    }//end of plane loop
+
+    // reload StopMu payload data
+    larcv::EventPixel2D*  ev_stopmu_pixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "stopmupixels" );
+    larlite::event_track* ev_stopmu_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "stopmu3d" );
+    larlitecv::StopMuPayload stopmu_data;
+    for (size_t itrack=0; itrack<ev_stopmu_tracks->size(); itrack++) {
+      stopmu_data.track_v.emplace_back( std::move(ev_stopmu_tracks->at(itrack)) );
+      std::vector<larcv::Pixel2DCluster> pixelcluster_v;
+      for ( size_t p=0; p<imgs_v.size(); p++ )
+        pixelcluster_v.push_back( ev_stopmu_pixels->Pixel2DClusterArray((larcv::PlaneID_t)p).at(itrack) );
+      stopmu_data.pixelcluster_v.emplace_back( std::move(pixelcluster_v) );
+    }
+    stopmu_data.stopmu_v.clear();
+    for ( size_t p=0; p<imgs_v.size(); p++ ) {
+      larcv::Image2D stopmu_img( imgs_v.at(p).meta() );
+      stopmu_img.paint(0);
+      for ( auto const& pixelcluster_v : stopmu_data.pixelcluster_v ) {
+        for ( auto const& pixel : pixelcluster_v.at(p) ) {
+          for (int dr=-5; dr<=5; dr++) {
+            int row = dr + (int)pixel.Y();
+            if ( row<0 || row>=(int)imgs_v.at(p).meta().rows() ) continue;
+            for (int dc=-5; dc<5; dc++) {
+              int col=dc+(int)pixel.X();
+              if ( col<0 || col>=(int)imgs_v.at(p).meta().cols() ) continue;
+              stopmu_img.set_pixel(row,col,255);
+            }//end of col loop
+          }//end of row loop
+        }//end of pixel loop
+      }//end of cluster loop
+      stopmu_data.stopmu_v.emplace_back( std::move(stopmu_img) );
+    }//end of plane loop
+
+
+    larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
+    if ( save_croi_space )
+      croi_data.saveSpace();
+    WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out );
+    WriteStopMuPayload( stopmu_data, tagger_cfg, dataco_out );
+    WriteThruMuPayload( thrumu_data, tagger_cfg, dataco_out );
 
     // -------------------------------------------------------------------------------------------//
     // SAVE DATA

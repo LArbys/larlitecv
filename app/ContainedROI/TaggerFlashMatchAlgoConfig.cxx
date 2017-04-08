@@ -19,6 +19,7 @@ namespace larlitecv {
 		us_per_tick = 0.015625;
 		pmtflash_thresh = 3;
 		flashpe_thresh = 10.0;
+		bbox_pad = 20.0;		
 		flashmatch_chi2_cut = 10.0;
 		FVCutX.resize(2);
 		FVCutY.resize(2);
@@ -45,6 +46,7 @@ namespace larlitecv {
 		cfg.FVCutY            = pset.get< std::vector<float> >("FVCutY");
 		cfg.FVCutZ            = pset.get< std::vector<float> >("FVCutZ");
 		cfg.flashmatch_chi2_cut = pset.get<float>("FlashMatchChi2Cut");
+		cfg.bbox_pad          = pset.get<float>("BBoxPadcm");
 		//cfg.gain_correction   = pset.get< std::vector<float> >("GainCorrection");
 		//larcv::PSet flashmatchman_cfg = pset.get<larcv::PSet>("FlashMatchManager");
 		//fcllite::PSet vox( "Manager", flashmatchman_cfg.data_string() );

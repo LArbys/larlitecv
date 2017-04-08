@@ -1,1 +1,6 @@
 run_pixel_analysis
+*.o
+*.jpg
+*.txt
+*.root
+run_pixel_analysis_old_version

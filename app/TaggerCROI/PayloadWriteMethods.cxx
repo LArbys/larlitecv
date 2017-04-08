@@ -71,7 +71,7 @@ namespace larlitecv {
       realspace_endpts[larlitecv::kUpstream]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "upspacepts" );
       realspace_endpts[larlitecv::kDownstream] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "downspacepts" );
       realspace_endpts[larlitecv::kAnode]      = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "anodepts" );
-      realspace_endpts[larlitecv::kCathode]    = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "cathodepts" );    
+      realspace_endpts[larlitecv::kCathode]    = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "cathodepts" );
       realspace_endpts[larlitecv::kImageEnd]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "imgendpts" );
       std::vector< const std::vector<BoundarySpacePoint>* > spacepoint_lists;
       spacepoint_lists.push_back( &(data.used_spacepoint_v) );
@@ -102,7 +102,7 @@ namespace larlitecv {
       unused_endpts[larlitecv::kUpstream]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_upspacepts" );
       unused_endpts[larlitecv::kDownstream] = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_downspacepts" );
       unused_endpts[larlitecv::kAnode]      = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_anodepts" );
-      unused_endpts[larlitecv::kCathode]    = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_cathodepts" );    
+      unused_endpts[larlitecv::kCathode]    = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_cathodepts" );
       unused_endpts[larlitecv::kImageEnd]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_imgendpts" );
       for ( auto const& sp_v : data.unused_spacepoint_v ) {
         int sptype = (int)sp_v.at(0).type;
@@ -132,7 +132,7 @@ namespace larlitecv {
     // save 3D track object
     if ( config.thrumu_write_cfg.get<bool>("WriteThruMuTracks") ) {
       larlite::event_track* ev_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "thrumu3d" );
-    
+
       // convert BMTrackCluster3D to larlite::track
       int id = 0;
       for ( int itrack=0; itrack<(int)data.trackcluster3d_v.size(); itrack++ ) {
@@ -156,7 +156,7 @@ namespace larlitecv {
     // save 3D track object
     if ( config.stopmu_write_cfg.get<bool>("WriteStopMuTracks") ) {
       larlite::event_track* ev_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "stopmu3d" );
-    
+
       // convert BMTrackCluster3D to larlite::track
       for ( int itrack=0; itrack<(int)data.stopmu_trackcluster_v.size(); itrack++ ) {
         const larlitecv::BMTrackCluster3D& track3d = data.stopmu_trackcluster_v.at(itrack);
@@ -169,7 +169,7 @@ namespace larlitecv {
     // output: stopmu-tagged pixels
     // use pixel2dclusters to fill out image
     if ( config.stopmu_write_cfg.get<bool>("WriteStopMuTaggedImage") ) {
-      larcv::EventImage2D* stopmu_eventimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmu" );    	
+      larcv::EventImage2D* stopmu_eventimgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmu" );
       for ( auto const& stopmu : data.stopmu_v ) {
         stopmu_eventimgs->Append( stopmu );
       }
@@ -186,11 +186,11 @@ namespace larlitecv {
         }
       }
     }
-	}	
+	}
 
-  void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {	
+  void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
 
-    // CRITICAL OUTPUT: NO FLAGS 
+    // CRITICAL OUTPUT: NO FLAGS
 
     // ROIs, StopMu Tracks and clusters, ThruMu Tracks and Clusters, Truth ROI, Bad channels
     larcv::EventROI* out_ev_roi = (larcv::EventROI*)dataco.get_larcv_data( larcv::kProductROI, "croi" );
@@ -201,12 +201,12 @@ namespace larlitecv {
     for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
       auto const& flashdata = data.flashdata_v.at(itrack);
       if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
-	continue;
-      if ( data.flashdata_selected_v[itrack]==0 ) 
-	continue;
+        continue;
+      if ( data.flashdata_selected_v[itrack]==0 )
+        continue;
 
       for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
-	out_croi_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
+        out_croi_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
       }
     }
 
@@ -222,28 +222,28 @@ namespace larlitecv {
           evout_tracks_untagged->push_back( flashdata.m_track3d );
         }
       }
-    }    
+    }
 
     // store untagged pixels
     if ( config.croi_write_cfg.get<bool>("WriteUntaggedPixels") ) {
       larcv::EventPixel2D* out_untagged_pixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "untaggedpixels" );
       for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
-	auto const& flashdata = data.flashdata_v.at(itrack);
-	if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
-	  continue;
+        auto const& flashdata = data.flashdata_v.at(itrack);
+        if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
+          continue;
 
-	if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kUntagged ) {
-	  for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
-	    out_untagged_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
-	  }
-	}
+        if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kUntagged ) {
+          for (size_t p=0; p<flashdata.m_pixels.size(); p++) {
+            out_untagged_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
+          }
+        }
       }
     }
 
     // selected tracks
     if ( config.croi_write_cfg.get<bool>("WriteSelectedTracks")) {
       larlite::event_track* evout_tracks_selected = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "croi3d" );
-      
+
       for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
         auto const& flashdata = data.flashdata_v.at(itrack);
         if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
@@ -253,15 +253,22 @@ namespace larlitecv {
         }
       }
     }
-    
+
     // combined tagged image
     if ( config.croi_write_cfg.get<bool>("WriteCombinedTaggedImage") ) {
       larcv::EventImage2D* evout_combined_v = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "combinedtags");
       for ( auto const& combined : data.combined_v ) {
-	evout_combined_v->Append( combined );
+        evout_combined_v->Append( combined );
       }
     }
-    
-  }
 
+    // Store opflashes for all tracks
+    if (config.croi_write_cfg.get<bool>("WriteTrackOpFlashes") ) {
+      larlite::event_opflash* track_opflash_out = (larlite::event_opflash*)dataco.get_larlite_data( larlite::data::kOpFlash, "ophypo");
+
+      for ( auto const& opflash : data.track_opflash_v) {
+        track_opflash_out->push_back(opflash);
+      }
+    }
+  }
 }

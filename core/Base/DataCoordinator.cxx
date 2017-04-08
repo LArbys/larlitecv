@@ -62,7 +62,7 @@ namespace larlitecv {
       std::cout << "Already initialized!" << std::endl;
       return;
     }
-    std::cout << "[Data Coodinator] Initializing" << std::endl;
+    std::cout << "[DataCoodinator] Initializing" << std::endl;
 
     prepfilelists();
 
@@ -88,7 +88,7 @@ namespace larlitecv {
     for (auto &iter : fManagers ) {
       std::cout << "[DataCoordinator] initializing filemanager for " << iter.first << std::endl;
       iter.second->initialize();
-      std::cout << iter.first << " loaded " << iter.second->get_final_filelist().size() << " files." << std::endl;
+      std::cout << "  " << iter.first << " loading " << iter.second->get_final_filelist().size() << " files." << std::endl;      
     }
 
     // now we setup the iomanagers
