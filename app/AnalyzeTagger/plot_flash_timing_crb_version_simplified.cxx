@@ -26,6 +26,7 @@
 // ROOT
 #include "TFile.h"
 #include "TTree.h"
+#include "TVector3.h"
 
 int main( int nargs, char** argv ) {
 
@@ -46,15 +47,15 @@ int main( int nargs, char** argv ) {
   // Do the same for the other config file.
   // The file that I want to enter here is: '../ContainedROI/bin/containedroi.cfg'.
   std::string   FlashMgr_cfg_file      = argv[2];
-  larcv::PSet FlashMgr_cfg_root        = larcv::CreatePSetFromFile( FlashMgr_cfg_file );
-  larcv::PSet FlashMgr_PSet            = FlashMgr_cfg_root.get<larcv::PSet>("ContainedROI").get<larcv::PSet>(“TaggerFlashMatchAlgo”);
+  larcv::PSet   FlashMgr_cfg_root      = larcv::CreatePSetFromFile( FlashMgr_cfg_file );
+  larcv::PSet   FlashMgr_PSet          = FlashMgr_cfg_root.get<larcv::PSet>("ContainedROI").get<larcv::PSet>("TaggerFlashMatchAlgo");
   larlitecv::TaggerFlashMatchAlgoConfig cfg = larlitecv::TaggerFlashMatchAlgoConfig::MakeTaggerFlashMatchAlgoConfigFromPSet( FlashMgr_PSet ); // Give to the instance of class 'TaggerFlashMatchAlgo'.              
 
-  // Declare an instance of class 'TaggerFlashMatchAlgo'.
+  // Declare an instance of class 'TaggerFlashMatchAlgo'.  This is the object that I will use to generate a new flash hypothesis for each of the 'Q_Clusters'.
   larlitecv::TaggerFlashMatchAlgo flash_matcher_algo( cfg );
 
   // Declare a constant at the top for the number of cm in the x-direction per tick in the wire-plane images.
-  const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec] * [usec/tick] = [cm/tick]
+  // const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec] * [usec/tick] = [cm/tick]
 
   // Setup the Data Coordinators
   enum { kSource=0, kCROIfile, kNumSourceTypes } SourceTypes_t;
@@ -86,11 +87,11 @@ int main( int nargs, char** argv ) {
   double LowestChiSquareGridPointSep     = pset.get< double >("LowestChiSquareGridPointSep");
 
   // Declare variables for the number of columns and the numbers of rows.
-  size_t row_num = 3456;
-  size_t col_num = 1008;
+  // size_t row_num = 3456;
+  // size_t col_num = 1008;
 
   // CRB: Declare an 'Image2D' object to reference for generating rows and columns from the wire number and tick.
-  const larcv::Image2D& img(row_num, col_num);
+  // const larcv::Image2D img(row_num, col_num);
 
   // space charge correction class
   larlitecv::SpaceChargeMicroBooNE sce;
@@ -269,127 +270,102 @@ int main( int nargs, char** argv ) {
 
       // Implement the code for changing the chi2 test at this point in the code.
 
-      // First, declare vectors for the amount of the offset for the track at each new value of the chi2 in each of the coordinates.
-      std::vector < double > x_offset_vector;
-      std::vector < double > y_offset_vector;
-      std::vector < double > z_offset_vector;
+      // First, declare a vector for the offset points at the new point in the square around the central point on the track.
+      std::vector < TVector3 > offset_points_vector;
+      // std::vector < double > y_offset_vector;
+      // std::vector < double > z_offset_vector;
+
+      // Declare a vector for the chi2 values at the different points on the track's trajectory.
+      std::vector < float > chi_squared_v;
       
       // The points that are being referenced are with respect to the initial location of these points on the track.
       // Check to see if the change in chi square is constant at all points on the grid.
-      for (double x_coord = -LowestChiSquareGridHalfSize; x_coord <= LowestChiSquareGridHalfSize; x_coord += LowestChiSquareGridPointSep) {
+      for (double x_offset = -LowestChiSquareGridHalfSize; x_offset <= LowestChiSquareGridHalfSize; x_offset += LowestChiSquareGridPointSep) {
 
-	for (double y_coord = -LowestChiSquareGridHalfSize; y_coord <= LowestChiSquareGridHalfSize; y_coord += LowestChiSquareGridPointSep) {
+	for (double y_offset = -LowestChiSquareGridHalfSize; y_offset <= LowestChiSquareGridHalfSize; y_offset += LowestChiSquareGridPointSep) {
 
-	  for (double z_coord = -LowestChiSquareGridHalfSize; z_coord <= LowestChiSquareGridHalfSize; z_coord += LowestChiSquareGridPointSep) {
+	  for (double z_offset = -LowestChiSquareGridHalfSize; z_offset <= LowestChiSquareGridHalfSize; z_offset += LowestChiSquareGridPointSep) {
 
-	    // Declare a boolean for if any part of the track is out of range.
-	    bool part_of_track_out_of_range = false;
+	    // Initialize a new track object with a set of trajectory points as given by the 'offset_vector_points'.                                                               
+	    larlite::track shifted_track(track);
+	    shifted_track.clear_data();
+	    size_t num_of_trajectory_points = track.NumberTrajectoryPoints();
 
-	    // Declare an empty vector of the new points in each dimension.  I will loop through the points and offset each of them by the amount given above.
-	    std::vector < double > offset_x_coordinates;
-	    std::vector < double > offset_y_coordinates;
-	    std::vector < double > offset_z_coordinates;
+	    // Declare an object of type 'TVector3' that will contain the shifted points on the track which will then be appended to 'offset_points_vector'.
+	    TVector3 shifted_points_set;
 
-	    // Loop through the points on the track and offset each of them by the amount given by the '*dim*_coord', and then append those values to the vectors above.
-	    // Coordinates corresponding to the same points are appended at the same position in the vectors, which maintains organization of the output.
-	    for (unsigned int offset_iterator = 0; offset_iterator < track.size(); offset_iterator++) {
+	    // Declare a boolean value for if the track is out of range.
+	    bool isShiftedTrackOutOfRange = false;
 
-	      // Check the boundary conditions for if any point on the track is out of range of the TPC.
-	      // I allow some offset on the track x endpoints, because the tracks are not t0-corrected and therefore could be reconstructed outside of the TPC.
-	      if ((track.LocationAtPoint(offset_iterator)[0] + x_coord) < -50.0 || (track.LocationAtPoint(offset_iterator)[0] + x_coord) > 350 || (track.LocationAtPoint(offset_iterator)[1] + y_coord) < -116.5 || (track.LocationAtPoint(offset_iterator)[1] + y_coord) > 116.5 || (track.LocationAtPoint(offset_iterator)[2] + z_coord) < 0.0 || (track.LocationAtPoint(offset_iterator)[2] + z_coord) > 1036.8) {
+	    // Fill the vectors above with the offsets of the points of the current track.
+	    for (unsigned int point_iterator = 0; point_iterator < track.NumberTrajectoryPoints(); point_iterator++) {
 
-		// Set 'part_of_track_out_of_range' to 'true'.
-		part_of_track_out_of_range = true;
-
-		// Break the loop.
+	      // Check to see if any point on the track is out of range.  If it is, then we will skip this particular (x,y,z) shift of the track.
+	      // I will put some allowance on the track in the x-direction by allowing it to be placed anywhere from (-50 cm, 300 cm) because the tracks
+	      // are not t0-tagged.
+	      if ((track.LocationAtPoint(point_iterator)[0] + x_offset) < -50 || (track.LocationAtPoint(point_iterator)[0] + x_offset) > 300 || (track.LocationAtPoint(point_iterator)[1] + y_offset) < -116.5 || (track.LocationAtPoint(point_iterator)[1] + y_offset) > 116.5 || (track.LocationAtPoint(point_iterator)[2] + z_offset) < 0.0 || (track.LocationAtPoint(point_iterator)[2] + z_offset) > 1036.8) {
+		
+		// Reset the value of 'isShiftedTrackOutOfRange' to 'true'.
+		isShiftedTrackOutOfRange = true;
+	       
 		break;
 
 	      }
 
-	      offset_x_coordinates.push_back(track.LocationAtPoint(offset_iterator)[0] + x_coord);
-	      offset_y_coordinates.push_back(track.LocationAtPoint(offset_iterator)[1] + y_coord);
-	      offset_z_coordinates.push_back(track.LocationAtPoint(offset_iterator)[2] + z_coord);
+	      // Offset each of the points on the track, append them to 'shifted_points_set', and append that object to 'offset_points_vector'.
+	      shifted_points_set[0] = track.LocationAtPoint(point_iterator)[0] + x_offset;
+	      shifted_points_set[1] = track.LocationAtPoint(point_iterator)[1] + y_offset;
+	      shifted_points_set[2] = track.LocationAtPoint(point_iterator)[2] + z_offset;
+
+	      // Append these points onto the 'shifted_track'.
+	      shifted_track.add_vertex(shifted_points_set);
+
+	      // Append this object onto the end of the 'offset_points_vector' object (this will occur in order so it will not be a problem).
+	      offset_points_vector.push_back(shifted_points_set);
 
 	    }
 
-	    // Continue onto the next set of offsets if part of the track is out of range.  
-	    if (part_of_track_out_of_range = true)
-
+	    // If 'isShiftedTrackOutOfRange' is now 'true', then you can continue onto the next set of shifted points that we will consider.
+	    if (isShiftedTrackOutOfRange)
 	      continue;
 
+	    // Reset the values of the coordinates for the 'shifted_track'.
+	    // shifted_track.fXYZ = shifted_points_set;
+	    // .fXYZ(shifted_points_set);
+
+	    // Turn this track into an object of type 'flashana::QCluster_t' by using the function 'TaggerFlashMatchAlgo::GenerateQCluster'.
+	    flashana::QCluster_t shifted_track_qcluster = flash_matcher_algo.GenerateQCluster(shifted_track);
+
+	    // Generate an unfitted hypothesis of type 'flashana::Flash_t' for this 'qcluster' by using the 'TaggerFlashMatchAlgo::GenerateUnfittedFlashHypothesis' function.
+	    flashana::Flash_t shifted_track_flash = flash_matcher_algo.GenerateUnfittedFlashHypothesis(shifted_track_qcluster);
+
+	    // Generate this 'flashana::Flash_t' into an object of type 'larlite::opflash' with the function 'TaggerFlashMatchAlgo::MakeOpFlashFromFlash'
+	    larlite::opflash shifted_track_ophypo = flash_matcher_algo.MakeOpFlashFromFlash(shifted_track_flash);
+	   
+	    // Generate a value for the minimum chi squared value with the variales 'totpe_data_shifted' and 'totpe_hypo_shifted' that are used.
+	    float totpe_data_shifted = 0.;
+	    float totpe_hypo_shifted = 0.;
+
+	    float smallest_chi2_shifted = larlitecv::CalculateFlashMatchChi2( intime_data, shifted_track_ophypo, totpe_data_shifted, totpe_hypo_shifted, 20000.0, false );
+
+	    // Append this value onto 'chi_squared_v'.
+	    chi_squared_v.push_back(smallest_chi2_shifted);
+
 	  }
-	
-	    // Loop through each of the planes, and for each plane loop through each of the points to (1) convert them into a tick and a wire number, (2) convert them into a row and column number, and (3) declare a Pixel2D object with these items that can be appended to the 'Pixel2DCluster' lists above.
 
-	    for (size_t plane = 0; plane < 3; plane++) {
+	}
 
-	      // Convert each of these coordinates to wire and tick values, which can then be converted into row and column pixel values.                     
-	      // This will all happen in the same loop.  Declare a vector of lists of pixel values that you'll need (there will be a separate list for each of the planes).   
-	      larcv::Pixel2DCluster pixel_clusters;
+      }
 
-	      for (size_t point_iterator = 0; point_iterator < offset_x_coordinates.size(); point_iterator++) {
-
-		// Declare a 'Double_t' object for the shifted coordinates at this point.
-		Double_t xyz[3] = {0};
-
-		// Initialize the values of 'xyz' to the values of the coordinate vectors at this index.
-		xyz[0] = offset_x_coordinates[point_iterator];
-		xyz[1] = offset_y_coordinates[point_iterator];
-		xyz[2] = offset_z_coordinates[point_iterator];
-
-		// Use these coordinates and the 'LArUtil' geometry considerations to find the tick (using the x-coordinate) and the wire number (using the yz-coordinates) for this coordinate.
-		float fwire = larutil::Geometry::GetME()->WireCoordinate( xyz , plane );
-		fwire       = ( fwire<0 ) ? 0 : fwire; // Ensure that the wire number is not negative.
-		float tick  = tick  = xyz[0]/cm_per_tick+3200.0;
-
-		// Round off both of these values.
-		fwire       = round(fwire);
-		tick        = round(tick);
-		
-		// Produce row and column values using the image functionality from LArCV.
-		int row = img.meta().row(tick);
-		int col = img.meta().col(fwire);
-
-		// Convert the row and column into a Pixel2D object.
-		// Note that this takes input in the order 'x_, y_' which corresponds to an ordering of the Image2D coordinates of (col, row), opposite to what we have been doing before.
-		larcv::Pixel2D pixel(col, row);
-
-		// Append this Pixel2D object onto the 'pixel_clusters' array at the entry at index 'plane'.
-		pixel_clusters.push_back(pixel);
-
-	      }
-
-	      // Within the loop over the planes, I can now declare a 'constant' vector for the pixel clusters to give the first function the correct input.
-	      // const larcv::Pixel2DCluster& constant_pixel_cluster = pixel_clusters;
-
-	      // Declare an 'extended_cluster' that will be fed as input into the next function.
-	      // It is a greater cluster of points around the original cluster that is formed in the process of generating a flash.
-	      larcv::Pixel2DCluster& expanded_cluster;
-
-	      // Generate a 'QCluster_t' object with the 'MakeTPCFlashObject' function.
-	      flashana::QCluster_t current_qcluster = FlashROIMatching::MakeTPCFlashObject(constant_pixel_cluster, img, expanded_cluster);
-
-	      // With this, I can calculate an unfitted hypothesis for the chi squared using the 'current_qcluster' variable.
-	      // Place the qcluster output into the same format as it is in the 'GenerateUnfittedFlashHypothesis' function.
-	      const flashana::QCluster_t& constant_qcluster = current_qcluster;
-
-	      // Feed this into the function 'GenerateUnfittedFlashHypothesis'.
-	      flashana::Flash_t unfittedhypothesis = TaggerFlashMatchAlgo::GenerateUnfittedFlashHypothesis(constant_qcluster);
-
-	      // At this point I have a TypeError - I will need 'Flash_t' data, but all I have are the 'opflash' data for each track.  There is a function for going from Flash->OpFlash, but not vice versa.
-	      
-		
-	       
-	      
-	    
-	    // First, convert the 3D vector into wire and tick values, which can then be converted into pixel values.  I will still look through the coordinates because looping through the pixels would take longer (1 cm separation between grid points but only 0.3 cm separation between wires on each of the planes).
-	    
-	    
-
-	    
-	    
-	    
-    
+	    // Make a copy of the current value of the track using the copy track constructor.
+            // track(const track& original) :   
+            //  data_base(original),
+	    //  fXYZ(original.fXYZ),
+	    //  fDir(original.fDir),
+	    //  fCov(original.fCov),
+	    //  fdQdx(original.fdQdx),
+	    //  fFitMomentum(original.fFitMomentum),
+	    //  fID(original.fID)
 
       // need to determine if this track is the intime track or not
       // we do this by checking if track gets close to true vertex. slow AF.
