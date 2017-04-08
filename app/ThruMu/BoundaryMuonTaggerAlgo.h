@@ -50,23 +50,23 @@ namespace larlitecv {
                                    std::vector< larcv::Image2D >& boundarypixelimgs, // pixels consistent with boundary hits
                                    std::vector< larcv::Image2D >& boundaryspaceptsimgs ); // points in real-space consistent with boundary hits
 
-    int makeTrackClusters3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
-                             const std::vector< const BoundarySpacePoint* >& spacepts,
-                             std::vector< larlitecv::BMTrackCluster3D >& trackclusters, 
-                             std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpts );
+    /* int makeTrackClusters3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v, */
+    /*                          const std::vector< const BoundarySpacePoint* >& spacepts, */
+    /*                          std::vector< larlitecv::BMTrackCluster3D >& trackclusters,  */
+    /*                          std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpts ); */
 
-    int markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
-                                    const std::vector< larlitecv::BMTrackCluster3D >& trackclusters, std::vector<int>& goodlist,
-                                    std::vector<larcv::Image2D>& markedimgs );
+    /* int markImageWithTrackClusters( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs, */
+    /*                                 const std::vector< larlitecv::BMTrackCluster3D >& trackclusters, std::vector<int>& goodlist, */
+    /*                                 std::vector<larcv::Image2D>& markedimgs ); */
 
-    BMTrackCluster3D runAstar3D( const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt, 
-        const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
-        const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v, const std::vector<larcv::Image2D>& tagged_compressed_v,
-        bool& goal_reached );
+    /* BMTrackCluster3D runAstar3D( const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt,  */
+    /*     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v, */
+    /*     const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v, const std::vector<larcv::Image2D>& tagged_compressed_v, */
+    /*     bool& goal_reached ); */
 
-    void process2Dtracks( std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D,
-                          const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
-                          std::vector< BMTrackCluster3D >& tracks, std::vector<int>& goodlist );
+    /* void process2Dtracks( std::vector< std::vector< larlitecv::BMTrackCluster2D > >& trackclusters2D, */
+    /*                       const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v, */
+    /*                       std::vector< BMTrackCluster3D >& tracks, std::vector<int>& goodlist ); */
 
     BoundaryEnd_t CrossingToBoundaryEnd( Crossings_t cross ) { return (BoundaryEnd_t)cross; }; // should be a switch, but I am lazy.
 
@@ -86,10 +86,10 @@ namespace larlitecv {
     BoundaryMatchAlgo* matchalgo_tight;
     BoundaryMatchAlgo* matchalgo_loose;
     
-    BMTrackCluster3D process2Dtrack( std::vector< larlitecv::BMTrackCluster2D >& track2d, 
-                                     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v );
-    bool compare2Dtrack( const std::vector< BMTrackCluster2D >& track2d, const BMTrackCluster3D& track3d, const larcv::ImageMeta& meta,
-                         float path_radius_cm, float endpt_radius_cm );
+    /* BMTrackCluster3D process2Dtrack( std::vector< larlitecv::BMTrackCluster2D >& track2d,  */
+    /*                                  const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v ); */
+    /* bool compare2Dtrack( const std::vector< BMTrackCluster2D >& track2d, const BMTrackCluster3D& track3d, const larcv::ImageMeta& meta, */
+    /*                      float path_radius_cm, float endpt_radius_cm ); */
 
     void CollectCandidateBoundaryPixels( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchs,
       std::vector< dbscan::dbPoints >& combo_points, std::vector< std::vector< std::vector<int> > >& combo_cols,

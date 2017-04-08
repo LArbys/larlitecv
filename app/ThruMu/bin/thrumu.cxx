@@ -48,6 +48,7 @@ int main( int nargs, char** argv ) {
   larcv::PSet bmt = cfg.get<larcv::PSet>("BoundaryMuonTagger");
   larcv::PSet sidetagger_pset  = bmt.get<larcv::PSet>("BMTSideTagger");
   larcv::PSet flashtagger_pset = bmt.get<larcv::PSet>("BMTFlashTagger");
+  larcv::PSet thrumutrack_pset = bmt.get<larcv::PSet>("ThruMuTracker");
 
   std::string larcv_image_producer = bmt.get<std::string>("InputLArCVImages");
   
