@@ -23,6 +23,9 @@ Uses Image2D to hold image.
 #include "DataFormat/Image2D.h"
 #include "Base/PSet.h"
 
+// larlitecv
+#include "AStar3DAlgoConfig.h"
+
 namespace larlitecv {
 
   // LATTICE POSITION OBJECT
@@ -232,32 +235,6 @@ namespace larlitecv {
       push_back( elem );
       //sort();
     }
-
-  };
-
-  // ALGO CONFIGURATION
-  class AStar3DAlgoConfig {
-  public:
-    AStar3DAlgoConfig() {
-      astar_start_padding = 0;
-      astar_end_padding = 0;
-      restrict_path = false;
-      path_restriction_radius = 10.0;   
-    };
-    virtual ~AStar3DAlgoConfig() {};
-
-    std::vector<float> astar_threshold;
-    std::vector<int>   astar_neighborhood;
-    int astar_start_padding;
-    int astar_end_padding;
-    int lattice_padding;
-    bool accept_badch_nodes;
-    int min_nplanes_w_hitpixel;
-    bool restrict_path; // restrict the path to be within some distance from the straigh line path
-    float path_restriction_radius; // max distance path can deviate from straight line
-    int verbosity;
-
-    static AStar3DAlgoConfig MakeFromPSet( const larcv::PSet& pset );
 
   };
 
