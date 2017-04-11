@@ -14,41 +14,20 @@
 namespace larlitecv {
 
   // ================================================================
-  // Configuration Class of Linear3DChargeTagger
-
-  Linear3DChargeTaggerConfig::Linear3DChargeTaggerConfig() {
-    trigger_tpc_tick = 3200.0;
-    min_ADC_value = 10.0; // works for 6 tick downsampling, no wire downsampling
-    step_size = 0.3; // cm
-    neighborhood_square = 5;
-    neighborhood_posttick = 10;
-  }
-
-  Linear3DChargeTaggerConfig Linear3DChargeTaggerConfig::makeFromPSet( const larcv::PSet& pset ) {
-    Linear3DChargeTaggerConfig cfg;
-    cfg.trigger_tpc_tick      = pset.get<float>( "TriggerTPCTick" );
-    cfg.min_ADC_value         = pset.get<float>( "PixelThreshold");
-    cfg.step_size             = pset.get<float>( "StepSize" );
-    cfg.neighborhood_square   = pset.get<int>( "NeighborhoodSquareSize");
-    cfg.neighborhood_posttick = pset.get<int>( "NeighborhoodPostTick" );
-    return cfg;
-  }
-
-  // ================================================================
   // Linear3DChargeTagger
 
   // I have added the variables 'time_comp_factor' and 'wire_comp_factor' to this definition when they were not here previously
-  PointInfoList Linear3DChargeTagger::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+  PointInfoList Linear3DChargeTagger::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
     const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols  ) {
-    
+
     const larcv::ImageMeta& meta = img_v.front().meta();
 
     // turn image pixel coordinates into a 3D start and goal point
     std::vector<int> start_wids(start_cols.size());
-    std::vector<int> goal_wids(goal_cols.size());    
+    std::vector<int> goal_wids(goal_cols.size());
     for (size_t p=0; p<goal_cols.size(); p++) {
       start_wids[p] = img_v.at(p).meta().pos_x( start_cols[p] );
-      goal_wids[p]  = img_v.at(p).meta().pos_x( goal_cols[p] );      
+      goal_wids[p]  = img_v.at(p).meta().pos_x( goal_cols[p] );
     }
     double start_tri = 0.;
     int start_crosses = 0;
@@ -60,7 +39,7 @@ namespace larlitecv {
     std::vector< float > poszy_goal(2,0.0);
     larcv::UBWireTool::wireIntersection( goal_wids, poszy_goal, goal_tri, goal_crosses );
 
-    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec] * [usec/tick] = [cm/tick]    
+    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec] * [usec/tick] = [cm/tick]
 
     std::vector<float> startpos(3,0);
     startpos[0] = (meta.pos_y( start_row )-m_config.trigger_tpc_tick)*cm_per_tick;
@@ -88,29 +67,29 @@ namespace larlitecv {
   }
 
 
-  // Now, call a function 'pointsOnTrack' that will return all of the pixel coordinates on or near the track that should be illuminated based on how much charge the tagger finds within each of the voxels                                                                                                                                                            
-  // Input values:                                                                                                                                                             
-  // The image ('img_v') (type const std::vector<larcv::Image2D>&)                                                                                                              
-  // The bad channel image ('badch_v') (type const std::vector<larcv::Image2D>&)                                                                                              
-  // The coordinates of the initial point ('initial_point_coords') (type std::vector<float>)                                                          
-  // The coordinates of the final point ('final_point_coords') (type std::vector<float>)                                                                                        
-  // The step size ('step_size') (type float)                                                                                                                             
-  // The total distance between the trajectory points ('distance_between_trajectory_points') (type float)                                                                 
-  // The minimum ADC value ('min_ADC_value') (type float)                                                                                                                 
+  // Now, call a function 'pointsOnTrack' that will return all of the pixel coordinates on or near the track that should be illuminated based on how much charge the tagger finds within each of the voxels
+  // Input values:
+  // The image ('img_v') (type const std::vector<larcv::Image2D>&)
+  // The bad channel image ('badch_v') (type const std::vector<larcv::Image2D>&)
+  // The coordinates of the initial point ('initial_point_coords') (type std::vector<float>)
+  // The coordinates of the final point ('final_point_coords') (type std::vector<float>)
+  // The step size ('step_size') (type float)
+  // The total distance between the trajectory points ('distance_between_trajectory_points') (type float)
+  // The minimum ADC value ('min_ADC_value') (type float)
   // The neighborhood size that you are interested in considering ('neighborhood_square') (type 'int')
-  // Now I can start writing the 'pointsOnTrack' function, which will return the number of points with charge on the track, the number of points without charge on the track, and information about neighboring points that contain charge. 
+  // Now I can start writing the 'pointsOnTrack' function, which will return the number of points with charge on the track, the number of points without charge on the track, and information about neighboring points that contain charge.
 
   // Note: I will consider a channel to be dead if it has a value greater than 0.0 in 'badch_v', which is the vector of plane images for the event
 
-  PointInfoList Linear3DChargeTagger::pointsOnTrack(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
-    const std::vector<float>& initial_point_coords, const std::vector<float>& final_point_coords, 
+  PointInfoList Linear3DChargeTagger::pointsOnTrack(const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+    const std::vector<float>& initial_point_coords, const std::vector<float>& final_point_coords,
     const float step_size, const float min_ADC_value, const int neighborhood_size) {
 
     // Declare a variable equal to the 'cm_per_tick', because I need this information to convert between the x-coordinate value and the tick in the image of charge
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec] * [usec/tick] = [cm/tick]
     const int nplanes = img_v.size();
 
-    // Find the distance between the starting point and the end point 
+    // Find the distance between the starting point and the end point
     float total_distance_between_points = 0;
     for (size_t i=0; i<3; i++) {
       float dx = (final_point_coords[i]-initial_point_coords[i]);
@@ -119,8 +98,8 @@ namespace larlitecv {
     }
     total_distance_between_points = sqrt(total_distance_between_points);
 
-    // Calculate the cosine along each of the axes so that you can find the coordinates of each step that you take along the track   
-    // The prescription for the cosine values is the total component of the vector in that direction (the goal point - the starting point) divided by 'distance_between_trajectory_points', the length of the particle's entire trajectory                                                                                                                     
+    // Calculate the cosine along each of the axes so that you can find the coordinates of each step that you take along the track
+    // The prescription for the cosine values is the total component of the vector in that direction (the goal point - the starting point) divided by 'distance_between_trajectory_points', the length of the particle's entire trajectory
     std::vector<float> dircos(3,0.0);
     for (size_t i=0; i<3; i++) {
       dircos[i] = (final_point_coords[i]-initial_point_coords[i])/total_distance_between_points;
@@ -138,9 +117,9 @@ namespace larlitecv {
 
     // To optimize the algorithm, I declare all of the new variables here inside Point, and then fill them with each iteration of the track
     // this is passed by moving to container. avoids copies.
-    
+
     // The output class
-    PointInfoList track;    
+    PointInfoList track;
 
     // The iterator over the 'num_of_steps' can be of type 'size_t', because we are checking points less than the distance of one wire from another.
     for (int wire_iterator = 0; wire_iterator <= num_of_steps; wire_iterator++) {
@@ -156,8 +135,8 @@ namespace larlitecv {
       }
 
       // Convert the coordinates of the wire at this value to a wire index value that can be rounded using the rounding function
-      // Find the initial wire number based on the starting coordinate of the particle's path                                              
-      
+      // Find the initial wire number based on the starting coordinate of the particle's path
+
       // Declare a vector of the three coordinates within the detector.  I will continue down this route, because I am not sure that all of the starting points come from the same set of channels.  This allows me to do it myself instead of going back into the 'wireIntersection' function.
       pt.wire_id.resize(nplanes,0);
       for (int wire_plane_iterator = 0; wire_plane_iterator < nplanes; wire_plane_iterator++) {
@@ -192,7 +171,7 @@ namespace larlitecv {
 
       // Loop through all of the points on each of the planes to see if they contain the correct amount of charge
       // Now that I have this information, I can loop through each of the planes and see if each of the pixels have above the threshold amount of charge
-      pt.planeswithcharge = 0;      
+      pt.planeswithcharge = 0;
       for (int plane_index = 0; plane_index < nplanes; plane_index++) {
 
         // Find the pixel value, badch status in the neighborhood of this coordinate value of (row, column)
@@ -200,9 +179,9 @@ namespace larlitecv {
         pt.planehasbadch[plane_index]  = isNeighboringPixelDeadPixel( badch_v.at(plane_index), pt.row, pt.cols[plane_index], neighborhood_size );
         if ( pt.planehascharge[plane_index])
           pt.planeswithcharge++;
-      }//end of plane loop 
+      }//end of plane loop
 
-      // check if good, i.e. the plane either has charge or badch 
+      // check if good, i.e. the plane either has charge or badch
       // also sum charge
       pt.goodpoint = true;
       for (int p=0; p<nplanes; p++) {
@@ -211,11 +190,11 @@ namespace larlitecv {
           break;
         }
       }
-       
-      track.emplace( std::move(pt) ); 
+
+      track.emplace( std::move(pt) );
 
     } // End of the loop over the wires (for some reason I'm getting mismatched parentheses)
- 
+
     return track;
 
   } // End of the function
@@ -223,7 +202,7 @@ namespace larlitecv {
   // Declare a function that will search for charge in the vicinity of a pixel (one that is either dead or empty)
   // This function will be a boolean and will require the following information:
   // 'img_v' - This is the vector of images that is being examined for charge
-  // 'plane_num' - This is an 'int' which corresponds to the plane that we are looking at 
+  // 'plane_num' - This is an 'int' which corresponds to the plane that we are looking at
   // 'central_row'       - This is an 'int' which corresponds to the row number of the central pixel
   // 'central_col'    - This is an 'int' which corresponds to the column number of the central pixel around which we will search for charge
   // 'neighborhood size' - This is an 'int' which specifies the size of the square around the central pixel that we will search for charge
@@ -265,7 +244,7 @@ namespace larlitecv {
     if (ending_col_coord >= last_col_index)
       ending_col_coord = last_col_index-1;
 
-    
+
     // Begin a loop over the rows and the columns of the image that are in the vicinity of 'central_row' and 'central_col' to see if there is any charge in the vicinity
     for (int col_iter = starting_col_coord; col_iter <= ending_col_coord; col_iter++) {
 
@@ -287,17 +266,17 @@ namespace larlitecv {
   // Declare a channel that will search for dead pixels in the vicinity of the central pixel.  This will take the same input parameters and use the same logic as the algorithm above, except it will take 'badch_v' as an input instead of 'img_v', and it will see if any of the entries in the vicinity of the central pixel have a value in the array that's greater than 0.0.  The 'float' input argument 'min_ADC_value' is not needed for this function.
   bool Linear3DChargeTagger::isNeighboringPixelDeadPixel(const larcv::Image2D& badch, int central_row, int central_col, int neighborhood_size) {
 
-    // You can define variables for the initial row and the final row based on where in the TPC they are 
+    // You can define variables for the initial row and the final row based on where in the TPC they are
     int last_row_index = (int)badch.meta().rows() - 1;
     int last_col_index = (int)badch.meta().cols() - 1;
 
-    // Declare variables for the starting and ending coordinates in the search                                                                                            
+    // Declare variables for the starting and ending coordinates in the search
     int starting_row_coord = central_row - m_config.neighborhood_posttick;
     int ending_row_coord   = central_row + neighborhood_size;
     int starting_col_coord = central_col - neighborhood_size;
     int ending_col_coord   = central_col + neighborhood_size;
 
-    // If I am close to the boundary of the image, then I'll have to adjust the search for this neighborhood to end on the boundary of the image.                 
+    // If I am close to the boundary of the image, then I'll have to adjust the search for this neighborhood to end on the boundary of the image.
     if (starting_row_coord < 0)
       starting_row_coord = 0;
 
@@ -322,12 +301,12 @@ namespace larlitecv {
     if (ending_col_coord >= last_col_index)
       ending_col_coord = last_col_index-1;
 
-    // Begin a loop over the rows and the columns of the image that are in the vicinity of 'central_row' and 'central_col' to see if there is any charge in the vicinity     
+    // Begin a loop over the rows and the columns of the image that are in the vicinity of 'central_row' and 'central_col' to see if there is any charge in the vicinity
     for (int col_iter = starting_col_coord; col_iter <= ending_col_coord; col_iter++) {
 
       for (int row_iter = starting_row_coord; row_iter <= ending_row_coord; row_iter++) {
 
-        // See if any pixel in this neighborhood has charge above threshold.  If it does, then return 'true' for 'charge_in_vicinity'.              
+        // See if any pixel in this neighborhood has charge above threshold.  If it does, then return 'true' for 'charge_in_vicinity'.
         if (badch.pixel(row_iter, col_iter) > 0.0) {
           // no need to keep checking, return function.
           return true;
@@ -337,7 +316,7 @@ namespace larlitecv {
 
     }
 
-    // Return 'charge_in_vicinity'                                                                                                                                              
+    // Return 'charge_in_vicinity'
     return false;
 
   }
@@ -357,7 +336,7 @@ namespace larlitecv {
 
     std::vector<float> endpt(3,0);
     std::vector<float> extend_end(3,0);
-    std::vector<float> startpt(3,0);    
+    std::vector<float> startpt(3,0);
     std::vector<float> extend_start(3,0);
     for (int i=0; i<3; i++) {
       endpt[i] = infolist.back().xyz[i];
@@ -367,56 +346,29 @@ namespace larlitecv {
     }
 
     end_extension   = pointsOnTrack( img_v, badch_v, endpt, extend_end, m_config.step_size, m_config.min_ADC_value, m_config.neighborhood_square );
-    start_extension = pointsOnTrack( img_v, badch_v, startpt, extend_start, m_config.step_size, m_config.min_ADC_value, m_config.neighborhood_square );    
+    start_extension = pointsOnTrack( img_v, badch_v, startpt, extend_start, m_config.step_size, m_config.min_ADC_value, m_config.neighborhood_square );
 
     //num_start = end_extension.num_pts_good;
     //num_end   = start_extension.num_pts_good;
 
   }
 
-  BMTrackCluster3D Linear3DChargeTagger::makeTrackCluster3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, 
+  BMTrackCluster3D Linear3DChargeTagger::makeTrackCluster3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
     const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt, const PointInfoList& infolist ) {
 
     // convert info list into BMTrackCluster3D
     const int nplanes = img_v.size();
-    BMTrackCluster3D track3d;
-    track3d.start_type = start_pt.type();
-    track3d.end_type   = end_pt.type();
-    track3d.row_start = start_pt.front().row;
-    track3d.row_end   = end_pt.front().row;
-    track3d.tick_start = img_v.front().meta().pos_y( track3d.row_start );
-    track3d.tick_end   = img_v.front().meta().pos_y( track3d.row_end );
-    track3d.start_wire.resize(nplanes,0);
-    track3d.end_wire.resize(nplanes,0);
-    track3d.start3D.resize(nplanes,0);
-    track3d.end3D.resize(nplanes,0);
-    for (int i=0; i<nplanes; i++) {
-      track3d.start3D[i] = infolist.front().xyz[i];
-      track3d.end3D[i]   = infolist.back().xyz[i];
-    }
 
-    for (int p=0; p<nplanes; p++) {
-      BMTrackCluster2D track2d;
-      track2d.start = start_pt.at(p);
-      track2d.end   = end_pt.at(p);
-      track2d.plane = p;
-      track3d.plane_paths.emplace_back( std::move(track2d) );
-    }
-
-    // append points to track
+    // make list of 3D points
+    std::vector< std::vector<double> > path;
     for ( auto const& pt : infolist ) {
-      // pixels into track2d containers for each plane
-      for (int p=0; p<nplanes; p++) {
-        larcv::Pixel2D pixel( pt.cols[p], pt.row );
-        pixel.Intensity( (int)start_pt.type() );
-        track3d.plane_paths.at(p).pixelpath += pixel;
-      }
-      // 3d pos
       std::vector<double> pos3d(3);
       for (int i=0; i<3; i++)
         pos3d[i] = pt.xyz[i];
-      track3d.path3d.emplace_back( std::move(pos3d) );
+      path.emplace_back( std::move(pos3d) );
     }
+
+    BMTrackCluster3D track3d( start_pt, end_pt, path);
 
     return track3d;
 
@@ -424,7 +376,7 @@ namespace larlitecv {
 
   // ================================================================
 
-  
+
 } // This should match the end of namespace larcv......
 
 

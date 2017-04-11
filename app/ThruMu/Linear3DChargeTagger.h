@@ -12,24 +12,10 @@
 #include "BoundarySpacePoint.h"
 
 #include "Linear3DChargeTaggerTypes.h"
+#include "Linear3DChargeTaggerConfig.h"
 
 namespace larlitecv {
 
-
-  class Linear3DChargeTaggerConfig {
-  public:
-    Linear3DChargeTaggerConfig();
-    virtual ~Linear3DChargeTaggerConfig() {};
-
-    float trigger_tpc_tick;
-    float min_ADC_value;
-    float step_size;
-    int neighborhood_square;
-    int neighborhood_posttick;// allows us to extend in later ticks to account for space-charge effect delay
-
-    static Linear3DChargeTaggerConfig makeFromPSet( const larcv::PSet& pset );
-    
-  };
 
 
   class Linear3DChargeTagger  {
