@@ -121,10 +121,9 @@ namespace larlitecv {
       larcv::EventPixel2D* ev_tracks2d = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "thrumupixels" );
       for (int i3d=0; i3d<(int)data.trackcluster3d_v.size(); i3d++) {
         const larlitecv::BMTrackCluster3D& track3d = data.trackcluster3d_v.at(i3d);
-        const std::vector< larlitecv::BMTrackCluster2D >& trackcluster2d = track3d.plane_paths;
+        const std::vector< larcv::Pixel2DCluster >& trackcluster2d = track3d.plane_pixels;
         for (int p=0; p<3; p++) {
-          const larlitecv::BMTrackCluster2D& track = trackcluster2d.at(p);
-          ev_tracks2d->Append( (larcv::PlaneID_t)p, track.pixelpath, data.tagged_v.at(p).meta() );
+          ev_tracks2d->Append( (larcv::PlaneID_t)p, trackcluster2d.at(p), data.tagged_v.at(p).meta() );
         }
       }
     }
@@ -180,9 +179,9 @@ namespace larlitecv {
       larcv::EventPixel2D* ev_stopmupixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "stopmupixels" );
       for ( size_t itrack=0; itrack<data.stopmu_trackcluster_v.size(); itrack++ ) {
         const larlitecv::BMTrackCluster3D& track3d = data.stopmu_trackcluster_v.at(itrack);
-        const std::vector< larlitecv::BMTrackCluster2D >& trackpixs_v = track3d.plane_paths;
+        const std::vector< larcv::Pixel2DCluster >& trackpixs_v = track3d.plane_pixels;
         for (size_t p=0; p<trackpixs_v.size(); p++) {
-          ev_stopmupixels->Append( (larcv::PlaneID_t)p, trackpixs_v.at(p).pixelpath, data.stopmu_v.at(p).meta() );
+          ev_stopmupixels->Append( (larcv::PlaneID_t)p, trackpixs_v.at(p), data.stopmu_v.at(p).meta() );
         }
       }
     }

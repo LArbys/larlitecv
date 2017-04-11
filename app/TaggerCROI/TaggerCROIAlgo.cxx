@@ -17,6 +17,7 @@
 #include "ThruMu/BoundaryMuonTaggerAlgo.h"
 #include "ThruMu/FlashMuonTaggerAlgo.h"
 #include "ThruMu/EndPointFilter.h"
+#include "ThruMu/ThruMuTracker.h"
 #include "StopMu/StopMuFilterSpacePoints.h"
 #include "StopMu/StopMuCluster.h"
 #include "UntaggedClustering/ClusterGroupAlgo.h"
@@ -29,14 +30,14 @@ namespace larlitecv {
 
     ThruMuPayload output;
 
-    // configure different stages
+    // configure different stages of the Thrumu Tagger
 
-    // side tagger
+    // (1) side tagger
     larlitecv::BoundaryMuonTaggerAlgo sidetagger;
     sidetagger.configure( m_config.sidetagger_cfg );
     sidetagger.printConfiguration();
 
-    // flash tagger
+    // (2) flash tagger
     larlitecv::FlashMuonTaggerAlgo anode_flash_tagger(   larlitecv::FlashMuonTaggerAlgo::kAnode );
     larlitecv::FlashMuonTaggerAlgo cathode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kCathode );
     larlitecv::FlashMuonTaggerAlgo imgends_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kOutOfImage );
@@ -45,8 +46,11 @@ namespace larlitecv {
     cathode_flash_tagger.configure( m_config.flashtagger_cfg );
     imgends_flash_tagger.configure( m_config.flashtagger_cfg );
 
-    // end point filter
+    // (3) end point filter
     larlitecv::EndPointFilter endptfilter;
+
+    // (4) thrumu tracker
+    larlitecv::ThruMuTracker thrumu_tracker( m_config.thrumu_tracker_cfg );
 
     // RUN THE THRUMU ALGOS
 
@@ -107,22 +111,22 @@ namespace larlitecv {
 
     // make track clusters
     std::vector<int> used_filtered_endpoints( filtered_endpoints.size(), 0 );
-    sidetagger.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
+    thrumu_tracker.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
 
     // collect unused endpoints
     for ( size_t isp=0; isp<filtered_endpoints.size(); isp++ ) {
       if ( used_filtered_endpoints.at(isp)==1 )
-	output.used_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
+        output.used_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
       else
-	output.unused_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
+        output.unused_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
     }
 
     // copy track and pixels into separate containers.
     for ( auto const& bmtrack : output.trackcluster3d_v ) {
       output.track_v.push_back( bmtrack.makeTrack() );
       std::vector< larcv::Pixel2DCluster > cluster_v;
-      for ( auto const& track2d : bmtrack.plane_paths )
-	cluster_v.push_back( track2d.pixelpath );
+      for ( auto const& track2d : bmtrack.plane_pixels )
+        cluster_v.push_back( track2d );
       output.pixelcluster_v.emplace_back( std::move(cluster_v) );
     }
 
@@ -191,7 +195,7 @@ namespace larlitecv {
     for ( size_t itrack=0; itrack<output.stopmu_trackcluster_v.size(); itrack++ ) {
       const larlitecv::BMTrackCluster3D& track3d = output.stopmu_trackcluster_v.at(itrack);
       for (size_t p=0; p<output.stopmu_v.size(); p++) {
-        const larcv::Pixel2DCluster& trackpixs = track3d.plane_paths.at(p).pixelpath;
+        const larcv::Pixel2DCluster& trackpixs = track3d.plane_pixels.at(p);
         for ( auto const& pix : trackpixs ) {
           output.stopmu_v.at(p).set_pixel( pix.Y(), pix.X(), 255 );
         }
@@ -203,8 +207,8 @@ namespace larlitecv {
     for ( auto const& bmtrack : output.stopmu_trackcluster_v ) {
       output.track_v.push_back( bmtrack.makeTrack() );
       std::vector< larcv::Pixel2DCluster > cluster_v;
-      for ( auto const& track2d : bmtrack.plane_paths )
-	cluster_v.push_back( track2d.pixelpath );
+      for ( auto const& track2d : bmtrack.plane_pixels )
+        cluster_v.push_back( track2d );
       output.pixelcluster_v.emplace_back( std::move(cluster_v) );
     }
 

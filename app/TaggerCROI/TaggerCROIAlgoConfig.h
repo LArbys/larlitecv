@@ -7,6 +7,7 @@
 // larlitecv
 #include "ThruMu/BoundaryMuonTaggerAlgo.h"
 #include "ThruMu/FlashMuonTaggerAlgo.h"
+#include "ThruMu/ThruMuTrackerConfig.h"
 #include "StopMu/StopMuFilterSpacePoints.h"
 #include "StopMu/StopMuClusterConfig.h"
 #include "UntaggedClustering/ClusterGroupAlgo.h"
@@ -20,16 +21,17 @@ namespace larlitecv {
     virtual ~TaggerCROIAlgoConfig() {};
 
     ConfigBoundaryMuonTaggerAlgo  sidetagger_cfg;
-		FlashMuonTaggerConfig         flashtagger_cfg;
-		StopMuFilterSpacePointsConfig stopmu_filterpts_cfg;
-		StopMuClusterConfig           stopmu_cluster_cfg;
-		ClusterGroupAlgoConfig        untagged_cluster_cfg;
-		TaggerFlashMatchAlgoConfig    croi_selection_cfg;
+    FlashMuonTaggerConfig         flashtagger_cfg;
+    ThruMuTrackerConfig           thrumu_tracker_cfg;
+    StopMuFilterSpacePointsConfig stopmu_filterpts_cfg;
+    StopMuClusterConfig           stopmu_cluster_cfg;
+    ClusterGroupAlgoConfig        untagged_cluster_cfg;
+    TaggerFlashMatchAlgoConfig    croi_selection_cfg;
 
-		larcv::PSet input_write_cfg;
-		larcv::PSet thrumu_write_cfg;
-		larcv::PSet stopmu_write_cfg;
-		larcv::PSet croi_write_cfg;
+    larcv::PSet input_write_cfg;
+    larcv::PSet thrumu_write_cfg;
+    larcv::PSet stopmu_write_cfg;
+    larcv::PSet croi_write_cfg;
 
     static TaggerCROIAlgoConfig makeConfigFromFile( std::string );
 

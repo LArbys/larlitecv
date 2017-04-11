@@ -1,12 +1,12 @@
 #ifndef __BOUNDARYSPACEPOINT__
 #define __BOUNDARYSPACEPOINT__
 
-/** 
+/**
 
 	This class represents a 3D space point.
 	It has an estimated 3D position (x,y,z) in detector coordinates.
 	It also has BoundaryEndPts, which represent the corresponding positions in the wire plane images.
-	
+
 	Wanted to stop having vector<BoundaryEndPts> being passed everywhere.
  */
 
@@ -52,9 +52,9 @@ namespace larlitecv {
       if ( dir_.size()!=3 ) {
     	throw std::runtime_error("BoundarySpacePoint::dir( vector )[error] Position vector must be 3-D (xyz in detector coordinates)");
       }
-      m_dir = dir_;  		
+      m_dir = dir_;
     }
-    void setZY( float z, float y ) { m_pos[1] = y; m_pos[2] = z; m_empty = false; } 
+    void setZY( float z, float y ) { m_pos[1] = y; m_pos[2] = z; m_empty = false; }
     ///< hmm, might be better to infer ZY position from endpt vector at constructor
     bool isempty() const { return m_empty; }
     float dwall() const;
@@ -73,7 +73,7 @@ protected:
     BoundaryEnd_t boundary_type;
     std::vector<float> m_pos;
     std::vector<float> m_dir;
-    void setup() { 
+    void setup() {
       m_pos.resize(3,0);
       m_dir.resize(3,0);
     };
@@ -86,3 +86,4 @@ protected:
 
 
 #endif
+

@@ -15,7 +15,8 @@
 #include "Base/PSet.h"
 
 // larlitecv
-#include "Linear3DChargeTagger.h"
+#include "Linear3DChargeTaggerConfig.h"
+#include "AStar3DAlgoConfig.h"
 
 namespace larlitecv {
 

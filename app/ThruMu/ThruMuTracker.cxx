@@ -2,13 +2,13 @@
 
 namespace larlitecv {
 
-  ThruMuTracker::ThruMuTracker( const ThruMuTrackerConfig& config ) 
-    : m_config(config) 
+  ThruMuTracker::ThruMuTracker( const ThruMuTrackerConfig& config )
+    : m_config(config)
   {}
 
   void ThruMuTracker::makeTrackClusters3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
 					  const std::vector< const BoundarySpacePoint* >& spacepts,
-					  std::vector< larlitecv::BMTrackCluster3D >& trackclusters, 
+					  std::vector< larlitecv::BMTrackCluster3D >& trackclusters,
 					  std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices) {
     // This method takes in the list of boundaryspacepoints and pairs them up in order to try to find through-going muons
     // input:
@@ -40,7 +40,7 @@ namespace larlitecv {
 			       std::vector<int>& used_endpoints_indices, std::vector<larlitecv::BMTrackCluster3D>& trackclusters ) {
 
     // Make a pass to try and connect some end points.
-    // A pass consists of running the linear3d tagger and the astar3d tagger.  
+    // A pass consists of running the linear3d tagger and the astar3d tagger.
     // Cuts on the quality of each determine which, if any, of the taggers are run and produce the track.
     // input:
     //   passid: id for the current pass
@@ -58,14 +58,14 @@ namespace larlitecv {
 
     for (int i=0; i<nendpts; i++) {
       if ( used_endpoints_indices.at(i) ) continue;
-      const BoundarySpacePoint& pts_a = *(spacepts[i]);        
+      const BoundarySpacePoint& pts_a = *(spacepts[i]);
       for (int j=i+1; j<nendpts; j++) {
 	if ( used_endpoints_indices.at(j)) continue;
 	const BoundarySpacePoint& pts_b = *(spacepts[j]);
 
 	if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
 
-          
+
 	if ( m_config.verbosity>1 ) {
 	  std::cout << "[ Pass " << passid << ": path-finding for endpoints (" << i << "," << j << ") "
 		    << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
@@ -84,9 +84,9 @@ namespace larlitecv {
 	}
 
 	// next run astar tagger
-	if ( passcfg.run_astar_tagger 
-	     && (linear_result.fracgood>passcfg.astar3d_min_goodfrac || linear_result.majfrac>passcfg.astar3d_min_majfrac ) ) {
-	  BMTrackCluster3D astar_track = runLinearChargeTagger( passcfg, pts_a, pts_b, img_v, badchimg_v, astar_result );
+	if ( passcfg.run_astar_tagger
+	     && (linear_result.goodfrac>passcfg.astar3d_min_goodfrac || linear_result.majfrac>passcfg.astar3d_min_majfrac ) ) {
+	  BMTrackCluster3D astar_track = runAStarTagger( passcfg, pts_a, pts_b, img_v, badchimg_v, astar_result );
 	  if ( astar_result.isgood )
 	    std::swap(track3d,astar_track);
 	}
@@ -107,11 +107,11 @@ namespace larlitecv {
   }
 
 
-  larlitecv::BMTrackCluster3D ThruMuTracker::runLinearChargeTagger( const ThruMuTrackerConfig::ThruMuPassConfig& pass_cfg, 
+  larlitecv::BMTrackCluster3D ThruMuTracker::runLinearChargeTagger( const ThruMuTrackerConfig::ThruMuPassConfig& pass_cfg,
 								    const BoundarySpacePoint& pts_a, const BoundarySpacePoint& pts_b,
 								    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
 								    ThruMuTracker::LinearTaggerInfo& result_info ) {
-	  
+
     // linear 3D track
     Linear3DChargeTagger linetrackalgo( pass_cfg.linear3d_cfg ); // finds charge along a line in 3D space
 
@@ -153,6 +153,13 @@ namespace larlitecv {
     larlitecv::BMTrackCluster3D track3d;
     return track3d;
   }
+
+  larlitecv::BMTrackCluster3D ThruMuTracker::runAStarTagger( const ThruMuTrackerConfig::ThruMuPassConfig& pass_cfg,
+                  const BoundarySpacePoint& pts_a, const BoundarySpacePoint& pts_b,
+                  const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
+                  ThruMuTracker::AStarTaggerInfo& result_info ) {
+  }
+
 
   /*
     // post-processors. basically a filter for the tracks created.
@@ -219,25 +226,25 @@ namespace larlitecv {
         pass_tagged_v.emplace_back( std::move(tagged) );
       }
       // we compress tagged information from previous passes
-      std::vector< larcv::Image2D > past_tagged_compressed_v; 
+      std::vector< larcv::Image2D > past_tagged_compressed_v;
       for (size_t p=0; p<tagged_v.size(); p++ ) {
         larcv::Image2D tagged_compressed( tagged_v.at(p) );
         tagged_compressed.compress( img_v.at(p).meta().rows()/downsampling_factor, img_v.at(p).meta().cols()/downsampling_factor );
         past_tagged_compressed_v.emplace_back( std::move(tagged_compressed) );
       }
 
-      std::vector< BMTrackCluster3D > pass_tracks;      
+      std::vector< BMTrackCluster3D > pass_tracks;
 
       for (int i=0; i<nendpts; i++) {
         //if ( space_point_used.at(i) ) continue; // a little too crude as control
-        const BoundarySpacePoint& pts_a = *(spacepts[i]);        
+        const BoundarySpacePoint& pts_a = *(spacepts[i]);
         for (int j=i+1; j<nendpts; j++) {
           //if ( space_point_used.at(j)) continue;
           const BoundarySpacePoint& pts_b = *(spacepts[j]);
 
           if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
           npossible++;
-          
+
           if ( _config.verbosity>1 ) {
             std::cout << "[ Pass " << pass << ": path-finding for endpoints (" << i << "," << j << ") "
                       << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
@@ -250,10 +257,10 @@ namespace larlitecv {
               std::cout << "  plane=" << p << ": "
                         << " (w,t): (" << img_v.at(p).meta().pos_x( col_a ) << ", " << img_v.at(p).meta().pos_y( row_a ) << ") ->"
                         << " (" << img_v.at(p).meta().pos_x( col_b ) << "," << img_v.at(p).meta().pos_y( row_b ) << ")"
-                        << std::endl;           
+                        << std::endl;
             }
           }
-        
+
 
           // don't try to connect points that are further apart in time than a full drift window
           bool within_drift = true;
@@ -388,7 +395,7 @@ namespace larlitecv {
                 if ( _config.verbosity>1)
                   std::cout << "failed pass0 heuristic [" << i << "," << j << "]: "
                             << " fracgood=" << (*it_combo).second.fracGood << " "
-                            << " fracmajcharge=" << (*it_combo).second.fracMajCharge << " "                            
+                            << " fracmajcharge=" << (*it_combo).second.fracMajCharge << " "
                             << std::endl;
                 continue;
               }
@@ -404,9 +411,9 @@ namespace larlitecv {
             if ( _config.verbosity>1)
                 std::cout << "passed pass0 heuristic [" << i << "," << j << "]: "
                           << " fracgood=" << (*it_combo).second.fracGood << " "
-                          << " fracmajcharge=" << (*it_combo).second.fracMajCharge << " "                            
+                          << " fracmajcharge=" << (*it_combo).second.fracMajCharge << " "
                           << std::endl;
-            
+
             // 3D A* path-finding
             bool goal_reached = false;
             track3d = runAstar3D( pts_a, pts_b, img_v, badchimg_v, tagged_v, img_compressed_v, badch_compressed_v, past_tagged_compressed_v, goal_reached );
@@ -420,7 +427,7 @@ namespace larlitecv {
           } //end of pass 2 (a*)
           // ====================================================================================
 
-          ntotsearched++;          
+          ntotsearched++;
 
           if ( track_made ) {
             // if we made a good track, we mark the end points as used. we also tag the path through the image
@@ -435,10 +442,10 @@ namespace larlitecv {
 
 	// we tried to remove those tracks in the middle, but they were not easily discernable from those tagged some distance from the end
 	// could explore a more conservative cut here in the future...
-	
+
         // if we connected them. we no longer need the points
         space_point_used.at( combo.first )  = true;
-        space_point_used.at( combo.second ) = true;        
+        space_point_used.at( combo.second ) = true;
       }
 
       // merge tagged images from this pass to final tagged images
@@ -469,16 +476,16 @@ namespace larlitecv {
     // boring book-keeping stuff ...
     for ( auto& track : trackclusters ) {
       used_endpoints_indices.at( track.start_index ) = 1;
-      used_endpoints_indices.at( track.end_index ) = 1;      
+      used_endpoints_indices.at( track.end_index ) = 1;
     }
-    
+
     float elapsed_secs = float( clock () - begin_time ) /  CLOCKS_PER_SEC;
     std::cout << "total paths searched: " << ntotsearched << " of " << npossible << " possible combinations. time=" << elapsed_secs << " secs" << std::endl;
     std::cout << "number of tracks created: " << trackclusters.size() << std::endl;
-    
+
     return 0;
   }
-  */  
-  
+  */
+
 
 }

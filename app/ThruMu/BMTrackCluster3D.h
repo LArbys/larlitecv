@@ -40,31 +40,29 @@ namespace larlitecv {
       if ( tick_start()==rhs.tick_start() && tick_end()<rhs.tick_end() ) return true;
       return false;
     };
-    
+
     bool operator== (const BMTrackCluster3D& rhs ) const  {
       if ( tick_start()==rhs.tick_start() && tick_end()==rhs.tick_end() )
-	return true;
+        return true;
       return false;
     };
 
     void markImageWithTrack( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
-			     const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size, 
+			     const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
 			     std::vector<larcv::Image2D>& markedimgs, const float stepsize, const float markvalue );
-    
+
     const std::vector<larcv::Pixel2DCluster>& getTrackPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
-									const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size, 
+									const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
 									const bool recalc, const float stepsize );
 
 
     larlite::track makeTrack() const;
 
-  protected:
-
     BoundarySpacePoint start_endpts;
     BoundarySpacePoint end_endpts;
     std::vector< std::vector<double> > path3d;
     std::vector< larcv::Pixel2DCluster > plane_pixels; // only filled if asked for
-    
+
   };
 
 

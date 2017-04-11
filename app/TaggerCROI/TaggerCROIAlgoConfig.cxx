@@ -6,10 +6,10 @@
 #include "Base/DataCoordinator.h"
 
 namespace larlitecv {
-	
-  TaggerCROIAlgoConfig::TaggerCROIAlgoConfig() 
-    : input_write_cfg(larcv::PSet("input")), 
-      thrumu_write_cfg(larcv::PSet("thrumu")), 
+
+  TaggerCROIAlgoConfig::TaggerCROIAlgoConfig()
+    : input_write_cfg(larcv::PSet("input")),
+      thrumu_write_cfg(larcv::PSet("thrumu")),
       stopmu_write_cfg(larcv::PSet("stopmu")),
       croi_write_cfg(larcv::PSet("croi"))
   {
@@ -24,6 +24,7 @@ namespace larlitecv {
     larcv::PSet tagger_pset         = root_pset.get<larcv::PSet>("TaggerCROI");
     larcv::PSet sidetagger_pset     = tagger_pset.get<larcv::PSet>("BMTSideTagger");
     larcv::PSet flashtagger_pset    = tagger_pset.get<larcv::PSet>("BMTFlashTagger");
+    larcv::PSet thrumu_tracker_pset = tagger_pset.get<larcv::PSet>("ThrumuTracker");
     larcv::PSet stopmu_filter_pset  = tagger_pset.get<larcv::PSet>("StopMuSpacePointsFilter");
     larcv::PSet stopmu_cluster_pset = tagger_pset.get<larcv::PSet>("StopMuCluster");
     larcv::PSet untagged_cluster_ps = tagger_pset.get<larcv::PSet>("ContainedGroupAlgo");
@@ -36,6 +37,7 @@ namespace larlitecv {
 
     cfg.sidetagger_cfg       = larlitecv::MakeConfigBoundaryMuonTaggerAlgoFromPSet( sidetagger_pset );
     cfg.flashtagger_cfg      = larlitecv::MakeFlashMuonTaggerConfigFromPSet( flashtagger_pset );
+    cfg.thrumu_tracker_cfg   = larlitecv::ThruMuTrackerConfig::MakeFromPSet( thrumu_tracker_pset );
     cfg.stopmu_filterpts_cfg = larlitecv::MakeStopMuFilterSpacePointsConfigFromPSet( stopmu_filter_pset );
     cfg.stopmu_cluster_cfg   = larlitecv::makeStopMuClusterConfigFromPSet( stopmu_cluster_pset );
     cfg.untagged_cluster_cfg = larlitecv::ClusterGroupAlgoConfig::MakeClusterGroupAlgoConfigFromPSet( untagged_cluster_ps );

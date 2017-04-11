@@ -1,5 +1,8 @@
 #include "ThruMuTrackerConfig.h"
 
+// stdlib
+#include <sstream>
+
 namespace larlitecv {
 
   ThruMuTrackerConfig::ThruMuTrackerConfig() {
@@ -65,8 +68,8 @@ namespace larlitecv {
       passcfg.linear3d_min_majoritychargefraction = pset.get<float>("Linear3DMinMajorityChargeFraction");
       passcfg.astar3d_min_goodfrac                = pset.get<float>("AStar3DMinGoodFraction");
       passcfg.astar3d_min_majfrac                 = pset.get<float>("AStar3DMinMajorityChargeFraction");
-      passcfg.astar3d_cfg  = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pset.get<larcv::PSet> )( "AStarConfig" );
-      passcfg.linear3d_cfg = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pset.get<larcv::PSet> )( "Linear3DConfig" );
+      passcfg.astar3d_cfg  = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pset.get<larcv::PSet>( "AStarConfig" ) );
+      passcfg.linear3d_cfg = larlitecv::Linear3DChargeTaggerConfig::makeFromPSet( pset.get<larcv::PSet>("Linear3DConfig" ) );
       cfg.pass_configs.emplace_back( std::move(passcfg) );
     }
     return cfg;
