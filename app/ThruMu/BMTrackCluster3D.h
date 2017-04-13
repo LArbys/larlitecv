@@ -51,9 +51,9 @@ namespace larlitecv {
 			     const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
 			     std::vector<larcv::Image2D>& markedimgs, const float stepsize, const float markvalue );
 
-    const std::vector<larcv::Pixel2DCluster>& getTrackPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
-									const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
-									const bool recalc, const float stepsize );
+    std::vector<larcv::Pixel2DCluster> getTrackPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+					const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
+					const bool recalc, const float stepsize ) const;
 
 
     larlite::track makeTrack() const;

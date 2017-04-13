@@ -13,7 +13,7 @@ namespace larlitecv {
   class ConfigBoundaryMuonTaggerAlgo {
     // container for boundary muon tagger algo configuration parameters.
     // fill them anyway you can
-      
+
 
   public:
     ConfigBoundaryMuonTaggerAlgo() {
@@ -25,7 +25,7 @@ namespace larlitecv {
 
     bool checkOK() { return true; }; // dummy for now
     void print();
-    
+
     std::vector<float> emptych_thresh; ///< pixel thresholds below which if wire stays, it is marked as empty (value per plane)
     std::vector<float> thresholds;    ///< pixel threshold to count as a hit
     std::vector<int>   neighborhoods; ///< columns before and after to check for hits
@@ -36,7 +36,6 @@ namespace larlitecv {
     std::vector<float> boundary_cluster_radius;    ///< nearest neighbor radius for dbscan clustering of boundary pixels
     std::vector<float> astar_thresholds; //< passed to astar config
     std::vector<int>   astar_neighborhood; //< passed to astar config
-    std::vector<int>   tag_neighborhood; //< neighborhood around track path that will be tagged as thrumu
     bool save_endpt_images;
     bool hitsearch_uses_badchs;
     int ticks_per_full_drift;
@@ -54,11 +53,11 @@ namespace larlitecv {
     void setdefaults();
     const AStar3DAlgoConfig& getAStarConfig() { return astar_cfg; };
     const Linear3DChargeTaggerConfig& getLinear3DConfig() { return linear3d_cfg; };
-    
+
   };
 
   ConfigBoundaryMuonTaggerAlgo MakeConfigBoundaryMuonTaggerAlgoFromPSet( const larcv::PSet& pset );
-  
+
 }
 
 

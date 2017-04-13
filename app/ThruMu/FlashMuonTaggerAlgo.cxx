@@ -13,6 +13,7 @@
 
 // larlite
 #include "LArUtil/Geometry.h"
+#include "LArUtil/LArProperties.h"
 
 namespace larlitecv {
     
@@ -426,8 +427,8 @@ namespace larlitecv {
         info_copy_v.push_back( info );
       }
 
-      BoundarySpacePoint spacepoint( SearchModeToEndType(fSearchMode), std::move(endpt_v) );
-
+      float x = (img_v.front().meta().pos_y(cluster_info.front().at(combo[0]).row)-3200.0)*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);      
+      BoundarySpacePoint spacepoint( SearchModeToEndType(fSearchMode), std::move(endpt_v), x, poszy[1], poszy[2] );
 
       if ( fConfig.verbosity<1 )
         std::cout << ") nboundary_matches=" << nboundary_matches << " max=" << triarea_max <<  " min=" << triarea_min << std::endl;
@@ -528,7 +529,9 @@ namespace larlitecv {
               endpts.emplace_back( std::move(endpt) );
             }
 
-            BoundarySpacePoint spacepoint( SearchModeToEndType(fSearchMode), std::move(endpts) );
+	    float x = (img_v.front().meta().pos_y(info_v.front().row)-3200.0)*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);
+	    
+            BoundarySpacePoint spacepoint( SearchModeToEndType(fSearchMode), std::move(endpts), x, poszy[1], poszy[0] );
 
             proposed_endpts.emplace_back( std::move(spacepoint) );
             proposed_clusters.emplace_back( std::move(info_v) );

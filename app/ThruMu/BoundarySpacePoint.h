@@ -8,31 +8,58 @@
 	It also has BoundaryEndPts, which represent the corresponding positions in the wire plane images.
 
 	Wanted to stop having vector<BoundaryEndPts> being passed everywhere.
+
+	Going from boundaryendpts -> (x,y,z) needs to be better thought out. handled externally. seems dumb.
  */
 
 #include "BoundaryMuonTaggerTypes.h"
 #include "BoundaryEndPt.h"
 
 #include <stdexcept>
+#include <vector>
+#include <string>
+#include "DataFormat/ImageMeta.h"
 
 namespace larlitecv {
 
   class BoundarySpacePoint : public std::vector<BoundaryEndPt> {
 
   public:
-    // constructors
-    BoundarySpacePoint() : boundary_type( kUndefined ) { setup(); m_empty=true; }; // default
-    BoundarySpacePoint( BoundaryEnd_t type ) : boundary_type(type) { setup(); m_empty=true; }; // default with type
-
+  // constructors
+  BoundarySpacePoint()
+    : boundary_type( kUndefined ) {
+      m_pos.resize(3,0);
+      m_dir.resize(3,0);      
+      m_empty=true;
+    }; // default
+  BoundarySpacePoint( BoundaryEnd_t type )
+    : boundary_type(type) {
+      m_pos.resize(3,0);
+      m_dir.resize(3,0);      
+      m_empty=true;
+    }; // default with type
+    
 #ifndef __CINT__
 #ifndef __CLING__
     // move constructor
-    BoundarySpacePoint( BoundaryEnd_t type, std::vector<BoundaryEndPt>&& endpts )  // type and endpt vector
-      : std::vector<BoundaryEndPt>(std::move(endpts))
-    {
+  BoundarySpacePoint( BoundaryEnd_t type, std::vector<BoundaryEndPt>&& endpts, const larcv::ImageMeta& meta  )  // type and endpt vector
+    : std::vector<BoundaryEndPt>(std::move(endpts)) {
       boundary_type = type;
-      setup();
+      m_empty = false;
+      setup(meta);
     };
+    
+    // move constructor
+    BoundarySpacePoint( BoundaryEnd_t type, std::vector<BoundaryEndPt>&& endpts, float x, float y, float z  )  // type and endpt vector and 3D poosition
+      : std::vector<BoundaryEndPt>(std::move(endpts)) {
+    boundary_type = type;
+    m_pos.resize(3,0.0);
+    m_dir.resize(3,0.0);
+    m_pos[0] = x;
+    m_pos[1] = y;
+    m_pos[2] = z;
+    m_empty = false;    
+  };
 #endif
 #endif
 
@@ -55,6 +82,7 @@ namespace larlitecv {
       m_dir = dir_;
     }
     void setZY( float z, float y ) { m_pos[1] = y; m_pos[2] = z; m_empty = false; }
+    void setX( float x ) { m_pos[0] = x; };
     ///< hmm, might be better to infer ZY position from endpt vector at constructor
     bool isempty() const { return m_empty; }
     float dwall() const;
@@ -69,14 +97,15 @@ namespace larlitecv {
       return true;
     };
 
+    int tick( const larcv::ImageMeta& meta ) const;
+    std::vector<int> wires( const larcv::ImageMeta& meta ) const;
+    std::string printImageCoords( const larcv::ImageMeta& meta ) const;
+
 protected:
     BoundaryEnd_t boundary_type;
     std::vector<float> m_pos;
     std::vector<float> m_dir;
-    void setup() {
-      m_pos.resize(3,0);
-      m_dir.resize(3,0);
-    };
+    void setup( const larcv::ImageMeta& meta );
     bool m_empty; ///< flag that marks that the position has not been filled. used to indicate error states sometimes.
 
   };

@@ -28,9 +28,20 @@ namespace larlitecv {
     // poor-man's profiling
     const clock_t begin_time = clock();
 
+    std::vector<int> tracks_per_pass;
     for (int ipass=0; ipass<m_config.num_passes; ipass++) {
       const ThruMuTrackerConfig::ThruMuPassConfig& passcfg = m_config.pass_configs.at(ipass);
       runPass( ipass, passcfg, spacepts, img_v, badchimg_v, tagged_v, used_endpoints_indices, trackclusters );
+      int tracks_in_pass = trackclusters.size();
+      if (ipass>0)
+        tracks_in_pass -= tracks_per_pass.back();
+      tracks_per_pass.push_back( tracks_in_pass );
+    }
+
+    if ( m_config.verbosity>0 ) {
+      for (int ipass=0; ipass<m_config.num_passes; ipass++) {
+        std::cout << "Number of tracks found in ThruMu pass #" << ipass << ": " << tracks_per_pass.at(ipass) << std::endl;
+      }
     }
 
   }
@@ -53,57 +64,95 @@ namespace larlitecv {
     //   trackclusters: holds thrumu tracks made
 
 
+    std::cout << "Run Pass #" << passid << ": linear=" << passcfg.run_linear_tagger << " astar=" << passcfg.run_astar_tagger << std::endl;
+
     const int nendpts = (int)spacepts.size();
     std::vector<larlitecv::BMTrackCluster3D> pass_track_candidates;
+    std::vector< std::vector<int> > pass_end_indices;
 
     for (int i=0; i<nendpts; i++) {
       if ( used_endpoints_indices.at(i) ) continue;
       const BoundarySpacePoint& pts_a = *(spacepts[i]);
       for (int j=i+1; j<nendpts; j++) {
-	if ( used_endpoints_indices.at(j)) continue;
-	const BoundarySpacePoint& pts_b = *(spacepts[j]);
+        if ( used_endpoints_indices.at(j)) continue;
+        const BoundarySpacePoint& pts_b = *(spacepts[j]);
 
-	if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
+        if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
 
+        if ( m_config.verbosity>1 ) {
+          std::cout << "[ Pass " << passid << ": path-finding for endpoints (" << i << "," << j << ") "
+        	    << "of type (" << pts_a.type() << ") -> (" << pts_b.type() << ") ]" << std::endl;
+          std::cout << "  start: (" << pts_a.pos()[0] << "," << pts_a.pos()[1] << "," << pts_a.pos()[2] << ") "
+                    << "  end: (" << pts_b.pos()[0] << "," << pts_b.pos()[1] << "," << pts_b.pos()[2] << ") " << std::endl;
+          std::cout << "  start: " << pts_a.printImageCoords( img_v.front().meta() ) << " end: " << pts_b.printImageCoords( img_v.front().meta() ) << std::endl;
+        }
 
-	if ( m_config.verbosity>1 ) {
-	  std::cout << "[ Pass " << passid << ": path-finding for endpoints (" << i << "," << j << ") "
-		    << "of type (" << pts_a.at(0).type << ") -> (" << pts_b.at(0).type << ") ]" << std::endl;
-	}
+        // empty candidate
+        BMTrackCluster3D track3d;
+        LinearTaggerInfo linear_result;
+        AStarTaggerInfo astar_result;
 
-	// empty candidate
-	BMTrackCluster3D track3d;
-	LinearTaggerInfo linear_result;
-	AStarTaggerInfo astar_result;
+        // first run the linear charge tagger, if so chosen
+        if ( passcfg.run_linear_tagger ) {
+          if ( m_config.verbosity>1 ) {
+            std::cout << "  Running linear3dchargetagger." << std::endl;
+          }
+          BMTrackCluster3D linear_track = runLinearChargeTagger( passcfg, pts_a, pts_b, img_v, badchimg_v, linear_result );
+          if ( m_config.verbosity>1 ) {
+            std::cout << "  good fraction: " << linear_result.goodfrac << std::endl;
+            std::cout << "  majority planes w/ charge fraction: " << linear_result.majfrac << std::endl;
+          }
+          if ( linear_result.isgood ) {
+            if ( m_config.verbosity>1 ) std::cout << "  Result is good. length=" << linear_track.path3d.size() << std::endl;
+            std::swap(track3d,linear_track);
+          }
+          else {
+            if ( m_config.verbosity>1 ) std::cout << "  Result is bad." << std::endl;
+          }
+        }//end of if run_linear
 
-	// first run the linear charge tagger, if so chosen
-	if ( passcfg.run_linear_tagger ) {
-	  BMTrackCluster3D linear_track = runLinearChargeTagger( passcfg, pts_a, pts_b, img_v, badchimg_v, linear_result );
-	  if ( linear_result.isgood )
-	    std::swap(track3d,linear_track);
-	}
+        // next run astar tagger
+        if ( passcfg.run_astar_tagger
+             && (linear_result.goodfrac>passcfg.astar3d_min_goodfrac || linear_result.majfrac>passcfg.astar3d_min_majfrac ) ) {
+          if ( m_config.verbosity>1 )
+            std::cout << "  Running astar tagger." << std::endl;
+          BMTrackCluster3D astar_track = runAStarTagger( passcfg, pts_a, pts_b, img_v, badchimg_v, astar_result );
+          if ( astar_result.isgood ) {
+            if ( m_config.verbosity>1 ) std::cout << "  Result is good." << std::endl;
+            std::swap(track3d,astar_track);
+          }
+          else {
+            if ( m_config.verbosity>1 ) std::cout << "  Result is bad." << std::endl;
+          }
+        }
 
-	// next run astar tagger
-	if ( passcfg.run_astar_tagger
-	     && (linear_result.goodfrac>passcfg.astar3d_min_goodfrac || linear_result.majfrac>passcfg.astar3d_min_majfrac ) ) {
-	  BMTrackCluster3D astar_track = runAStarTagger( passcfg, pts_a, pts_b, img_v, badchimg_v, astar_result );
-	  if ( astar_result.isgood )
-	    std::swap(track3d,astar_track);
-	}
+        // run bezier fitter (doesn't exist yet. write this?)
 
-	// run bezier fitter (doesn't exist yet. write this?)
+        // could add criteria to filter here
 
-	// could add criteria to filter here
+        if ( (linear_result.isgood || astar_result.isgood) && m_config.verbosity>1 )
+          std::cout << "  track found. length: " << track3d.path3d.size() << " empty=" << track3d.isempty() << std::endl;
 
-	if ( !track3d.isempty() ) {
-	  pass_track_candidates.emplace_back( std::move(track3d) );
-	}
+        if ( !track3d.isempty() ) {
+          std::vector<int> indices(2);
+          indices[0] = i;
+          indices[1] = j;
+          pass_end_indices.emplace_back( std::move(indices) );
+          pass_track_candidates.emplace_back( std::move(track3d) );
+        }
 
       }// second loop over end points
     }// first loop over end points
 
 
     // post-process tracks (nothing yet)
+    for ( auto &track : pass_track_candidates ) {
+      trackclusters.emplace_back( std::move(track) );
+    }
+    for ( auto&indices : pass_end_indices ) {
+      used_endpoints_indices.at(indices[0]) = 1;
+      used_endpoints_indices.at(indices[1]) = 1;
+    }
   }
 
 
@@ -127,9 +176,9 @@ namespace larlitecv {
     result_info.numpts   = straight_track.size();
     result_info.goodfrac = straight_track.fractionGood();
     result_info.majfrac  = straight_track.fractionHasChargeOnMajorityOfPlanes();
-    if ( result_info.numpts      > pass_cfg.linear3d_min_tracksize
-	 && result_info.goodfrac > pass_cfg.linear3d_min_goodfraction
-	 && result_info.majfrac  > pass_cfg.linear3d_min_majoritychargefraction ) {
+    if ( result_info.numpts   > pass_cfg.linear3d_min_tracksize
+      && result_info.goodfrac > pass_cfg.linear3d_min_goodfraction
+      && result_info.majfrac  > pass_cfg.linear3d_min_majoritychargefraction ) {
       result_info.isgood = true;
     }
     else {
@@ -145,12 +194,11 @@ namespace larlitecv {
     for ( auto const& ptinfo : straight_track ) {
       std::vector<double> xyz(3);
       for (int i=0; i<3; i++)
-	xyz[i] = ptinfo.xyz[i];
+      	xyz[i] = ptinfo.xyz[i];
       path3d.emplace_back( std::move(xyz) );
     }
 
-    //larlitecv::BMTrackCluster3D track3d( pts_a, pts_b, path3d );
-    larlitecv::BMTrackCluster3D track3d;
+    larlitecv::BMTrackCluster3D track3d( pts_a, pts_b, path3d );
     return track3d;
   }
 
@@ -158,6 +206,9 @@ namespace larlitecv {
                   const BoundarySpacePoint& pts_a, const BoundarySpacePoint& pts_b,
                   const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
                   ThruMuTracker::AStarTaggerInfo& result_info ) {
+    larlitecv::BMTrackCluster3D track3d;
+    result_info.isgood = false;
+    return track3d;
   }
 
 

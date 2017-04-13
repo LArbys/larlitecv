@@ -148,6 +148,33 @@ namespace larlitecv {
     return kOK;
   }
 
+  void BoundaryMuonTaggerAlgo::loadGeoInfo() {
+
+    TFile fGeoFile( Form("%s/app/PMTWeights/dat/geoinfo.root",getenv("LARCV_BASEDIR")), "OPEN" );
+
+    // Get the PMT Info
+    fNPMTs = 32;
+    TTree* fPMTTree  = (TTree*)fGeoFile.Get( "imagedivider/pmtInfo" );
+    int femch;
+    float pos[3];
+    fPMTTree->SetBranchAddress( "femch", &femch );
+    fPMTTree->SetBranchAddress( "pos", pos );
+    for (int n=0; n<fNPMTs; n++) {
+      fPMTTree->GetEntry(n);
+      for (int i=0; i<3; i++) {
+        pmtpos[femch][i] = pos[i];
+      }
+      //std::cout << "[POS " << femch << "] " << " (" << pmtpos[femch][0] << "," << pmtpos[femch][1] << "," << pmtpos[femch][2] << ")" << std::endl;
+    }
+    
+    fGeoFile.Close();
+    
+    matchalgo_tight = new larlitecv::BoundaryMatchAlgo( larlitecv::BoundaryMatchArrays::kTight );
+    matchalgo_loose = new larlitecv::BoundaryMatchAlgo( larlitecv::BoundaryMatchArrays::kLoose );
+    
+  }
+  
+
 //   int BoundaryMuonTaggerAlgo::makeTrackClusters3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
 //                                                    const std::vector< const BoundarySpacePoint* >& spacepts,
 //                                                    std::vector< larlitecv::BMTrackCluster3D >& trackclusters, 
@@ -661,32 +688,6 @@ namespace larlitecv {
 //     }//end of loop over 2D tracks
 //   }
   
-
-//   void BoundaryMuonTaggerAlgo::loadGeoInfo() {
-
-//     TFile fGeoFile( Form("%s/app/PMTWeights/dat/geoinfo.root",getenv("LARCV_BASEDIR")), "OPEN" );
-
-//     // Get the PMT Info
-//     fNPMTs = 32;
-//     TTree* fPMTTree  = (TTree*)fGeoFile.Get( "imagedivider/pmtInfo" );
-//     int femch;
-//     float pos[3];
-//     fPMTTree->SetBranchAddress( "femch", &femch );
-//     fPMTTree->SetBranchAddress( "pos", pos );
-//     for (int n=0; n<fNPMTs; n++) {
-//       fPMTTree->GetEntry(n);
-//       for (int i=0; i<3; i++) {
-//         pmtpos[femch][i] = pos[i];
-//       }
-//       //std::cout << "[POS " << femch << "] " << " (" << pmtpos[femch][0] << "," << pmtpos[femch][1] << "," << pmtpos[femch][2] << ")" << std::endl;
-//     }
-    
-//     fGeoFile.Close();
-    
-//     matchalgo_tight = new larlitecv::BoundaryMatchAlgo( larlitecv::BoundaryMatchArrays::kTight );
-//     matchalgo_loose = new larlitecv::BoundaryMatchAlgo( larlitecv::BoundaryMatchArrays::kLoose );
-    
-//   }
 
 //   BMTrackCluster3D BoundaryMuonTaggerAlgo::process2Dtrack( std::vector< larlitecv::BMTrackCluster2D >& track2d, 
 //                                                            const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v ) {
@@ -1585,8 +1586,10 @@ namespace larlitecv {
       BoundaryEndPt endpt(best_row,best_cols[p], CrossingToBoundaryEnd(crossing_type) );
       endpt_v.emplace_back( std::move(endpt) );
     }
-    BoundarySpacePoint spacepoint( CrossingToBoundaryEnd(crossing_type), std::move(endpt_v) );
-    spacepoint.setZY( best_poszy[0], best_poszy[1] );
+    
+    float x = (imgs.front().meta().pos_y( best_row ) - 3200.0)*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);    
+    BoundarySpacePoint spacepoint( CrossingToBoundaryEnd(crossing_type), std::move(endpt_v), x, best_poszy[1], best_poszy[0] );
+
     return spacepoint;
   }//end of end point definition
 
