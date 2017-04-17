@@ -13,6 +13,8 @@ namespace larlitecv {
 
     verbosity = 0;
     num_passes = 1;
+    tag_neighborhood.resize(3,5);
+    pixel_threshold.resize(3,10);
 
     // setup example pass config
     ThruMuPassConfig passcfg;
@@ -49,27 +51,31 @@ namespace larlitecv {
     passcfg.linear3d_cfg.neighborhood_posttick = 5;
 
     pass_configs.emplace_back( std::move(passcfg) );
-    
+
   }
 
   ThruMuTrackerConfig ThruMuTrackerConfig::MakeFromPSet( const larcv::PSet& pset ) {
     ThruMuTrackerConfig cfg;
     cfg.verbosity  = pset.get<int>("Verbosity");
     cfg.num_passes = pset.get<int>("NumPasses");
+    cfg.tag_neighborhood = pset.get< std::vector<int> >("TaggingNeighborhood");
+    cfg.pixel_threshold  = pset.get< std::vector<float> >("PixelThresholds");
+    cfg.pass_configs.clear();
     for ( int ipass=0; ipass<cfg.num_passes; ipass++ ) {
       std::stringstream ss;
       ss << "ThruMuPassConfig" << ipass;
       larcv::PSet pass_pset = pset.get< larcv::PSet >( ss.str() );
       ThruMuTrackerConfig::ThruMuPassConfig passcfg;
-      passcfg.run_linear_tagger = pset.get<bool>("RunLinearTagger");
-      passcfg.run_astar_tagger  = pset.get<bool>("RunAStarTagger");
-      passcfg.linear3d_min_tracksize              = pset.get<int>("Linear3DMinTrackSize");
-      passcfg.linear3d_min_goodfraction           = pset.get<float>("Linear3DMinGoodFraction");
-      passcfg.linear3d_min_majoritychargefraction = pset.get<float>("Linear3DMinMajorityChargeFraction");
-      passcfg.astar3d_min_goodfrac                = pset.get<float>("AStar3DMinGoodFraction");
-      passcfg.astar3d_min_majfrac                 = pset.get<float>("AStar3DMinMajorityChargeFraction");
-      passcfg.astar3d_cfg  = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pset.get<larcv::PSet>( "AStarConfig" ) );
-      passcfg.linear3d_cfg = larlitecv::Linear3DChargeTaggerConfig::makeFromPSet( pset.get<larcv::PSet>("Linear3DConfig" ) );
+      passcfg.run_linear_tagger                   = pass_pset.get<bool>("RunLinearTagger");
+      passcfg.run_astar_tagger                    = pass_pset.get<bool>("RunAStarTagger");
+      passcfg.linear3d_min_tracksize              = pass_pset.get<int>("Linear3DMinTrackSize");
+      passcfg.linear3d_min_goodfraction           = pass_pset.get<float>("Linear3DMinGoodFraction");
+      passcfg.linear3d_min_majoritychargefraction = pass_pset.get<float>("Linear3DMinMajorityChargeFraction");
+      passcfg.astar3d_min_goodfrac                = pass_pset.get<float>("AStar3DMinGoodFraction");
+      passcfg.astar3d_min_majfrac                 = pass_pset.get<float>("AStar3DMinMajorityChargeFraction");
+      passcfg.astar3d_cfg  = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pass_pset.get<larcv::PSet>( "AStarConfig" ) );
+      passcfg.linear3d_cfg = larlitecv::Linear3DChargeTaggerConfig::makeFromPSet( pass_pset.get<larcv::PSet>("Linear3DConfig" ) );
+      std::cout << ss.str() << ": runlinear=" << passcfg.run_linear_tagger << " runastar=" << passcfg.run_astar_tagger << std::endl;
       cfg.pass_configs.emplace_back( std::move(passcfg) );
     }
     return cfg;

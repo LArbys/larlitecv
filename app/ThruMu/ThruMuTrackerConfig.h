@@ -42,12 +42,14 @@ namespace larlitecv {
     };
 
     // Parameters
-    
+
     int verbosity;
     int num_passes; //< number of passes
+    std::vector<int> tag_neighborhood;
+    std::vector<float> pixel_threshold;
     std::vector< ThruMuPassConfig > pass_configs; //< configuration for each pass
 
-    
+
 
   };
 
