@@ -1,6 +1,7 @@
 #include "TaggerCROIAlgo.h"
 
 #include <sstream>
+#include <ctime>
 
 // larlite
 #include "LArUtil/LArProperties.h"
@@ -26,13 +27,20 @@
 
 namespace larlitecv {
 
+  TaggerCROIAlgo::TaggerCROIAlgo( const TaggerCROIAlgoConfig& config )
+   : m_config(config) {
+    m_time_tracker.resize( kNumStages, 0.0 );
+  }
+  
   ThruMuPayload TaggerCROIAlgo::runThruMu( const InputPayload& input ) {
 
     ThruMuPayload output;
 
     // configure different stages of the Thrumu Tagger
-
+    std::clock_t timer;
+    
     // (1) side tagger
+    timer = std::clock();
     larlitecv::BoundaryMuonTaggerAlgo sidetagger;
     sidetagger.configure( m_config.sidetagger_cfg );
     sidetagger.printConfiguration();
@@ -52,9 +60,12 @@ namespace larlitecv {
     // (4) thrumu tracker
     larlitecv::ThruMuTracker thrumu_tracker( m_config.thrumu_tracker_cfg );
 
+    m_time_tracker[kThruMuConfig] = ( std::clock()-timer )/(double)CLOCKS_PER_SEC;
+
     // RUN THE THRUMU ALGOS
 
     // run side tagger
+    timer = std::clock();
     sidetagger.searchforboundarypixels3D( input.img_v, input.badch_v, output.side_spacepoint_v, output.boundarypixel_image_v, output.realspacehit_image_v );
     int nsides[4] = {0};
     for ( auto const& sp : output.side_spacepoint_v ) {
@@ -65,8 +76,10 @@ namespace larlitecv {
     std::cout << "   Bottom: "     << nsides[1] << std::endl;
     std::cout << "   Upstream: "   << nsides[2] << std::endl;
     std::cout << "   Downstream: " << nsides[3] << std::endl;
+    m_time_tracker[kThruMuBMT] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // run flash tagger
+    timer = std::clock();
     anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v );
     cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v );
     imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v );
@@ -75,6 +88,7 @@ namespace larlitecv {
     std::cout << "  Anode: "      << output.anode_spacepoint_v.size() << std::endl;
     std::cout << "  Cathode: "    << output.cathode_spacepoint_v.size() << std::endl;
     std::cout << "  Image Ends: " << output.imgends_spacepoint_v.size() << std::endl;
+    m_time_tracker[kThruMuFlash] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // we collect pointers to all the end points
     std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
@@ -111,7 +125,11 @@ namespace larlitecv {
 
     // make track clusters
     std::vector<int> used_filtered_endpoints( filtered_endpoints.size(), 0 );
-    thrumu_tracker.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
+    if ( m_config.run_thrumu_tracker ) {
+      timer = std::clock();
+      thrumu_tracker.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
+      m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;      
+    }
 
     // collect unused endpoints
     for ( size_t isp=0; isp<filtered_endpoints.size(); isp++ ) {
@@ -435,5 +453,25 @@ namespace larlitecv {
     }
 
     return output;
+  }
+
+  void TaggerCROIAlgo::printTimeTracker( int num_events ) {
+    const std::string stage_names[] = { "ThruMuConfig", "ThruMuBMT", "ThruMuFlash", "ThruMuTracker", "StopMuCluster", "Untagged", "CROI" };
+    float tot_time = 0.;
+    std::cout << "---------------------------------------------------------------" << std::endl;
+    std::cout << "TaggerCROIAlgoConfig::printTimeTracker" << std::endl;
+    std::cout << "Number of Events: " << num_events << std::endl;
+    for (int i=0; i<kNumStages; i++) {
+      std::cout << stage_names[i] << " : " << m_time_tracker[i] << " secs";
+      if ( num_events>0 )
+	std::cout << "  " << m_time_tracker[i]/float(num_events) << " secs/event";
+      std::cout << std::endl;
+      tot_time += m_time_tracker[i];
+    }
+    std::cout << "Total: " << tot_time << " secs";
+    if ( num_events>0 )
+      std::cout << "  " << tot_time/float(num_events) << " secs/event";
+    std::cout << std::endl;
+    std::cout << "---------------------------------------------------------------" << std::endl;    
   }
 }

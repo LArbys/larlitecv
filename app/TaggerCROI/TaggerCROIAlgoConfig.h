@@ -33,6 +33,8 @@ namespace larlitecv {
     larcv::PSet stopmu_write_cfg;
     larcv::PSet croi_write_cfg;
 
+    bool run_thrumu_tracker;
+
     static TaggerCROIAlgoConfig makeConfigFromFile( std::string );
 
   };

@@ -285,7 +285,9 @@ int main(int nargs, char** argv ) {
 
     ann::ANNAlgo::cleanup();
   }
-
+  
+  tagger_algo.printTimeTracker( endentry-startentry );
+  
   dataco.finalize();
   dataco_out.finalize();
 
