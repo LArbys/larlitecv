@@ -820,11 +820,12 @@ namespace larlitecv {
     for (int idx_cluster=0; idx_cluster<(int)passing_clusters.size(); idx_cluster++ ) {
       if ( passing_clusters.at(idx_cluster)==0 ) continue;
       BoundarySpacePoint& intersection = endpts_v.at(idx_cluster);
-      
-      std::cout << "  (" << tpc_imgs.at(0).meta().pos_x(intersection[0].col) 
-		<< "," << tpc_imgs.at(1).meta().pos_x(intersection[1].col)
-		<< "," << tpc_imgs.at(2).meta().pos_x(intersection[2].col) << ")" 
-		<< std::endl;
+
+      if ( fConfig.verbosity>1 )
+	std::cout << "  (" << tpc_imgs.at(0).meta().pos_x(intersection[0].col) 
+		  << "," << tpc_imgs.at(1).meta().pos_x(intersection[1].col)
+		  << "," << tpc_imgs.at(2).meta().pos_x(intersection[2].col) << ")" 
+		  << std::endl;
       for ( auto& plane_pt : intersection )
 	plane_pt.type = point_type;
       trackendpts.emplace_back( std::move( intersection ) );
