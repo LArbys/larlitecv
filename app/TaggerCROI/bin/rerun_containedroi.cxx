@@ -290,8 +290,8 @@ int main(int nargs, char** argv ) {
     if ( save_croi_space )
       croi_data.saveSpace();
     WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out );
-    WriteStopMuPayload( stopmu_data, tagger_cfg, dataco_out );
-    WriteThruMuPayload( thrumu_data, tagger_cfg, dataco_out );
+    WriteStopMuPayload( stopmu_data, input_data, tagger_cfg, dataco_out );
+    WriteThruMuPayload( thrumu_data, input_data, tagger_cfg, dataco_out );
 
     // -------------------------------------------------------------------------------------------//
     // SAVE DATA

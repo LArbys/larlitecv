@@ -5,7 +5,7 @@
 #include "Base/PSet.h"
 
 // larlitecv
-#include "ThruMu/BoundaryMuonTaggerAlgo.h"
+#include "ThruMu/BoundaryMuonTaggerAlgoConfig.h"
 #include "ThruMu/FlashMuonTaggerAlgo.h"
 #include "ThruMu/ThruMuTrackerConfig.h"
 #include "StopMu/StopMuFilterSpacePoints.h"
@@ -20,7 +20,7 @@ namespace larlitecv {
     TaggerCROIAlgoConfig();
     virtual ~TaggerCROIAlgoConfig() {};
 
-    ConfigBoundaryMuonTaggerAlgo  sidetagger_cfg;
+    BoundaryMuonTaggerAlgoConfig  sidetagger_cfg;
     FlashMuonTaggerConfig         flashtagger_cfg;
     ThruMuTrackerConfig           thrumu_tracker_cfg;
     StopMuFilterSpacePointsConfig stopmu_filterpts_cfg;
