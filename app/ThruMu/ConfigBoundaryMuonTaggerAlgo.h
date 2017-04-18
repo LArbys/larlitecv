@@ -5,8 +5,6 @@
 
 // larcv
 #include "Base/PSet.h"
-#include "AStar3DAlgo.h"
-#include "Linear3DChargeTagger.h"
 
 namespace larlitecv {
 
@@ -41,18 +39,18 @@ namespace larlitecv {
     int ticks_per_full_drift;
     std::vector<float> type_modifier;
     int verbosity;
-    AStar3DAlgoConfig    astar_cfg;
-    Linear3DChargeTaggerConfig linear3d_cfg;
-    int linear3d_min_tracksize;
-    float linear3d_min_goodfraction;
-    float linear3d_min_majoritychargefraction;
-    float astar3d_min_goodfrac;
-    float astar3d_min_majfrac;
-    float track_step_size;
+    //AStar3DAlgoConfig    astar_cfg;
+    //Linear3DChargeTaggerConfig linear3d_cfg;
+    //int linear3d_min_tracksize;
+    //float linear3d_min_goodfraction;
+    //float linear3d_min_majoritychargefraction;
+    //float astar3d_min_goodfrac;
+    //float astar3d_min_majfrac;
+    //float track_step_size;
 
     void setdefaults();
-    const AStar3DAlgoConfig& getAStarConfig() { return astar_cfg; };
-    const Linear3DChargeTaggerConfig& getLinear3DConfig() { return linear3d_cfg; };
+    //const AStar3DAlgoConfig& getAStarConfig() { return astar_cfg; };
+    //const Linear3DChargeTaggerConfig& getLinear3DConfig() { return linear3d_cfg; };
 
   };
 

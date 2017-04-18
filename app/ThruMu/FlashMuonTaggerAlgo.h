@@ -105,6 +105,16 @@ namespace larlitecv {
     void loadGeoInfo();
 
     
+    void FindFlashesByChargeClusters( const int row_target, const larlitecv::BoundaryEnd_t point_type,
+				      const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
+				      const std::vector<float>& z_range, const std::vector<float>& y_range, std::vector< BoundarySpacePoint >& trackendpts );
+
+    void FindFlashesBy3DSegments( const int row_target, const larlitecv::BoundaryEnd_t point_type,
+				  const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
+				  const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts );
+    
+    
+
   public:
     int fNPMTs;
     float pmtpos[32][3];    

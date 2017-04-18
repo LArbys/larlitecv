@@ -1,6 +1,7 @@
 #ifndef __FLASHMUONTAGGERCONFIG__
 #define __FLASHMUONTAGGERCONFIG__
 
+#include <string>
 #include <vector>
 
 // larcv
@@ -31,6 +32,7 @@ namespace larlitecv {
     float               max_triarea;
     float               max_triarea_tight;
     float               cathode_drift_tick_correction;
+    std::string         endpoint_clustering_algo; // [options: cluster, segment]
 
     void setdefaults();
     
