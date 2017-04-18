@@ -9,15 +9,13 @@
 
 namespace larlitecv {
 
-  class FlashMuonTaggerConfig {
+  class FlashMuonTaggerAlgoConfig {
   public:
-    FlashMuonTaggerConfig() {};
-    virtual ~FlashMuonTaggerConfig() {};
+    FlashMuonTaggerAlgoConfig() {};
+    virtual ~FlashMuonTaggerAlgoConfig() {};
     
     // values per plane
     std::vector<float>  pixel_value_threshold;
-    std::vector<int>    clustering_time_neighborhood;
-    std::vector<int>    clustering_wire_neighborhood;
     std::vector<int>    clustering_minpoints;
     std::vector<double> clustering_radius;
     std::vector<int>    endpoint_time_neighborhood;
@@ -38,7 +36,7 @@ namespace larlitecv {
     
   };
   
-  FlashMuonTaggerConfig MakeFlashMuonTaggerConfigFromPSet( const larcv::PSet& flashtagger_pset );
+  FlashMuonTaggerAlgoConfig MakeFlashMuonTaggerAlgoConfigFromPSet( const larcv::PSet& flashtagger_pset );
 
 }
 

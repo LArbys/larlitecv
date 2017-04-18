@@ -36,7 +36,7 @@ namespace larlitecv {
     cfg.croi_write_cfg   = tagger_pset.get<larcv::PSet>("CROIWriteConfig");
 
     cfg.sidetagger_cfg       = larlitecv::MakeBoundaryMuonTaggerAlgoConfigFromPSet( sidetagger_pset );
-    cfg.flashtagger_cfg      = larlitecv::MakeFlashMuonTaggerConfigFromPSet( flashtagger_pset );
+    cfg.flashtagger_cfg      = larlitecv::MakeFlashMuonTaggerAlgoConfigFromPSet( flashtagger_pset );
     cfg.thrumu_tracker_cfg   = larlitecv::ThruMuTrackerConfig::MakeFromPSet( thrumu_tracker_pset );
     cfg.stopmu_filterpts_cfg = larlitecv::MakeStopMuFilterSpacePointsConfigFromPSet( stopmu_filter_pset );
     cfg.stopmu_cluster_cfg   = larlitecv::makeStopMuClusterConfigFromPSet( stopmu_cluster_pset );

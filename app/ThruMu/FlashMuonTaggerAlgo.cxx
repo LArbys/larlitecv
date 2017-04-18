@@ -30,7 +30,7 @@ namespace larlitecv {
     if ( nplanes==0 )
       return false;
     
-    if ( fConfig.verbosity<2 )
+    if ( fConfig.verbosity>0 )
       std::cout << "Begin FlashMuonTaggerAlgo::flashMatchTrackEnds [verbsity=" << fConfig.verbosity << "]" << std::endl;
 
     // get a meta
@@ -115,7 +115,7 @@ namespace larlitecv {
         
         int row_target = meta.row( tick_target );
         
-        if ( fConfig.verbosity<2 ) {
+        if ( fConfig.verbosity>0 ) {
           std::cout << "============================================================================================" << std::endl;
           std::cout << "[Opflash search] " << modename << " mode" << std::endl;
           std::cout << "  opflash: "
@@ -203,7 +203,7 @@ namespace larlitecv {
       if ( tmax==-1 || y_>tmax ) { tmax = y_; wmax = x_; };
       if ( tmin==-1 || y_<tmin ) { tmin = y_; wmin = x_; };
     }
-    if ( fConfig.verbosity<1 ) {
+    if ( fConfig.verbosity>1 ) {
       std::cout << "  end points: max (r,c)=(" << tmax << ", " << wmax << ")"
                 << "  tw=(" << meta.pos_y(tmax) << "," << meta.pos_x(wmax) << ")"
                 << "  min (r,c)=(" << tmin << "," << wmin << ")" 
@@ -254,7 +254,7 @@ namespace larlitecv {
     //  vector< vector<ClusterInfo_t> > : list of plane-matched cluster info. mirrors above. inner vector has 3 info objects each, one for each plane
 
      // generate 3 plane combinations
-    if ( fConfig.verbosity<1){
+    if ( fConfig.verbosity>1){
       std::cout << " ** generate 3-plane intersections within "
                 << " z-range=[" << z_range[0] << "," << z_range[1] << "]" 
                 << " y-range=[" << y_range[0] << "," << y_range[1] << "] **" 
@@ -346,14 +346,14 @@ namespace larlitecv {
       if ( has_min_match ) nboundary_matches++;
 
       // we accept this combination
-      if ( fConfig.verbosity<1 )
+      if ( fConfig.verbosity>1 )
         std::cout << "  accepted 3-plane endpt: comboidx=(" << combo[0] << "," << combo[1] << "," << combo[2] << ") wires=(";
       std::vector< BoundaryEndPt > endpt_v;
       std::vector< ClusterInfo_t > info_copy_v;
       for ( int p=0; p<nplanes; p++ ) {
         const ClusterInfo_t& info = cluster_info.at(p).at( combo[p] );
         cluster_used[p][combo[p]] = 1;
-        if ( fConfig.verbosity<1)
+        if ( fConfig.verbosity>1)
           std::cout << img_v.at(p).meta().pos_x( info.col ) << ",";
         BoundaryEndPt endpt( info.row, info.col, SearchModeToEndType(fSearchMode) );
         endpt_v.emplace_back( std::move(endpt) );
@@ -363,7 +363,7 @@ namespace larlitecv {
       float x = (img_v.front().meta().pos_y(cluster_info.front().at(combo[0]).row)-3200.0)*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);      
       BoundarySpacePoint spacepoint( SearchModeToEndType(fSearchMode), std::move(endpt_v), x, poszy[1], poszy[2] );
 
-      if ( fConfig.verbosity<1 )
+      if ( fConfig.verbosity>1 )
         std::cout << ") nboundary_matches=" << nboundary_matches << " max=" << triarea_max <<  " min=" << triarea_min << std::endl;
 
       endpts_v.emplace_back( std::move(spacepoint) );
@@ -378,7 +378,7 @@ namespace larlitecv {
     std::vector< BoundarySpacePoint >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,
     std::vector< std::vector<int> >& cluster_used ) {
 
-    if ( fConfig.verbosity<1){
+    if ( fConfig.verbosity>1){
       std::cout << "  generate 3-plane intersections within "
                 << " z-range=[" << z_range[0] << "," << z_range[1] << "]" 
                 << " y-range=[" << y_range[0] << "," << y_range[1] << "]" 
@@ -422,7 +422,7 @@ namespace larlitecv {
             if ( crosses>0 && otherwire>=0 && otherplane>=0 && otherwire<img_v.at(otherplane).meta().max_x() )
               badch_state = badch_v.at(otherplane).pixel( cluster_info[p1][endpt1].row, img_v.at(otherplane).meta().col(otherwire) );
 
-            if (fConfig.verbosity<1 ) {
+            if (fConfig.verbosity>1 ) {
               std::cout << "p1=" << p1 << " wid1=" << wid1
                 << " p2=" << p2 << " wid2=" << wid2 
                 << " other plane=" << otherplane << " other wire=" << otherwire << " badch=" << badch_state
@@ -633,11 +633,11 @@ namespace larlitecv {
 
           }
         }
-        dbscan::dbscanOutput clout = algo.scan( planepts, 3, 5.0, false, 0.0 );
+        dbscan::dbscanOutput clout = algo.scan( planepts, fConfig.clustering_minpoints.at(p), fConfig.clustering_radius.at(p), false, 0.0 );
         std::vector<double> centerpt(2);
         centerpt[0] = col;
         centerpt[1] = row;
-        int matching_cluster = clout.findMatchingCluster( centerpt, planepts, 3.0 );
+        int matching_cluster = clout.findMatchingCluster( centerpt, planepts, fConfig.clustering_radius.at(p) );
         if ( matching_cluster<0 )
           continue;
 
@@ -672,7 +672,7 @@ namespace larlitecv {
         }
 
         boundaries_reached[p] = num_boundaries_reached;
-        if ( fConfig.verbosity<1 ) {
+        if ( fConfig.verbosity>1 ) {
           std::cout << "  plane=" << p << " tick-top extreme=" << img_v.at(p).meta().pos_y(extrema.bottommost()[1]) << " <= row_top=" << img_v.at(p).meta().pos_y(row_start) << std::endl;
           std::cout << "  plane=" << p << " tick-bot extreme=" << img_v.at(p).meta().pos_y(extrema.topmost()[1]) << " >= row_bot=" << img_v.at(p).meta().pos_y(row_end) << std::endl;        
           std::cout << "  plane=" << p << " tick-lft extreme=" << img_v.at(p).meta().pos_y(extrema.leftmost()[1]) 
@@ -696,7 +696,7 @@ namespace larlitecv {
         else if ( (fSearchMode==kAnode || (fSearchMode==kOutOfImage && fOutOfImageMode==kBack)) && reached_tick_top>=2 )
           cluster_passed[idx_cluster] = 1;
       }
-      if ( fConfig.verbosity<1 ) {
+      if ( fConfig.verbosity>1 ) {
         std::cout << "filter cluster#" << idx_cluster << " tick=" << img_v.at(0).meta().pos_y(row) 
           << " cols=(" << info_v[0].col << "," << info_v[1].col << "," << info_v[2].col << ")"
           << " [planes with crossing cluster]=" << nplanes_with_crossing_cluster
@@ -782,7 +782,7 @@ namespace larlitecv {
       dbscan::dbscanOutput plane_dbscan_output      = dbalgo.scan( hits.at(p), 5, 5.0, false, 0.0 );
       std::vector<ClusterInfo_t> plane_cluster_info = analyzeClusters( plane_dbscan_output, hits.at(p), img, row_target, p, 5 );
       for ( auto& info : plane_cluster_info ) {
-	if ( fConfig.verbosity<1) {
+	if ( fConfig.verbosity>1) {
 	  std::cout << " plane=" << p << " flash-cluster: (w,t)=(" << meta.pos_x(info.col) << "," << meta.pos_y(info.row) << ")"
 		    << " hit-rmax=" << info.hits_rmax_boundary;
 	  if ( info.hits_rmax_boundary ) 
@@ -805,7 +805,7 @@ namespace larlitecv {
     std::vector< BoundarySpacePoint > endpts_v;
     std::vector< std::vector<ClusterInfo_t> > accepted_cluster_matches;        
     findPlaneMatchedClusters( cluster_info, tpc_imgs, badch_imgs, fConfig.max_triarea, z_range, y_range, endpts_v, accepted_cluster_matches );
-    if ( fConfig.verbosity<2 ) {
+    if ( fConfig.verbosity>0 ) {
       std::cout << "number of plane-matched clusters: " << accepted_cluster_matches.size() << std::endl;
       std::cout << "number of endpts: " << endpts_v.size() << std::endl;
     }
@@ -815,7 +815,7 @@ namespace larlitecv {
     filterClusters( accepted_cluster_matches, tpc_imgs, 20, 20, 20, passing_clusters );
 
     // transfer to output container
-    if ( fConfig.verbosity<2 )
+    if ( fConfig.verbosity>0 )
       std::cout << "Generated End Points" << std::endl;
     for (int idx_cluster=0; idx_cluster<(int)passing_clusters.size(); idx_cluster++ ) {
       if ( passing_clusters.at(idx_cluster)==0 ) continue;

@@ -16,7 +16,7 @@
 #include "BoundaryMuonTaggerTypes.h"
 #include "BoundaryEndPt.h"
 #include "BoundarySpacePoint.h"
-#include "FlashMuonTaggerConfig.h"
+#include "FlashMuonTaggerAlgoConfig.h"
 
 namespace larlitecv {
     
@@ -55,7 +55,7 @@ namespace larlitecv {
       int npixels;
     };    
 
-    void configure( const FlashMuonTaggerConfig& config_ ) { fConfig=config_; fconfigured = true; };
+    void configure( const FlashMuonTaggerAlgoConfig& config_ ) { fConfig=config_; fconfigured = true; };
 
     bool flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const std::vector<larcv::Image2D>& tpc_imgs,
 			      const std::vector<larcv::Image2D>& badch_imgs,
@@ -71,7 +71,7 @@ namespace larlitecv {
     SearchMode_t fSearchMode;
     OutOfImage_t fOutOfImageMode;
     bool fconfigured;
-    FlashMuonTaggerConfig fConfig;
+    FlashMuonTaggerAlgoConfig fConfig;
     
     // subroutines
     bool findClusterEnds( const dbscan::dbscanOutput& clout, const dbscan::dbPoints& winpoints, 
