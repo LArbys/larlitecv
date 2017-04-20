@@ -12,8 +12,7 @@
 #include "DataFormat/ROI.h"
 
 // larlitecv
-#include "ThruMu/ConfigBoundaryMuonTaggerAlgo.h"
-#include "ThruMu/FlashMuonTaggerConfig.h"
+#include "ThruMu/FlashMuonTaggerAlgoConfig.h"
 
 #include "ThruMu/BoundaryMuonTaggerAlgo.h"
 #include "ThruMu/FlashMuonTaggerAlgo.h"
