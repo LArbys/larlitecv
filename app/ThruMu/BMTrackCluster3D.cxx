@@ -82,7 +82,7 @@ namespace larlitecv {
     // get unique pixels
     const int nplanes=imgs.size();
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
-    std::set< std::vector<int> > planepixs[nplanes];
+    std::vector< std::set< std::vector<int> > > planepixs(nplanes);
 
     for ( int istep=0; istep<(int)path3d.size()-1; istep++ ) {
       const std::vector<double>& point      = path3d.at(istep);
