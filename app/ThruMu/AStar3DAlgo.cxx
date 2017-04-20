@@ -507,7 +507,7 @@ namespace larlitecv {
           double px_value_cost = 0;
           int row = neighbor_node->row;
           for(size_t p = 0; p<3;p++){
-              px_value_cost+=50*exp(-1.*img_v.at(p).pixel( row, neighbor_node->cols[p] ));
+              px_value_cost+=1000*exp(-1.*img_v.at(p).pixel( row, neighbor_node->cols[p] ));
           }
           jump_cost*=(1+px_value_cost);
       }

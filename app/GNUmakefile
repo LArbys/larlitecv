@@ -7,7 +7,7 @@ endif
 #
 # Define directories to be compile upon a global "make"...
 #
-SUBDIRS := ThruMu StopMu
+SUBDIRS := ThruMu StopMu Reco3DTracks
 
 #####################################################################################
 #

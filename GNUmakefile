@@ -25,7 +25,7 @@ CORE_SUBDIRS := Hashlib2plus Base
 #  CORE_SUBDIRS += CVUtil
 #endif
 
-APP_SUBDIRS := Combinator GapChs ThruMu StopMu UntaggedClustering SCE ContainedROI TaggerCROI
+APP_SUBDIRS := Combinator GapChs ThruMu StopMu UntaggedClustering SCE ContainedROI TaggerCROI Reco3DTracks
 
 .phony: all clean
 
