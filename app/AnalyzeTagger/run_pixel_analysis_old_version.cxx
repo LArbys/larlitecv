@@ -68,7 +68,7 @@
 #include "GapChs/EmptyChannelAlgo.h"
 #include "dwall.h"
 #include "extractTruthMethods.h"
-
+#include "crossingPointsAnaMethods.h"
 
 
 // OpenCV
@@ -98,6 +98,7 @@ int main( int nargs, char** argv ) {
   std::string source_param[2] = { "InputSourceFilelist", "InputCROIFilelist" };
   larlitecv::DataCoordinator dataco[kNumSourceTypes];
   for (int isrc=0; isrc<kNumSourceTypes; isrc++ ) {
+    std::cout << "LOADING " << source_param[isrc] << " FILES" << std::endl;
     dataco[isrc].set_filelist( pset.get<std::string>(source_param[isrc]+"LArCV"),   "larcv" );
     dataco[isrc].set_filelist( pset.get<std::string>(source_param[isrc]+"LArLite"), "larlite" );
     dataco[isrc].configure( cfg_file, "StorageManager", "IOManager", "AnalyzeTagger" );
@@ -111,6 +112,7 @@ int main( int nargs, char** argv ) {
   // =====================================================================
   // configuration parameters
 
+  std::string outfname   = pset.get<std::string>("OutputAnaFile");
   float fthreshold       = pset.get<float>("PixelThreshold");
   int tag_neighborhood   = pset.get<int>("TagNeighborhood",10);
   int fvertex_radius     = pset.get<int>("PixelRadius");
@@ -119,13 +121,14 @@ int main( int nargs, char** argv ) {
   bool badch_in_file     = pset.get<bool>("BadChImageInFile");
   std::string inputimgs  = pset.get<std::string>("InputLArCVImages");
   std::string trigname   = pset.get<std::string>("TriggerProducerName");
+  bool printFlashEnds    = pset.get<bool>("PrintFlashEnds");
 
  // =====================================================================
 
   // setup output
   enum Stages_t { kThruMu=0, kStopMu, kUntagged, kCROI, kNumStages };
 
-  TFile* rfile = new TFile("output_pixel_analysis_rerunpad20.root", "recreate");
+  TFile* rfile = new TFile(outfname.c_str(), "recreate");
   TTree* tree = new TTree("pixana", "Pixel-level analysis");
 
   // Event Index
@@ -156,12 +159,8 @@ int main( int nargs, char** argv ) {
   int nnu_inroi[4]; // number of nu pixels contained in the CROI
   int vertex_in_croi; // is vertex in an CROI
 
-  // Crossing Point tags
-  int true_intime_thrumu;
-  int true_intime_stopmu;
-  int true_crossingpoints;
-  int tagged_crossingpoints;
-  int proposed_crossingpoints;
+  // Crossing Point data
+  larlitecv::CrossingPointAnaData_t xingptdata;
 
   // Event
   tree->Branch("run",&run,"run/I");
@@ -187,12 +186,9 @@ int main( int nargs, char** argv ) {
   tree->Branch("num_rois", &num_rois, "num_rois/I");
   tree->Branch("nnu_inroi", nnu_inroi, "nnu_inroi[4]" );
   tree->Branch("vtx_in_croi",             &vertex_in_croi,         "vtx_in_croi/I" );
-  tree->Branch("true_intime_thrumu",      &true_intime_thrumu,     "true_intime_thrumu/I");
-  tree->Branch("true_intime_stopmu",      &true_intime_stopmu,     "true_intime_stopmu/I");
-  tree->Branch("true_crossingpoints",     &true_crossingpoints,     "true_crossingpoints/I");
-  tree->Branch("tagged_crossingpoints",   &tagged_crossingpoints,   "tagged_crossingpoints/I");
-  tree->Branch("proposed_crossingpoints", &proposed_crossingpoints, "proposed_crossingpoints/I");
-
+  
+  xingptdata.bindToTree( tree );
+  
   // Space Charge Corrections
   larlitecv::SpaceChargeMicroBooNE sce;
 
@@ -200,6 +196,26 @@ int main( int nargs, char** argv ) {
   larlitecv::EmptyChannelAlgo emptyalgo;
 
   int nentries = dataco[kCROIfile].get_nentries("larcv");
+
+  int user_nentries =   pset.get<int>("NumEntries",-1);
+  int user_startentry = pset.get<int>("StartEntry",-1);
+  int startentry = 0;
+  if ( user_startentry>=0 ) {
+    startentry = user_startentry;
+  }
+  int endentry = nentries;
+  if ( user_nentries>=0 ) {
+    if ( user_nentries+startentry<nentries )
+      endentry = user_nentries+startentry;
+  }
+  if ( startentry>=nentries ) {
+    std::cout << "Starting beyond end of file. Nothing to do." << std::endl;
+    return 0;
+  }
+  std::cout << "Start Entry: " << startentry << std::endl;
+  std::cout << "End Entry: " << endentry-1 << std::endl;
+  std::cout << "Buckle up!" << std::endl;
+  
 
   for (int ientry=0; ientry<nentries; ientry++) {
 
@@ -220,6 +236,7 @@ int main( int nargs, char** argv ) {
 
     // initialize the output variables
     truthdata.clear();
+    xingptdata.clear();
     for (int p=0; p<4; p++) {
       ncosmic_pixels[p] = 0;
       nnu_pixels[0] = 0;
@@ -236,13 +253,12 @@ int main( int nargs, char** argv ) {
       }
       nvertex_incroi[p] = 0;
     }
-    proposed_crossingpoints = 0;
-    tagged_crossingpoints = 0;
-    true_crossingpoints = 0;
-    true_intime_stopmu = 0;
-    true_intime_thrumu = 0;
-    vertex_in_croi = 0;
-
+    vertex_in_croi = 0;    
+    // proposed_crossingpoints = 0;
+    // tagged_crossingpoints = 0;
+    // true_crossingpoints = 0;
+    // true_intime_stopmu = 0;
+    // true_intime_thrumu = 0;
 
     // ok now to do damage
 
@@ -267,10 +283,30 @@ int main( int nargs, char** argv ) {
 
     // get the output of the tagger
     larcv::EventPixel2D* ev_pix[kNumStages] = {0};
-    ev_pix[kThruMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"thrumupixels");
-    ev_pix[kStopMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"stopmupixels");
-    ev_pix[kUntagged]  = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"untaggedpixels");
-    ev_pix[kCROI]      = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"croipixels");
+    try {
+      ev_pix[kThruMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"thrumupixels");
+    }
+    catch (...) {
+      ev_pix[kThruMu] = NULL;
+    }
+    try {
+      ev_pix[kStopMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"stopmupixels");
+    }
+    catch (...) {
+      ev_pix[kStopMu] = NULL;
+    }
+    try {
+      ev_pix[kUntagged]  = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"untaggedpixels");
+    }
+    catch (...) {
+      ev_pix[kUntagged] = NULL;
+    }
+    try {
+      ev_pix[kCROI]      = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"croipixels");
+    }
+    catch (...) {
+      ev_pix[kCROI] = NULL;
+    }
 
     const std::vector<larcv::Image2D>& imgs_v   = ev_imgs->Image2DArray();
     const std::vector<larcv::Image2D>& chstatus_img_v  = ev_badch->Image2DArray();
@@ -280,22 +316,36 @@ int main( int nargs, char** argv ) {
     }
 
     // get the result of the contained ROI analysis
-    larcv::EventROI* ev_contained_roi = (larcv::EventROI*)dataco[kCROIfile].get_larcv_data(larcv::kProductROI,"croi");
-    const std::vector<larcv::ROI>& containedrois_v = ev_contained_roi->ROIArray();
-    num_rois = (int)containedrois_v.size();
-    std::cout << "====ROIs===========================" << std::endl;
-    for ( auto& roi : containedrois_v ) {
-      std::cout << " roi: " << roi.dump();
+    larcv::EventROI* ev_contained_roi = NULL;
+    try {
+      ev_contained_roi = (larcv::EventROI*)dataco[kCROIfile].get_larcv_data(larcv::kProductROI,"croi");
     }
-    std::cout << "===================================" << std::endl;
-
+    catch (...) {
+      ev_contained_roi = NULL;
+    }
+    std::vector<larcv::ROI> containedrois_v;
+    if ( ev_contained_roi ) {
+      containedrois_v = ev_contained_roi->ROIArray();
+      num_rois = (int)containedrois_v.size();
+      std::cout << "====ROIs===========================" << std::endl;
+      for ( auto& roi : containedrois_v ) {
+	std::cout << " roi: " << roi.dump();
+      }
+      std::cout << "===================================" << std::endl;
+    }
+      
     // get the boundary end point info (only if have MC info to compare against)
-    larcv::EventPixel2D* ev_spacepoints[7] = {NULL};
+    std::vector<larcv::EventPixel2D*> ev_spacepoints(7,0);
     std::string spacepoint_producers[7] = { "topspacepts", "botspacepts", "upspacepts", "downspacepts", "anodepts", "cathodepts", "imgendpts" };
-    if ( ismc ) {
-      for ( int i=0; i<7; i++ ) {
+    for ( int i=0; i<7; i++ ) {
+      try {
 	ev_spacepoints[i] = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,spacepoint_producers[i]);
       }
+      catch (...) {
+	ev_spacepoints[i] = NULL;
+      }
+      if ( ev_spacepoints[i]!=NULL )
+	std::cout << "number of " << spacepoint_producers[i] << ": " << ev_spacepoints[i]->Pixel2DArray(0).size() << std::endl;	
     }
 
     // get other information, e.g. truth
@@ -317,16 +367,17 @@ int main( int nargs, char** argv ) {
 
     // quantities filled if MC present
     std::vector<larcv::Image2D> nupix_imgs_v;
-    std::vector< std::vector<int> > start_pixels;
-    std::vector< std::vector<float> > start_crossingpts;
-    std::vector< std::vector<int> > end_pixels;
-    std::vector< std::vector<float> > end_crossingpts;
-
+    // std::vector< std::vector<int> > start_pixels;
+    // std::vector< std::vector<float> > start_crossingpts;
+    // std::vector< std::vector<int> > end_pixels;
+    // std::vector< std::vector<float> > end_crossingpts;
+    std::vector<int> vertex_col(3,-1);
+    int vertex_row = -1;
+      
     if ( ismc ) {
     
       // get the vertex in the pixel coordinates
       std::vector<int> wid(3,-1);
-      std::vector<int> vertex_col(3,-1);
       std::vector<double> dpos(3);
       for (int i=0; i<3; i++ ) dpos[i] = truthdata.pos[i];
       std::vector<double> vtx_offset = sce.GetPosOffsets( dpos[0], dpos[1], dpos[2] );
@@ -341,7 +392,6 @@ int main( int nargs, char** argv ) {
       }
       float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
       float vertex_tick = vtx_sce[0]/cm_per_tick + 3200.0;
-      int vertex_row = -1;
       if ( vertex_tick >= imgs_v.at(0).meta().min_y() && vertex_tick<=imgs_v.at(0).meta().max_y() )
 	vertex_row = imgs_v.at(0).meta().row( vertex_tick );
 
@@ -361,313 +411,223 @@ int main( int nargs, char** argv ) {
 	  break;
 	}
       }
-      
+
       // loop over MC tracks, get end points of muons
-      //std::vector< std::vector<int> > start_pixels;
-      //std::vector< std::vector<float> > start_crossingpts;
-      //std::vector< std::vector<int> > end_pixels;
-      //std::vector< std::vector<float> > end_crossingpts;
-      int intime_cosmics = 0;
-      for ( auto const& track : *ev_mctrack ) {
-	if ( std::abs(track.PdgCode())!=13  ) continue;
-	if ( track.size()==0 ) continue;
-	const TLorentzVector& track_start = track.front().Position();
-	std::vector<float> fstart(3,0);
-	fstart[0] = track_start.X();
-	fstart[1] = track_start.Y();
-	fstart[2] = track_start.Z();
-	std::vector<float> fend(3,0);
-	fend[0]   = track.back().Position().X();
-	fend[1]   = track.back().Position().Y();
-	fend[2]   = track.back().Position().Z();
-	
-	int track_start_boundary = 0;
-	float track_start_dwall = larlitecv::dwall( fstart, track_start_boundary );
-	int track_end_boundary = 0;
-	float track_end_dwall = larlitecv::dwall( fend, track_end_boundary );
+      larlitecv::analyzeCrossingMCTracks( xingptdata, imgs_v.front().meta(), ev_trigger, ev_mctrack, printFlashEnds );
+      // int intime_cosmics = xingptdata.true_intime_thrumu + xingptdata.true_intime_stopmu;
+      // std::cout << "number of intime cosmics: "       << intime_cosmics << std::endl;
+      // std::cout << "number of intime thrumu: "        << xingptdata.true_intime_thrumu << std::endl;
+      // std::cout << "number of intime stopmu: "        << xingptdata.true_intime_stopmu << std::endl;
+      std::cout << "number of true crossing points: " << xingptdata.tot_true_crossingpoints << std::endl;
+      for (int i=0; i<6; i++) {
+	std::cout << "  " << spacepoint_producers[i] << ": " << xingptdata.true_crossingpoints[i] << std::endl;
+      }
 
-	const larlite::mcstep& first_step = track.front();
-	const larlite::mcstep& last_step  = track.back();
-
-	// space charge corrections
-	std::vector<double> start_offset = sce.GetPosOffsets( first_step.X(), first_step.Y(), first_step.Z() );
-	std::vector<double> end_offset   = sce.GetPosOffsets( last_step.X(),  last_step.Y(),  last_step.Z() );
-
-	std::vector<float> sce_start(3);
-	sce_start[0] = first_step.X()-start_offset[0]+0.7;
-	sce_start[1] = first_step.Y()+start_offset[1];
-	sce_start[2] = first_step.Z()+start_offset[2];
-	Double_t sce_start_xyz[3] = { sce_start[0], sce_start[1], sce_start[2] };
-
-	std::vector<float> sce_end(3);
-	sce_end[0] = last_step.X()-end_offset[0]+0.7;
-	sce_end[1] = last_step.Y()+end_offset[1];
-	sce_end[2] = last_step.Z()+end_offset[2];
-	Double_t sce_end_xyz[3] = { sce_end[0], sce_end[1], sce_end[2] };
-
-	std::vector< int > start_pix(4); // (row, u-plane, v-plane, y-plane)
-	std::vector< int > end_pix(4); // (row, u-plane, v-plane, y-plane)
-	start_pix[0] = (first_step.T()*1.0e-3 - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_start[0]/cm_per_tick + 3200;
-	end_pix[0]   = (last_step.T()*1.0e-3  - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_end[0]/cm_per_tick   + 3200;
-	for ( size_t p=0; p<3; p++ ) {
-	  start_pix[p+1] = larutil::Geometry::GetME()->WireCoordinate( sce_start_xyz, p );
-	  end_pix[p+1]   = larutil::Geometry::GetME()->WireCoordinate( sce_end_xyz,   p );
-	}
-
-	bool start_intime = false;
-	bool start_crosses = false;
-	if ( start_pix[0]>imgs_v.front().meta().min_y() && start_pix[0]<imgs_v.front().meta().max_y() ) {
-	  start_intime = true;
-	  start_pix[0] = imgs_v.front().meta().row( start_pix[0] );
+      // make truth pixel counts
+      // count the pixels. determine if cosmic and neutrino are tagged. also if neutrino is in rois
+      // we loop through the rows and cols
+      for (size_t p=0; p<3; p++) {
 	  
-	  if ( track_start_dwall < 10.0 ) {
-	    start_pixels.emplace_back( std::move(start_pix) );
-	    start_crossingpts.emplace_back( std::move(sce_start) );
-	    start_crosses = true;
-	    true_crossingpoints++;
-	  }
-	}
+	// we create a neutrino pixel image, to make things easier downstream
+	larcv::Image2D nupix_img( imgs_v.at(p).meta() );
+	nupix_img.paint(0);
+	for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
+	  for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
+	      
+	    // check if this is a pixel of interest
+	    if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
+	      
+	    bool near_vertex = false;
+	    bool is_nu_pix = false;
+	      
+	    // are we some radius from the vertex?
+	    if ( (int)row>=vertex_row-fvertex_radius && (int)row<=vertex_row+fvertex_radius
+		 && (int)col>=vertex_col[p]-fvertex_radius && (int)col<=vertex_col[p]+fvertex_radius ) {
+	      near_vertex = true;
+	      nvertex_pixels[p]++;
+	      nvertex_pixels[3]++;
+	    }
+	      
+	    // above threshold. is it a neutrino pixel?
+	    bool in_seg_image = false;
+	    int seg_row = -1;
+	    int seg_col = -1;
+	      
+	    const larcv::Image2D& segimg = segs_v->at(p);
+	    float x = imgs_v.at(p).meta().pos_x(col);
+	    float y = imgs_v.at(p).meta().pos_y(row);
+	    if ( x>segs_v->at(p).meta().min_x() && x<segs_v->at(p).meta().max_x()
+		 && y>segs_v->at(p).meta().min_y() && y<segs_v->at(p).meta().max_y() ) {
+	      in_seg_image = true;
+	      seg_row = segs_v->at(p).meta().row(y);
+	      seg_col = segs_v->at(p).meta().col(x);
+	    }
 
-	bool end_intime = false;
-	bool end_crosses = false;
-	if ( end_pix[0]>imgs_v.front().meta().min_y() && end_pix[0]<imgs_v.front().meta().max_y() ) {
-	  end_intime = true;
-	  end_pix[0]   = imgs_v.front().meta().row( end_pix[0] );
-	  if ( track_end_dwall < 10.0 ) {
-	    end_pixels.emplace_back( std::move(end_pix) );
-	    end_crossingpts.emplace_back( std::move(sce_end) );
-	    end_crosses = true;
-	    true_crossingpoints++;
-	  }
-	}
-	
-	if ( start_intime || end_intime ) {
-	  intime_cosmics++;
-	  if ( start_intime && !start_crosses ) {
-	    std::cout << "start point: (" << fstart[0] << "," << fstart[1] << "," << fstart[2] << ")"
-		      << " dwall=" << track_start_dwall << " intime=" << start_intime
-		      << " tick=" << imgs_v.front().meta().pos_y( start_pix[0] )
-		      << " row=" << start_pix[0]
-		      << std::endl;
-	    //throw std::runtime_error("start point does not cross boundary?");
-	  }
-	  else if ( start_crosses && end_crosses )
-	    true_intime_thrumu++;
-	  else if ( start_crosses && !end_crosses )
-	    true_intime_stopmu++;
-	}	
-
-	std::cout << "number of intime cosmics: "       << intime_cosmics << std::endl;
-	std::cout << "number of intime thrumu: "        << true_intime_thrumu << std::endl;
-	std::cout << "number of intime stopmu: "        << true_intime_stopmu << std::endl;
-	std::cout << "number of true crossing points: " << true_crossingpoints << std::endl;
-	
-	// make truth pixel counts
-	// count the pixels. determine if cosmic and neutrino are tagged. also if neutrino is in rois
-	// we loop through the rows and cols
-	for (size_t p=0; p<3; p++) {
-	  
-	  // we create a neutrino pixel image, to make things easier downstream
-	  larcv::Image2D nupix_img( imgs_v.at(p).meta() );
-	  nupix_img.paint(0);
-	  for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
-	    for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
-	      
-	      // check if this is a pixel of interest
-	      if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
-	      
-	      bool near_vertex = false;
-	      bool is_nu_pix = false;
-	      
-	      // are we some radius from the vertex?
-	      if ( (int)row>=vertex_row-fvertex_radius && (int)row<=vertex_row+fvertex_radius
-		   && (int)col>=vertex_col[p]-fvertex_radius && (int)col<=vertex_col[p]+fvertex_radius ) {
-		near_vertex = true;
-		nvertex_pixels[p]++;
-		nvertex_pixels[3]++;
-	      }
-	      
-	      // above threshold. is it a neutrino pixel?
-	      bool in_seg_image = false;
-	      int seg_row = -1;
-	      int seg_col = -1;
-	      
-	      const larcv::Image2D& segimg = segs_v->at(p);
-	      float x = imgs_v.at(p).meta().pos_x(col);
-	      float y = imgs_v.at(p).meta().pos_y(row);
-	      if ( x>segs_v->at(p).meta().min_x() && x<segs_v->at(p).meta().max_x()
-		   && y>segs_v->at(p).meta().min_y() && y<segs_v->at(p).meta().max_y() ) {
-		in_seg_image = true;
-		seg_row = segs_v->at(p).meta().row(y);
-		seg_col = segs_v->at(p).meta().col(x);
-	      }
-
-	      if ( in_seg_image && segs_v->at(p).pixel(seg_row,seg_col)>0 ) {
+	    if ( in_seg_image && segs_v->at(p).pixel(seg_row,seg_col)>0 ) {
 		
-		is_nu_pix = true;
-		nnu_pixels[p]++;
-		nnu_pixels[3]++;
+	      is_nu_pix = true;
+	      nnu_pixels[p]++;
+	      nnu_pixels[3]++;
 
-		// is the neutrino pixel inside the ROI?
-		for ( auto const& cand_roi : containedrois_v ) {
-		  float wired = imgs_v.at(p).meta().pos_x(col);
-		  float tick  = imgs_v.at(p).meta().pos_y(row);
-		  const larcv::ImageMeta& cand_roi_bb = cand_roi.BB().at(p);
-		  if ( cand_roi_bb.min_x()<wired && wired<cand_roi_bb.max_x()
-		       && cand_roi_bb.min_y()<tick && tick<cand_roi_bb.max_y() )
-		    {
-		      nnu_inroi[p]++;
-		      nnu_inroi[3]++;
-		    }
-		}
-	      }//if in semgment image
-	      else {
-		// not a neutrino, so cosmic
-		ncosmic_pixels[p]++;
-		ncosmic_pixels[3]++;
-	      }//end if cosmic
-	      
-	      if ( is_nu_pix )
-		nupix_img.set_pixel( row, col, 1.0 );
-	      if ( near_vertex )
-		nupix_img.set_pixel( row, col, 10.0 );
-	      
-	    }//end of col loop
-	  }//end of row loop
-	  nupix_imgs_v.emplace_back( std::move(nupix_img) );
-	}//end of loop over planes for counting neutrino/cosmic pixels
-      }//end of MC Pixel Counts
-      
-      // did any of the ROIs catch neutrino pixels?
-      for ( int r=vertex_row-fvertex_radius; r<=vertex_row+fvertex_radius; r++ ) {
-	if ( r<0 || r>=(int)imgs_v.front().meta().rows() ) continue;
-	for (size_t p=0; p<3; p++) {
-	  const larcv::ImageMeta& meta = imgs_v.at(p).meta();
-	  for ( int c=vertex_col[p]-fvertex_radius; c<=vertex_col[p]+fvertex_radius; c++ ) {
-	    if ( c<0 || c>=(int)meta.cols() ) continue;
-	    
-	    // is this a bad ch pixel?
-	    if ( r==vertex_row && chstatus_img_v.at(p).pixel(r,c)>0 ) {
-	      nvertex_badch[p]++;
-	      nvertex_badch[3]++;
-	    }
-	    
-	    if ( imgs_v.at(p).pixel(r,c)>fthreshold ) {
-	      
-	      float wire = meta.pos_x( c );
-	      float tick = meta.pos_y( r );
-	      
-	      // a vertex pixel!
-	      // let's loop over ROIs
-	      bool inroi = false;
-	      for ( auto const& croi : containedrois_v ) {
-		if ( wire>=croi.BB(p).min_x() && wire<=croi.BB(p).max_x()
-		     && tick>=croi.BB(p).min_y() && tick<=croi.BB(p).max_y() ) {
-		  inroi = true;
-		  break;
-		}
+	      // is the neutrino pixel inside the ROI?
+	      for ( auto const& cand_roi : containedrois_v ) {
+		float wired = imgs_v.at(p).meta().pos_x(col);
+		float tick  = imgs_v.at(p).meta().pos_y(row);
+		const larcv::ImageMeta& cand_roi_bb = cand_roi.BB().at(p);
+		if ( cand_roi_bb.min_x()<wired && wired<cand_roi_bb.max_x()
+		     && cand_roi_bb.min_y()<tick && tick<cand_roi_bb.max_y() )
+		  {
+		    nnu_inroi[p]++;
+		    nnu_inroi[3]++;
+		  }
 	      }
-	      if ( inroi ) {
-		nvertex_incroi[p]++;
-		nvertex_incroi[3]++;
-	      }
-	    }
+	    }//if in semgment image
+	    else {
+	      // not a neutrino, so cosmic
+	      ncosmic_pixels[p]++;
+	      ncosmic_pixels[3]++;
+	    }//end if cosmic
+	      
+	    if ( is_nu_pix )
+	      nupix_img.set_pixel( row, col, 1.0 );
+	    if ( near_vertex )
+	      nupix_img.set_pixel( row, col, 10.0 );
+	      
 	  }//end of col loop
-	}//end of plane lopp
-      }//end of vertex row loop
-
-      std::cout << "Number of vertex pixels in an ROI: " << nvertex_incroi[3] << " out of " << nvertex_pixels[3] << std::endl;
-      std::cout << "Fraction of vertex pixels are badchannels: " << float(nvertex_badch[3])/float(nvertex_pixels[3]) << std::endl;
-
+	}//end of row loop
+	nupix_imgs_v.emplace_back( std::move(nupix_img) );
+      }//end of loop over planes for counting neutrino/cosmic pixels
+    }//end of MC Pixel Counts
       
-      // analyze proposed boundary points
-      std::cout << "Analyze Boundary Points" << std::endl;
-      proposed_crossingpoints = 0;
-      for (int i=0; i<7; i++) {
-	if ( ev_spacepoints[i]==NULL)
-	  throw std::runtime_error("wtf");
-	std::cout << " endtype " << spacepoint_producers[i] << ": ";
-	std::cout << ev_spacepoints[i]->Pixel2DArray(0).size() << std::endl;
-	proposed_crossingpoints += (int)(ev_spacepoints[i]->Pixel2DArray(0).size());
-      }
-
-
-      std::cout << "Match Truth to Tagged" << std::endl;
-
-      std::vector<bool> matched_startpoint( start_pixels.size(), false );
-      std::vector<bool> matched_endpoint( end_pixels.size(), false );
-
-      std::vector< std::vector<int> >* p_crossing_pixel_v[2] = { &start_pixels, &end_pixels }; // truth pixels for crossing points
-      std::vector< std::vector<float> >* p_crossingpts_v[2]  = { &start_crossingpts, &end_crossingpts }; // truth 3D positions
-      std::vector<bool>* p_matched_v[2] = { &matched_startpoint, &matched_endpoint };
-
-
-      for ( int v=0; v<2; v++ ) {
-	for ( int ipix=0; ipix<(int)p_crossing_pixel_v[v]->size(); ipix++ ) {
-
-	  // we need to get the 3D position to compare against
-	  const std::vector<int>&  pixinfo     = p_crossing_pixel_v[v]->at(ipix); // position in image
-	  const std::vector<float>& crossingpt = p_crossingpts_v[v]->at(ipix);    // position in 3D
-
-	  // use TPC position to get X
-	  std::vector<float> crossingpt_tpcx(3);
-	  crossingpt_tpcx[0] = (imgs_v.at(0).meta().pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
-	  crossingpt_tpcx[1] = crossingpt[1];
-	  crossingpt_tpcx[2] = crossingpt[2];
-
-	  // scan for pixel, loop over types and pts
-	  bool matched = false;
-	  for (int i=0; i<7; i++) {
-	    if ( matched )
-	      break;
-
-	    for ( int j=0; j<(int)ev_spacepoints[i]->Pixel2DArray(0).size(); j++ ) {
-
-
-	      std::vector<float> intersect(2,0.0);
-	      std::vector<int> wids(3,0);
-	      int crossing = 0;
-	      double triangle_area = 0.0;
-	      for (int p=0; p<3; p++) {
-		wids[p] = ev_spacepoints[i]->Pixel2DArray(p).at(j).X();
-	      }
-
-
-	      larcv::UBWireTool::wireIntersection( wids, intersect, triangle_area, crossing );
-	      float x = ( imgs_v.at(0).meta().pos_y( ev_spacepoints[i]->Pixel2DArray(0).at(j).Y() ) - 3200.0 )*cm_per_tick;
-
-	      std::vector<float> spacepoints(3);
-	      spacepoints[0] = x;
-	      spacepoints[1] = intersect[1];
-	      spacepoints[2] = intersect[0];
-
-	      float dist = 0;
-	      for (int d=0; d<3; d++) {
-		dist += (spacepoints[d]-crossingpt_tpcx[d])*(spacepoints[d]-crossingpt_tpcx[d]);
-	      }
-	      dist = sqrt(dist);
-	      //std::cout << "true[" << v << "," << ipix << "] vs. proposed[" << i << "," << j << "] dist=" << dist << std::endl;
-	      if (dist<20.0) {
-		matched = true;
-	      }
-
-	      if ( matched )
+    // did any of the ROIs catch neutrino pixels?
+    for ( int r=vertex_row-fvertex_radius; r<=vertex_row+fvertex_radius; r++ ) {
+      if ( r<0 || r>=(int)imgs_v.front().meta().rows() ) continue;
+      for (size_t p=0; p<3; p++) {
+	const larcv::ImageMeta& meta = imgs_v.at(p).meta();
+	for ( int c=vertex_col[p]-fvertex_radius; c<=vertex_col[p]+fvertex_radius; c++ ) {
+	  if ( c<0 || c>=(int)meta.cols() ) continue;
+	  
+	  // is this a bad ch pixel?
+	  if ( r==vertex_row && chstatus_img_v.at(p).pixel(r,c)>0 ) {
+	    nvertex_badch[p]++;
+	    nvertex_badch[3]++;
+	  }
+	    
+	  if ( imgs_v.at(p).pixel(r,c)>fthreshold ) {
+	      
+	    float wire = meta.pos_x( c );
+	    float tick = meta.pos_y( r );
+	      
+	    // a vertex pixel!
+	    // let's loop over ROIs
+	    bool inroi = false;
+	    for ( auto const& croi : containedrois_v ) {
+	      if ( wire>=croi.BB(p).min_x() && wire<=croi.BB(p).max_x()
+		   && tick>=croi.BB(p).min_y() && tick<=croi.BB(p).max_y() ) {
+		inroi = true;
 		break;
-	    }// end of loop over tagged points of type i
-	  }//end of boundary point types
+	      }
+	    }
+	    if ( inroi ) {
+	      nvertex_incroi[p]++;
+	      nvertex_incroi[3]++;
+	    }
+	  }
+	}//end of col loop
+      }//end of plane lopp
+    }//end of vertex row loop
 
-	  p_matched_v[v]->at(ipix) = matched;
+    std::cout << "Number of vertex pixels in an ROI: " << nvertex_incroi[3] << " out of " << nvertex_pixels[3] << std::endl;
+    std::cout << "Fraction of vertex pixels are badchannels: " << float(nvertex_badch[3])/float(nvertex_pixels[3]) << std::endl;
 
-	  if ( matched )
-	    tagged_crossingpoints++;
-	}
-      }
+    analyzeCrossingDataOnly( xingptdata, ev_spacepoints );
+    analyzeCrossingMatches( xingptdata,  ev_spacepoints, imgs_v.front().meta() );
+    
+      // analyze proposed boundary points
+      // std::cout << "Analyze Boundary Points" << std::endl;
+      // xingptdata.proposed_crossingpoints = 0;
+      // for (int i=0; i<7; i++) {
+      // 	if ( ev_spacepoints[i]==NULL)
+      // 	  throw std::runtime_error("wtf");
+      // 	std::cout << " endtype " << spacepoint_producers[i] << ": ";
+      // 	std::cout << ev_spacepoints[i]->Pixel2DArray(0).size() << std::endl;
+      // 	xingpdata.tot_proposed_crossingpoints += (int)(ev_spacepoints[i]->Pixel2DArray(0).size());
+      // }
 
-      std::cout << "Proposed Crossing Points: " << proposed_crossingpoints << std::endl;
-      std::cout << "Tagged Crossing Points: " << tagged_crossingpoints << std::endl;
-      std::cout << "True Crossing Points: " << true_crossingpoints << std::endl;
 
-    }//end of if MC
+      // std::cout << "Match Truth to Tagged" << std::endl;
+
+      // std::vector<bool> matched_startpoint( start_pixels.size(), false );
+      // std::vector<bool> matched_endpoint( end_pixels.size(), false );
+
+      // std::vector< std::vector<int> >* p_crossing_pixel_v[2] = { &start_pixels, &end_pixels }; // truth pixels for crossing points
+      // std::vector< std::vector<float> >* p_crossingpts_v[2]  = { &start_crossingpts, &end_crossingpts }; // truth 3D positions
+      // std::vector<bool>* p_matched_v[2] = { &matched_startpoint, &matched_endpoint };
+
+
+      // for ( int v=0; v<2; v++ ) {
+      // 	for ( int ipix=0; ipix<(int)p_crossing_pixel_v[v]->size(); ipix++ ) {
+
+      // 	  // we need to get the 3D position to compare against
+      // 	  const std::vector<int>&  pixinfo     = p_crossing_pixel_v[v]->at(ipix); // position in image
+      // 	  const std::vector<float>& crossingpt = p_crossingpts_v[v]->at(ipix);    // position in 3D
+
+      // 	  // use TPC position to get X
+      // 	  std::vector<float> crossingpt_tpcx(3);
+      // 	  crossingpt_tpcx[0] = (imgs_v.at(0).meta().pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
+      // 	  crossingpt_tpcx[1] = crossingpt[1];
+      // 	  crossingpt_tpcx[2] = crossingpt[2];
+
+      // 	  // scan for pixel, loop over types and pts
+      // 	  bool matched = false;
+      // 	  for (int i=0; i<7; i++) {
+      // 	    if ( matched )
+      // 	      break;
+
+      // 	    for ( int j=0; j<(int)ev_spacepoints[i]->Pixel2DArray(0).size(); j++ ) {
+
+
+      // 	      std::vector<float> intersect(2,0.0);
+      // 	      std::vector<int> wids(3,0);
+      // 	      int crossing = 0;
+      // 	      double triangle_area = 0.0;
+      // 	      for (int p=0; p<3; p++) {
+      // 		wids[p] = ev_spacepoints[i]->Pixel2DArray(p).at(j).X();
+      // 	      }
+
+
+      // 	      larcv::UBWireTool::wireIntersection( wids, intersect, triangle_area, crossing );
+      // 	      float x = ( imgs_v.at(0).meta().pos_y( ev_spacepoints[i]->Pixel2DArray(0).at(j).Y() ) - 3200.0 )*cm_per_tick;
+
+      // 	      std::vector<float> spacepoints(3);
+      // 	      spacepoints[0] = x;
+      // 	      spacepoints[1] = intersect[1];
+      // 	      spacepoints[2] = intersect[0];
+
+      // 	      float dist = 0;
+      // 	      for (int d=0; d<3; d++) {
+      // 		dist += (spacepoints[d]-crossingpt_tpcx[d])*(spacepoints[d]-crossingpt_tpcx[d]);
+      // 	      }
+      // 	      dist = sqrt(dist);
+      // 	      //std::cout << "true[" << v << "," << ipix << "] vs. proposed[" << i << "," << j << "] dist=" << dist << std::endl;
+      // 	      if (dist<20.0) {
+      // 		matched = true;
+      // 	      }
+
+      // 	      if ( matched )
+      // 		break;
+      // 	    }// end of loop over tagged points of type i
+      // 	  }//end of boundary point types
+
+      // 	  p_matched_v[v]->at(ipix) = matched;
+
+      // 	  if ( matched )
+      // 	    tagged_crossingpoints++;
+      // 	}
+
+      // std::cout << "Proposed Crossing Points: " << proposed_crossingpoints << std::endl;
+      // std::cout << "Tagged Crossing Points: " << tagged_crossingpoints << std::endl;
+      // std::cout << "True Crossing Points: " << true_crossingpoints << std::endl;
 
     //end of MC counting
     // ==========================================================================================
@@ -677,7 +637,7 @@ int main( int nargs, char** argv ) {
     for (size_t p=0; p<3; p++) {
       for (size_t row=0; row<imgs_v.at(p).meta().rows(); row++) {
 	for (size_t col=0; col<imgs_v.at(p).meta().cols(); col++) {
-	    
+	  
 	  // check if this is a pixel of interest
 	  if ( imgs_v.at(p).pixel(row,col)<fthreshold ) continue;
 	    
@@ -713,6 +673,8 @@ int main( int nargs, char** argv ) {
 
     // loop over tagger stage results
     for ( int istage=0; istage<kNumStages; istage++ ) {
+      if ( ev_pix[istage]==NULL )
+	continue;
       for ( size_t p=0; p<3; p++ ) {
         // we need images to track the number of times pixels are Tagged
         larcv::Image2D& img_counter = img_marker_v.at(p);
@@ -837,22 +799,45 @@ int main( int nargs, char** argv ) {
 
 #ifdef USE_OPENCV
     // draw image
+    int color_codes[7][3] = { {255,0,0}, // top
+			      {0,0,255}, // bot
+			      {0,255,255}, // upstream
+			      {0,255,0}, // downstream
+			      {255,255,0}, // anode
+			      {255,0,255}, // cathode
+			      {0,128,255} }; // imageend
     for ( size_t p=0; p<cvleftover_v.size(); p++ ) {
       auto& leftover = cvleftover_v.at(p);
 
       if ( ismc ) {
 	// draw truth end points!
-	for ( auto const& start_pix : start_pixels) {
-	  cv::circle( leftover, cv::Point(start_pix[p+1],start_pix[0]), 4, cv::Scalar( 0, 255, 0 ), 2, -1 );
+	std::cout << "startpixels=" << xingptdata.start_pixels.size() << " " << xingptdata.start_type.size() << std::endl;
+	for ( size_t istart=0; istart<xingptdata.start_type.size(); istart++) {
+	  auto const& start_pix = xingptdata.start_pixels[istart];
+	  int i = xingptdata.start_type[istart];
+	  if ( xingptdata.start_type[istart]<4 )
+	    cv::circle( leftover, cv::Point(start_pix[p+1],start_pix[0]), 4, cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 2, -1 );
+	  else
+	    cv::rectangle( leftover, cv::Point(start_pix[p+1]-4,start_pix[0]-4), cv::Point(start_pix[p+1]+4,start_pix[0]+4),
+			   cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 1 );
 	}
-	for ( auto const& end_pix : end_pixels) {
-	  cv::circle( leftover, cv::Point(end_pix[p+1],end_pix[0]), 4, cv::Scalar( 255, 255, 0 ), 2, -1 );
+	std::cout << "endpixels=" << xingptdata.end_pixels.size() << " " << xingptdata.end_type.size() << std::endl;	
+	for ( size_t iend=0; iend<xingptdata.end_type.size(); iend++) {	
+	  auto const& end_pix = xingptdata.end_pixels[iend];
+	  int i = xingptdata.end_type[iend];	  
+	  if ( xingptdata.end_type[iend]<4 )
+	    cv::circle( leftover, cv::Point(end_pix[p+1],end_pix[0]), 4, cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 2, -1 );
+	  else
+	    cv::rectangle( leftover, cv::Point(end_pix[p+1]-4,end_pix[0]-4), cv::Point(end_pix[p+1]+4,end_pix[0]+4),
+			   cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 1 );
 	}
 	
 	// draw proposed end points
 	for ( int i=0; i<7; i++) {
+	  if ( ev_spacepoints[i]==NULL )
+	    continue;
 	  for ( auto const& endpt : ev_spacepoints[i]->Pixel2DArray(p) ) {
-	    cv::drawMarker( leftover, cv::Point(endpt.X(), endpt.Y()),  cv::Scalar(0, 0, 255), cv::MARKER_CROSS, 6, 2);
+	    cv::drawMarker( leftover, cv::Point(endpt.X(), endpt.Y()),  cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), cv::MARKER_CROSS, 6, 2);
 	  }
 	}
 
@@ -869,7 +854,7 @@ int main( int nargs, char** argv ) {
 
       
       std::stringstream ss;
-      ss << "leftover_i" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
+      ss << "leftover_clust_i" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
       std::cout << "write: " << ss.str() << std::endl;
       cv::imwrite( ss.str(), leftover );
     }

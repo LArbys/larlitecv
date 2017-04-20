@@ -24,6 +24,13 @@ ev_img      = ioman.get_data( larcv.kProductImage2D,  "tpc" )
 ev_chstatus = ioman.get_data( larcv.kProductChStatus, "tpc" )
 img_v   = ev_img.Image2DArray()
 
+
+unihackalgo = larlitecv.UnipolarHackAlgo()
+applyhack = std.vector("int")(3,0)
+applyhack[1] = 1
+hackthresh = std.vector("float")(3,-10)
+img_v = unihackalgo.hackUnipolarArtifact( img_v, applyhack, hackthresh )
+
 # get meta
 meta = ev_img.Image2DArray().front().meta()
 
@@ -45,10 +52,20 @@ print "Ready."
 
 segmentalgo = larlitecv.Segment3DAlgo()
 
-tick_high = 6282
-tick_low  = 6222
+# ANODE EXAMPLES
+#tick_high = 3402
+#tick_low  = 3342
+#tick_high = 4166
+#tick_low  = 4086
+# CATHODE EXAMPLES
+cathode_adjust = 48.0
+#tick_high = 7550
+#tick_high = 6332
+tick_high = 4566
+tick_high -= cathode_adjust
+tick_low  = tick_high - 60.0
 threshold = 10.0
-hitwidth  = 4
+hitwidth  = 1
 frac_good = 0.95
 
 row_high = meta.row( tick_low )
@@ -90,13 +107,38 @@ print "Number of Segment-3D: ",seg3d_all_v.size()
 for p in range(0,3):
   imgarr = larcv.as_ndarray( img_v.at(p) )
   imgarr = np.transpose( imgarr )
-  imgarr[ imgarr<10 ] = 0
-  imgarr[ imgarr>265 ] = 265
-  imgarr -= 10.0
+  imgarr[ imgarr<threshold ] = 0
+  imgarr[ imgarr>255+threshold ] = 255+threshold
+  imgarr -= threshold
   cvimg  = np.zeros( (imgarr.shape[0], imgarr.shape[1], 3), dtype=np.int32 )
   cvimg[:,:,0] = imgarr
   cvimg[:,:,1] = imgarr
   cvimg[:,:,2] = imgarr
+
+  seg_v = seg2d_v.at(p)
+  for sid in range(seg_v.size()):
+    seg = seg_v.at(sid)
+    cv2.line( cvimg, (seg.col_low,seg.row_low), (seg.col_high,seg.row_high), (0,255,0,125), 1 )
+
+  # mark 3d segments projected into plane
+  for sid in range(seg3d_all_v.size()):
+    seg3d = seg3d_all_v.at(sid)
+    pixels_v = std.vector("larcv::Pixel2DCluster")()
+    s = std.vector("float")(3)
+    e = std.vector("float")(3)
+    for i in range(3):
+      s[i] = seg3d.start[i]
+      e[i] = seg3d.end[i]
+    thresholds = std.vector("float")(3,10.0)
+    neighborhoods = std.vector("int")(3,1)
+    larcv.UBWireTool.pixelsAlongLineSegment( s, e, img_v, thresholds, neighborhoods, 0.3, pixels_v )
+    for pid in range( pixels_v.at(p).size() ):
+      pix = pixels_v.at(p).at(pid)
+      x1 = (pix.X(),pix.Y())
+      x2 = (x1[0]+1,x1[1]-1)
+      cv2.rectangle(cvimg, x1,x2,(255,0,255,20),1)
+
+  # mark hits
   hits_hi = hit_high_v.at(p)
   hits_lo = hit_low_v.at(p)  
   print p,imgarr.shape
@@ -110,29 +152,7 @@ for p in range(0,3):
     x1 = (hitcenter-hitwidth,row_low+1)
     x2 = (hitcenter+hitwidth,row_low-1)
     cv2.rectangle( cvimg, x1, x2, (255,0,0,125), 1 )
-
-  seg_v = seg2d_v.at(p)
-  for sid in range(seg_v.size()):
-    seg = seg_v.at(sid)
-    cv2.line( cvimg, (seg.col_low,seg.row_low), (seg.col_high,seg.row_high), (0,255,0,125), 1 )
-
-  # mark 3d segments projected into plane
-  for sid in range(seg3d_all_v.size()):
-    seg3d = seg3d_v.at(sid)
-    pixels_v = std.vector("larcv::Pixel2DCluster")()
-    s = std.vector("float")(3)
-    e = std.vector("float")(3)
-    for i in range(3):
-      s[i] = seg3d.start[i]
-      e[i] = seg3d.end[i]
-    thresholds = std.vector("float")(3,10.0)
-    neighborhoods = std.vector("int")(3,3)
-    larcv.UBWireTool.pixelsAlongLineSegment( s, e, img_v, thresholds, neighborhoods, 0.3, pixels_v )
-    for pid in range( pixels_v.at(p).size() ):
-      pix = pixels_v.at(p).at(pid)
-      x1 = (pix.X(),pix.Y())
-      x2 = (x1[0]+1,x1[1]-1)
-      cv2.rectangle(cvimg, x1,x2,(255,0,255,100),1)
+      
     
   cv2.imwrite( "segimg2d_p%d.png"%(p), cvimg )
   

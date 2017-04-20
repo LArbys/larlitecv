@@ -37,6 +37,12 @@ namespace larlitecv {
 
     void combine2Dinto3D( const std::vector< std::vector<Segment2D_t> >& plane_segments2d, const std::vector< larcv::Image2D >& img_v, const std::vector<larcv::Image2D>& badch_v,
 			  const int hit_width, const std::vector<float>& threshold, float good_frac, std::vector<Segment3D_t>& segments );
+
+    void setVerbosity(int v) { verbosity=v; };
+    
+  protected:
+
+    int verbosity;
     
   };
 

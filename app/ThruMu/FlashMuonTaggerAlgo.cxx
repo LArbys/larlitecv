@@ -15,6 +15,7 @@
 #include "LArUtil/Geometry.h"
 #include "LArUtil/LArProperties.h"
 #include "Segment3DAlgo.h"
+#include "Linear3DChargeTagger.h"
 
 namespace larlitecv {
     
@@ -30,9 +31,12 @@ namespace larlitecv {
     if ( nplanes==0 )
       return false;
     
-    if ( fConfig.verbosity>0 )
+    if ( fConfig.verbosity>0 ) {
       std::cout << "Begin FlashMuonTaggerAlgo::flashMatchTrackEnds [verbsity=" << fConfig.verbosity << "]" << std::endl;
-
+      std::cout << "  drift_v = " << fConfig.drift_velocity << " (fcl) vs." << larutil::LArProperties::GetME()->DriftVelocity() << std::endl;
+      std::cout << "  drift distance =" << fConfig.drift_distance << std::endl;
+    }
+    
     // get a meta
     const larcv::ImageMeta& meta = tpc_imgs.at(0).meta();
     
@@ -837,6 +841,10 @@ namespace larlitecv {
 						     const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts ) {
     const int row_gap_size = 6;
     Segment3DAlgo segalgo;
+    Linear3DChargeTaggerConfig linalgocfg;
+    linalgocfg.neighborhood_square = 2;
+    linalgocfg.neighborhood_posttick = 2;
+    Linear3DChargeTagger linearalgo( linalgocfg );
     // define the tick range we want to search for track ends
     int row_a = row_target;
     int row_b = row_target;
@@ -857,53 +865,98 @@ namespace larlitecv {
     }
 
     // Use ssegment3d algo to get us 3D segments in this time neighborhood
-    std::vector< Segment3D_t > seg3d_v = segalgo.find3DSegments( tpc_imgs, badch_imgs, row_a, row_b, fConfig.pixel_value_threshold, 4 );
-
+    std::vector< Segment3D_t > seg3d_v = segalgo.find3DSegments( tpc_imgs, badch_imgs, row_a, row_b, fConfig.pixel_value_threshold, 1 );
+    if ( fConfig.verbosity>0 )
+      std::cout << "Found " << seg3d_v.size() << " 3D segments" << std::endl;
+    
     // We keep those in the same z-range as the flash seen
     for ( auto const& seg3d : seg3d_v ) {
       bool pos_matches = false;
-      if ( (z_range[0]<=seg3d.start[2] && seg3d.start[2]<=z_range[1]) || (z_range[0]<=seg3d.end[2] && seg3d.end[2]<=z_range[1]) )
+      if ( (z_range[0]<=seg3d.start[2] && seg3d.start[2]<=z_range[1]) || (z_range[0]<=seg3d.end[2] && seg3d.end[2]<=z_range[1]) ) {
 	pos_matches = true;
+      }
+      if ( fConfig.verbosity>0 )
+	std::cout << "  segment start-z=" << seg3d.start[2] << " end-z=" << seg3d.end[2] << " matches=" << pos_matches << std::endl;
 
-      if ( pos_matches ) {
+      if (!pos_matches)
+	continue;
+
+      // test if extensions also have charge
+      // we have to get the right end point and direction depending on the point-type
+      Double_t xyz_start[3] = { seg3d.start[0], seg3d.start[1], seg3d.start[2] };
+      Double_t xyz_end[3]   = {   seg3d.end[0],   seg3d.end[1],   seg3d.end[2] };
+      std::vector<float> wire(3,0);
+      Double_t* xyz = NULL;
+      Double_t* xyz_other = NULL;      
+      for (size_t p=0; p<tpc_imgs.size(); p++) {
+	const larcv::ImageMeta& meta = tpc_imgs.at(p).meta();
+	switch( point_type ) {
+	case larlitecv::kAnode:
+	  wire[p] = larutil::Geometry::GetME()->WireCoordinate(xyz_start,p);
+	  xyz = &(xyz_start[0]);
+	  xyz_other = &(xyz_end[0]);
+	  break;
+	case larlitecv::kCathode:
+	  wire[p] = larutil::Geometry::GetME()->WireCoordinate(xyz_end,p);
+	  xyz = &(xyz_end[0]);
+	  xyz_other = &(xyz_start[0]);
+	  break;
+	case larlitecv::kImageEnd:
+	  if ( row_target>(int)meta.rows()/2 ) {
+	    wire[p] = larutil::Geometry::GetME()->WireCoordinate(xyz_start,p);
+	    xyz = &(xyz_start[0]);
+	    xyz_other = &(xyz_end[0]);
+	  }
+	  else {
+	    wire[p] = larutil::Geometry::GetME()->WireCoordinate(xyz_end,p);
+	    xyz = &(xyz_end[0]);
+	    xyz_other = &(xyz_start[0]);	    
+	  }
+	  break;
+	default:
+	  throw std::runtime_error("Invalid Flash Candidate type");
+	  break;
+	}
+      }
+
+      std::vector<float> initpt(3);
+      std::vector<float> finpt(3);
+      std::vector<float> antidir(3,0);
+      float dist = 0.;
+      for (int i=0; i<3; i++) {
+	initpt[i] = (float)*(xyz+i);
+	finpt[i]  = (float)*(xyz_other+i);
+	antidir[i] = initpt[i] - finpt[i];
+	dist += antidir[i]*antidir[i];
+      }
+      dist = sqrt(dist);
+      for (int i=0; i<3; i++)
+	antidir[i] /= dist;
+      for (int i=0; i<3; i++)
+	finpt[i] = initpt[i] + 15.0*antidir[i];
+
+      PointInfoList extension_info = linearalgo.pointsOnTrack( tpc_imgs, badch_imgs, initpt, finpt, 0.3, 10.0, 3 );
+      bool inmiddle = true;
+
+      if ( fConfig.verbosity>0 )
+	std::cout << " segment majfrac=" << extension_info.fractionHasChargeOnMajorityOfPlanes() << std::endl;
+      
+      if ( extension_info.fractionHasChargeOnMajorityOfPlanes()<0.5 )
+	inmiddle = false;
+      
+      if ( pos_matches && !inmiddle ) {
 	//make the boundary spacepoint object
 	std::vector< larlitecv::BoundaryEndPt > endpt_v;
-	Double_t xyz_start[3] = { seg3d.start[0], seg3d.start[1], seg3d.start[2] };
-	Double_t xyz_end[3]   = {   seg3d.end[0],   seg3d.end[1],   seg3d.end[2] };
-	Double_t* xyz;
 	for (size_t p=0; p<tpc_imgs.size(); p++) {
 	  const larcv::ImageMeta& meta = tpc_imgs.at(p).meta();
-	  float wire = 0;
-	  switch( point_type ) {
-	  case larlitecv::kAnode:
-	    wire = larutil::Geometry::GetME()->WireCoordinate(xyz_start,p);
-	    xyz = &(xyz_start[0]);
-	    break;
-	  case larlitecv::kCathode:
-	    wire = larutil::Geometry::GetME()->WireCoordinate(xyz_end,p);
-	    xyz = &(xyz_end[0]);	    
-	    break;
-	  case larlitecv::kImageEnd:
-	    if ( row_target>(int)meta.rows()/2 ) {
-	      wire = larutil::Geometry::GetME()->WireCoordinate(xyz_start,p);
-	      xyz = &(xyz_start[0]);
-	    }
-	    else {
-	      wire = larutil::Geometry::GetME()->WireCoordinate(xyz_end,p);
-	      xyz = &(xyz_end[0]);
-	    }
-	    break;
-	  default:
-	    throw std::runtime_error("Invalid Flash Candidate type");
-	    break;
-	  }
-
-	  wire = (wire<meta.min_x()) ? meta.min_x() : wire;
-	  wire = (wire>meta.max_x()) ? meta.max_x()-1 : wire;
-	  larlitecv::BoundaryEndPt endpt( row_target, meta.col(wire) );
+	  wire[p] = (wire[p]<meta.min_x()) ? meta.min_x() : wire[p];
+	  wire[p] = (wire[p]>meta.max_x()) ? meta.max_x()-1 : wire[p];
+	  larlitecv::BoundaryEndPt endpt( row_target, meta.col(wire[p]) );
 	  endpt_v.emplace_back( std::move(endpt) );
 	}//end of loop p
-
+	if ( fConfig.verbosity>0 ) {
+	  std::cout << "Make SpacePoint of type: " << point_type << std::endl;
+	}
 	larlitecv::BoundarySpacePoint sp( point_type, std::move(endpt_v), (float)*(xyz+0), (float)*(xyz+1), (float)*(xyz+2) );
 	trackendpts.emplace_back( sp );
       }//end if position matches

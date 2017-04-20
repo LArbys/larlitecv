@@ -78,7 +78,7 @@ namespace larlitecv {
       spacepoint_lists.push_back( &(data.unused_spacepoint_v) );
       for ( auto const& plist : spacepoint_lists ) {
       	for ( auto const& sp_v : *plist ) {
-          int sptype = (int)sp_v.front().type;
+          int sptype = (int)sp_v.type();
           if ( sptype<0 ) continue; // should
           for (size_t p=0; p<sp_v.size(); p++) {
             const larlitecv::BoundaryEndPt& sp = sp_v.at(p);
@@ -105,7 +105,7 @@ namespace larlitecv {
       unused_endpts[larlitecv::kCathode]    = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_cathodepts" );
       unused_endpts[larlitecv::kImageEnd]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "unused_imgendpts" );
       for ( auto const& sp_v : data.unused_spacepoint_v ) {
-        int sptype = (int)sp_v.at(0).type;
+        int sptype = (int)sp_v.type();
         for (int p=0; p<3; p++) {
           const larlitecv::BoundaryEndPt& sp = sp_v.at(p);
           larcv::Pixel2D pixel( sp.col, sp.row );

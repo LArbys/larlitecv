@@ -17,6 +17,7 @@
 
 // larlitecv
 #include "GapChs/EmptyChannelAlgo.h"
+#include "UnipolarHack/UnipolarHackAlgo.h"
 #include "TaggerCROI/TaggerCROIAlgoConfig.h"
 #include "TaggerCROI/TaggerCROIAlgo.h"
 #include "TaggerCROI/TaggerCROITypes.h"
@@ -52,6 +53,7 @@ int main(int nargs, char** argv ) {
   bool save_croi_space   = pset.get<bool>("SaveCROISpace",   false);
   bool save_mc           = pset.get<bool>("SaveMC",false);
   bool skip_empty_events = pset.get<bool>("SkipEmptyEvents",false);
+  bool apply_unipolar_hack = pset.get<bool>("ApplyUnipolarHack",false);
 
   // Setup Input Data Coordindator
   larlitecv::DataCoordinator dataco;
@@ -92,6 +94,7 @@ int main(int nargs, char** argv ) {
 
   // SETUP THE ALGOS
   larlitecv::EmptyChannelAlgo emptyalgo;
+  larlitecv::UnipolarHackAlgo unihackalgo;  
   larlitecv::TaggerCROIAlgo tagger_algo( tagger_cfg );
 
   for (int ientry=startentry; ientry<endentry; ientry++) {
@@ -149,6 +152,12 @@ int main(int nargs, char** argv ) {
           }
         }
       }
+    }
+    if ( apply_unipolar_hack ) {
+      std::vector<int> applyhack(3,0);
+      applyhack[1] = 1;
+      std::vector<float> hackthresh(3,-10.0);
+      input_data.img_v = unihackalgo.hackUnipolarArtifact( input_data.img_v, applyhack, hackthresh );
     }
     if ( input_data.img_v.size()!=3 )
     	throw std::runtime_error("Number of Images incorrect.");
