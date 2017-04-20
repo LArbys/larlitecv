@@ -109,7 +109,7 @@ namespace larlitecv {
       for ( int ich=0; ich<32; ich++) {
         larutil::Geometry::GetME()->GetOpChannelPosition( ich, xyz );
         float mahadist = 0.;
-        float yz[2] = { xyz[1], xyz[2] };
+        float yz[2] = { (float)(xyz[1]), (float)(xyz[2]) };
         for (int i=0; i<2; i++ ) {
           for (int j=0; j<2; j++) {
             mahadist += (yz[i]-mean[i])*invcov[i][j]*(yz[j]-mean[j]);
