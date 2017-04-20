@@ -122,6 +122,7 @@ int main( int nargs, char** argv ) {
   std::string inputimgs  = pset.get<std::string>("InputLArCVImages");
   std::string trigname   = pset.get<std::string>("TriggerProducerName");
   bool printFlashEnds    = pset.get<bool>("PrintFlashEnds");
+  std::vector<std::string> flashprod  = pset.get<std::vector<std::string> >("OpFlashProducer");
 
  // =====================================================================
 
@@ -217,7 +218,7 @@ int main( int nargs, char** argv ) {
   std::cout << "Buckle up!" << std::endl;
   
 
-  for (int ientry=0; ientry<nentries; ientry++) {
+  for (int ientry=startentry; ientry<endentry; ientry++) {
 
     // load the entry
     dataco[kCROIfile].goto_entry(ientry,"larcv");
@@ -348,6 +349,14 @@ int main( int nargs, char** argv ) {
 	std::cout << "number of " << spacepoint_producers[i] << ": " << ev_spacepoints[i]->Pixel2DArray(0).size() << std::endl;	
     }
 
+    // get the opflashes
+    std::vector< larlite::event_opflash* > opflash_v;
+    for ( auto const& prodname : flashprod ) {
+      larlite::event_opflash* ev_flash = (larlite::event_opflash*)dataco[kSource].get_larlite_data(larlite::data::kOpFlash, prodname);
+      std::cout << "number of flashes in " << prodname << ": " << ev_flash->size() << std::endl;
+      opflash_v.push_back( ev_flash );
+    }
+
     // get other information, e.g. truth
     larlite::event_mctruth* ev_mctruth   = NULL;
     larlite::event_mctrack* ev_mctrack   = NULL;
@@ -413,7 +422,7 @@ int main( int nargs, char** argv ) {
       }
 
       // loop over MC tracks, get end points of muons
-      larlitecv::analyzeCrossingMCTracks( xingptdata, imgs_v.front().meta(), ev_trigger, ev_mctrack, printFlashEnds );
+      larlitecv::analyzeCrossingMCTracks( xingptdata, imgs_v.front().meta(),  ev_trigger, ev_mctrack, opflash_v, printFlashEnds );
       // int intime_cosmics = xingptdata.true_intime_thrumu + xingptdata.true_intime_stopmu;
       // std::cout << "number of intime cosmics: "       << intime_cosmics << std::endl;
       // std::cout << "number of intime thrumu: "        << xingptdata.true_intime_thrumu << std::endl;

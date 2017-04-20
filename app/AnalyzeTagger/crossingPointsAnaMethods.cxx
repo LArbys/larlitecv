@@ -22,25 +22,30 @@ namespace larlitecv {
   void CrossingPointAnaData_t::bindToTree( TTree* tree ) {
     tree->Branch( "tot_proposed_crossingpoints", &tot_proposed_crossingpoints, "tot_proposed_crossingpoints/I" );
     tree->Branch( "tot_true_crossingpoints", &tot_true_crossingpoints, "tot_true_crossingpoints/I" );
+    tree->Branch( "tot_flashmatched_true_crossingpoints", &tot_flashmatched_true_crossingpoints, "tot_flashmatched_true_crossingpoints/I" );
     tree->Branch( "tot_matched_crossingpoints", &tot_matched_crossingpoints, "tot_matched_crossingpoints/I" );    
     tree->Branch( "proposed_crossingpoints", proposed_crossingpoints, "proposed_crossingpoints[7]/I" );
     tree->Branch( "true_crossingpoints",     true_crossingpoints, "true_crossingpoints[6]/I" );
+    tree->Branch( "flashmatched_true_crossingpoints", flashmatched_true_crossingpoints, "flashmatched_true_crossingpoints[6]/I" );
     tree->Branch( "matched_crossingpoints",  matched_crossingpoints, "matched_crossingpoints[6]/I" );
     tree->Branch( "true_intime_thrumu",      &true_intime_thrumu,     "true_intime_thrumu/I");
     tree->Branch( "true_intime_stopmu",      &true_intime_stopmu,     "true_intime_stopmu/I");
   }
 
   void analyzeCrossingPoints( CrossingPointAnaData_t& data, const larcv::ImageMeta& meta,
-			      const larcv::EventPixel2D* ev_spacepoints[], const larlite::trigger* ev_trigger, const larlite::event_mctrack* ev_mctrack ) {
+			      const larcv::EventPixel2D* ev_spacepoints[], const std::vector<larlite::event_opflash*>& opflash_v,
+			      const larlite::trigger* ev_trigger, const larlite::event_mctrack* ev_mctrack ) {
+			      
     data.clear();
 
     if ( ev_mctrack && ev_trigger ) {
-      analyzeCrossingMCTracks( data, meta, ev_trigger, ev_mctrack, true );
+      analyzeCrossingMCTracks( data, meta, ev_trigger, ev_mctrack, opflash_v, true );
     }
   }
   
   void analyzeCrossingMCTracks( CrossingPointAnaData_t& data, const larcv::ImageMeta& meta,
-				const larlite::trigger* ev_trigger, const larlite::event_mctrack* ev_mctrack, bool printFlashEnds ) {
+				const larlite::trigger* ev_trigger, const larlite::event_mctrack* ev_mctrack, const std::vector<larlite::event_opflash*>& opflash_v,
+				bool printFlashEnds ) {
     // loop over MC tracks, get end points of muons
     //int intime_cosmics = 0;
 
@@ -109,8 +114,31 @@ namespace larlitecv {
 		      << " pos=(" << first_step.X() << "," << first_step.Y() << "," << first_step.Z() << ")" << std::endl;
 	  else if ( printFlashEnds && track_start_boundary==5 )
 	    std::cout << "Cathode Boundary Crossing: row=" << start_pix[0] << " tick=" << meta.pos_y(start_pix[0]) << " (flash=" << orig_start_tick << " orig=" << orig_start_tick+drift_ticks << ")"
-		      << " pos=(" << first_step.X() << "," << first_step.Y() << "," << first_step.Z() << ")" << std::endl;	      
-	  
+		      << " pos=(" << first_step.X() << "," << first_step.Y() << "," << first_step.Z() << ")" << std::endl;
+
+	  // flash match this crossing point
+	  bool found_flash = false;	  
+	  if ( track_start_boundary==4 || track_start_boundary==5 ) {
+	    for ( auto const& ev_opflash : opflash_v ) {
+	      for ( auto const& opflash : *ev_opflash ) {
+		if ( found_flash )
+		  break;		
+		if ( fabs( orig_start_tick - (3200.0+opflash.Time()/0.5) )<5.0 ) {
+		  found_flash = true;
+		}
+	      }
+	      if ( found_flash )
+		break;
+	    }//end of ev_opflash loop
+	  }
+	  else
+	    found_flash = true; // no flash to match for others, but want to count them in array for convenience
+
+	  if ( found_flash ) {
+	    data.tot_flashmatched_true_crossingpoints++;
+	    data.flashmatched_true_crossingpoints[ track_start_boundary ]++;
+	  }
+
 	  data.start_pixels.emplace_back( std::move(start_pix) );
 	  data.start_crossingpts.emplace_back( std::move(sce_start) );
 	  data.start_type.push_back( track_start_boundary );
@@ -133,6 +161,30 @@ namespace larlitecv {
 	  else if ( printFlashEnds && track_end_boundary==5 )
 	    std::cout << "Cathode Boundary Crossing: row=" << end_pix[0] << " tick=" << meta.pos_y(end_pix[0])  << " (flash=" << orig_end_tick << " orig=" << orig_end_tick+drift_ticks << ")"
 		      << " pos=(" << last_step.X() << "," << last_step.Y() << "," << last_step.Z() << ")" << std::endl;
+
+	  // flash match this crossing point
+	  bool found_flash = false;	  
+	  if ( track_end_boundary==4 || track_end_boundary==5 ) {
+	    for ( auto const& ev_opflash : opflash_v ) {
+	      for ( auto const& opflash : *ev_opflash ) {
+		if ( found_flash )
+		  break;		
+		if ( fabs( orig_end_tick - (3200.0+opflash.Time()/0.5) )<5.0 ) {
+		  found_flash = true;
+		}
+	      }
+	      if ( found_flash )
+		break;
+	    }//end of ev_opflash loop
+	  }
+	  else
+	    found_flash = true; // no flash to match for others, but want to count them in array for convenience
+	  
+	  if ( found_flash ) {
+	    data.tot_flashmatched_true_crossingpoints++;
+	    data.flashmatched_true_crossingpoints[ track_end_boundary ]++;
+	  }
+	  
 	  data.end_pixels.emplace_back( std::move(end_pix) );
 	  data.end_crossingpts.emplace_back( std::move(sce_end) );
 	  data.end_type.push_back( track_end_boundary );
