@@ -63,11 +63,12 @@ namespace larlitecv {
          size_t found1 = keyname.find("_");
          std::string dtype    = keyname.substr(0,found1);
          std::string producer = keyname.substr(found1+1,foundlast-found1-1 );
-         if ( (!found_id_tree) or (found_id_tree && dtype=="partroi" ) ) {
+         if ( (!found_id_tree && dtype=="image2d") or (found_id_tree && dtype=="partroi" ) ) {
           found_id_tree = true;
           idtreename = keyname;
           idtreetype = dtype;
           idtreeproducer = producer;
+	  std::cout << "set idtreeproducer: " << idtreeproducer << " dtype=" << idtreetype << std::endl;
         }
         producers.insert( producer );
         datatypes.insert( dtype );
@@ -103,6 +104,8 @@ namespace larlitecv {
       if ( idtreetype=="image2d" )
         product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductImage2D,idtreeproducer));
       else if ( idtreetype=="partroi" ) 
+        product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductROI,idtreeproducer));
+      else if ( idtreetype=="pixel2d" ) 
         product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductROI,idtreeproducer));
       else {
         throw std::runtime_error( "could not find a LArCV tree to build an index with." );

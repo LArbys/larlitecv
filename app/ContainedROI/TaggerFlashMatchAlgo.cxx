@@ -108,6 +108,10 @@ namespace larlitecv {
 
   flashana::QCluster_t TaggerFlashMatchAlgo::GenerateQCluster( const TaggerFlashMatchData& data ) {
     const larlite::track& track = data.m_track3d;
+    return GenerateQCluster(track);
+  }
+  
+  flashana::QCluster_t TaggerFlashMatchAlgo::GenerateQCluster( const larlite::track& track ) {
 
     flashana::QCluster_t qcluster;
 

@@ -1,78 +1,154 @@
 #include "BMTrackCluster3D.h"
-#include <cmath>
 
+// stdlib
+#include <cmath>
+#include <set>
+
+// ROOT
 #include "TVector.h"
+
+// larlite
+#include "LArUtil/Geometry.h"
+#include "LArUtil/LArProperties.h"
 
 namespace larlitecv {
 
-  BMTrackCluster3D::BMTrackCluster3D() {
-    start_index = -1;
-    end_index = -1;
+  BMTrackCluster3D::BMTrackCluster3D() {}
+
+  BMTrackCluster3D::BMTrackCluster3D( const BoundarySpacePoint& startpt, const BoundarySpacePoint& endpt, const std::vector< std::vector<double> >& path )
+    : start_endpts( startpt ), end_endpts(endpt), path3d( path ) {
   }
 
   BMTrackCluster3D::~BMTrackCluster3D() {}
 
-  void BMTrackCluster3D::markImageWithTrack( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
-      const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size, 
-      std::vector<larcv::Image2D>& markedimgs, const float markvalue ) const {
+  bool BMTrackCluster3D::isempty() const {
+    if ( start_endpts.type()==larlitecv::kUndefined && end_endpts.type()==larlitecv::kUndefined )
+      return true;
+    return false;
+  }
 
-    if ( markedimgs.size()==0 ) {
+  int BMTrackCluster3D::tick_start() const {
+    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+    float tick = start_endpts.pos()[0]/cm_per_tick + 3200.0;
+    return tick;
+  }
+
+  int BMTrackCluster3D::tick_end() const {
+    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+    float tick = end_endpts.pos()[0]/cm_per_tick + 3200.0;
+    return tick;
+  }
+
+  void BMTrackCluster3D::markImageWithTrack( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+					     const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
+					     std::vector<larcv::Image2D>& markedimgs, const float stepsize, const float markvalue ) {
+
+    if ( markedimgs.size()!=imgs.size() ) {
+      markedimgs.clear();
       for (auto &img : imgs ) {
         larcv::Image2D markedimg( img.meta() );
         markedimg.paint(0.0);
         markedimgs.emplace_back( std::move(markedimg) );
       }
     }
-      
+
     if ( thresholds.size()!=imgs.size() || neighborhood_size.size()!=imgs.size() ) {
     	throw std::runtime_error("BMTrackCluster3D::markImageWithTrack[error] number of thresholds or neighborhood size does not match number of images.");
     }
 
-    const std::vector< larlitecv::BMTrackCluster2D >& tracks2d = (*this).plane_paths;
-    
-    for ( int p=0; p<(int)imgs.size(); p++ ) {
+    const std::vector<larcv::Pixel2DCluster>& pixels = getTrackPixelsFromImages( imgs, badchimgs, thresholds, neighborhood_size, false, stepsize );
 
-      const larcv::Image2D& img = imgs.at(p);
-      const larcv::ImageMeta& meta = img.meta();
-      int plane = (int)meta.plane();
+    for ( size_t p=0; p<imgs.size(); p++) {
+      for ( auto const& pix : pixels.at(p) ) {
+	markedimgs.at(p).set_pixel( pix.Y(), pix.X(), markvalue );
+      }
+    }
 
-      const larlitecv::BMTrackCluster2D& track = tracks2d.at(plane);
+  }
 
-      for (size_t ipixel=1; ipixel<track.pixelpath.size(); ipixel++ ) {
-        const larcv::Pixel2D& pixel      = track.pixelpath.at(ipixel);
-        const larcv::Pixel2D& past_pixel = track.pixelpath.at(ipixel-1);
+  std::vector<larcv::Pixel2DCluster> BMTrackCluster3D::getTrackPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+											const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
+											const bool recalc, const float stepsize ) const {
+    // assumes imagemeta is the same here, to cache this.
+    //if ( !recalc && plane_pixels.size()!=imgs.size() )
+    //  return plane_pixels;
 
-        int nsteps_row = fabs((float)pixel.Y()-(float)past_pixel.Y());
-        int nsteps_col = fabs((float)pixel.X()-(float)past_pixel.X());
-        float step[2] = { (float)pixel.X()-(float)past_pixel.X(), (float)pixel.Y()-(float)past_pixel.Y() };
+    //plane_pixels.clear();
 
-        // how we define the step size depends on which dimension has the largest number of steps
-        int nsteps = ( nsteps_row > nsteps_col ) ? nsteps_row : nsteps_col;
+    if ( thresholds.size()!=imgs.size() || neighborhood_size.size()!=imgs.size() ) {
+      throw std::runtime_error("BMTrackCluster3D::getTrackPixelsFromImages[error] number of thresholds or neighborhood size does not match number of images.");
+    }
 
-        for (size_t i=0; i<2; i++)
-          step[i] /= float(nsteps);
+    // get unique pixels
+    const int nplanes=imgs.size();
+    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+    std::vector< std::set< std::vector<int> > > planepixs(nplanes);
 
-        for (int istep=0; istep<=nsteps; istep++ ) {
+    for ( int istep=0; istep<(int)path3d.size()-1; istep++ ) {
+      const std::vector<double>& point      = path3d.at(istep);
+      const std::vector<double>& next_point = path3d.at(istep+1);
+      float dist=0;
+      std::vector<double> dir(3);
+      for (int i=0; i<3; i++) {
+        dir[i] = (next_point[i]-point[i]);
+        dist += dir[i]*dir[i];
+      }
+      dist = sqrt(dist);
+      for ( int i=0; i<3; i++ )
+        dir[i] /= dist;
+      int nsubsteps = dist/stepsize+1;
+      float substepsize = dist/float(nsubsteps);
+      for (int isub=0; isub<=nsubsteps; isub++) {
+        Double_t xyz[3] = {0};
+        for (int i=0; i<3; i++) xyz[i] = point[i] + substepsize*dir[i];
+        std::vector<float> wires(nplanes);
+        bool inplane = true;
+        for (int p=0; p<nplanes; p++) {
+          wires[p] = larutil::Geometry::GetME()->WireCoordinate(xyz,p);
+          if ( wires[p]<imgs.at(p).meta().min_x() || wires[p]>imgs.at(p).meta().max_x() )
+            inplane = false;
+        }
+        float tick = xyz[0]/cm_per_tick + 3200.0;
+        if ( tick<=imgs.front().meta().min_y() || tick>=imgs.front().meta().max_y() )
+          inplane = false;
+        if ( !inplane ) continue;
 
-          int col = past_pixel.X() + istep*step[0];
-          int row = past_pixel.Y() + istep*step[1];
+        // store the pixel and pixels around it, if above threshold
+        int row = imgs.front().meta().row( tick );
+        for (int p=0; p<nplanes; p++) {
+          int col = imgs.at(p).meta().col(wires[p]);
 
-          for ( int dc=-neighborhood_size.at(plane); dc<=neighborhood_size.at(plane); dc++ ) {
-            for ( int dr=-neighborhood_size.at(plane); dr<=neighborhood_size.at(plane); dr++ ) {
-              int r = row+dr;
-              int c = col+dc;
-              if ( r<0 || r>=(int)meta.rows() ) continue;
-              if ( c<0 || c>=(int)meta.cols() ) continue;
-              float val = img.pixel( r, c );
-              if ( val> thresholds.at(plane) || badchimgs.at(plane).pixel(r,c)>0 )
-                markedimgs.at(p).set_pixel(r,c,markvalue);
-            }//end of loop over r-neighborhood
-          }//end of loop over c-neighborhood
-        }//end of steps
-      }//end of pixel list loop
+         for (int dr=-neighborhood_size[p]; dr<=neighborhood_size[p]; dr++) {
+           int r = row+dr;
+           if ( r<0 || r>=(int)imgs.at(p).meta().rows() ) continue;
+           for (int dc=-neighborhood_size[p]; dc<=neighborhood_size[p]; dc++) {
+            int c = col+dc;
+            if ( c<0 || c>=(int)imgs.at(p).meta().cols() ) continue;
+            if ( imgs.at(p).pixel(r,c)>=thresholds.at(p) || badchimgs.at(p).pixel(r,c)>0 ) {
+              std::vector<int> pix(2,0);
+              pix[0] = c;
+              pix[1] = r;
+              planepixs[p].insert( pix );
+            }
+           }
+         }
+       }
+      }//end of substep loop
+    }
 
-    }//end of img loop
-    
+    // now make pixel clusters
+    std::vector<larcv::Pixel2DCluster> pixels(nplanes);
+
+    for ( int p=0; p<nplanes; p++ ) {
+      for ( auto const& pix : planepixs[p] ) {
+        larcv::Pixel2D pixel( pix[0], pix[1] );
+        pixels.at(p).emplace_back( std::move(pixel) );
+      }
+      //std::cout << "bmtrackcluster3d: plane " << p << " num pixels=" << pixels.at(p).size() << std::endl;
+    }
+
+    return pixels;
+
   }
 
   larlite::track BMTrackCluster3D::makeTrack() const {

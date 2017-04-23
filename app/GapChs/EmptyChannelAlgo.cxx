@@ -50,6 +50,8 @@ namespace larlitecv {
       const larlite::chstatus& chs = ev_status.at(p);
       const std::vector<short>& status_v = chs.status();
       for ( int ch=0; ch<(int)status_v.size(); ch++) {
+	if ( ch<meta.min_x() || ch>=meta.max_x() )
+	  continue;
         int status = status_v.at(ch);
         if ( ch<nchannels && status<minstatus  )
           img.paint_col( ch, 255.0 );
@@ -80,10 +82,12 @@ namespace larlitecv {
 
       auto it_chstatus = ev_status.ChStatusMap().find(p);
       if ( it_chstatus!=ev_status.ChStatusMap().end() ) {
-      
+
         const larcv::ChStatus& chs = ev_status.Status(p);
         const std::vector<short>& status_v = chs.as_vector();
         for ( int ch=0; ch<(int)status_v.size(); ch++) {
+	  if ( ch<meta.min_x() || ch>=meta.max_x() )
+	    continue;
           int status = status_v.at(ch);
           if ( ch<nchannels && status<minstatus  )
             img.paint_col( ch, 255.0 );

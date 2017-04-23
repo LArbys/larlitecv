@@ -11,17 +11,18 @@
 
 #pragma link C++ namespace larlitecv;
 #pragma link C++ class larlitecv::BoundaryMatchArrays+;
-#pragma link C++ class larlitecv::ConfigBoundaryMuonTaggerAlgo+;
 #pragma link C++ class larlitecv::BoundaryEndPt+;
 #pragma link C++ class larlitecv::BoundarySpacePoint+;
+#pragma link C++ class std::vector< larlitecv::BoundaryEndPt >+;
+#pragma link C++ class std::vector< larlitecv::BoundarySpacePoint >+;
 #pragma link C++ class larlitecv::BMTrackCluster2D+;
 #pragma link C++ class larlitecv::BMTrackCluster3D+;
+
+#pragma link C++ class larlitecv::BoundaryMuonTaggerAlgoConfig+;
 #pragma link C++ class larlitecv::BoundaryMuonTaggerAlgo+;
 #pragma link C++ class larlitecv::BoundaryMuonTagger+;
 #pragma link C++ class larlitecv::FlashMuonTaggerConfig+;
-#pragma link C++ class larlitecv::FlashMuonTaggerAlgo+;
-#pragma link C++ class std::vector< larlitecv::BoundaryEndPt >+;
-#pragma link C++ class std::vector< larlitecv::BoundarySpacePoint >+;
+#pragma link C++ class larlitecv::FlashMuonTaggerConfigAlgo+;
 
 #pragma link C++ class larlitecv::PointInfo+;
 #pragma link C++ class larlitecv::PointInfoList+;
@@ -35,29 +36,11 @@
 
 //#pragma link C++ class larlitecv::BezierCurve+;
 
+#pragma link C++ struct larlitecv::Segment3D_t+;
+#pragma link C++ class std::vector<larlitecv::Segment3D_t>+;
+#pragma link C++ struct larlitecv::Segment2D_t+;
+#pragma link C++ class std::vector<larlitecv::Segment2D_t>+;
+#pragma link C++ class larlitecv::Segment3DAlgo+;
+
 //ADD_NEW_CLASS ... do not change this line
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

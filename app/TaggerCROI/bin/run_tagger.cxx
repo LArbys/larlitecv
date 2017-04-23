@@ -17,6 +17,7 @@
 
 // larlitecv
 #include "GapChs/EmptyChannelAlgo.h"
+#include "UnipolarHack/UnipolarHackAlgo.h"
 #include "TaggerCROI/TaggerCROIAlgoConfig.h"
 #include "TaggerCROI/TaggerCROIAlgo.h"
 #include "TaggerCROI/TaggerCROITypes.h"
@@ -24,6 +25,7 @@
 
 int main(int nargs, char** argv ) {
 
+  // pre-amble/parse arguments
   std::cout << "Cosmic Muon Tagger and Contained ROI Selection" << std::endl;
 
   if ( nargs!=2 ) {
@@ -33,7 +35,7 @@ int main(int nargs, char** argv ) {
 
   std::string cfg_file = argv[1];
 
-  // configuration
+  // tagger routine configuration
   larcv::PSet cfg  = larcv::CreatePSetFromFile( cfg_file );
   larcv::PSet pset = cfg.get<larcv::PSet>("TaggerCROI");
   larlitecv::TaggerCROIAlgoConfig tagger_cfg = larlitecv::TaggerCROIAlgoConfig::makeConfigFromFile( cfg_file );
@@ -51,6 +53,7 @@ int main(int nargs, char** argv ) {
   bool save_croi_space   = pset.get<bool>("SaveCROISpace",   false);
   bool save_mc           = pset.get<bool>("SaveMC",false);
   bool skip_empty_events = pset.get<bool>("SkipEmptyEvents",false);
+  bool apply_unipolar_hack = pset.get<bool>("ApplyUnipolarHack",false);
 
   // Setup Input Data Coordindator
   larlitecv::DataCoordinator dataco;
@@ -85,9 +88,13 @@ int main(int nargs, char** argv ) {
     std::cout << "Starting beyond end of file. Nothing to do." << std::endl;
     return 0;
   }
+  std::cout << "Start Entry: " << startentry << std::endl;
+  std::cout << "End Entry: " << endentry-1 << std::endl;
+  std::cout << "Buckle up!" << std::endl;
 
   // SETUP THE ALGOS
   larlitecv::EmptyChannelAlgo emptyalgo;
+  larlitecv::UnipolarHackAlgo unihackalgo;  
   larlitecv::TaggerCROIAlgo tagger_algo( tagger_cfg );
 
   for (int ientry=startentry; ientry<endentry; ientry++) {
@@ -116,10 +123,10 @@ int main(int nargs, char** argv ) {
     larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, larcv_image_producer );
     if ( event_imgs->Image2DArray().size()==0) {
       if ( !skip_empty_events )
-	throw std::runtime_error("Number of images=0. LArbys.");
+        throw std::runtime_error("Number of images=0. LArbys.");
       else {
-	std::cout << "Skipping Empty Events." << std::endl;
-	continue;
+        std::cout << "Skipping Empty Events." << std::endl;
+        continue;
       }
     }
     else if ( event_imgs->Image2DArray().size()!=3 ) {
@@ -145,6 +152,12 @@ int main(int nargs, char** argv ) {
           }
         }
       }
+    }
+    if ( apply_unipolar_hack ) {
+      std::vector<int> applyhack(3,0);
+      applyhack[1] = 1;
+      std::vector<float> hackthresh(3,-10.0);
+      input_data.img_v = unihackalgo.hackUnipolarArtifact( input_data.img_v, applyhack, hackthresh );
     }
     if ( input_data.img_v.size()!=3 )
     	throw std::runtime_error("Number of Images incorrect.");
@@ -226,21 +239,30 @@ int main(int nargs, char** argv ) {
         thrumu_data.saveSpace();
 
       if ( RunStopMu ) {
-        larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
+        //larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
+        // we skip stopmu. we mimic instead.
+        larlitecv::StopMuPayload stopmu_data;
+        // make empty tagged pixel images
+        for ( auto const& img : input_data.img_v ) {
+          larcv::Image2D stopmu_fake( img.meta() );
+          stopmu_fake.paint(0);
+          stopmu_data.stopmu_v.emplace_back( std::move(stopmu_fake) );
+        }
+
         if ( save_stopmu_space )
           stopmu_data.saveSpace();
+
         if ( RunCROI ) {
           larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
           if ( save_croi_space )
             croi_data.saveSpace();
           WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out );
         }
-        WriteStopMuPayload( stopmu_data, tagger_cfg, dataco_out );
-      }
+        WriteStopMuPayload( stopmu_data, input_data, tagger_cfg, dataco_out );
+      }//end of if stopmu
 
-      WriteThruMuPayload( thrumu_data, tagger_cfg, dataco_out );
+      WriteThruMuPayload( thrumu_data, input_data, tagger_cfg, dataco_out );
     }
-
 
     // -------------------------------------------------------------------------------------------//
     // SAVE DATA
@@ -272,7 +294,9 @@ int main(int nargs, char** argv ) {
 
     ann::ANNAlgo::cleanup();
   }
-
+  
+  tagger_algo.printTimeTracker( endentry-startentry );
+  
   dataco.finalize();
   dataco_out.finalize();
 

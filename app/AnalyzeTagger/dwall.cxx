@@ -17,27 +17,27 @@ namespace larlitecv {
 
     if ( dy1<dwall ) {
       dwall = dy1;
-      boundary_type = 0;
+      boundary_type = 0; // top
     }
     if ( dy2<dwall ) {
       dwall = dy2;
-      boundary_type = 1;
+      boundary_type = 1; // bottom
     }
     if ( dz1<dwall ) {
       dwall = dz1;
-      boundary_type = 2;
+      boundary_type = 2; // upstream
     }
     if ( dz2<dwall ) {
       dwall = dz2;
-      boundary_type = 3;
+      boundary_type = 3; // downstream
     }
     if ( dx1<dwall ) {
       dwall = dx1;
-      boundary_type = 4;
+      boundary_type = 4; // anode
     }
     if ( dx2<dwall ) {
       dwall = dx2;
-      boundary_type = 5;
+      boundary_type = 5; // cathode
     }
 
     return dwall;

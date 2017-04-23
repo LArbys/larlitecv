@@ -19,7 +19,7 @@
 namespace larlitecv {
 
   // Define a function that will look at tracks that were generated with the 'AStar' algorithm, meaning that they are more curved, and try to separate them.
-  // Input for this function: (1) 'tracks_v' - This the list of remaining tracks, of type 'BMTrackCluster', which contain the 
+  // Input for this function: (1) 'tracks_v' - This the list of remaining tracks, of type 'BMTrackCluster', which contain the
   std::vector< BMTrackCluster3D > AStar3DPostProcessor::separateAStarTracks(std::vector < BMTrackCluster3D >& tracks_v, double maximum_distance, const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs, const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size) {
 
     // Start a loop over the number of tracks in the 'tracks_v' array.
@@ -34,7 +34,7 @@ namespace larlitecv {
       // If this track has already been excluded in the inner loop, then you can continue.
       if ( track_excluded.at(itrack_a) ) continue;
 
-      // Declare the 'BMTrackCluster3D' object at this point in the array.  
+      // Declare the 'BMTrackCluster3D' object at this point in the array.
       BMTrackCluster3D& track_a = tracks_v.at(itrack_a);
 
       // We are concerned with this entire path, which we will trace out over a set of the pixels to see if they contain as much charge as this one does.
@@ -52,7 +52,7 @@ namespace larlitecv {
 
 	// Go through the track endpoints to see which endpoints are most extreme in each of the directions.
 
-	// While these tracks by no means will be straight, I can assume that the relative placement of their starting points and their ending points to one another will indicate the direction of the track's progression within the TPC. 
+	// While these tracks by no means will be straight, I can assume that the relative placement of their starting points and their ending points to one another will indicate the direction of the track's progression within the TPC.
 
 
 	// Declare, for the track at the outer loop corresponding to index 'itrack_a', the 'starting_coordinates' as the coordinates least in their variable and the ending coordinates as the coordinates greatest in their variable.
@@ -95,7 +95,7 @@ namespace larlitecv {
         double greatest_y_value_on_track_end_b = track_b.path3d.back()[1];
         double greatest_z_value_on_track_end_b = track_b.path3d.back()[2];
 
-        // If these coordinates are not defined in the correct order, then you can redefine them in the right order.                                                                 
+        // If these coordinates are not defined in the correct order, then you can redefine them in the right order.
         if (track_b.path3d.back()[0] < track_b.path3d.front()[0]) {
 
           least_x_value_on_track_end_b    = track_b.path3d.back()[0];
@@ -131,7 +131,7 @@ namespace larlitecv {
 	}
 
 	// If you have made it this far, then mark up blank images that have charge above threshold for each of the tracks.
-	
+
 
 	// Here, I will set 'markedimgs' to [] so that it will be set to an empty image.  I will also 'markedvalue' in the 'markImageWithTrack' function as '1.0'.
 	std::vector<larcv::Image2D> markedimgs_tracka;
@@ -143,11 +143,11 @@ namespace larlitecv {
 
 	// 'track_a'
 	// The 'marker_obj' can call the function 'markImageWithTrack', which is void but fills 'markedimgs_tracka'.
-	marker_obj.markImageWithTrack(imgs, badchimgs, thresholds, neighborhood_size, markedimgs_tracka, markvalue);
-	
+	marker_obj.markImageWithTrack(imgs, badchimgs, thresholds, neighborhood_size, markedimgs_tracka, 0.3, markvalue);
+
 	// 'track_b' (how can it tell which track that I'm referring to)
 	// The 'marker_obj' can call the function 'markImageWithTrack', which is void but fills 'markedimgs_trackb'.
-	marker_obj.markImageWithTrack(imgs, badchimgs, thresholds, neighborhood_size, markedimgs_trackb, markvalue);
+	marker_obj.markImageWithTrack(imgs, badchimgs, thresholds, neighborhood_size, markedimgs_trackb, 0.3, markvalue);
 
 	// Now, declare 'int' values for the number of points in each of the images that are above threshold
 
@@ -155,12 +155,12 @@ namespace larlitecv {
 	int num_of_pixels_three_planes_tracka = 0;
 	int num_of_pixels_three_planes_trackb = 0;
 
-	
-        // Both of these images are the same size, so I can count the number of points in the same loop.                                                                            
+
+        // Both of these images are the same size, so I can count the number of points in the same loop.
 	// Loop over each of the plane images in the 'markedimgs_tracka' vector.
 	for (size_t plane_iter = 0; plane_iter < markedimgs_tracka.size(); plane_iter++) {
 
-	  // Loop over the rows and columns in the image.  Each of the plane images for both 'track_a' and 'track_b' should have the same number of rows and 
+	  // Loop over the rows and columns in the image.  Each of the plane images for both 'track_a' and 'track_b' should have the same number of rows and
 	  // columns, so I should not have vector capacity issues.
 	  for (size_t row_iter = 0; row_iter < markedimgs_tracka[plane_iter].meta().rows(); row_iter++) {
 
@@ -199,7 +199,7 @@ namespace larlitecv {
 	}
 
 	if (num_of_pixels_three_planes_trackb > num_of_pixels_three_planes_tracka) {
-	  
+
 	  // Set the value of 'tracks_excluded' at 'track_a' equal to 'true'
 	  track_excluded[itrack_a] = true;
 
@@ -212,7 +212,7 @@ namespace larlitecv {
 
     }
 
-    // collect the output                                                                                                                                                
+    // collect the output
     std::vector< BMTrackCluster3D > output_tracks;
 
     for ( size_t itrack=0; itrack<track_excluded.size(); itrack++ ) {
@@ -234,8 +234,8 @@ namespace larlitecv {
 
 
 
-			   
-    
 
 
-	  
+
+
+

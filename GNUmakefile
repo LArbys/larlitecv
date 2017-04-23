@@ -25,7 +25,7 @@ CORE_SUBDIRS := Hashlib2plus Base
 #  CORE_SUBDIRS += CVUtil
 #endif
 
-APP_SUBDIRS := Combinator GapChs ChargeSegmentAlgos ThruMu StopMu UntaggedClustering SCE ContainedROI TaggerCROI
+APP_SUBDIRS := Combinator GapChs UnipolarHack ChargeSegmentAlgos ThruMu StopMu UntaggedClustering SCE ContainedROI TaggerCROI
 
 .phony: all clean
 

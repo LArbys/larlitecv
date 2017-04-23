@@ -1,6 +1,7 @@
 #include "TaggerCROIAlgo.h"
 
 #include <sstream>
+#include <ctime>
 
 // larlite
 #include "LArUtil/LArProperties.h"
@@ -11,12 +12,12 @@
 #include "DataFormat/ROI.h"
 
 // larlitecv
-#include "ThruMu/ConfigBoundaryMuonTaggerAlgo.h"
-#include "ThruMu/FlashMuonTaggerConfig.h"
+#include "ThruMu/FlashMuonTaggerAlgoConfig.h"
 
 #include "ThruMu/BoundaryMuonTaggerAlgo.h"
 #include "ThruMu/FlashMuonTaggerAlgo.h"
 #include "ThruMu/EndPointFilter.h"
+#include "ThruMu/ThruMuTracker.h"
 #include "StopMu/StopMuFilterSpacePoints.h"
 #include "StopMu/StopMuCluster.h"
 #include "UntaggedClustering/ClusterGroupAlgo.h"
@@ -25,18 +26,25 @@
 
 namespace larlitecv {
 
+  TaggerCROIAlgo::TaggerCROIAlgo( const TaggerCROIAlgoConfig& config )
+   : m_config(config) {
+    m_time_tracker.resize( kNumStages, 0.0 );
+  }
+  
   ThruMuPayload TaggerCROIAlgo::runThruMu( const InputPayload& input ) {
 
     ThruMuPayload output;
 
-    // configure different stages
-
-    // side tagger
+    // configure different stages of the Thrumu Tagger
+    std::clock_t timer;
+    
+    // (1) side tagger
+    timer = std::clock();
     larlitecv::BoundaryMuonTaggerAlgo sidetagger;
     sidetagger.configure( m_config.sidetagger_cfg );
     sidetagger.printConfiguration();
 
-    // flash tagger
+    // (2) flash tagger
     larlitecv::FlashMuonTaggerAlgo anode_flash_tagger(   larlitecv::FlashMuonTaggerAlgo::kAnode );
     larlitecv::FlashMuonTaggerAlgo cathode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kCathode );
     larlitecv::FlashMuonTaggerAlgo imgends_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kOutOfImage );
@@ -45,12 +53,18 @@ namespace larlitecv {
     cathode_flash_tagger.configure( m_config.flashtagger_cfg );
     imgends_flash_tagger.configure( m_config.flashtagger_cfg );
 
-    // end point filter
+    // (3) end point filter
     larlitecv::EndPointFilter endptfilter;
+
+    // (4) thrumu tracker
+    larlitecv::ThruMuTracker thrumu_tracker( m_config.thrumu_tracker_cfg );
+
+    m_time_tracker[kThruMuConfig] = ( std::clock()-timer )/(double)CLOCKS_PER_SEC;
 
     // RUN THE THRUMU ALGOS
 
     // run side tagger
+    timer = std::clock();
     sidetagger.searchforboundarypixels3D( input.img_v, input.badch_v, output.side_spacepoint_v, output.boundarypixel_image_v, output.realspacehit_image_v );
     int nsides[4] = {0};
     for ( auto const& sp : output.side_spacepoint_v ) {
@@ -61,8 +75,10 @@ namespace larlitecv {
     std::cout << "   Bottom: "     << nsides[1] << std::endl;
     std::cout << "   Upstream: "   << nsides[2] << std::endl;
     std::cout << "   Downstream: " << nsides[3] << std::endl;
+    m_time_tracker[kThruMuBMT] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // run flash tagger
+    timer = std::clock();
     anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v );
     cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v );
     imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v );
@@ -71,6 +87,7 @@ namespace larlitecv {
     std::cout << "  Anode: "      << output.anode_spacepoint_v.size() << std::endl;
     std::cout << "  Cathode: "    << output.cathode_spacepoint_v.size() << std::endl;
     std::cout << "  Image Ends: " << output.imgends_spacepoint_v.size() << std::endl;
+    m_time_tracker[kThruMuFlash] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // we collect pointers to all the end points
     std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
@@ -107,22 +124,26 @@ namespace larlitecv {
 
     // make track clusters
     std::vector<int> used_filtered_endpoints( filtered_endpoints.size(), 0 );
-    sidetagger.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
+    if ( m_config.run_thrumu_tracker ) {
+      timer = std::clock();
+      thrumu_tracker.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
+      m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;      
+    }
 
     // collect unused endpoints
     for ( size_t isp=0; isp<filtered_endpoints.size(); isp++ ) {
       if ( used_filtered_endpoints.at(isp)==1 )
-	output.used_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
+        output.used_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
       else
-	output.unused_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
+        output.unused_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
     }
 
     // copy track and pixels into separate containers.
     for ( auto const& bmtrack : output.trackcluster3d_v ) {
       output.track_v.push_back( bmtrack.makeTrack() );
       std::vector< larcv::Pixel2DCluster > cluster_v;
-      for ( auto const& track2d : bmtrack.plane_paths )
-	cluster_v.push_back( track2d.pixelpath );
+      for ( auto const& track2d : bmtrack.plane_pixels )
+        cluster_v.push_back( track2d );
       output.pixelcluster_v.emplace_back( std::move(cluster_v) );
     }
 
@@ -191,7 +212,7 @@ namespace larlitecv {
     for ( size_t itrack=0; itrack<output.stopmu_trackcluster_v.size(); itrack++ ) {
       const larlitecv::BMTrackCluster3D& track3d = output.stopmu_trackcluster_v.at(itrack);
       for (size_t p=0; p<output.stopmu_v.size(); p++) {
-        const larcv::Pixel2DCluster& trackpixs = track3d.plane_paths.at(p).pixelpath;
+        const larcv::Pixel2DCluster& trackpixs = track3d.plane_pixels.at(p);
         for ( auto const& pix : trackpixs ) {
           output.stopmu_v.at(p).set_pixel( pix.Y(), pix.X(), 255 );
         }
@@ -203,8 +224,8 @@ namespace larlitecv {
     for ( auto const& bmtrack : output.stopmu_trackcluster_v ) {
       output.track_v.push_back( bmtrack.makeTrack() );
       std::vector< larcv::Pixel2DCluster > cluster_v;
-      for ( auto const& track2d : bmtrack.plane_paths )
-	cluster_v.push_back( track2d.pixelpath );
+      for ( auto const& track2d : bmtrack.plane_pixels )
+        cluster_v.push_back( track2d );
       output.pixelcluster_v.emplace_back( std::move(cluster_v) );
     }
 
@@ -431,5 +452,25 @@ namespace larlitecv {
     }
 
     return output;
+  }
+
+  void TaggerCROIAlgo::printTimeTracker( int num_events ) {
+    const std::string stage_names[] = { "ThruMuConfig", "ThruMuBMT", "ThruMuFlash", "ThruMuTracker", "StopMuCluster", "Untagged", "CROI" };
+    float tot_time = 0.;
+    std::cout << "---------------------------------------------------------------" << std::endl;
+    std::cout << "TaggerCROIAlgoConfig::printTimeTracker" << std::endl;
+    std::cout << "Number of Events: " << num_events << std::endl;
+    for (int i=0; i<kNumStages; i++) {
+      std::cout << stage_names[i] << " : " << m_time_tracker[i] << " secs";
+      if ( num_events>0 )
+	std::cout << "  " << m_time_tracker[i]/float(num_events) << " secs/event";
+      std::cout << std::endl;
+      tot_time += m_time_tracker[i];
+    }
+    std::cout << "Total: " << tot_time << " secs";
+    if ( num_events>0 )
+      std::cout << "  " << tot_time/float(num_events) << " secs/event";
+    std::cout << std::endl;
+    std::cout << "---------------------------------------------------------------" << std::endl;    
   }
 }

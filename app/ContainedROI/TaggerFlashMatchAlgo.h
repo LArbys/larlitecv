@@ -47,6 +47,7 @@ namespace larlitecv {
    void setVerbosity( int verbosity ) { m_verbosity = verbosity; };
 
    flashana::QCluster_t GenerateQCluster( const TaggerFlashMatchData& data );
+   flashana::QCluster_t GenerateQCluster( const larlite::track& track );
    flashana::Flash_t    GenerateUnfittedFlashHypothesis( const flashana::QCluster_t& qcluster );
    flashana::Flash_t    MakeDataFlash( const larlite::opflash& flash );
    void GetFlashCenterAndRange( const larlite::opflash& flash, float& zmean, std::vector<float>& zrange );
