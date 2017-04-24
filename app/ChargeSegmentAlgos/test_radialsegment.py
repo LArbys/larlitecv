@@ -92,6 +92,9 @@ for p in range(0,3):
   cvimg[ cvimg>255 ] = 255
 
 
+# SETUP THE ALGO
+radialalgo = larlitecv.RadialSegmentSearch()
+
 # ==============================================
 # ENTRY 0
 # example where one track needs to get fixed
@@ -108,47 +111,65 @@ def segment_box( boundary_type, endptid, radius ):
   poszy = std.vector("float")()
   for p in range(0,3):
     cols[p] = int(meta.pos_x( ev_boundary_pts[boundary_type].Pixel2DArray(p).at(endptid).X() ))
-    triarea = rt.Double(0)
-    crosses = rt.Long(0)
-    larcv.UBWireTool.wireIntersection( cols, poszy, triarea, crosses )
-    pos3d = std.vector("float")(3)
-    pos3d[0] = ( tick-3200.0 )*(larutil.LArProperties.GetME().DriftVelocity()*0.5)
-    pos3d[1] = poszy[1];
-    pos3d[2] = poszy[0];
-    print "pos=(",pos3d[0],",",pos3d[1],",",pos3d[2],")"
+  pos3d = std.vector("float")(3)      
+  triarea = rt.Double(0)
+  crosses = rt.Long(0)
+  larcv.UBWireTool.wireIntersection( cols, poszy, triarea, crosses )
+  pos3d[0] = ( tick-3200.0 )*(larutil.LArProperties.GetME().DriftVelocity()*0.5)
+  pos3d[1] = poszy[1];
+  pos3d[2] = poszy[0];
+  print boundary_type, " #",endptid," pos=(",pos3d[0],",",pos3d[1],",",pos3d[2],")",
   
-    radialalgo = larlitecv.RadialSegmentSearch()
-    plane_points = {}
-    for p in range(0,3):
-      #radial_points = radialalgo.findIntersectingChargeClusters( img_v[p], badch_v[p], row, cols[p], 10, 10.0, 100 )
-      radial_points = radialalgo.findIntersectingChargeClustersX( img_v[p], badch_v[p], pos3d, radius, 10.0 )
-      print "plane ",p," radial points: ",radial_points.size()
-      plane_points[p] = radial_points
-      for iradpix in range(radial_points.size()):
-        radhit = plane_points[p].at(iradpix)
-        if radhit.max_idx<0 or radhit.max_idx>=radial_points.size():
-          continue
-        radpix = radhit.pixlist[ radhit.max_idx ]
-        print " tick=", meta.pos_y(radpix.Y())," max=",radpix.X(),
-        for ipix in range( radhit.pixlist.size() ):
-          radpix = radhit.pixlist[ ipix ]
-          print "(%d,%d)"%(meta.pos_y(radpix.Y()),radpix.X())," ",
-        print
+  plane_points = {}
+  for p in range(0,3):
+    radial_points = radialalgo.findIntersectingChargeClusters( img_v[p], badch_v[p], pos3d, radius, 10.0 )
+    print "  plane ",p," radial points: ",radial_points.size()
+    plane_points[p] = radial_points
+    for iradpix in range(radial_points.size()):
+      radhit = plane_points[p].at(iradpix)
+      if radhit.max_idx<0 or radhit.max_idx>=radial_points.size():
+        continue
+      radpix = radhit.pixlist[ radhit.max_idx ]
+      print " tick=", meta.pos_y(radpix.Y())," max=",radpix.X(),
+      for ipix in range( radhit.pixlist.size() ):
+        radpix = radhit.pixlist[ ipix ]
+        print "(%d,%d)"%(meta.pos_y(radpix.Y()),radpix.X())," ",
+      print
 
-    # output image
-    for p in range(0,3):
-      cv2.circle( cvimg, (cols[p],row), 2, (255,255,255), -1 )
+  # output image
+  for p in range(0,3):
+    cv2.circle( cvimg, (cols[p],row), 5, (255,255,255), 1 )
 
-      for iradpix in range(plane_points[p].size()):
-        radhit = plane_points[p].at(iradpix)
-        radpix = radhit.pixlist[ radhit.max_idx ]
-        cv2.circle( cvimg, (radpix.X(),radpix.Y()), 1, (255,0,0), -1 )
+    for iradpix in range(plane_points[p].size()):
+      radhit = plane_points[p].at(iradpix)
+      radpix = radhit.pixlist[ radhit.max_idx ]
+      cv2.circle( cvimg, (radpix.X(),radpix.Y()), 2, (255,0,0), -1 )
+  return plane_points, pos3d
 
 
+def make2dseg( plane_points ):
+  return
+      
 for boundary in ["topspacepts","botspacepts"]:
   npts = ev_boundary_pts[boundary].Pixel2DArray(0).size()
+
+  #if boundary not in ["topspacepts"]:
+  #  continue
+  
   for endptid in range(npts):
-    segment_box( boundary, endptid, 10.0 )
+    #if endptid not in [6]:
+    #  continue
+    
+    plane_radhits, pos3d = segment_box( boundary, endptid, 10.0 )
+
+    plane_seg2d = {}
+    for p in range(3):
+      plane_seg2d[p] = radialalgo.make2Dsegments( img_v[p], badch_v[p], plane_radhits[p], pos3d, 10.0, 1, 0.8 )
+      print "number of 2d segments: ",plane_seg2d[p].size()
+      for iseg in range(plane_seg2d[p].size()):
+        seg2d = plane_seg2d[p][iseg]
+        cv2.line( cvimg, (seg2d.col_low,seg2d.row_low), (seg2d.col_high,seg2d.row_high), (0,125,255), 1 )
+
 
 
           

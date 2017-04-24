@@ -44,7 +44,7 @@ namespace larlitecv {
       end_idx = idx;
       end_idx -= start_idx;
       max_idx -= start_idx;
-      std::cout << "set end: max=" << max_idx << " end=" << end_idx << " size=" << pixlist.size() << std::endl;
+      //std::cout << "set end: max=" << max_idx << " end=" << end_idx << " size=" << pixlist.size() << std::endl;
       start_idx = 0;
     };
 
