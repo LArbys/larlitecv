@@ -190,8 +190,9 @@ namespace larlitecv {
       int num_rows = 0;
       segalgo.checkSegmentCharge( img, badch, seg2d.row_low, seg2d.col_low, seg2d.row_high, seg2d.col_high, min_hit_width, threshold, rows_w_charge, num_rows );
       float frac = (float)rows_w_charge/(float)num_rows;
-      std::cout << "radial segment: (" << seg2d.row_low << "," << seg2d.col_low << ") to (" << seg2d.row_high << "," << seg2d.col_high << ") "
-		<< " frac charge=" << frac << " w/charge=" << rows_w_charge << " nrows=" << num_rows << std::endl;
+      // for debug
+      //std::cout << "radial segment: (" << seg2d.row_low << "," << seg2d.col_low << ") to (" << seg2d.row_high << "," << seg2d.col_high << ") "
+      //<< " frac charge=" << frac << " w/charge=" << rows_w_charge << " nrows=" << num_rows << std::endl;
       
       if ( frac > frac_w_charges ) {
 	seg2d_v.emplace_back( std::move(seg2d) );
@@ -200,6 +201,33 @@ namespace larlitecv {
     }
     
     return seg2d_v;
+  }
+
+  std::vector< Segment3D_t > RadialSegmentSearch::find3Dsegments( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+								  const std::vector<float>& pos3d, const float search_radius, const std::vector<float>& pixel_thresholds,
+								  const int min_hit_width, const float segment_frac_w_charge ) {
+    // check arguments
+    if ( img_v.size()!=badch_v.size() || img_v.size()!=pixel_thresholds.size() ) {
+      throw std::runtime_error( "number of entries in img_v, badch_v, and/or pixel_thresholds does not match." );
+    }
+    if ( pos3d.size()!=3 )
+      throw std::runtime_error( "expected 3D point for pos3d" );
+
+    
+    // first we find the hits around a 3d box of the 3D point
+    std::vector< std::vector<Segment2D_t > > plane_seg2d;
+    for (size_t p=0; p<img_v.size(); p++) {
+      std::vector<RadialHit_t> radhits = findIntersectingChargeClusters( img_v[p], badch_v[p], pos3d, search_radius, pixel_thresholds[p] );
+      std::vector<Segment2D_t> seg2d_v = make2Dsegments( img_v[p], badch_v[p], radhits, pos3d, pixel_thresholds[p], min_hit_width, segment_frac_w_charge );
+      plane_seg2d.emplace_back( std::move(seg2d_v) );
+    }
+
+    // combine into 3D segments
+    Segment3DAlgo algo;
+    std::vector< Segment3D_t > seg3d_v;
+    algo.combine2Dinto3D( plane_seg2d, img_v, badch_v, min_hit_width, pixel_thresholds, segment_frac_w_charge, seg3d_v );
+    
+    return seg3d_v;
   }
   
 }

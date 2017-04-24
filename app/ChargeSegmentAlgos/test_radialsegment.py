@@ -21,6 +21,7 @@ testfile = "test/tagger_anaout_larcv_seg.root"
 img_producer = "modimg"
 badch_producer = "gapchs"
 makebadch = False
+run_2d = False
 
 ioman = larcv.IOManager( larcv.IOManager.kREAD );
 ioman.add_in_file( testfile )
@@ -153,22 +154,43 @@ def make2dseg( plane_points ):
 for boundary in ["topspacepts","botspacepts"]:
   npts = ev_boundary_pts[boundary].Pixel2DArray(0).size()
 
-  #if boundary not in ["topspacepts"]:
-  #  continue
+  if boundary not in ["topspacepts"]:
+    continue
   
   for endptid in range(npts):
-    #if endptid not in [6]:
-    #  continue
-    
-    plane_radhits, pos3d = segment_box( boundary, endptid, 10.0 )
+    if endptid not in [6]:
+      continue
 
-    plane_seg2d = {}
-    for p in range(3):
-      plane_seg2d[p] = radialalgo.make2Dsegments( img_v[p], badch_v[p], plane_radhits[p], pos3d, 10.0, 1, 0.8 )
-      print "number of 2d segments: ",plane_seg2d[p].size()
-      for iseg in range(plane_seg2d[p].size()):
-        seg2d = plane_seg2d[p][iseg]
-        cv2.line( cvimg, (seg2d.col_low,seg2d.row_low), (seg2d.col_high,seg2d.row_high), (0,125,255), 1 )
+    if run_2d:
+      plane_radhits, pos3d = segment_box( boundary, endptid, 10.0 )
+      plane_seg2d = {}
+      for p in range(3):
+        plane_seg2d[p] = radialalgo.make2Dsegments( img_v[p], badch_v[p], plane_radhits[p], pos3d, 10.0, 1, 0.8 )
+        print "number of 2d segments: ",plane_seg2d[p].size()
+        for iseg in range(plane_seg2d[p].size()):
+          seg2d = plane_seg2d[p][iseg]
+          cv2.line( cvimg, (seg2d.col_low,seg2d.row_low), (seg2d.col_high,seg2d.row_high), (0,125,255), 1 )
+    else:
+      # run 3D
+      row = int(ev_boundary_pts[boundary].Pixel2DArray(0).at(endptid).Y())
+      tick = meta.pos_y(row)
+      cols = std.vector("int")(3)
+      poszy = std.vector("float")()
+      for p in range(0,3):
+        cols[p] = int(meta.pos_x( ev_boundary_pts[boundary].Pixel2DArray(p).at(endptid).X() ))
+        pos3d = std.vector("float")(3)      
+        triarea = rt.Double(0)
+        crosses = rt.Long(0)
+      larcv.UBWireTool.wireIntersection( cols, poszy, triarea, crosses )
+      pos3d[0] = ( tick-3200.0 )*(larutil.LArProperties.GetME().DriftVelocity()*0.5)
+      pos3d[1] = poszy[1];
+      pos3d[2] = poszy[0];
+      print boundary, " #",endptid," pos=(",pos3d[0],",",pos3d[1],",",pos3d[2],")"
+
+      pix_thresholds = std.vector("float")(3,10.0)
+      seg3d_v = radialalgo.find3Dsegments( img_v, badch_v, pos3d, 10.0, pix_thresholds, 1, 0.8 )
+      print "  number of 3d segments=", seg3d_v.size()
+          
 
 
 
