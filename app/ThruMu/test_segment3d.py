@@ -152,9 +152,9 @@ for p in range(0,3):
     x1 = (hitcenter-hitwidth,row_low+1)
     x2 = (hitcenter+hitwidth,row_low-1)
     cv2.rectangle( cvimg, x1, x2, (255,0,0,125), 1 )
-      
-    
+          
   cv2.imwrite( "segimg2d_p%d.png"%(p), cvimg )
   
 print "[ENTER] to finish."
 raw_input()
+

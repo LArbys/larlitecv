@@ -36,11 +36,6 @@
 
 //#pragma link C++ class larlitecv::BezierCurve+;
 
-#pragma link C++ struct larlitecv::Segment3D_t+;
-#pragma link C++ class std::vector<larlitecv::Segment3D_t>+;
-#pragma link C++ struct larlitecv::Segment2D_t+;
-#pragma link C++ class std::vector<larlitecv::Segment2D_t>+;
-#pragma link C++ class larlitecv::Segment3DAlgo+;
 
 //ADD_NEW_CLASS ... do not change this line
 #endif

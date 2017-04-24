@@ -14,7 +14,9 @@
 // larlite
 #include "LArUtil/Geometry.h"
 #include "LArUtil/LArProperties.h"
-#include "Segment3DAlgo.h"
+
+// larlitecv
+#include "ChargeSegmentAlgos/Segment3DAlgo.h"
 #include "Linear3DChargeTagger.h"
 
 namespace larlitecv {
