@@ -12,6 +12,8 @@
 #include "DataFormat/Image2D.h"
 #include "DataFormat/Pixel2D.h"
 
+#include "RadialSegmentSearchTypes.h"
+
 namespace larlitecv {
 
   class RadialSegmentSearch {
@@ -19,8 +21,10 @@ namespace larlitecv {
     RadialSegmentSearch() {};
     virtual ~RadialSegmentSearch() {};
 
-    std::vector< larcv::Pixel2D > findIntersectingChargeClusters( const larcv::Image2D& img, const larcv::Image2D& badch,
-								  int row, int col, int radius, float threshold, int arc_divs );
+    std::vector< larlitecv::RadialHit_t > findIntersectingChargeClusters( const larcv::Image2D& img, const larcv::Image2D& badch,
+									  int row, int col, int radius, float threshold, int arc_divs );
+    std::vector< larlitecv::RadialHit_t > findIntersectingChargeClustersX( const larcv::Image2D& img, const larcv::Image2D& badch,
+									   const std::vector<float>& pos3d, float radius, float threshold );
 
 
   };
