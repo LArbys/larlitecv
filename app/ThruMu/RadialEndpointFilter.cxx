@@ -18,7 +18,7 @@ namespace larlitecv {
     num_seg3d = (int)seg3d_v.size();
 
     if ( seg3d_v.size()<=1 ) {
-      std::cout << " less than or only 1 3d segment: " << seg3d_v.size() << std::endl;
+      //std::cout << " less than or only 1 3d segment: " << seg3d_v.size() << std::endl;
       return false;
     }
 
@@ -41,7 +41,7 @@ namespace larlitecv {
 	}
 	dist_start_i = sqrt(dist_start_i);
 	dist_start_j = sqrt(dist_start_j);	
-	std::cout << "dist start: i=" << dist_start_i << " j=" << dist_start_j << std::endl;
+	//std::cout << "dist start: i=" << dist_start_i << " j=" << dist_start_j << std::endl;
 	
 	if ( dist_start_i>0.4 ) {
 	  //reverse (i)
@@ -83,11 +83,11 @@ namespace larlitecv {
 	float cosdir = 0.;
 	for (int v=0; v<3; v++)
 	  cosdir += dir_i[v]*dir_j[v];	
-	std::cout << "acceptance angle(" << i << "," << j << "): "
-		  << " cos=" << cosdir
-		  << " " << fabs(cosdir-(-1.0))*180.0/3.14159 << " deg. out of " << seg3d_v.size() << " 3d segments." << std::endl;
+	//std::cout << "acceptance angle(" << i << "," << j << "): "
+	//	  << " cos=" << cosdir
+	//	  << " " << fabs(cosdir-(-1.0))*180.0/3.14159 << " deg. out of " << seg3d_v.size() << " 3d segments." << std::endl;
 	if ( std::fabs( cosdir-(-1.0) )<acceptance_angle ) {
-	  std::cout << "found straight line instance: " << fabs(cosdir-(-1.0))*180.0/3.14159 << " deg. out of " << seg3d_v.size() << " 3d segments." << std::endl;
+	  //std::cout << "found straight line instance: " << fabs(cosdir-(-1.0))*180.0/3.14159 << " deg. out of " << seg3d_v.size() << " 3d segments." << std::endl;
 	  found_straight_angle = true;
 	}
 	

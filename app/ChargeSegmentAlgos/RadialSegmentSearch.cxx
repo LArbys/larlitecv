@@ -115,7 +115,7 @@ namespace larlitecv {
     bool inhit = false;
     bool loopedaround = false;
     while ( idx!=idx_start ) {
-      if ( !inhit ) {
+      if ( !inhit && idx+1!=idx_start) {
 	if ( pixelring[idx].Intensity()>=threshold ) {
 	  // start a hit
 	  RadialHit_t hit;
@@ -126,29 +126,31 @@ namespace larlitecv {
 	  hit.pixlist.push_back( pixelring[idx] );
 	  hitlist.emplace_back( std::move(hit) );
 	  inhit = true;
-	  //std::cout << "start hit at " << idx << std::endl;
+	  loopedaround = false;
+	  //std::cout << "start hit at " << idx << " of " << pixelring.size() << " val=" << hit.maxval << " idx_start=" << idx_start << std::endl;
 	}
 	else {
 	  // do nothing
+	  //std::cout << " inhit: idx=" << idx << " val=" << pixelring[idx].Intensity() << std::endl;
 	}
       }
       else if (inhit) {
-	if ( pixelring[idx].Intensity()<threshold ) {
+	if ( pixelring[idx].Intensity()<threshold || idx+1==idx_start) {
 	  // end the hit
 	  if ( !loopedaround )
 	    hitlist.back().set_end( idx-1 );
 	  else
-	    hitlist.back().set_end( idx-1+pixelring.size() );
+	    hitlist.back().set_end( idx-1+(int)pixelring.size() );
 	  
 	  inhit = false;
-	  //std::cout << "end hit at " << idx << std::endl;
+	  //std::cout << "end hit at " << idx << " of " << pixelring.size() << std::endl;
 	}
 	else {
 	  // update the max hit
 	  if ( !loopedaround )
 	    hitlist.back().update_max( idx, pixelring[idx].Intensity() );
 	  else
-	    hitlist.back().update_max( idx+pixelring.size(), pixelring[idx].Intensity() );
+	    hitlist.back().update_max( idx+(int)pixelring.size(), pixelring[idx].Intensity() );
 	  hitlist.back().add_pixel( pixelring[idx] );
 	}
       }
@@ -159,7 +161,7 @@ namespace larlitecv {
 	loopedaround = true;
       }
     }
-
+    //std::cout << "return hitlist" << std::endl;
     return hitlist;
   }
 
@@ -173,6 +175,7 @@ namespace larlitecv {
     std::vector< Segment2D_t > seg2d_v;
     for ( auto const& radhit : hitlist ) {
       Segment2D_t seg2d;
+      //std::cout << "max idx=" << radhit.max_idx << std::endl;
       const larcv::Pixel2D& pix = radhit.pixlist.at( radhit.max_idx );
       if ( img_coords[0] < (int) pix.Y() ) {
 	seg2d.row_high = (int)pix.Y();
@@ -218,9 +221,11 @@ namespace larlitecv {
     std::vector< std::vector<Segment2D_t > > plane_seg2d;
     for (size_t p=0; p<img_v.size(); p++) {
       std::vector<RadialHit_t> radhits = findIntersectingChargeClusters( img_v[p], badch_v[p], pos3d, search_radius, pixel_thresholds[p] );
+      //std::cout << "radhits on p=" << p << ": " << radhits.size() << std::endl;
       std::vector<Segment2D_t> seg2d_v = make2Dsegments( img_v[p], badch_v[p], radhits, pos3d, pixel_thresholds[p], min_hit_width, segment_frac_w_charge );
       plane_seg2d.emplace_back( std::move(seg2d_v) );
     }
+    //std::cout << " number of 2d segments: (" << plane_seg2d[0].size() << "," << plane_seg2d[1].size() << "," << plane_seg2d[2].size() << ")" << std::endl;
 
     // combine into 3D segments
     Segment3DAlgo algo;

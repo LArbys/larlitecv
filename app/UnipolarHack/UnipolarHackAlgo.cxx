@@ -32,7 +32,7 @@ namespace larlitecv {
 	    for (int r=candidate.pos_peak-1; r<=candidate.pos_peak+1; r++){
 	      if ( r<0 || r>=hacked.meta().rows() )
 		continue;
-	      hacked.set_pixel(r,c,40.0);
+	      hacked.set_pixel(r,c,80.0);
 	    }
 	  }
 	}

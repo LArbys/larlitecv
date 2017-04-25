@@ -182,6 +182,8 @@ namespace larlitecv {
       }
     }
 
+    //std::cout << "Combine2d into 3d" << std::endl;
+    
     for (int i=0; i<num_segs; i++) {
       for (int j=i+1; j<num_segs; j++) {
         // don't compare 2D segments on the same plane
@@ -203,28 +205,39 @@ namespace larlitecv {
         int otherwire_high = 0;
         int otherplane_high = 0;
         larcv::UBWireTool::getMissingWireAndPlane( (int)idx_a.plane, high_wire_a, (int)idx_b.plane, high_wire_b, otherplane_high, otherwire_high, poszy_high, crosses_high );
-        if ( crosses_high==0 )
+        if ( crosses_high==0 ) {
+	  //std::cout << "high hit does not cross." << std::endl;	  
           continue; // these wires don't intersect anywhere
+	}
 
         std::vector<float> poszy_low;
         int crosses_low = 0;
         int otherwire_low = 0;
         int otherplane_low = 0;
         larcv::UBWireTool::getMissingWireAndPlane( (int)idx_a.plane, low_wire_a, (int)idx_b.plane, low_wire_b, otherplane_low, otherwire_low, poszy_low, crosses_low );
-        if ( crosses_low==0 )
+        if ( crosses_low==0 ) {
+	  //std::cout << "low hit does not cross." << std::endl;
           continue; // these wires don't intersect anywhere
+	}
 
         // ok so both wires cross.
-        if ( otherwire_high<0 || otherwire_high>=img_v.at(otherplane_high).meta().max_x() ) continue;
-        if ( otherwire_low<0 || otherwire_low>=img_v.at(otherplane_low).meta().max_x() ) continue;
+        if ( otherwire_high<0 || otherwire_high>=img_v.at(otherplane_high).meta().max_x() ) {
+	  //std::cout << "high is out of bounds" << std::endl;
+	  continue;
+	}
+        if ( otherwire_low<0 || otherwire_low>=img_v.at(otherplane_low).meta().max_x() ) {
+	  //std::cout << "low is out of bounds" << std::endl;	  
+	  continue;
+	}
         // let's check the other plane
         int othercol_high = img_v.at(otherplane_high).meta().col( otherwire_high );
         int othercol_low  = img_v.at(otherplane_low).meta().col( otherwire_low );
 
         int nrows_w_charge = 0;
         int nrows;
-        checkSegmentCharge( img_v.at(otherplane_high), badch_v.at(otherplane_high), seg_a.row_low, othercol_low, seg_a.row_high, othercol_high, hit_width, thresholds.at(otherplane_high), nrows_w_charge, nrows );
-
+        checkSegmentCharge( img_v.at(otherplane_high), badch_v.at(otherplane_high), seg_a.row_low, othercol_low, seg_a.row_high, othercol_high,
+			    hit_width, thresholds.at(otherplane_high), nrows_w_charge, nrows );
+	//std::cout << "combo(" << i << "," << j << ") nrows=" << nrows << " frac=" << float(nrows_w_charge)/nrows << std::endl;
         if ( nrows>0 && float(nrows_w_charge)/nrows > good_frac ) {
           // make segment3d
 
@@ -247,17 +260,17 @@ namespace larlitecv {
 	    }
 	    dist_hi = sqrt(dist_hi);
 	    dist_lo = sqrt(dist_lo);
-	    if ( dist_hi<3.0 && dist_lo<3.0 ) {
+	    if ( dist_hi<0.8 && dist_lo<0.8 ) {
 	      isduplicate = true;
 	      break;
 	    }
 	  }
 
 	  if ( !isduplicate ) {
-	    std::cout << "Making 3D segment: "
-		      << " start(" << seg3d.start[0] << "," << seg3d.start[1] << "," << seg3d.start[2] << ") "
-		      << " end(" << seg3d.end[0] << "," << seg3d.end[1] << "," << seg3d.end[2] << ")"
-		      << std::endl;
+	    // std::cout << "Making 3D segment: "
+	    // 	      << " start(" << seg3d.start[0] << "," << seg3d.start[1] << "," << seg3d.start[2] << ") "
+	    // 	      << " end(" << seg3d.end[0] << "," << seg3d.end[1] << "," << seg3d.end[2] << ")"
+	    // 	      << std::endl;
 	    segments.emplace_back( std::move(seg3d) );
 	  }
         }
