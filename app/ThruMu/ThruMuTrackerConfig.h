@@ -17,6 +17,7 @@
 // larlitecv
 #include "Linear3DChargeTaggerConfig.h"
 #include "AStar3DAlgoConfig.h"
+#include "RadialEndpointFilterConfig.h"
 
 namespace larlitecv {
 
@@ -32,6 +33,7 @@ namespace larlitecv {
     struct ThruMuPassConfig {
       bool run_linear_tagger; //< do we run the linearcharge3d algorithm this pass
       bool run_astar_tagger;  //< do we run the astar algorithm this pass
+      bool run_radial_filter; //< do we run the radial endpoint filter
       int   linear3d_min_tracksize; //< how many steps should the line track have
       float linear3d_min_goodfraction; //< how many of the steps should see charge in all planes
       float linear3d_min_majoritychargefraction; //< how many should see charge in 2/3 planes
@@ -39,6 +41,7 @@ namespace larlitecv {
       float astar3d_min_majfrac;  //< what is the majfrac the linear tagger should see before running astar
       Linear3DChargeTaggerConfig linear3d_cfg; //< configuration of the linear 3d tagger
       AStar3DAlgoConfig astar3d_cfg; //< configuration of the astar algo config here
+      RadialEndpointFilterConfig radial_cfg; //< configuration for end point filter to limit which ones we try to connect
     };
 
     // Parameters

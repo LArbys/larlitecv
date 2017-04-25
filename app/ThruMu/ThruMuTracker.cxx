@@ -1,5 +1,7 @@
 #include "ThruMuTracker.h"
 
+#include "RadialEndpointFilter.h"
+
 namespace larlitecv {
 
   ThruMuTracker::ThruMuTracker( const ThruMuTrackerConfig& config )
@@ -64,20 +66,59 @@ namespace larlitecv {
     //   trackclusters: holds thrumu tracks made
 
 
-    std::cout << "Run Pass #" << passid << ": linear=" << passcfg.run_linear_tagger << " astar=" << passcfg.run_astar_tagger << std::endl;
+    std::cout << "Run Pass #" << passid << ": "
+	      << " radialfilter=" << passcfg.run_radial_filter
+	      << " linear=" << passcfg.run_linear_tagger
+	      << " astar=" << passcfg.run_astar_tagger
+	      << std::endl;
 
     const int nendpts = (int)spacepts.size();
     std::vector<larlitecv::BMTrackCluster3D> pass_track_candidates;
     std::vector< std::vector<int> > pass_end_indices;
 
+    RadialEndpointFilter radialfilter;
+
+    int num_tracked = 0;
+    
     for (int i=0; i<nendpts; i++) {
       if ( used_endpoints_indices.at(i) ) continue;
       const BoundarySpacePoint& pts_a = *(spacepts[i]);
+
+      bool use_a = true;
+      if ( passcfg.run_radial_filter ) {
+	int num_segs_a = 0;	
+	bool within_line_a =  radialfilter.isWithinStraightSegment( pts_a.pos(), img_v, badchimg_v, passcfg.radial_cfg, num_segs_a );
+	bool pass_num_segs =  passcfg.radial_cfg.min_segments<=num_segs_a && passcfg.radial_cfg.max_segments>=num_segs_a;
+	std::cout << "Endpoint #" << i << ": within_line=" << within_line_a << " num_segs=" << num_segs_a << " pass_num_segs=" << pass_num_segs << std::endl;
+
+	if ( !within_line_a &&  pass_num_segs )
+	  use_a = true;
+	else
+	  use_a = false;
+      }
+
+      if ( !use_a )
+	continue;
+      
       for (int j=i+1; j<nendpts; j++) {
         if ( used_endpoints_indices.at(j)) continue;
         const BoundarySpacePoint& pts_b = *(spacepts[j]);
 
         if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
+
+	bool use_b = true;
+	if ( passcfg.run_radial_filter ) {
+	  int num_segs_b = 0;	  
+	  bool within_line_b = radialfilter.isWithinStraightSegment( pts_b.pos(), img_v, badchimg_v, passcfg.radial_cfg, num_segs_b );
+	  bool pass_num_segs = passcfg.radial_cfg.min_segments<=num_segs_b && passcfg.radial_cfg.max_segments>=num_segs_b;
+	  std::cout << "Endpoint #" << j << ": within_line=" << within_line_b << " num_segs=" << num_segs_b << std::endl;	  
+	  if ( !within_line_b && passcfg.radial_cfg.min_segments<=num_segs_b && passcfg.radial_cfg.max_segments>=num_segs_b )
+	    use_b = true;
+	  else
+	    use_b = false;
+	}
+	if (!use_b)
+	  continue;
 
         if ( m_config.verbosity>1 ) {
           std::cout << "[ Pass " << passid << ": path-finding for endpoints (" << i << "," << j << ") "
@@ -109,6 +150,7 @@ namespace larlitecv {
           else {
             if ( m_config.verbosity>1 ) std::cout << "  Result is bad." << std::endl;
           }
+	  num_tracked++;
         }//end of if run_linear
 
         // next run astar tagger
@@ -144,6 +186,7 @@ namespace larlitecv {
       }// second loop over end points
     }// first loop over end points
 
+    std::cout << "Pass #" << passid << " number of pairs tracked: " << num_tracked << std::endl;
 
     // post-process tracks (nothing yet)
     for ( auto &track : pass_track_candidates ) {

@@ -17,19 +17,26 @@
 
 #include <vector>
 
+// larcv
+#include "Base/PSet.h"
+
 namespace larlitecv {
   
   class RadialEndpointFilterConfig {
   public:
     RadialEndpointFilterConfig();
-    virtual ~RadialEndpointFilterConfig() {};
+    virtual ~RadialEndpointFilterConfig();
 
     float segment_radius;    // half-edge of box around 3D point that we look for tracks to cross, defining a segment
     float segment_min_width; // min width in pixels that a clump of charge on the box boundary needs to be
     float segment_frac_w_charge; // if we draw a line from the box center point to a crossing charge cluster, this is the fraction of pixels along line that must have charge
     float acceptance_angle; // if two segments found, we check if the angle between is PI +/- acceptance_angle in radians
+    int min_segments;
+    int max_segments;
     std::vector<float> pixel_thresholds;
 
+    static RadialEndpointFilterConfig makeFromPSet( const larcv::PSet& );
+    
   };
   
 }

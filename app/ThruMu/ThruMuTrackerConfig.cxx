@@ -20,6 +20,7 @@ namespace larlitecv {
     ThruMuPassConfig passcfg;
     passcfg.run_linear_tagger = true;
     passcfg.run_astar_tagger  = true;
+    passcfg.run_radial_filter = false;
 
     // pars for controlling track acceptance and astar running
     passcfg.linear3d_min_tracksize = 15;
@@ -68,6 +69,7 @@ namespace larlitecv {
       ThruMuTrackerConfig::ThruMuPassConfig passcfg;
       passcfg.run_linear_tagger                   = pass_pset.get<bool>("RunLinearTagger");
       passcfg.run_astar_tagger                    = pass_pset.get<bool>("RunAStarTagger");
+      passcfg.run_radial_filter                   = pass_pset.get<bool>("RunRadialFilter");
       passcfg.linear3d_min_tracksize              = pass_pset.get<int>("Linear3DMinTrackSize");
       passcfg.linear3d_min_goodfraction           = pass_pset.get<float>("Linear3DMinGoodFraction");
       passcfg.linear3d_min_majoritychargefraction = pass_pset.get<float>("Linear3DMinMajorityChargeFraction");
@@ -75,7 +77,8 @@ namespace larlitecv {
       passcfg.astar3d_min_majfrac                 = pass_pset.get<float>("AStar3DMinMajorityChargeFraction");
       passcfg.astar3d_cfg  = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pass_pset.get<larcv::PSet>( "AStarConfig" ) );
       passcfg.linear3d_cfg = larlitecv::Linear3DChargeTaggerConfig::makeFromPSet( pass_pset.get<larcv::PSet>("Linear3DConfig" ) );
-      std::cout << ss.str() << ": runlinear=" << passcfg.run_linear_tagger << " runastar=" << passcfg.run_astar_tagger << std::endl;
+      passcfg.radial_cfg   = larlitecv::RadialEndpointFilterConfig::makeFromPSet( pass_pset.get<larcv::PSet>("RadialFilterConfig") );
+      std::cout << ss.str() << ": runradial=" << passcfg.run_radial_filter << " runlinear=" << passcfg.run_linear_tagger << " runastar=" << passcfg.run_astar_tagger << std::endl;
       cfg.pass_configs.emplace_back( std::move(passcfg) );
     }
     return cfg;
