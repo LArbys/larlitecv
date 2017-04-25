@@ -228,7 +228,8 @@ namespace larlitecv {
     bool path_completed = false;
     std::vector<AStar3DNode> path;
     if ( *current!=*goal ) {
-      std::cout << "did not make it to the goal. get the lowest h-score" << std::endl;      
+      if (verbose>0)
+	std::cout << "did not make it to the goal. get the lowest h-score" << std::endl;      
       closedset.sort_by_hscore();
       int nnodes = (int)closedset.size();      
       for ( int inode = nnodes-1; inode>=0; inode-- ) {
@@ -237,11 +238,11 @@ namespace larlitecv {
         current = closed_node;
         break;
       }
-      // if ( verbose>0)
-      std::cout << "could not reach goal. best node: " 
-                   << " (" << img_v.front().meta().pos_x( current->cols[0] ) << "," << img_v.front().meta().pos_y( current->row ) << ")"
+      if ( verbose>0)
+	std::cout << "could not reach goal. best node: " 
+		  << " (" << img_v.front().meta().pos_x( current->cols[0] ) << "," << img_v.front().meta().pos_y( current->row ) << ")"
                    << " fscore=" << current->fscore << " g-score=" << current->gscore 
-                   << " hscore=" << current->fscore-current->gscore << std::endl;
+		  << " hscore=" << current->fscore-current->gscore << std::endl;
       goal_reached = 0;
     }
     else {
@@ -250,9 +251,9 @@ namespace larlitecv {
 
     path = makeRecoPath( start, current, path_completed );
 
-    std::cout << "nsteps: " << nsteps << std::endl;
-    std::cout << "path length: " << path.size() << std::endl;
     if ( verbose>0 ) {
+      std::cout << "nsteps: " << nsteps << std::endl;
+      std::cout << "path length: " << path.size() << std::endl;
       for ( auto& node : path )
         std::cout << " " << node.str() << " pixval=(" << node.pixval[0] << "," << node.pixval[1] << "," << node.pixval[2] << ")" << std::endl;
     }
@@ -496,7 +497,7 @@ namespace larlitecv {
     float fscore = gscore + hscore;
     float kscore = curvature_cost;
 
-    if ( isgoal )
+    if ( isgoal && verbose>0  )
       std::cout << "ISGOAL!" << std::endl;
 
     // is this gscore better than the current one (or is it unassigned?) (or is the goal)
@@ -866,13 +867,15 @@ namespace larlitecv {
   
   void Lattice::cleanup () {
 
-    std::cout << "Lattice::cleanup";
+    //if ( verbose>0 )
+    //std::cout << "Lattice::cleanup";
 
     for ( auto &it : *this ) {
       delete it.second;
       it.second = nullptr;
     }
-    std::cout << "... done." << std::endl;
+    //if ( verbose>0 )
+    //std::cout << "... done." << std::endl;
     clear();
 
   }
