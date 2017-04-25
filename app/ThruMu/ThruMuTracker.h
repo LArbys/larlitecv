@@ -48,8 +48,16 @@ namespace larlitecv {
 
     struct AStarTaggerInfo {
       bool isgood;
+      bool goal_reached;
+      int nbad_nodes;
+      int total_nodes;
+      float frac_bad;
       AStarTaggerInfo() {
         isgood = false;
+	goal_reached = false;
+	nbad_nodes = -1;
+	total_nodes = -1;
+	frac_bad = 0.;
       };
     };
 
@@ -69,8 +77,11 @@ namespace larlitecv {
                    AStarTaggerInfo& result_info );
 
 
-
-
+    // for astar, compressed image containers
+    std::vector< larcv::Image2D > m_img_compressed_v;
+    std::vector< larcv::Image2D > m_badch_compressed_v;
+    
+    
   };
 
 }
