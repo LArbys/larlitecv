@@ -30,14 +30,14 @@ namespace larlitecv {
    : m_config(config) {
     m_time_tracker.resize( kNumStages, 0.0 );
   }
-  
+
   ThruMuPayload TaggerCROIAlgo::runThruMu( const InputPayload& input ) {
 
     ThruMuPayload output;
 
     // configure different stages of the Thrumu Tagger
     std::clock_t timer;
-    
+
     // (1) side tagger
     timer = std::clock();
     larlitecv::BoundaryMuonTaggerAlgo sidetagger;
@@ -127,7 +127,7 @@ namespace larlitecv {
     if ( m_config.run_thrumu_tracker ) {
       timer = std::clock();
       thrumu_tracker.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
-      m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;      
+      m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
     }
 
     // collect unused endpoints
@@ -176,7 +176,7 @@ namespace larlitecv {
 
       Double_t xyz[3];
       for (int i=0; i<3; i++)
-	xyz[i] = pt.pos()[i];
+        xyz[i] = pt.pos()[i];
 
       float tick = xyz[0]/cm_per_tick + 3200.0;
       if ( tick<=meta.min_y() ) tick = meta.min_y()+1;
@@ -189,7 +189,7 @@ namespace larlitecv {
         if ( wire>=3456 ) wire = 3455;
         int col = input.img_v.at(p).meta().col( wire );
         larcv::Pixel2D pix( col, row );
-	output.stopmu_pixel_endpt_v.Emplace( p, std::move(pix) );
+        output.stopmu_pixel_endpt_v.Emplace( p, std::move(pix) );
       }
 
     }
@@ -311,11 +311,11 @@ namespace larlitecv {
         continue;
 
       std::cout << "VOL: clgroup[" << vol._clustergroup_indices[0] << "," << vol._clustergroup_indices[1] << "," << vol._clustergroup_indices[2] << "] "
-		<< " numslices=" << vol.num_slices
-		<< " goodslices=" << vol.num_good_slices
-		<< " fracgood=" << vol.frac_good_slices
-		<< " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
-		<< std::endl;
+                << " numslices=" << vol.num_slices
+                << " goodslices=" << vol.num_good_slices
+                << " fracgood=" << vol.frac_good_slices
+                << " planecharge=[" << vol.plane_charge[0] << "," << vol.plane_charge[1] << "," << vol.plane_charge[2] << "]"
+                << std::endl;
 
       // we need to make a larlite::track object for this. we use the centroid of the slices
       std::vector< std::vector<float> > xyz_v;
@@ -417,30 +417,30 @@ namespace larlitecv {
 
 
       for ( size_t p=0; p<input.img_v.size(); p++ ) {
-	larcv::Image2D combined( input.img_v.at(p).meta() );
-	combined.paint(0.0);
-	output.combined_v.emplace_back( std::move(combined) );
+        larcv::Image2D combined( input.img_v.at(p).meta() );
+        combined.paint(0.0);
+        output.combined_v.emplace_back( std::move(combined) );
       }
 
       for ( size_t itrack=0; itrack<output.flashdata_v.size(); itrack++ ) {
-	const larlitecv::TaggerFlashMatchData& flashdata = output.flashdata_v.at(itrack);
-	if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 ) {
-	  continue;
-	}
-	const std::vector<larcv::Pixel2DCluster>& pixels = flashdata.m_pixels;
-	int tagval = 10.0*((int)flashdata.m_type + 1); // 0= nothing, 10 = thrumu, 20=stopmu, 30=untagged/contained, 40=selected CROI
-	if ( output.flashdata_selected_v.at(itrack)==1 ) {
-	  tagval = 40.0;
-	}
-	for ( size_t p=0; p<output.combined_v.size(); p++ ) {
-	  const larcv::ImageMeta& meta = input.img_v.at(p).meta();
-	  for ( auto const& pix : pixels.at(p) ) {
-	    if ( (int)pix.X()<0 ||  pix.X()>=meta.cols() || (int)pix.Y()<0 || pix.Y()>=meta.rows() ) continue;
-	    int pixval = output.combined_v.at(p).pixel( pix.Y(), pix.X() );
-	    if ( tagval > pixval )
-	      output.combined_v.at(p).set_pixel( pix.Y(), pix.X(), tagval );
-	  }
-	}
+        const larlitecv::TaggerFlashMatchData& flashdata = output.flashdata_v.at(itrack);
+        if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 ) {
+          continue;
+        }
+        const std::vector<larcv::Pixel2DCluster>& pixels = flashdata.m_pixels;
+        int tagval = 10.0*((int)flashdata.m_type + 1); // 0= nothing, 10 = thrumu, 20=stopmu, 30=untagged/contained, 40=selected CROI
+        if ( output.flashdata_selected_v.at(itrack)==1 ) {
+          tagval = 40.0;
+        }
+        for ( size_t p=0; p<output.combined_v.size(); p++ ) {
+          const larcv::ImageMeta& meta = input.img_v.at(p).meta();
+          for ( auto const& pix : pixels.at(p) ) {
+            if ( (int)pix.X()<0 ||  pix.X()>=meta.cols() || (int)pix.Y()<0 || pix.Y()>=meta.rows() ) continue;
+            int pixval = output.combined_v.at(p).pixel( pix.Y(), pix.X() );
+            if ( tagval > pixval )
+              output.combined_v.at(p).set_pixel( pix.Y(), pix.X(), tagval );
+          }
+        }
       }
     }
 
@@ -463,7 +463,7 @@ namespace larlitecv {
     for (int i=0; i<kNumStages; i++) {
       std::cout << stage_names[i] << " : " << m_time_tracker[i] << " secs";
       if ( num_events>0 )
-	std::cout << "  " << m_time_tracker[i]/float(num_events) << " secs/event";
+        std::cout << "  " << m_time_tracker[i]/float(num_events) << " secs/event";
       std::cout << std::endl;
       tot_time += m_time_tracker[i];
     }
@@ -471,6 +471,6 @@ namespace larlitecv {
     if ( num_events>0 )
       std::cout << "  " << tot_time/float(num_events) << " secs/event";
     std::cout << std::endl;
-    std::cout << "---------------------------------------------------------------" << std::endl;    
+    std::cout << "---------------------------------------------------------------" << std::endl;
   }
 }

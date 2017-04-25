@@ -43,6 +43,16 @@ namespace larlitecv {
       m_badch_compressed_v.emplace_back( std::move(badch_compressed) );
     }
 
+    // tagged image
+    if ( tagged_v.size()==0 )  {
+      for (size_t p=0; p<img_v.size(); p++) {
+        larcv::Image2D tagged( img_v[p].meta() );
+        tagged.paint(0);
+        tagged_v.emplace_back( std::move(tagged) );
+      }
+    }
+
+
     // poor-man's profiling
     const clock_t begin_time = clock();
 
@@ -54,6 +64,12 @@ namespace larlitecv {
       if (ipass>0)
         tracks_in_pass -= tracks_per_pass.back();
       tracks_per_pass.push_back( tracks_in_pass );
+    }
+
+    // tag the pixels
+    for (int itrack=0; itrack<(int)trackclusters.size(); itrack++ ) {
+      BMTrackCluster3D& track3d = trackclusters[itrack];
+      track3d.markImageWithTrack( img_v, badchimg_v, m_config.pixel_threshold, m_config.tag_neighborhood, tagged_v, 0.3, itrack+1 );
     }
 
     if ( m_config.verbosity>0 ) {
@@ -96,55 +112,55 @@ namespace larlitecv {
     RadialEndpointFilter radialfilter;
 
     int num_tracked = 0;
-    
+
     for (int i=0; i<nendpts; i++) {
       if ( used_endpoints_indices.at(i)==1 ) continue;
       const BoundarySpacePoint& pts_a = *(spacepts[i]);
 
       bool use_a = true;
       if ( passcfg.run_radial_filter ) {
-	int num_segs_a = 0;	
-	bool within_line_a =  radialfilter.isWithinStraightSegment( pts_a.pos(), img_v, badchimg_v, passcfg.radial_cfg, num_segs_a );
-	bool pass_num_segs =  passcfg.radial_cfg.min_segments<=num_segs_a && passcfg.radial_cfg.max_segments>=num_segs_a;
-	if ( m_config.verbosity> 1 ) {
-	  std::cout << "Endpoint #" << i << ": "
-		    << " " << pts_a.printImageCoords( img_v.front().meta() ) << " "
-		    << " within_line=" << within_line_a << " num_segs=" << num_segs_a << " pass_num_segs=" << pass_num_segs
-		    << " run=" << (!within_line_a && pass_num_segs)
-		    << std::endl;
-	}
-	
-	if ( !within_line_a &&  pass_num_segs )
-	  use_a = true;
-	else
-	  use_a = false;
+        int num_segs_a = 0;
+        bool within_line_a =  radialfilter.isWithinStraightSegment( pts_a.pos(), img_v, badchimg_v, passcfg.radial_cfg, num_segs_a );
+        bool pass_num_segs =  passcfg.radial_cfg.min_segments<=num_segs_a && passcfg.radial_cfg.max_segments>=num_segs_a;
+        if ( m_config.verbosity> 1 ) {
+          std::cout << "Endpoint #" << i << ": "
+        	    << " " << pts_a.printImageCoords( img_v.front().meta() ) << " "
+        	    << " within_line=" << within_line_a << " num_segs=" << num_segs_a << " pass_num_segs=" << pass_num_segs
+        	    << " run=" << (!within_line_a && pass_num_segs)
+        	    << std::endl;
+        }
+
+        if ( !within_line_a &&  pass_num_segs )
+          use_a = true;
+        else
+          use_a = false;
       }
 
       if ( !use_a )
-	continue;
-      
+        continue;
+
       for (int j=i+1; j<nendpts; j++) {
         if ( used_endpoints_indices.at(j)==1) continue;
         const BoundarySpacePoint& pts_b = *(spacepts[j]);
 
         if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
 
-	bool use_b = true;
-	if ( passcfg.run_radial_filter ) {
-	  int num_segs_b = 0;	  
-	  bool within_line_b = radialfilter.isWithinStraightSegment( pts_b.pos(), img_v, badchimg_v, passcfg.radial_cfg, num_segs_b );
-	  bool pass_num_segs = passcfg.radial_cfg.min_segments<=num_segs_b && passcfg.radial_cfg.max_segments>=num_segs_b;
-	  if ( !within_line_b && passcfg.radial_cfg.min_segments<=num_segs_b && passcfg.radial_cfg.max_segments>=num_segs_b )
-	    use_b = true;
-	  else
-	    use_b = false;
-	}
-	if (!use_b)
-	  continue;
+        bool use_b = true;
+        if ( passcfg.run_radial_filter ) {
+          int num_segs_b = 0;
+          bool within_line_b = radialfilter.isWithinStraightSegment( pts_b.pos(), img_v, badchimg_v, passcfg.radial_cfg, num_segs_b );
+          bool pass_num_segs = passcfg.radial_cfg.min_segments<=num_segs_b && passcfg.radial_cfg.max_segments>=num_segs_b;
+          if ( !within_line_b && passcfg.radial_cfg.min_segments<=num_segs_b && passcfg.radial_cfg.max_segments>=num_segs_b )
+            use_b = true;
+          else
+            use_b = false;
+        }
+        if (!use_b)
+          continue;
 
         if ( m_config.verbosity>1 ) {
           std::cout << "[ Pass " << passid << ": path-finding for endpoints (" << i << "," << j << ") "
-        	    << "of type (" << pts_a.type() << ") -> (" << pts_b.type() << ") ]" << std::endl;
+                    << "of type (" << pts_a.type() << ") -> (" << pts_b.type() << ") ]" << std::endl;
           std::cout << "  start: (" << pts_a.pos()[0] << "," << pts_a.pos()[1] << "," << pts_a.pos()[2] << ") "
                     << "  end: (" << pts_b.pos()[0] << "," << pts_b.pos()[1] << "," << pts_b.pos()[2] << ") " << std::endl;
           std::cout << "  start: " << pts_a.printImageCoords( img_v.front().meta() ) << " end: " << pts_b.printImageCoords( img_v.front().meta() ) << std::endl;
@@ -154,8 +170,8 @@ namespace larlitecv {
         BMTrackCluster3D track3d;
         LinearTaggerInfo linear_result;
         AStarTaggerInfo astar_result;
-	bool tracked = false;
-	
+        bool tracked = false;
+
         // first run the linear charge tagger, if so chosen
         if ( passcfg.run_linear_tagger ) {
           if ( m_config.verbosity>1 ) {
@@ -173,7 +189,7 @@ namespace larlitecv {
           else {
             if ( m_config.verbosity>1 ) std::cout << "  Result is bad." << std::endl;
           }
-	  tracked = true;
+          tracked = true;
         }//end of if run_linear
 
         // next run astar tagger
@@ -182,7 +198,7 @@ namespace larlitecv {
           if ( m_config.verbosity>1 )
             std::cout << "  Running astar tagger." << std::endl;
           BMTrackCluster3D astar_track = runAStarTagger( passcfg, pts_a, pts_b, img_v, badchimg_v, astar_result );
-	  tracked = true;
+          tracked = true;
           if ( astar_result.isgood ) {
             if ( m_config.verbosity>1 ) std::cout << "  Result is good." << std::endl;
             std::swap(track3d,astar_track);
@@ -192,8 +208,8 @@ namespace larlitecv {
           }
         }
 
-	if ( tracked )
-	  num_tracked++;
+        if ( tracked )
+          num_tracked++;
 
         // run bezier fitter (doesn't exist yet. write this?)
 
@@ -220,7 +236,7 @@ namespace larlitecv {
 		<< " number of indice pairs: " << pass_end_indices.size()
 		<< std::endl;
     }
-    
+
 
     // post-process tracks (nothing yet)
     for ( auto &track : pass_track_candidates ) {
@@ -289,27 +305,27 @@ namespace larlitecv {
     std::vector<int> start_cols(m_img_compressed_v.size(),0);
     std::vector<int> start_rows(m_img_compressed_v.size(),0);
     std::vector<int> goal_cols(m_img_compressed_v.size(),0);
-    std::vector<int> goal_rows(m_img_compressed_v.size(),0);    
+    std::vector<int> goal_rows(m_img_compressed_v.size(),0);
     std::vector< const larcv::Pixel2D* > start_pix;
     std::vector< const larcv::Pixel2D* > goal_pix;
 
-    
+
     for (size_t p=0; p<m_img_compressed_v.size(); p++) {
 
       // get start/end point informatio in compressed image
       const larcv::ImageMeta* ptr_meta = &(m_img_compressed_v[p].meta()); // compressed image meta
       const larcv::ImageMeta& meta = img_v[p].meta(); // original image meta
-      
+
       const larlitecv::BoundaryEndPt& start_endpt = pts_a[p];
       start_rows[p] =  ptr_meta->row( meta.pos_y( start_endpt.row ) );
       start_cols[p] =  ptr_meta->col( meta.pos_x( start_endpt.col ) );
       start_pix.push_back( new larcv::Pixel2D( start_endpt.getcol(), start_endpt.getrow() ) );
-      
+
       const larlitecv::BoundaryEndPt& goal_endpt  = pts_b[p];
       goal_rows[p]  =  ptr_meta->row( meta.pos_y( goal_endpt.row ) );
       goal_cols[p]  =  ptr_meta->col( meta.pos_x( goal_endpt.col ) );
-      goal_pix.push_back( new larcv::Pixel2D( goal_endpt.getcol(), goal_endpt.getrow() ) );      
-      
+      goal_pix.push_back( new larcv::Pixel2D( goal_endpt.getcol(), goal_endpt.getrow() ) );
+
       meta_compressed_v.push_back( ptr_meta );
     }
 
@@ -329,15 +345,15 @@ namespace larlitecv {
       result_info.isgood = false;
       result_info.nbad_nodes = -1;
       result_info.total_nodes = -1;
-      std::vector< std::vector<double> > empty_path3d;      
+      std::vector< std::vector<double> > empty_path3d;
       BMTrackCluster3D track3d( pts_a, pts_b, empty_path3d );
       for (int p=0; p<3; p++ ) {
 	delete start_pix.at(p);
 	delete goal_pix.at(p);
-      }    
+      }
       return track3d; // return empty track
     }
-    
+
     result_info.nbad_nodes = 0;
     result_info.total_nodes = 0;
     for ( auto& node : path ) {
@@ -345,19 +361,19 @@ namespace larlitecv {
         result_info.nbad_nodes+=1.0;
       result_info.total_nodes+=1.0;
     }
-    
+
     // if majority are bad ch nodes, reject this track
     result_info.frac_bad = float(result_info.nbad_nodes)/float(result_info.total_nodes);
     if ( result_info.frac_bad>0.5 || result_info.total_nodes<=3)
       result_info.isgood = false;
-    
+
     BMTrackCluster3D track3d = AStarNodes2BMTrackCluster3D( path, img_v, pts_a, pts_b, 0.3 );
-    
+
     for (int p=0; p<3; p++ ) {
       delete start_pix.at(p);
       delete goal_pix.at(p);
-    }    
-    
+    }
+
     return track3d;
   }
 
