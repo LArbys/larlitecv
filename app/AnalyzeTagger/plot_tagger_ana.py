@@ -1,11 +1,17 @@
 import os,sys
 import ROOT as rt
 
+if len(sys.argv)!=2:
+    print "usage: python plot_tagger_ana.py [pixel analysis root file]"
+    print "this root file is made using run_pixel_analysis"
+    sys.exit(-1)
+
 rt.gStyle.SetOptStat(0)
 
 #rfile = rt.TFile("output_pixel_analysis.root")
 #rfile = rt.TFile("output_pixel_analysis_rerunpad20.root")
-rfile = rt.TFile("pixana_extbnb.root")
+#rfile = rt.TFile("pixana_extbnb.root")
+rfile = rt.TFile(sys.argv[1])
 
 tree = rfile.Get("pixana")
 
