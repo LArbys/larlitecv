@@ -10,6 +10,8 @@ namespace larlitecv {
     min_hit_width = 1;
     segment_frac_w_charge = 0.5;
     radius_reduction_factor = 0.5;
+    min_cosine = 0.0;
+    max_steps = 10000;
   }
 
   FoxTrotTrackerAlgoConfig FoxTrotTrackerAlgoConfig::makeFromPSet( const larcv::PSet& pset ) {
@@ -20,6 +22,8 @@ namespace larlitecv {
     cfg.min_hit_width = pset.get<int>("SegmentMinHitWidth");
     cfg.segment_frac_w_charge = pset.get<float>("SegmentFractionWithCharge");
     cfg.radius_reduction_factor = pset.get<float>("StepReductionFactor");
+    cfg.min_cosine = pset.get<float>("MinCosine");
+    cfg.max_steps = pset.get<int>("MaxSteps");
     return cfg;
   }
 

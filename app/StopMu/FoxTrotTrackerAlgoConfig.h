@@ -17,6 +17,8 @@ namespace larlitecv {
     int min_hit_width;
     float segment_frac_w_charge;
     float radius_reduction_factor;
+    float min_cosine;
+    int max_steps;
 
     static FoxTrotTrackerAlgoConfig makeFromPSet( const larcv::PSet& pset );
 

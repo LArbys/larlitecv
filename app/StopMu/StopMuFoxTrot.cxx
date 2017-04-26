@@ -44,12 +44,24 @@ namespace larlitecv {
       // pop the end
       ft.pop_back();
 
-      std::vector< std::vector<double> > path3d( ft.size() );
-      for ( auto& pos3d : path3d )
-	path3d.emplace_back( std::move(pos3d) );
-
+      std::vector< std::vector<double> > path3d;
+      path3d.reserve( ft.size() );
+      
+      for ( auto& foxstep : ft ) {
+	if ( !foxstep.isgood() )
+	  continue;
+	std::vector<double> posd(foxstep.pos().size(),0);
+	std::cout << "posd: (";
+	for (int i=0; i<(int)foxstep.pos().size(); i++) {
+	  posd[i] = foxstep.pos()[i];
+	  std::cout << posd[i] << " ";
+	}
+	std::cout << ")" << std::endl;
+	path3d.push_back( posd );
+      }
+      
       BMTrackCluster3D track3d( startpt, endpt, path3d );
-
+      std::cout << "Stopmu foxtrot track has " << path3d.size() << " steps" << std::endl;
       track3d_v.emplace_back( std::move(track3d) );
     }
 

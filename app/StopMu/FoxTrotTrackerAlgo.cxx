@@ -45,14 +45,14 @@ namespace larlitecv {
 
     FoxStep firststep( start.pos(), firstdir );
     track.push_back( firststep );
-    std::cout << "start of fox track: (" << firststep.pos()[0] << "," << firststep.pos()[1] << "," <<  firststep.pos()[2] << ")" << std::endl;
+    //std::cout << "start of fox track: (" << firststep.pos()[0] << "," << firststep.pos()[1] << "," <<  firststep.pos()[2] << ")" << std::endl;
     float min_dcos = -1.0;
     do {
       if ( track.size()>0 )
-	min_dcos = 0.5;
+	min_dcos = m_config.min_cosine;
       FoxStep next = getNextStep( track.back(), img_v, badch_v, min_dcos );
-      if ( next.isgood() )
-	std::cout << "next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") good=" << next.isgood() << std::endl;
+      //if ( next.isgood() )
+      //std::cout << "next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") good=" << next.isgood() << std::endl;
       track.emplace_back( std::move(next) );
     } while ( track.back().isgood() && track.size()<100 );
 
@@ -75,7 +75,7 @@ namespace larlitecv {
 
       std::vector< Segment3D_t > candidate_segs = m_radialalgo.find3Dsegments( img_v, badch_v, current.pos(), current_radius, m_config.pixel_thresholds,
 									       m_config.min_hit_width, m_config.segment_frac_w_charge );
-      std::cout << "attempt=" << iattempt << " numsegs=" << candidate_segs.size() << std::endl;
+      //std::cout << "attempt=" << iattempt << " numsegs=" << candidate_segs.size() << std::endl;
       //if ( candidate_segs.size()>2 )
       //continue;
       int ibest = -1;
@@ -115,7 +115,7 @@ namespace larlitecv {
           cosseg += canddir[v]*current.dir()[v];
         }
         float dcos = cosseg;
-	std::cout << "  seg " << iseg << " dcos=" << dcos << std::endl;
+	//std::cout << "  seg " << iseg << " dcos=" << dcos << std::endl;
         if ( dcos >min_dcos ) {
 	  if ( dcos>bestdcos || ibest<0 ) {
 	    ibest = iseg;
@@ -138,7 +138,7 @@ namespace larlitecv {
     
     /// no step :(. Return empty step.
     FoxStep empty;
-    std::cout << "return empty" << std::endl;
+    //std::cout << "return empty" << std::endl;
     return empty;
 
   }
