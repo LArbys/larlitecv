@@ -729,7 +729,7 @@ namespace larlitecv {
     std::vector<double> dummy(32,0.);
 
     larlite::event_opflash* faux_flash_front = new larlite::event_opflash;
-    larlite::opflash img_begin( 2415.0, 0, 0, 0, dummy );    
+    larlite::opflash img_begin( 2460.0, 0, 0, 0, dummy );    
     faux_flash_front->emplace_back( img_begin );
     std::vector< larlite::event_opflash* > faux_flash_front_v;    
     faux_flash_front_v.push_back( faux_flash_front );
@@ -737,7 +737,7 @@ namespace larlitecv {
     bool results = flashMatchTrackEnds( faux_flash_front_v, tpc_imgs, badch_imgs, trackendpts );
 
     larlite::event_opflash* faux_flash_back = new larlite::event_opflash;        
-    larlite::opflash img_end( 2400.0+6048-36, 0, 0, 0, dummy ); // make this config pars
+    larlite::opflash img_end( 2400.0+6048-60.0, 0, 0, 0, dummy ); // make this config pars
     faux_flash_back->emplace_back( img_end );
     std::vector< larlite::event_opflash* > faux_flash_back_v;    
     faux_flash_back_v.push_back( faux_flash_back );
@@ -861,9 +861,9 @@ namespace larlitecv {
     else if ( point_type==larlitecv::kImageEnd ) {
       // for image ends, if we are near the bottom of the rows, we go up. if the near top, go down.
       if ( row_target>(int)tpc_imgs.front().meta().rows()/2 )
-	row_b -= row_gap_size;
+	row_b -= 30;
       else
-	row_b += row_gap_size;
+	row_b += 30;
     }
 
     // Use ssegment3d algo to get us 3D segments in this time neighborhood
@@ -939,12 +939,13 @@ namespace larlitecv {
 
       PointInfoList extension_info = linearalgo.pointsOnTrack( tpc_imgs, badch_imgs, initpt, finpt, 0.3, 10.0, 3 );
       bool inmiddle = true;
+      
+      if ( extension_info.fractionHasChargeOnMajorityOfPlanes()<0.5 || point_type==larlitecv::kImageEnd )
+	inmiddle = false;
 
       if ( fConfig.verbosity>0 )
-	std::cout << " segment majfrac=" << extension_info.fractionHasChargeOnMajorityOfPlanes() << std::endl;
+	std::cout << " segment extension majfrac=" << extension_info.fractionHasChargeOnMajorityOfPlanes() << std::endl;
       
-      if ( extension_info.fractionHasChargeOnMajorityOfPlanes()<0.5 )
-	inmiddle = false;
       
       if ( pos_matches && !inmiddle ) {
 	//make the boundary spacepoint object
