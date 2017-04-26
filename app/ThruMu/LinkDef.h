@@ -37,6 +37,8 @@
 #pragma link C++ class larlitecv::RadialEndpointFilterConfig+;
 #pragma link C++ class larlitecv::RadialEndpointFilter+;
 
+#pragma link C++ function larlitecv::Pixel2SpacePoint;
+
 //#pragma link C++ class larlitecv::BezierCurve+;
 
 
