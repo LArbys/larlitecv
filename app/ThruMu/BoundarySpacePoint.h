@@ -29,16 +29,16 @@ namespace larlitecv {
   BoundarySpacePoint()
     : boundary_type( kUndefined ) {
       m_pos.resize(3,0);
-      m_dir.resize(3,0);      
+      m_dir.resize(3,0);
       m_empty=true;
     }; // default
   BoundarySpacePoint( BoundaryEnd_t type )
     : boundary_type(type) {
       m_pos.resize(3,0);
-      m_dir.resize(3,0);      
+      m_dir.resize(3,0);
       m_empty=true;
     }; // default with type
-    
+
 #ifndef __CINT__
 #ifndef __CLING__
     // move constructor
@@ -48,7 +48,7 @@ namespace larlitecv {
       m_empty = false;
       setup(meta);
     };
-    
+
     // move constructor
     BoundarySpacePoint( BoundaryEnd_t type, std::vector<BoundaryEndPt>&& endpts, float x, float y, float z  )  // type and endpt vector and 3D poosition
       : std::vector<BoundaryEndPt>(std::move(endpts)) {
@@ -58,7 +58,7 @@ namespace larlitecv {
     m_pos[0] = x;
     m_pos[1] = y;
     m_pos[2] = z;
-    m_empty = false;    
+    m_empty = false;
   };
 #endif
 #endif
