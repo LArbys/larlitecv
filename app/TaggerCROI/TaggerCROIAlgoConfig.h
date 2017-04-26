@@ -10,6 +10,7 @@
 #include "ThruMu/ThruMuTrackerConfig.h"
 #include "StopMu/StopMuFilterSpacePoints.h"
 #include "StopMu/StopMuClusterConfig.h"
+#include "StopMu/StopMuFoxTrotConfig.h"
 #include "UntaggedClustering/ClusterGroupAlgo.h"
 #include "ContainedROI/TaggerFlashMatchAlgoConfig.h"
 
@@ -25,6 +26,7 @@ namespace larlitecv {
     ThruMuTrackerConfig           thrumu_tracker_cfg;
     StopMuFilterSpacePointsConfig stopmu_filterpts_cfg;
     StopMuClusterConfig           stopmu_cluster_cfg;
+    StopMuFoxTrotConfig           stopmu_foxtrot_cfg;
     ClusterGroupAlgoConfig        untagged_cluster_cfg;
     TaggerFlashMatchAlgoConfig    croi_selection_cfg;
 

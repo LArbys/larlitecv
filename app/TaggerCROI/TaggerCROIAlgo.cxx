@@ -20,6 +20,7 @@
 #include "ThruMu/ThruMuTracker.h"
 #include "StopMu/StopMuFilterSpacePoints.h"
 #include "StopMu/StopMuCluster.h"
+#include "StopMu/StopMuFoxTrot.h"
 #include "UntaggedClustering/ClusterGroupAlgo.h"
 #include "UntaggedClustering/ClusterGroupMatchingAlgo.h"
 #include "ContainedROI/TaggerFlashMatchAlgo.h"
@@ -161,6 +162,8 @@ namespace larlitecv {
     // Algos
     larlitecv::StopMuFilterSpacePoints stopmu_filterpts( m_config.stopmu_filterpts_cfg );
     larlitecv::StopMuCluster           stopmu_cluster( m_config.stopmu_cluster_cfg );
+    larlitecv::StopMuFoxTrot           stopmu_foxtrot( m_config.stopmu_foxtrot_cfg );
+    
     if ( m_config.stopmu_cluster_cfg.save_pass_images || m_config.stopmu_cluster_cfg.dump_tagged_images  ) {
       std::stringstream ss;
       ss << "smc_r" << input.run << "_s" << input.subrun << "_e" << input.event << "_i" << input.entry;
@@ -200,7 +203,10 @@ namespace larlitecv {
     output.stopmu_candidate_endpt_v = stopmu_filterpts.filterSpacePoints( unused_spacepoints, thrumu.tagged_v, input.badch_v );
     std::cout << "  Number of candidate stop-mu start points: " << output.stopmu_candidate_endpt_v.size() << std::endl;
 
-    output.stopmu_trackcluster_v = stopmu_cluster.findStopMuTracks( input.img_v, input.gapch_v, thrumu.tagged_v, output.stopmu_candidate_endpt_v );
+    std::clock_t timer = std::clock();
+    //output.stopmu_trackcluster_v = stopmu_cluster.findStopMuTracks( input.img_v, input.gapch_v, thrumu.tagged_v, output.stopmu_candidate_endpt_v );    
+    output.stopmu_trackcluster_v = stopmu_foxtrot.findStopMuTracks( input.img_v, input.gapch_v, thrumu.tagged_v, thrumu.unused_spacepoint_v );
+    m_time_tracker[kStopMuTracker] = ( std::clock()-timer )/(double)CLOCKS_PER_SEC;
     std::cout << "  Number of candidate StopMu tracks: " << output.stopmu_trackcluster_v.size() << std::endl;
 
     // make stopmu-tagged image
@@ -210,15 +216,18 @@ namespace larlitecv {
       output.stopmu_v.emplace_back( std::move(stopmu_img) );
     }
     for ( size_t itrack=0; itrack<output.stopmu_trackcluster_v.size(); itrack++ ) {
-      const larlitecv::BMTrackCluster3D& track3d = output.stopmu_trackcluster_v.at(itrack);
-      for (size_t p=0; p<output.stopmu_v.size(); p++) {
-        const larcv::Pixel2DCluster& trackpixs = track3d.plane_pixels.at(p);
+      larlitecv::BMTrackCluster3D& track3d = output.stopmu_trackcluster_v.at(itrack);
+      std::vector<larcv::Pixel2DCluster> trackpix_v = track3d.getTrackPixelsFromImages( input.img_v, input.gapch_v,
+											m_config.stopmu_foxtrot_cfg.foxtrotalgo_cfg.pixel_thresholds,
+											m_config.thrumu_tracker_cfg.tag_neighborhood,
+											true, 0.3 );
+      for (size_t p=0; p<trackpix_v.size(); p++) {
+        const larcv::Pixel2DCluster& trackpixs = trackpix_v[p];
         for ( auto const& pix : trackpixs ) {
           output.stopmu_v.at(p).set_pixel( pix.Y(), pix.X(), 255 );
         }
       }
     }
-
 
     // copy track and pixels into separate containers.
     for ( auto const& bmtrack : output.stopmu_trackcluster_v ) {
@@ -455,7 +464,7 @@ namespace larlitecv {
   }
 
   void TaggerCROIAlgo::printTimeTracker( int num_events ) {
-    const std::string stage_names[] = { "ThruMuConfig", "ThruMuBMT", "ThruMuFlash", "ThruMuTracker", "StopMuCluster", "Untagged", "CROI" };
+    const std::string stage_names[] = { "ThruMuConfig", "ThruMuBMT", "ThruMuFlash", "ThruMuTracker", "StopMuTracker", "Untagged", "CROI" };
     float tot_time = 0.;
     std::cout << "---------------------------------------------------------------" << std::endl;
     std::cout << "TaggerCROIAlgoConfig::printTimeTracker" << std::endl;
