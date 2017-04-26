@@ -145,6 +145,16 @@ namespace larlitecv {
 
         if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
 
+
+	float a2b = 0.;
+	for (int v=0; v<3; v++) {
+	  a2b += (pts_a.pos()[v]-pts_b.pos()[v])*(pts_a.pos()[v]-pts_b.pos()[v]);
+	}
+	a2b = sqrt(a2b);
+
+	if ( a2b<passcfg.min_point_separation )
+	  continue;
+	
         bool use_b = true;
         if ( passcfg.run_radial_filter ) {
           int num_segs_b = 0;

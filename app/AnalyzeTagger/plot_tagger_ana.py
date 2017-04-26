@@ -170,7 +170,7 @@ while bytesread>0:
 
     # fraction of end points tagged
     if tree.true_crossingpoints>0:
-        frac_endpoints = float(tree.tagged_crossingpoints)/float(tree.true_crossingpoints)
+        frac_endpoints = float(tree.tot_matched_crossingpoints)/float(tree.tot_true_crossingpoints)
     else:
         frac_endpoints = 0.
     hendtagged.Fill( frac_endpoints )

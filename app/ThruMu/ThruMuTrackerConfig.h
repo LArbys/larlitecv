@@ -34,6 +34,7 @@ namespace larlitecv {
       bool run_linear_tagger; //< do we run the linearcharge3d algorithm this pass
       bool run_astar_tagger;  //< do we run the astar algorithm this pass
       bool run_radial_filter; //< do we run the radial endpoint filter
+      float min_point_separation;
       int   linear3d_min_tracksize; //< how many steps should the line track have
       float linear3d_min_goodfraction; //< how many of the steps should see charge in all planes
       float linear3d_min_majoritychargefraction; //< how many should see charge in 2/3 planes

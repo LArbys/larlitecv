@@ -100,7 +100,7 @@ namespace larlitecv {
       float substepsize = dist/float(nsubsteps);
       for (int isub=0; isub<=nsubsteps; isub++) {
         Double_t xyz[3] = {0};
-        for (int i=0; i<3; i++) xyz[i] = point[i] + substepsize*dir[i];
+        for (int i=0; i<3; i++) xyz[i] = point[i] + isub*substepsize*dir[i];
         std::vector<float> wires(nplanes);
         bool inplane = true;
         for (int p=0; p<nplanes; p++) {

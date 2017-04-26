@@ -21,6 +21,7 @@ namespace larlitecv {
     passcfg.run_linear_tagger = true;
     passcfg.run_astar_tagger  = true;
     passcfg.run_radial_filter = false;
+    passcfg.min_point_separation = 0.0;
 
     // pars for controlling track acceptance and astar running
     passcfg.linear3d_min_tracksize = 15;
@@ -70,6 +71,7 @@ namespace larlitecv {
       passcfg.run_linear_tagger                   = pass_pset.get<bool>("RunLinearTagger");
       passcfg.run_astar_tagger                    = pass_pset.get<bool>("RunAStarTagger");
       passcfg.run_radial_filter                   = pass_pset.get<bool>("RunRadialFilter");
+      passcfg.min_point_separation                = pass_pset.get<float>("MinPointSeparationcm");
       passcfg.linear3d_min_tracksize              = pass_pset.get<int>("Linear3DMinTrackSize");
       passcfg.linear3d_min_goodfraction           = pass_pset.get<float>("Linear3DMinGoodFraction");
       passcfg.linear3d_min_majoritychargefraction = pass_pset.get<float>("Linear3DMinMajorityChargeFraction");
