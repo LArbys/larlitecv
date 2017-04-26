@@ -15,5 +15,14 @@
 #pragma link C++ class larlitecv::StopMuAlgo+;
 #pragma link C++ class larlitecv::Step3D+;
 #pragma link C++ class larlitecv::StopMuTracker+;
+
+#pragma link C++ class larlitecv::FoxStep+;
+#pragma link C++ class larlitecv::FoxTrack+;
+#pragma link C++ class larlitecv::FoxTrotTrackerAlgoConfig+;
+#pragma link C++ class larlitecv::FoxTrotTrackerAlgo+;
+
+#pragma link C++ class larlitecv::StopMuFoxTrotConfig+;
+#pragma link C++ class larlitecv::StopMuFoxTrot+;
+
 //ADD_NEW_CLASS ... do not change this line
 #endif
