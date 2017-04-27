@@ -17,7 +17,8 @@ except:
 rt.gStyle.SetOptStat(0)
 
 ioman = larcv.IOManager( larcv.IOManager.kREAD );
-ioman.add_in_file( "/mnt/disk1/production/mcc8_test/bnb_nue_intrinsic/larcv_0000_0099.root" );
+#ioman.add_in_file( "/mnt/disk1/production/mcc8_test/bnb_nue_intrinsic/larcv_0000_0099.root" );
+ioman.add_in_file( "~/working/data/larbys/mcc8/nue_signal/larcv_0000_0099.root" );
 ioman.initialize()
 ioman.read_entry(0)
 ev_img      = ioman.get_data( larcv.kProductImage2D,  "tpc" )
@@ -61,9 +62,14 @@ segmentalgo = larlitecv.Segment3DAlgo()
 cathode_adjust = 48.0
 #tick_high = 7550
 #tick_high = 6332
-tick_high = 4566
-tick_high -= cathode_adjust
-tick_low  = tick_high - 60.0
+#tick_high = 4566
+#tick_high -= cathode_adjust
+#tick_low  = tick_high - 60.0
+
+# IMAGE EXAMPLE
+tick_high = 2490
+tick_low  = 2460
+
 threshold = 10.0
 hitwidth  = 1
 frac_good = 0.95

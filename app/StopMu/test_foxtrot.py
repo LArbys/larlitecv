@@ -102,8 +102,9 @@ for c in range(meta.cols()):
 # SETUP THE ALGO
 cfg = larlitecv.FoxTrotTrackerAlgoConfig();
 cfg.segment_radius = 8.0
-cfg.segment_frac_w_charge = 0.8
-cfg.num_step_attempts = 3
+cfg.segment_frac_w_charge = 0.5
+cfg.num_step_attempts = 4
+cfg.verbosity = 3
 
 foxalgo = larlitecv.FoxTrotTrackerAlgo( cfg )
 
@@ -116,11 +117,11 @@ typedict = { "topspacepts": larlitecv.kTop,
 for boundary in ["topspacepts","botspacepts","anodepts","cathodepts"]:
   npts = ev_boundary_pts[boundary].Pixel2DArray(0).size()
 
-  if boundary not in ["anodepts"]:
+  if boundary not in ["botspacepts"]:
      continue
 
   for endptid in range(npts):
-    if endptid not in [5]:
+    if endptid not in [4]:
       continue
 
     # reconstitute boundary space point

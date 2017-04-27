@@ -38,7 +38,7 @@ namespace larlitecv {
       wire = ( wire<0 ) ? 0 : wire;
       wire = (wire>=meta.max_x()) ? meta.max_x()-1 : wire;
       wire = (int)meta.col(wire);
-      
+
       if ( colbounds[0]<0 || colbounds[0]>wire )
 	colbounds[0] = wire;
       if ( colbounds[1]<0 || colbounds[1]<wire )
@@ -48,7 +48,7 @@ namespace larlitecv {
     float tick = pos3d[0]/(larutil::LArProperties::GetME()->DriftVelocity()*0.5)+3200.0;
     int row = meta.row( tick );
     int rowradius = radius/(larutil::LArProperties::GetME()->DriftVelocity()*0.5)/meta.pixel_height();
-    
+
     // first define a bounding box
     std::vector<int> lowleft(2);
     lowleft[0] = colbounds[0];
@@ -60,7 +60,7 @@ namespace larlitecv {
     upright[1] = ( upright[1]>=(int)meta.rows() ) ? (int)meta.rows()-1 : upright[1];
 
     //std::cout << "made pixel box: upright(" << upright[0] << "," << upright[1] << ") to lowerleft(" << lowleft[0] << "," << lowleft[1] << ")" << std::endl;
-    
+
     std::vector< larcv::Pixel2D > pixelring;
     // make a box of pixels
     for (int c=colbounds[0]; c<=colbounds[1]; c++) {
@@ -83,7 +83,7 @@ namespace larlitecv {
       pix.Intensity( img.pixel(r,colbounds[0]) );
       pixelring.push_back( pix );
     }
-    
+
     // loop through and look for pixel spikes
     int idx_start = -1; // pixelering rings
 
@@ -104,14 +104,14 @@ namespace larlitecv {
     if ( idx_start<0 ) {
       // everything is above threshold...
       std::vector< larlitecv::RadialHit_t > empty;
-      return empty;      
+      return empty;
     }
 
     // now we loop around the ring, finding hits in a very simple manner
     int idx = idx_start+1;
 
     std::vector< larlitecv::RadialHit_t> hitlist;
-    
+
     bool inhit = false;
     bool loopedaround = false;
     while ( idx!=idx_start ) {
@@ -141,7 +141,7 @@ namespace larlitecv {
 	    hitlist.back().set_end( idx-1 );
 	  else
 	    hitlist.back().set_end( idx-1+(int)pixelring.size() );
-	  
+
 	  inhit = false;
 	  //std::cout << "end hit at " << idx << " of " << pixelring.size() << std::endl;
 	}
@@ -166,7 +166,8 @@ namespace larlitecv {
   }
 
   std::vector< Segment2D_t > RadialSegmentSearch::make2Dsegments( const larcv::Image2D& img, const larcv::Image2D& badch, const std::vector<RadialHit_t>& hitlist,
-								  const std::vector<float>& pos3d, const float threshold, const int min_hit_width, const float frac_w_charges ) {
+								  const std::vector<float>& pos3d, const float threshold, const int min_hit_width,
+								  const float frac_w_charges, const int verbosity ) {
 
     const int p = img.meta().plane();
     std::vector<int> img_coords = larcv::UBWireTool::getProjectedImagePixel( pos3d, img.meta(), 3 );
@@ -178,37 +179,39 @@ namespace larlitecv {
       //std::cout << "max idx=" << radhit.max_idx << std::endl;
       const larcv::Pixel2D& pix = radhit.pixlist.at( radhit.max_idx );
       if ( img_coords[0] < (int) pix.Y() ) {
-	seg2d.row_high = (int)pix.Y();
-	seg2d.col_high = (int)pix.X();
-	seg2d.row_low  = img_coords[0];
-	seg2d.col_low  = img_coords[p+1];
+        seg2d.row_high = (int)pix.Y();
+        seg2d.col_high = (int)pix.X();
+        seg2d.row_low  = img_coords[0];
+        seg2d.col_low  = img_coords[p+1];
       }
       else {
-	seg2d.row_low  = (int)pix.Y();
-	seg2d.col_low  = (int)pix.X();
-	seg2d.row_high = img_coords[0];
-	seg2d.col_high = img_coords[p+1];
+        seg2d.row_low  = (int)pix.Y();
+        seg2d.col_low  = (int)pix.X();
+        seg2d.row_high = img_coords[0];
+        seg2d.col_high = img_coords[p+1];
       }
       int rows_w_charge = 0;
       int num_rows = 0;
       segalgo.checkSegmentCharge( img, badch, seg2d.row_low, seg2d.col_low, seg2d.row_high, seg2d.col_high, min_hit_width, threshold, rows_w_charge, num_rows );
       float frac = (float)rows_w_charge/(float)num_rows;
       // for debug
-      //std::cout << "radial segment: (" << seg2d.row_low << "," << seg2d.col_low << ") to (" << seg2d.row_high << "," << seg2d.col_high << ") "
-      //<< " frac charge=" << frac << " w/charge=" << rows_w_charge << " nrows=" << num_rows << std::endl;
-      
-      if ( frac > frac_w_charges ) {
-	seg2d_v.emplace_back( std::move(seg2d) );
+      if ( verbosity>2 ) {
+        std::cout << "    radial segment: (" << seg2d.row_low << "," << seg2d.col_low << ") to (" << seg2d.row_high << "," << seg2d.col_high << ") "
+                  << " frac charge=" << frac << " w/charge=" << rows_w_charge << " nrows=" << num_rows << std::endl;
       }
-       
+
+      if ( frac > frac_w_charges ) {
+        seg2d_v.emplace_back( std::move(seg2d) );
+      }
+
     }
-    
+
     return seg2d_v;
   }
 
   std::vector< Segment3D_t > RadialSegmentSearch::find3Dsegments( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
 								  const std::vector<float>& pos3d, const float search_radius, const std::vector<float>& pixel_thresholds,
-								  const int min_hit_width, const float segment_frac_w_charge ) {
+								  const int min_hit_width, const float segment_frac_w_charge, int verbosity ) {
     // check arguments
     if ( img_v.size()!=badch_v.size() || img_v.size()!=pixel_thresholds.size() ) {
       throw std::runtime_error( "number of entries in img_v, badch_v, and/or pixel_thresholds does not match." );
@@ -216,23 +219,72 @@ namespace larlitecv {
     if ( pos3d.size()!=3 )
       throw std::runtime_error( "expected 3D point for pos3d" );
 
-    
+
     // first we find the hits around a 3d box of the 3D point
-    std::vector< std::vector<Segment2D_t > > plane_seg2d;
+    float tick = pos3d[0]/(larutil::LArProperties::GetME()->DriftVelocity()*0.5) + 3200.0;
+    int row = img_v.front().meta().row(tick);
+    if ( verbosity>1 ) {
+      std::cout << "  radialsegsearch -------------" << std::endl;
+      std::vector<double> xyz(3);
+      for (int i=0; i<3; i++)
+        xyz[i] = pos3d[i];
+      std::cout << "    current tick=" << tick << " row=" << row << " wires=(";
+      for (int p=0; p<3; p++) {
+        std::cout << larutil::Geometry::GetME()->WireCoordinate(xyz,p);
+        if (p<2)
+          std::cout << ", ";
+      }
+      std::cout << ")" << std::endl;
+    }
+
+    std::vector< std::vector<Segment2D_t > > plane_seg2d_hi(img_v.size()); // segments that go up in row number (down in ticks)
+    std::vector< std::vector<Segment2D_t > > plane_seg2d_lo(img_v.size()); // segments that go down in row number (up in ticks)
+
     for (size_t p=0; p<img_v.size(); p++) {
       std::vector<RadialHit_t> radhits = findIntersectingChargeClusters( img_v[p], badch_v[p], pos3d, search_radius, pixel_thresholds[p] );
-      //std::cout << "radhits on p=" << p << ": " << radhits.size() << std::endl;
-      std::vector<Segment2D_t> seg2d_v = make2Dsegments( img_v[p], badch_v[p], radhits, pos3d, pixel_thresholds[p], min_hit_width, segment_frac_w_charge );
-      plane_seg2d.emplace_back( std::move(seg2d_v) );
+      if ( verbosity>1 ) {
+        std::cout << "    radhits on p=" << p << ": " << radhits.size() << std::endl;
+        if ( verbosity>2 ) {
+          for (auto const& radhit : radhits ) {
+            std::cout << "      radhit (r,c)=(" << radhit.pixlist[ radhit.max_idx ].Y() << "," << radhit.pixlist[ radhit.max_idx ].X() << ")"
+        	      << " tick=" << img_v[p].meta().pos_y( radhit.pixlist[ radhit.max_idx ].Y() )
+        	      << " val=" << radhit.maxval
+        	      << std::endl;
+          }
+        }
+      }
+      std::vector<Segment2D_t> seg2d_v = make2Dsegments( img_v[p], badch_v[p], radhits, pos3d, pixel_thresholds[p],
+        min_hit_width, segment_frac_w_charge, verbosity );
+
+      // we sort the segments into hi and lo
+      for ( auto& seg2d : seg2d_v ) {
+        if ( seg2d.row_low<row ) {
+          plane_seg2d_lo[p].emplace_back( std::move(seg2d) );
+        }
+        else {
+          plane_seg2d_hi[p].emplace_back( std::move(seg2d) );
+        }
+      }
     }
-    //std::cout << " number of 2d segments: (" << plane_seg2d[0].size() << "," << plane_seg2d[1].size() << "," << plane_seg2d[2].size() << ")" << std::endl;
+    if ( verbosity>1 ) {
+      std::cout << "    number of 2d segments: hi=("
+                << plane_seg2d_hi[0].size()  << ","
+                << plane_seg2d_hi[1].size() << ","
+                << plane_seg2d_hi[2].size() << ") "
+                << "lo=("
+                << plane_seg2d_lo[0].size()  << ","
+                << plane_seg2d_lo[1].size() << ","
+                << plane_seg2d_lo[2].size() << ") "
+                << std::endl;
+    }
 
     // combine into 3D segments
     Segment3DAlgo algo;
     std::vector< Segment3D_t > seg3d_v;
-    algo.combine2Dinto3D( plane_seg2d, img_v, badch_v, min_hit_width, pixel_thresholds, segment_frac_w_charge, seg3d_v );
-    
+    algo.combine2Dinto3D( plane_seg2d_hi, img_v, badch_v, min_hit_width, pixel_thresholds, segment_frac_w_charge, seg3d_v );
+    algo.combine2Dinto3D( plane_seg2d_lo, img_v, badch_v, min_hit_width, pixel_thresholds, segment_frac_w_charge, seg3d_v );
+
     return seg3d_v;
   }
-  
+
 }

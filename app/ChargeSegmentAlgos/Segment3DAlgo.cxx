@@ -141,7 +141,7 @@ namespace larlitecv {
       int pixr = low_row + r;
       int pixc = low_col + slope*r;
       if ( pixr<0 || pixr>=(int)img.meta().rows()) continue;
-      hascharge = false;      
+      hascharge = false;
       for (int dc=-hit_width; dc<=hit_width; dc++) {
 	if ( pixc+dc<0 || pixc+dc>=(int)img.meta().cols() ) continue;
 	if ( img.pixel(pixr,pixc+dc)>threshold || badch.pixel(pixr,pixc+dc)>0) {
@@ -162,6 +162,7 @@ namespace larlitecv {
 				       const int hit_width, const std::vector<float>& thresholds, float good_frac, std::vector<Segment3D_t>& segments ) {
 
     // We get combinations of Segment2D_t and check their 3 plane consistency.
+    // it is assumed that the segments are over the same time interval
 
     struct SegID {
       size_t plane;
@@ -183,7 +184,7 @@ namespace larlitecv {
     }
 
     //std::cout << "Combine2d into 3d" << std::endl;
-    
+
     for (int i=0; i<num_segs; i++) {
       for (int j=i+1; j<num_segs; j++) {
         // don't compare 2D segments on the same plane
@@ -195,10 +196,52 @@ namespace larlitecv {
         const Segment2D_t& seg_a = plane_segments2d.at(idx_a.plane).at(idx_a.idx);
         const Segment2D_t& seg_b = plane_segments2d.at(idx_b.plane).at(idx_b.idx);
 
+        // what regime are we dealing with
+        bool same_high_row = (seg_a.row_high==seg_b.row_high);
+        bool same_low_row  = (seg_a.row_low==seg_b.row_low);
+
         int high_wire_a = img_v.at(idx_a.plane).meta().pos_x( seg_a.col_high );
-        int high_wire_b = img_v.at(idx_b.plane).meta().pos_x( seg_b.col_high );
         int low_wire_a  = img_v.at(idx_a.plane).meta().pos_x( seg_a.col_low );
+        int high_wire_b = img_v.at(idx_b.plane).meta().pos_x( seg_b.col_high );
         int low_wire_b  = img_v.at(idx_b.plane).meta().pos_x( seg_b.col_low );
+        int row_high = seg_a.row_high;
+        int row_low  = seg_a.row_low;
+
+        if ( same_high_row && same_low_row ) {
+          //made in the shade
+          //std::cout << "  same low (" << seg_a.row_low << ") and high (" << seg_a.row_high << ") rows." << std::endl;
+        }
+        else if ( same_high_row ) {
+          // we have to adjust the bottom ends to match at same row
+          //std::cout << "  same high (" << seg_a.row_high << ") rows." << std::endl;
+          int target_row = (seg_a.row_low<seg_b.row_low) ? seg_a.row_low : seg_b.row_low;
+          float dcol_a = (low_wire_a-high_wire_a);
+          float drow_a = (seg_a.row_low-seg_a.row_high);
+          float ftarget_wire_a = ( drow_a!=0 ) ? (dcol_a/drow_a)*fabs(target_row-seg_a.row_high) + high_wire_a : low_wire_a;
+          float dcol_b = (low_wire_b-high_wire_b);
+          float drow_b = (seg_b.row_low-seg_b.row_high);
+          float ftarget_wire_b = ( drow_b!=0 ) ? (dcol_b/drow_b)*fabs(target_row-seg_b.row_high) + high_wire_b : low_wire_b;
+          low_wire_a = ftarget_wire_a;
+          low_wire_b = ftarget_wire_b;
+          row_low = target_row;
+        }
+        else if ( same_low_row ) {
+          // we adjust so that top ends match at same row
+          //std::cout << "  same low (" << seg_a.row_low << ") rows." << std::endl;
+          int target_row = (seg_a.row_high>seg_b.row_high) ? seg_a.row_high : seg_b.row_high;
+          float dcol_a = (high_wire_a-low_wire_a);
+          float drow_a = (seg_a.row_high-seg_a.row_low);
+          float ftarget_wire_a = ( drow_a!=0 ) ? (dcol_a/drow_a)*fabs(target_row-seg_a.row_low) + low_wire_a : high_wire_a;
+          float dcol_b = (high_wire_b-low_wire_b);
+          float drow_b = (seg_b.row_high-seg_b.row_low);
+          float ftarget_wire_b = ( drow_b!=0 ) ? (dcol_b/drow_b)*fabs(target_row-seg_b.row_low) + low_wire_b : high_wire_b;
+          high_wire_a = ftarget_wire_a;
+          high_wire_b = ftarget_wire_b;
+          row_high = target_row;
+        }
+        else {
+          continue;
+        }
 
         std::vector<float> poszy_high;
         int crosses_high = 0;
@@ -206,9 +249,9 @@ namespace larlitecv {
         int otherplane_high = 0;
         larcv::UBWireTool::getMissingWireAndPlane( (int)idx_a.plane, high_wire_a, (int)idx_b.plane, high_wire_b, otherplane_high, otherwire_high, poszy_high, crosses_high );
         if ( crosses_high==0 ) {
-	  //std::cout << "high hit does not cross." << std::endl;	  
+          //std::cout << "    high hit does not cross." << std::endl;
           continue; // these wires don't intersect anywhere
-	}
+        }
 
         std::vector<float> poszy_low;
         int crosses_low = 0;
@@ -216,19 +259,19 @@ namespace larlitecv {
         int otherplane_low = 0;
         larcv::UBWireTool::getMissingWireAndPlane( (int)idx_a.plane, low_wire_a, (int)idx_b.plane, low_wire_b, otherplane_low, otherwire_low, poszy_low, crosses_low );
         if ( crosses_low==0 ) {
-	  //std::cout << "low hit does not cross." << std::endl;
+          //std::cout << "    low hit does not cross." << std::endl;
           continue; // these wires don't intersect anywhere
-	}
+        }
 
         // ok so both wires cross.
         if ( otherwire_high<0 || otherwire_high>=img_v.at(otherplane_high).meta().max_x() ) {
-	  //std::cout << "high is out of bounds" << std::endl;
-	  continue;
-	}
+          //std::cout << "    high is out of bounds" << std::endl;
+          continue;
+        }
         if ( otherwire_low<0 || otherwire_low>=img_v.at(otherplane_low).meta().max_x() ) {
-	  //std::cout << "low is out of bounds" << std::endl;	  
-	  continue;
-	}
+          //std::cout << "     low is out of bounds" << std::endl;
+          continue;
+        }
         // let's check the other plane
         int othercol_high = img_v.at(otherplane_high).meta().col( otherwire_high );
         int othercol_low  = img_v.at(otherplane_low).meta().col( otherwire_low );
@@ -237,42 +280,42 @@ namespace larlitecv {
         int nrows;
         checkSegmentCharge( img_v.at(otherplane_high), badch_v.at(otherplane_high), seg_a.row_low, othercol_low, seg_a.row_high, othercol_high,
 			    hit_width, thresholds.at(otherplane_high), nrows_w_charge, nrows );
-	//std::cout << "combo(" << i << "," << j << ") nrows=" << nrows << " frac=" << float(nrows_w_charge)/nrows << std::endl;
+        //std::cout << "combo(" << i << "," << j << ") nrows=" << nrows << " frac=" << float(nrows_w_charge)/nrows << std::endl;
         if ( nrows>0 && float(nrows_w_charge)/nrows > good_frac ) {
           // make segment3d
-
           Segment3D_t seg3d;
           seg3d.start[1] = poszy_high[1];
           seg3d.start[2] = poszy_high[0];
-          seg3d.start[0] = (img_v.at(otherplane_high).meta().pos_y( seg_a.row_high )-3200.0)*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);
+          seg3d.start[0] = (img_v.at(otherplane_high).meta().pos_y( row_high )-3200.0)*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);
           seg3d.end[1]   = poszy_low[1];
           seg3d.end[2]   = poszy_low[0];
-          seg3d.end[0]   = (img_v.at(otherplane_low).meta().pos_y( seg_a.row_low )-3200.0)*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);
+          seg3d.end[0]   = (img_v.at(otherplane_low).meta().pos_y(  row_low )-3200.0)*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);
 
-	  // check it's not repeating
-	  bool isduplicate = false;
-	  for ( auto const& pastseg : segments ) {
-	    float dist_hi = 0.;
-	    float dist_lo = 0;
-	    for (int i=0; i<3; i++) {
-	      dist_hi = (seg3d.start[i]-pastseg.start[i])*(seg3d.start[i]-pastseg.start[i]);
-	      dist_lo = (seg3d.end[i]-pastseg.end[i])*(seg3d.end[i]-pastseg.end[i]);	      
-	    }
-	    dist_hi = sqrt(dist_hi);
-	    dist_lo = sqrt(dist_lo);
-	    if ( dist_hi<0.8 && dist_lo<0.8 ) {
-	      isduplicate = true;
-	      break;
-	    }
-	  }
+          // check it's not repeating
+          bool isduplicate = false;
+          for ( auto const& pastseg : segments ) {
+            float dist_hi = 0.;
+            float dist_lo = 0;
+            for (int i=0; i<3; i++) {
+              dist_hi += (seg3d.start[i]-pastseg.start[i])*(seg3d.start[i]-pastseg.start[i]);
+              dist_lo += (seg3d.end[i]-pastseg.end[i])*(seg3d.end[i]-pastseg.end[i]);
+            }
+            dist_hi = sqrt(dist_hi);
+            dist_lo = sqrt(dist_lo);
+            //std::cout << "     dist_hi=" << dist_hi << " dist_lo=" << dist_lo << std::endl;
+            if ( dist_hi<0.8 && dist_lo<0.8 ) {
+              isduplicate = true;
+              break;
+            }
+          }
 
-	  if ( !isduplicate ) {
-	    // std::cout << "Making 3D segment: "
-	    // 	      << " start(" << seg3d.start[0] << "," << seg3d.start[1] << "," << seg3d.start[2] << ") "
-	    // 	      << " end(" << seg3d.end[0] << "," << seg3d.end[1] << "," << seg3d.end[2] << ")"
-	    // 	      << std::endl;
-	    segments.emplace_back( std::move(seg3d) );
-	  }
+          if ( !isduplicate ) {
+            // std::cout << "Making 3D segment: "
+            // 	      << " start(" << seg3d.start[0] << "," << seg3d.start[1] << "," << seg3d.start[2] << ") "
+            // 	      << " end(" << seg3d.end[0] << "," << seg3d.end[1] << "," << seg3d.end[2] << ")"
+            // 	      << std::endl;
+            segments.emplace_back( std::move(seg3d) );
+          }
         }
       }//end of j loop
     }//end of i loop

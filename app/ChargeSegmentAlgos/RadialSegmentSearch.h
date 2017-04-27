@@ -25,12 +25,12 @@ namespace larlitecv {
     std::vector< larlitecv::RadialHit_t > findIntersectingChargeClusters( const larcv::Image2D& img, const larcv::Image2D& badch, const std::vector<float>& pos3d, float radius, float threshold );
 
     std::vector< Segment2D_t > make2Dsegments( const larcv::Image2D& img, const larcv::Image2D& badch, const std::vector<RadialHit_t>& hitlist,
-					       const std::vector<float>& pos3d, const float threshold, const int min_hit_width, const float frac_w_charges );
+					       const std::vector<float>& pos3d, const float threshold, const int min_hit_width, const float frac_w_charges, const int verbosity=0 );
     
 
     std::vector< Segment3D_t > find3Dsegments( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
 					       const std::vector<float>& pos3d, const float search_radius, const std::vector<float>& pixel_thresholds,
-					       const int min_hit_width, const float segment_frac_w_charge );
+					       const int min_hit_width, const float segment_frac_w_charge, int verbosity=0 );
     
 
   };
