@@ -36,7 +36,6 @@ namespace larlitecv {
   }
 
   void DataCoordinator::add_inputfile( std::string file, std::string ftype ) {
-    //if ( user_filepaths.empty() || user_filepaths.find( ftype )==user_filepaths.end() ) {
     if ( user_filepaths.find( ftype )==user_filepaths.end() ) {
       user_filepaths.emplace(ftype, std::vector<std::string>());
     }
@@ -190,7 +189,6 @@ namespace larlitecv {
     // get the 
     std::cout << "Loading larlite pset=" << larlite_cfgname << std::endl;
     larlite_pset = pset_coord.get<larcv::PSet>( larlite_cfgname );
-    //larlite_pset = pset_coord.get_pset( larlite_cfgname );
     std::cout << "Loading larcv pset=" << larcv_cfgname << std::endl;
     larcv_pset   = pset_coord.get<larcv::PSet>( larcv_cfgname );
     

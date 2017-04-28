@@ -40,7 +40,6 @@ namespace larlitecv {
     void configure( std::string cfgfile, 
 		    std::string larlite_cfgname, 
 		    std::string larcv_cfgname, std::string coord_cfgname="DataCoordinator" );
-
     
     // add input files
     void add_inputfile( std::string file, std::string ftype );

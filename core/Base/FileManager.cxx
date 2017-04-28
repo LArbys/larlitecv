@@ -55,6 +55,11 @@ namespace larlitecv {
       return; // no files
 
     std::ifstream infile( fFilelist.c_str() );
+    if ( !infile.good() ) {
+      std::string msg = "FileManager could not open "+fFilelist;
+      throw std::runtime_error(msg);
+    }
+    
     std::string line;
     while (std::getline(infile, line)) {
       if ( line!="" )
