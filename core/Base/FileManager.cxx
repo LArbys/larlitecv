@@ -62,8 +62,15 @@ namespace larlitecv {
     
     std::string line;
     while (std::getline(infile, line)) {
-      if ( line!="" )
+      if ( line!="" ) {
+	std::ifstream test(line.c_str());
+	if ( !test.good() ) {
+	  std::string msg = "FileManager::parse_filelist. "+line+" might not exist.";
+	  throw std::runtime_error(msg);
+	}
+	test.close();
 	flist.push_back(line);
+      }
     }
   }
 
