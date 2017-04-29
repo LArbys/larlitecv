@@ -20,6 +20,11 @@
 #pragma link C++ class larlitecv::RadialHit_t+;
 #pragma link C++ class std::vector<larlitecv::RadialHit_t>+;
 
+#pragma link C++ class larlitecv::FoxStep+;
+#pragma link C++ class larlitecv::FoxTrack+;
+#pragma link C++ class larlitecv::FoxTrotTrackerAlgoConfig+;
+#pragma link C++ class larlitecv::FoxTrotTrackerAlgo+;
+
 //ADD_NEW_CLASS ... do not change this line
 #endif
 
