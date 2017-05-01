@@ -9,10 +9,6 @@
 #include "GeoAlgo.h"
 #include "GeoLineSegment.h"
 
-// Include the 'BMTrackCluster3D' source file so that I can access 'markImageWithTrack' instead of redefining it here.
-#include "BMTrackCluster3D.h"
-
-
 // Include 'math.h' so I will certainly have access to the 'sqrt' functionality that it has.
 #include <math.h>
 

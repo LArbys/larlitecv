@@ -18,7 +18,7 @@ namespace larlitecv {
 	    //std::cout << "fix candidate [" << candidate.end_row << "," << candidate.start_row << " plat_mean=" << candidate.plat_val << "]" << std::endl;
 	    // remove plateau
 	    for ( int r=candidate.end_row; r<=candidate.start_row; r++ ) {
-	      if ( r<0 || r>=hacked.meta().rows() )
+	      if ( r<0 || r>=(int)hacked.meta().rows() )
 		continue;
 	      float val = hacked.pixel(r,c);
 	      val -= 1.3*candidate.plat_val;
@@ -30,7 +30,7 @@ namespace larlitecv {
 	    }
 	    // add hit
 	    for (int r=candidate.pos_peak-1; r<=candidate.pos_peak+1; r++){
-	      if ( r<0 || r>=hacked.meta().rows() )
+	      if ( r<0 || r>=(int)hacked.meta().rows() )
 		continue;
 	      hacked.set_pixel(r,c,80.0);
 	    }

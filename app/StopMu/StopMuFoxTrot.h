@@ -14,11 +14,12 @@
 // larcv
 #include "DataFormat/Image2D.h"
 
-#include "ThruMu/BMTrackCluster3D.h"
-#include "ThruMu/BoundarySpacePoint.h"
+#include "TaggerTypes/BMTrackCluster3D.h"
+#include "TaggerTypes/BoundarySpacePoint.h"
+#include "ChargeSegmentAlgos/FoxTrotTrackerAlgo.h"
 
 #include "StopMuFoxTrotConfig.h"
-#include "FoxTrotTrackerAlgo.h"
+
 
 namespace larlitecv {
 

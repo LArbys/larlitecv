@@ -8,8 +8,8 @@
 #include "DataFormat/Image2D.h"
 
 // larlitecv
-#include "BoundarySpacePoint.h"
-#include "BMTrackCluster3D.h"
+#include "TaggerTypes/BoundarySpacePoint.h"
+#include "TaggerTypes/BMTrackCluster3D.h"
 #include "ThruMuTrackerConfig.h"
 #include "Linear3DChargeTagger.h"
 

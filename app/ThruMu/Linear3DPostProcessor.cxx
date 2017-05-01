@@ -4,8 +4,8 @@
 #include "GeoAlgo.h"
 #include "GeoLineSegment.h"
 
-//larlitecv/app/ThruMu
-#include "BoundarySpacePoint.h"
+//larlitecv/app
+#include "TaggerTypes/BoundarySpacePoint.h"
 
 namespace larlitecv {
 

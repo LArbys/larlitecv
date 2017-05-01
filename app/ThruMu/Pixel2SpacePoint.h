@@ -1,10 +1,11 @@
 #ifndef __PIXEL_2_SPACE_POINT_H__
 #define __PIXEL_2_SPACE_POINT_H__
 
+#include <vector>
 #include "DataFormat/ImageMeta.h"
 #include "DataFormat/Pixel2D.h"
-#include "BoundaryMuonTaggerTypes.h"
-#include "BoundarySpacePoint.h"
+#include "TaggerTypes/BoundaryMuonTaggerTypes.h"
+#include "TaggerTypes/BoundarySpacePoint.h"
 
 namespace larlitecv {
 

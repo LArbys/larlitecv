@@ -17,7 +17,6 @@
 #include "AStar3DAlgo.h"
 #include "Linear3DChargeTagger.h"
 #include "Linear3DPostProcessor.h"
-#include "BoundaryEndPt.h"
 #include "AStarNodes2BMTrackCluster3D.h"
 
 #include "TFile.h"

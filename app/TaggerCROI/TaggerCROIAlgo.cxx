@@ -219,8 +219,7 @@ namespace larlitecv {
       larlitecv::BMTrackCluster3D& track3d = output.stopmu_trackcluster_v.at(itrack);
       std::vector<larcv::Pixel2DCluster> trackpix_v = track3d.getTrackPixelsFromImages( input.img_v, input.gapch_v,
 											m_config.stopmu_foxtrot_cfg.foxtrotalgo_cfg.pixel_thresholds,
-											m_config.thrumu_tracker_cfg.tag_neighborhood,
-											true, 0.3 );
+											m_config.thrumu_tracker_cfg.tag_neighborhood, 0.3 );
       for (size_t p=0; p<trackpix_v.size(); p++) {
         const larcv::Pixel2DCluster& trackpixs = trackpix_v[p];
         for ( auto const& pix : trackpixs ) {

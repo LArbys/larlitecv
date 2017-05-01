@@ -19,7 +19,7 @@
 #include "LArUtil/Geometry.h"
 
 // larlitecv
-#include "ThruMu/BoundaryEndPt.h"
+#include "TaggerTypes/BoundaryEndPt.h"
 #include "ThruMu/Linear3DChargeTagger.h"
 #include "ThruMu/AStarNodes2BMTrackCluster3D.h"
 

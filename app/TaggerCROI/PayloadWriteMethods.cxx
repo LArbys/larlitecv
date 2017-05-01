@@ -122,7 +122,7 @@ namespace larlitecv {
       for (int i3d=0; i3d<(int)data.trackcluster3d_v.size(); i3d++) {
         const larlitecv::BMTrackCluster3D& track3d = data.trackcluster3d_v.at(i3d);
         std::vector< larcv::Pixel2DCluster > trackcluster2d = track3d.getTrackPixelsFromImages( input.img_v, input.badch_v,
-          config.thrumu_tracker_cfg.pixel_threshold, config.thrumu_tracker_cfg.tag_neighborhood, true, 0.3 );
+          config.thrumu_tracker_cfg.pixel_threshold, config.thrumu_tracker_cfg.tag_neighborhood, 0.3 );
         for (int p=0; p<3; p++) {
           ev_tracks2d->Append( (larcv::PlaneID_t)p, trackcluster2d.at(p), input.img_v.at(p).meta() );
         }
@@ -182,8 +182,7 @@ namespace larlitecv {
         const larlitecv::BMTrackCluster3D& track3d = data.stopmu_trackcluster_v.at(itrack);
         std::vector< larcv::Pixel2DCluster > trackpixs_v = track3d.getTrackPixelsFromImages( input.img_v, input.badch_v,
 											     config.thrumu_tracker_cfg.pixel_threshold,
-											     config.thrumu_tracker_cfg.tag_neighborhood, true,
-											     0.3 );
+											     config.thrumu_tracker_cfg.tag_neighborhood, 0.3 );
         for (size_t p=0; p<trackpixs_v.size(); p++) {
           ev_stopmupixels->Append( (larcv::PlaneID_t)p, trackpixs_v.at(p), data.stopmu_v.at(p).meta() );
         }

@@ -4,7 +4,7 @@
 // larcv
 #include "Base/PSet.h"
 
-#include "FoxTrotTrackerAlgoConfig.h"
+#include "ChargeSegmentAlgos/FoxTrotTrackerAlgoConfig.h"
 
 namespace larlitecv {
 

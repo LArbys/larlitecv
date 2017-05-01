@@ -12,14 +12,14 @@
 #include "UBWireTool/WireData.h"
 
 // BMT
-#include "BoundaryMuonTaggerTypes.h"
+#include "TaggerTypes/BoundaryMuonTaggerTypes.h"
+#include "TaggerTypes/BoundaryEndPt.h"
+#include "TaggerTypes/BoundarySpacePoint.h"
+#include "TaggerTypes/BMTrackCluster3D.h"
+
 #include "BoundaryMuonTaggerAlgoConfig.h"
 #include "BoundaryMatchArrays.h"
 #include "BoundaryMatchAlgo.h"
-#include "BoundarySpacePoint.h"
-#include "BoundaryEndPt.h"
-#include "BMTrackCluster2D.h"
-#include "BMTrackCluster3D.h"
 
 namespace larlitecv {
 

@@ -7,7 +7,7 @@
 #include "UBWireTool/UBWireTool.h"
 
 // larlitecv
-#include "BoundaryEndPt.h"
+#include "TaggerTypes/BoundaryEndPt.h"
 
 namespace larlitecv {
 

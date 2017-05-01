@@ -1,7 +1,7 @@
 #
 # This is an example GNUmakefile for my packages
 #
-PACKAGE_NAME = ChargeSegmentAlgos
+PACKAGE_NAME = TaggerTypes
 
 # specific names for this package
 SOURCES = $(wildcard *.cxx)
@@ -11,10 +11,11 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 #HEADERS += IOManager.inl
 
 # include options for this package
+INCFLAGS  = -g -I.                       #Include itself
 INCFLAGS += $(shell larcv-config --includes) 
+INCFLAGS += $(shell larcv-config --includes)/../app
 INCFLAGS += $(shell larlite-config --includes) 
 INCFLAGS += $(shell larlitecv-config --includes)
-INCFLAGS += -g -I.                       
 
 # platform-specific options
 OSNAME          = $(shell uname -s)

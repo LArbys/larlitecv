@@ -24,7 +24,7 @@
 #include "GeoLineSegment.h"
 
 // larlitecv/app/Thrumu
-#include "BMTrackCluster3D.h"
+#include "TaggerTypes/BMTrackCluster3D.h"
 
 namespace larlitecv {
 

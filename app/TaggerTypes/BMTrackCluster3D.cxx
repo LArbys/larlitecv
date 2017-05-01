@@ -56,7 +56,7 @@ namespace larlitecv {
     	throw std::runtime_error("BMTrackCluster3D::markImageWithTrack[error] number of thresholds or neighborhood size does not match number of images.");
     }
 
-    const std::vector<larcv::Pixel2DCluster>& pixels = getTrackPixelsFromImages( imgs, badchimgs, thresholds, neighborhood_size, false, stepsize );
+    const std::vector<larcv::Pixel2DCluster>& pixels = getTrackPixelsFromImages( imgs, badchimgs, thresholds, neighborhood_size, stepsize );
 
     for ( size_t p=0; p<imgs.size(); p++) {
       for ( auto const& pix : pixels.at(p) ) {
@@ -68,12 +68,7 @@ namespace larlitecv {
 
   std::vector<larcv::Pixel2DCluster> BMTrackCluster3D::getTrackPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
 											const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
-											const bool recalc, const float stepsize ) const {
-    // assumes imagemeta is the same here, to cache this.
-    //if ( !recalc && plane_pixels.size()!=imgs.size() )
-    //  return plane_pixels;
-
-    //plane_pixels.clear();
+											const float stepsize ) const {
 
     if ( thresholds.size()!=imgs.size() || neighborhood_size.size()!=imgs.size() ) {
       throw std::runtime_error("BMTrackCluster3D::getTrackPixelsFromImages[error] number of thresholds or neighborhood size does not match number of images.");

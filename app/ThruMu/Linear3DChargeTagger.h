@@ -8,8 +8,8 @@
 #include "Base/PSet.h"
 
 // LArLiteCV
-#include "BMTrackCluster3D.h"
-#include "BoundarySpacePoint.h"
+#include "TaggerTypes/BMTrackCluster3D.h"
+#include "TaggerTypes/BoundarySpacePoint.h"
 
 #include "Linear3DChargeTaggerTypes.h"
 #include "Linear3DChargeTaggerConfig.h"

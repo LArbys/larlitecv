@@ -19,8 +19,8 @@
 #include "DataFormat/Image2D.h"
 
 // larlitecv
-#include "ThruMu/BoundarySpacePoint.h"
-#include "ThruMu/BMTrackCluster3D.h"
+#include "TaggerTypes/BoundarySpacePoint.h"
+#include "TaggerTypes/BMTrackCluster3D.h"
 #include "ContainedROI/TaggerFlashMatchTypes.h"
 #include "UntaggedClustering/ClusterGroupMatchingTypes.h"
 

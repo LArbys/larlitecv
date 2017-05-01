@@ -2,8 +2,8 @@
 #define __ENDPOINT_FILTER__
 
 #include <vector>
-#include "BoundarySpacePoint.h"
-#include "BoundaryEndPt.h"
+#include "TaggerTypes/BoundarySpacePoint.h"
+#include "TaggerTypes/BoundaryEndPt.h"
 
 // LArCV
 #include "DataFormat/Image2D.h"

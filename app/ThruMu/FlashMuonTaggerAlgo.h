@@ -13,9 +13,9 @@
 #include "dbscan/DBSCANAlgo.h"
 
 // larlitecv header
-#include "BoundaryMuonTaggerTypes.h"
-#include "BoundaryEndPt.h"
-#include "BoundarySpacePoint.h"
+#include "TaggerTypes/BoundaryMuonTaggerTypes.h"
+#include "TaggerTypes/BoundaryEndPt.h"
+#include "TaggerTypes/BoundarySpacePoint.h"
 #include "FlashMuonTaggerAlgoConfig.h"
 
 namespace larlitecv {
