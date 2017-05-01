@@ -13,6 +13,7 @@ namespace larlitecv {
     void addPath( const std::vector< std::vector<double> >& path );
     void addPath( const std::vector< std::vector<float> >& path );    
 
+    std::vector< T3DCluster > m_tracks;
     
   };
     
