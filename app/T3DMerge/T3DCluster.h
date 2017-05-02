@@ -45,6 +45,7 @@ namespace larlitecv {
     const geoalgo::AABox& getBBox() const { return m_bbox; };
     void reverse();
     void append( const T3DCluster& end );
+    void makePathDir();
 
   };
 
@@ -64,6 +65,7 @@ namespace larlitecv {
     Builder& addPoint( const Point_t& pt );
     Builder& updateBBox();
     Builder& buildDirList();
+    int pathSize() { return path.size(); };
 
     T3DCluster build();
 

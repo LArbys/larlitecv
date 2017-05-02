@@ -12,15 +12,32 @@ namespace larlitecv {
   void T3DCluster::reverse() {
     // we reverse the sequence of path and dir list. BBox should not be affected.
     std::reverse( m_path.begin(), m_path.end() );
-    std::reverse( m_dir.begin(), m_path.end() );
+    makePathDir();
   }
 
   void T3DCluster::append( const T3DCluster& end ) {
     for ( auto const& pt : end.getPath() ) {
       m_path.push_back( pt );
     }
-    for ( auto const& dir : end.getPathDir() ) {
-      m_dir.push_back(dir);
+    makePathDir();
+  }
+  
+  void T3DCluster::makePathDir() {
+    m_dir.clear();
+    m_dir.resize( m_path.size()-1 );
+    for (int idx=0; idx<(int)m_path.size()-1; idx++) {
+      const std::vector<double> here = m_path[idx];
+      const std::vector<double> next = m_path[idx+1];
+      std::vector<double> segdir(3,0);
+      float dist = 0.;
+      for (int i=0; i<3; i++) {
+	segdir[i] = next[i]-here[i];
+	dist += segdir[i]*segdir[i];
+      }
+      dist = sqrt(dist);
+      for (int i=0; i<3; i++)
+	segdir[i] /= dist;
+      m_dir[idx] = segdir;      
     }
   }
 

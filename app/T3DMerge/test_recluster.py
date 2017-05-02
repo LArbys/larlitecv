@@ -6,7 +6,26 @@ from larlitecv import larlitecv
 
 print "TEST RECLUSTER"
 
+config = """Config: {
+  IOManager: {
+    IOMode: 2
+    Verbosity: 1
+    OutFileName: \"test_recluster_larcv.root\"
+  }
+  StorageManager: {
+    IOMode: 2
+    Verbosity: 1
+    OutFileName: \"test_recluster_larlite.root\"
+  }
+}
+"""
+
+fout = open("recluster.cfg",'w')
+print >> fout,config
+fout.close()
+
 datacoord = larlitecv.DataCoordinator()
+datacoord.configure( "recluster.cfg", "StorageManager", "IOManager", "Config" )
 datacoord.add_inputfile( "../TaggerCROI/bin/tagger_anaout_larcv_seg.root",   "larcv" )
 datacoord.add_inputfile( "../TaggerCROI/bin/tagger_anaout_larlite_seg.root", "larlite" )
 datacoord.initialize()
@@ -44,6 +63,16 @@ for ientry in range(nentries):
         recluster_algo.addPath( path )
 
     print "RECLUSTER"
-    recluster_algo.recluster()
+    recluster_tracks = recluster_algo.recluster()
+    print "Number of recluster tracks: ",recluster_tracks.size()
+
+    ev_recluster_out = datacoord.get_larlite_data( larlite.data.kTrack, "recluster3d" )
+    for itrack in range(recluster_tracks.size()):
+        lltrack = larlitecv.T3D2LarliteTrack( recluster_tracks[itrack] )
+        ev_recluster_out.push_back( lltrack )
+    datacoord.save_entry()
+
     
     break
+
+datacoord.finalize()

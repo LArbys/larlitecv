@@ -4,6 +4,8 @@
 #include <vector>
 #include <set>
 
+#include "TRandom3.h"
+
 #include "GeoAlgo/GeoAlgo.h"
 
 #include "T3DCluster.h"
@@ -17,7 +19,7 @@ namespace larlitecv {
 
     void addPath( const std::vector< std::vector<double> >& path );
     void addPath( const std::vector< std::vector<float> >& path );
-    void recluster();
+    std::vector< T3DCluster > recluster();
 
   protected:
 
@@ -33,6 +35,8 @@ namespace larlitecv {
     std::vector< SegmentOverlap_t > getOverlapSegmentsOfBonA( const T3DCluster& tracka, const T3DCluster& trackb, std::vector<int>& overlap_info );    
 
     geoalgo::GeoAlgo m_geoalgo;
+
+    TRandom3 m_rand;
   };
     
   
