@@ -16,7 +16,7 @@ INCFLAGS += $(shell larlitecv-config --includes)
 INCFLAGS += $(shell larcv-config --includes)
 INCFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
 INCFLAGS += $(shell larlite-config --includes)
-INCFLAGS += -I$(LARLITECV_BASEDIR)/UserDev/BasicTool 
+INCFLAGS += -I$(LARLITE_BASEDIR)/UserDev/BasicTool 
 
 # platform-specific options
 OSNAME          = $(shell uname -s)

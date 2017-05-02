@@ -29,9 +29,8 @@ namespace larlitecv {
 
   public:
     class Builder; // we use the builder pattern to make sure this class is built ok
-    
-  protected:
     T3DCluster() {};
+  protected:    
 
     std::vector< Point_t > m_path;
     std::vector< std::vector<double> > m_dir;
