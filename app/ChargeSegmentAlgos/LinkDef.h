@@ -22,6 +22,7 @@
 
 #pragma link C++ class larlitecv::FoxStep+;
 #pragma link C++ class larlitecv::FoxTrack+;
+#pragma link C++ class larlitecv::FoxTrotLeadStraight+;
 #pragma link C++ class larlitecv::FoxTrotTrackerAlgoConfig+;
 #pragma link C++ class larlitecv::FoxTrotTrackerAlgo+;
 
