@@ -13,8 +13,8 @@
 namespace larlitecv {
 
   DataCoordinator::DataCoordinator() 
-    : larlite_pset("larlite_pset","")
-    , larcv_pset("larcv_pset","")
+    : larlite_pset("StorageManager","Verbosity: 02 IOMode: 0")
+    , larcv_pset("IOManager","Verbosity: 02 IOMode: 0")
   {
     fManagerList.clear();
     fManagers.clear();
@@ -97,8 +97,8 @@ namespace larlitecv {
     do_larlite_config( larlite_io, larlite_pset ); // we have to add one for larlite
 
     // get the iomode for larcv/larlite
-    fIOmodes["larcv"] = (int)larcv_pset.get<int>("IOMode");
-    fIOmodes["larlite"] = (int)larlite_pset.get<int>("IOMode");
+    fIOmodes["larcv"] = (int)larcv_pset.get<int>("IOMode",0);
+    fIOmodes["larlite"] = (int)larlite_pset.get<int>("IOMode",0);
 
     // determine if any of the inputs are unused
     larcv_unused = false;
