@@ -23,7 +23,7 @@
 
 namespace larlitecv {
 
-  typedef std::vector<float> Point_t;
+  typedef std::vector<double> Point_t;
   
   class T3DCluster {
 
@@ -32,11 +32,20 @@ namespace larlitecv {
     
   protected:
     T3DCluster() {};
-    T3DCluster( const std::vector<Point_t>& path, const geoalgo::AABox& bbox );
-    virtual ~T3DCluster() {};
 
     std::vector< Point_t > m_path;
+    std::vector< std::vector<double> > m_dir;
     geoalgo::AABox m_bbox;
+
+  public:
+    T3DCluster( const std::vector<Point_t>& path, const std::vector< std::vector<double> >& pathdir, const geoalgo::AABox& bbox );
+    virtual ~T3DCluster() {};
+    
+    const std::vector< Point_t >& getPath() const { return m_path; };
+    const std::vector< std::vector<double>  >& getPathDir() const { return m_dir; };
+    const geoalgo::AABox& getBBox() const { return m_bbox; };
+    void reverse();
+    void append( const T3DCluster& end );
 
   };
 
@@ -45,6 +54,7 @@ namespace larlitecv {
   protected:
     
     std::vector<Point_t> path;
+    std::vector< std::vector<double> > dir;    
     geoalgo::AABox bbox;
     
   public:
@@ -54,8 +64,11 @@ namespace larlitecv {
     Builder& setPath( const std::vector<Point_t>& path );
     Builder& addPoint( const Point_t& pt );
     Builder& updateBBox();
+    Builder& buildDirList();
 
     T3DCluster build();
+
+    void clear();
 
     
   };

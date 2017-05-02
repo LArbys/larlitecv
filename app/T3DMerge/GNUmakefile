@@ -11,11 +11,12 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 #HEADERS += IOManager.inl
 
 # include options for this package
-INCFLAGS += $(shell larcv-config --includes) 
-INCFLAGS += $(shell larlite-config --includes)
-INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool 
+INCFLAGS += -g -I.
 INCFLAGS += $(shell larlitecv-config --includes)
-INCFLAGS += -g -I.                       
+INCFLAGS += $(shell larcv-config --includes)
+INCFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
+INCFLAGS += $(shell larlite-config --includes)
+INCFLAGS += -I$(LARLITECV_BASEDIR)/UserDev/BasicTool 
 
 # platform-specific options
 OSNAME          = $(shell uname -s)
