@@ -10,6 +10,9 @@
 #include "DataFormat/EventImage2D.h"
 #include "DataFormat/EventROI.h"
 
+// larlitecv
+#include "T3DMerge/T3D2LarliteTrack.h"
+
 namespace larlitecv {
 
 	void WriteInputPayload( const InputPayload& data, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
@@ -239,6 +242,26 @@ namespace larlitecv {
             out_untagged_pixels->Append( (larcv::PlaneID_t)p, flashdata.m_pixels.at(p), inputdata.img_v.at(p).meta() );
           }
         }
+      }
+    }
+
+    // store reclustered pixelsx
+    if ( config.croi_write_cfg.get<bool>("WriteReclusteredPixels")) {
+      larcv::EventPixel2D* out_streclustered_pixels = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "streclusteredpixels" );
+      for ( size_t itrack=0; itrack<data.stopthru_reclustered_pixels_v.size(); itrack++) {
+	const std::vector< larcv::Pixel2DCluster >& pixel_v = data.stopthru_reclustered_pixels_v[itrack];
+	for (size_t p=0; p<pixel_v.size(); p++) {
+	  out_streclustered_pixels->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );
+	}
+      }
+    }
+
+    // store reclustered tracks
+    if ( config.croi_write_cfg.get<bool>("WriteReclusteredTracks")) {
+      larlite::event_track* evout_tracks_streclustered = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "streclustered3d" );
+      for ( size_t itrack=0; itrack<data.stopthru_reclustered_v.size(); itrack++) {
+	larlite::track lltrack = larlitecv::T3D2LarliteTrack( data.stopthru_reclustered_v[itrack] );
+	evout_tracks_streclustered->emplace_back( std::move(lltrack) );
       }
     }
 

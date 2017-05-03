@@ -17,9 +17,10 @@ namespace larlitecv {
     Track3DRecluster();
     virtual ~Track3DRecluster() {};
 
+    std::vector< T3DCluster > recluster();
+    
     void addPath( const std::vector< std::vector<double> >& path );
     void addPath( const std::vector< std::vector<float> >& path );
-    std::vector< T3DCluster > recluster();
     bool mergeEnds( T3DCluster& fa, T3DCluster& fb, float max_dist, float min_cos );
     void setVerbosity( int v ) { m_verbosity=v; };
 

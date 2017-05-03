@@ -25,11 +25,11 @@
 
 namespace larlitecv {
 
-  typedef std::vector<double> Point_t;
   
   class T3DCluster {
 
   public:
+    typedef std::vector<double> Point_t;    
     class Builder; // we use the builder pattern to make sure this class is built ok
     T3DCluster() {};
   protected:    
@@ -58,7 +58,6 @@ namespace larlitecv {
     std::vector<larcv::Pixel2DCluster> getPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
 							    const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
 							    const float stepsize );
-						 
   };
 
   class T3DCluster::Builder {

@@ -7,11 +7,11 @@ namespace larlitecv {
   // =============================================================================
   // T3DCluster class
   
-  T3DCluster::T3DCluster( const std::vector<Point_t>& p, const std::vector< std::vector<double> >& pathdir, const geoalgo::AABox& bbox )
+  T3DCluster::T3DCluster( const std::vector<T3DCluster::Point_t>& p, const std::vector< std::vector<double> >& pathdir, const geoalgo::AABox& bbox )
     : m_path(p), m_dir(pathdir), m_bbox(bbox) {
   }
 
-  T3DCluster::T3DCluster( const std::vector<Point_t>& p )
+  T3DCluster::T3DCluster( const std::vector<T3DCluster::Point_t>& p )
     : m_path(p) {
     
     makePathDir();
@@ -25,7 +25,7 @@ namespace larlitecv {
     for (int i=0; i<2; i++) {
       for (int j=0; j<2; j++) {
 	for (int k=0; k<2; k++) {
-	  Point_t corner;
+	  T3DCluster::Point_t corner;
 	  corner.resize(3);
 	  corner[0] = (i==0) ? rhs.m_bbox.Min()[0] : rhs.m_bbox.Max()[0];
 	  corner[1] = (j==0) ? rhs.m_bbox.Min()[1] : rhs.m_bbox.Max()[1];
@@ -44,7 +44,7 @@ namespace larlitecv {
     for (int i=0; i<2; i++) {
       for (int j=0; j<2; j++) {
 	for (int k=0; k<2; k++) {
-	  Point_t corner;
+	  T3DCluster::Point_t corner;
 	  corner.resize(3);
 	  corner[0] = (i==0) ? m_bbox.Min()[0] : m_bbox.Max()[0];
 	  corner[1] = (j==0) ? m_bbox.Min()[1] : m_bbox.Max()[1];
@@ -143,13 +143,13 @@ namespace larlitecv {
     path.clear();
   }
   
-  T3DCluster::Builder& T3DCluster::Builder::setPath( const std::vector<Point_t>& p ) {
+  T3DCluster::Builder& T3DCluster::Builder::setPath( const std::vector<T3DCluster::Point_t>& p ) {
     for ( auto const& pt : p )
       addPoint( pt );
     return *this;
   }
 
-  T3DCluster::Builder& T3DCluster::Builder::addPoint( const Point_t& pt ) {
+  T3DCluster::Builder& T3DCluster::Builder::addPoint( const T3DCluster::Point_t& pt ) {
     if (path.size()==0)
       path.push_back( pt );
     else {

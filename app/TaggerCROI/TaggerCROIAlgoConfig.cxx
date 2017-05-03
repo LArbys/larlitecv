@@ -14,6 +14,7 @@ namespace larlitecv {
       croi_write_cfg(larcv::PSet("croi"))
   {
     run_thrumu_tracker = true;
+    recluster_stop_and_thru = true;
   }
 
   TaggerCROIAlgoConfig TaggerCROIAlgoConfig::makeConfigFromFile( std::string filepath ) {
@@ -46,7 +47,8 @@ namespace larlitecv {
     cfg.croi_selection_cfg   = larlitecv::TaggerFlashMatchAlgoConfig::MakeTaggerFlashMatchAlgoConfigFromPSet( untagged_match_pset );
 
     // run controls
-    cfg.run_thrumu_tracker = tagger_pset.get<bool>("RunThruMuTracker",true);
+    cfg.run_thrumu_tracker      = tagger_pset.get<bool>("RunThruMuTracker",true);
+    cfg.recluster_stop_and_thru = tagger_pset.get<bool>("ReclusterStopAndThruMu",true);
 
     return cfg;
   }

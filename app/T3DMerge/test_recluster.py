@@ -35,7 +35,7 @@ nentries = datacoord.get_nentries("larlite")
 print "NENTRIES: ", nentries
 
 recluster_algo = larlitecv.Track3DRecluster()
-recluster_algo.setVerbosity(3)
+recluster_algo.setVerbosity(0)
 
 thresholds = std.vector("float")(3,10.0)
 neighborhood = std.vector("int")(3,5)

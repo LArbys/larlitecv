@@ -23,6 +23,7 @@
 #include "TaggerTypes/BMTrackCluster3D.h"
 #include "ContainedROI/TaggerFlashMatchTypes.h"
 #include "UntaggedClustering/ClusterGroupMatchingTypes.h"
+#include "T3DMerge/T3DCluster.h"
 
 namespace larlitecv {
 
@@ -119,6 +120,9 @@ namespace larlitecv {
   CROIPayload() : TaggerCROIVPayload("CROI") {};
     virtual ~CROIPayload() {};
 
+    std::vector< larlitecv::T3DCluster > stopthru_reclustered_v;
+    std::vector< std::vector<larcv::Pixel2DCluster> > stopthru_reclustered_pixels_v;
+
     std::vector< larlitecv::PlaneClusterGroups > plane_groups_v;
     std::vector< larlitecv::ChargeVolume > vols_v;
     std::vector< larcv::Image2D > tagged_v;
@@ -134,7 +138,7 @@ namespace larlitecv {
     virtual void saveSpace() {
     };
   };
-
+  
 }
 
 #endif
