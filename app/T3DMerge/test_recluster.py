@@ -36,7 +36,7 @@ print "NENTRIES: ", nentries
 recluster_algo = larlitecv.Track3DRecluster()
 
 for ientry in range(nentries):
-    if ientry not in [0]:
+    if ientry not in [2]:
         continue
     
     datacoord.goto_entry(ientry,"larlite")
@@ -47,8 +47,8 @@ for ientry in range(nentries):
 
     print "StopMu Tracks: ",ev_stopmu_tracks.size()
     print "ThruMu Tracks: ",ev_thrumu_tracks.size()
-    #ntracks = ev_stopmu_tracks.size()+ev_thrumu_tracks.size()
-    ntracks = ev_thrumu_tracks.size()    
+    ntracks = ev_stopmu_tracks.size()+ev_thrumu_tracks.size()
+    #ntracks = ev_thrumu_tracks.size()    
     print "NTRACKS=",ntracks
     
     for itrack in range(ntracks):

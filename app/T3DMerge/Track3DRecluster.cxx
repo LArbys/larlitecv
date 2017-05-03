@@ -70,8 +70,8 @@ namespace larlitecv {
       temp_list.clear();
       std::cout << "RECLUSTER iter=" << iterations << " oldsize=" << old_size << " new size=" << m_tracks.size() << std::endl;
       iterations++;
-      std::cin.get();
-    } while ( reclustered && iterations<200 );
+      //std::cin.get();
+    } while ( reclustered && iterations<2000 );
     
     return m_tracks;
   }
@@ -120,6 +120,8 @@ namespace larlitecv {
     // we check the overlap of track a with track b
     std::vector<int> point_has_overlap_a;
     std::vector< SegmentOverlap_t > segoverlap_a = getOverlapSegmentsOfBonA( trackb, tracka, point_has_overlap_a );
+
+    /*
     std::cout << "reclusterpair::number of segments=" << segoverlap_a.size() << std::endl;
     for ( auto const& seg : segoverlap_a ) {
       std::cout << "segment" << std::endl;
@@ -132,6 +134,7 @@ namespace larlitecv {
     	std::cout << "    idxb=" << idx << ": (" << trackb.getPath()[idx][0]  << "," << trackb.getPath()[idx][1]  << "," << trackb.getPath()[idx][2]  << ")" << std::endl;
       }
     }
+    */
 
     if ( segoverlap_a.size()==0 ) {
       // no meaningful overlap
@@ -161,7 +164,8 @@ namespace larlitecv {
 	  match_max = idx; // easier way to get to the max?
       }
       
-      if ( overlap.indices.size()>overlap.othertrackmatches.size() ) {
+      //if ( overlap.indices.size()>overlap.othertrackmatches.size() ) {
+      if ( tracka.getPath().size()>=tracka.getPath().size() ) {
 	indices_core = overlap.indices;
 	for ( int idx=match_min; idx<=match_max; idx++ )
 	  indices_transfer.push_back(idx);
@@ -258,7 +262,8 @@ namespace larlitecv {
       }//loop over matches to track-b points in track-b segment
 
       std::vector< std::vector<double> > newpath;
-      for (auto const& idx_a : indices_core ) {
+      //for (auto const& idx_a : indices_core ) {
+      for (int idx_a=0; idx_a<(int)core->getPath().size(); idx_a++ ) {
 	(*used_core)[idx_a] = 1;
 	newpath.push_back( core->getPath()[idx_a] );
 	if ( insert_idx_core[idx_a].size()>0 ) {
@@ -277,6 +282,19 @@ namespace larlitecv {
       init_fragments_v.emplace_back( std::move(t3d) );
       
     }// loop over segments
+
+
+    std::cout << "TRACK A" << std::endl;
+    for ( int i=0; i<(int)tracka.getPath().size(); i++ ) {
+      std::cout << "  [" << i << "] : (" << tracka.getPath()[i][0]  << "," << tracka.getPath()[i][1]  << "," << tracka.getPath()[i][2]  << ")"
+		<< " used=" << useda[i] << std::endl;      
+    }
+    std::cout << "TRACK B" << std::endl;
+    for ( int i=0; i<(int)trackb.getPath().size(); i++ ) {
+      std::cout << "  [" << i << "] : (" << trackb.getPath()[i][0]  << "," << trackb.getPath()[i][1]  << "," << trackb.getPath()[i][2]  << ")"
+		<< " used=" << usedb[i] << std::endl;	
+    }
+    
 
     // build track out of unused points
     bool inseg = false;
@@ -302,7 +320,13 @@ namespace larlitecv {
 	}
       }
     }
+    if ( inseg ) {
+      // end it
+      init_fragments_v.push_back( builder.build() );
+      inseg = false;
+    }
 
+    inseg = false;
     for (int idx_b=0; idx_b<(int)usedb.size(); idx_b++) {
 
       if ( !inseg ) {
@@ -317,10 +341,14 @@ namespace larlitecv {
 	  builder.addPoint( trackb.getPath()[idx_b] );
 	else {
 	  inseg = false;
-	  std::cout << "short seg from B @ idx=" << idx_b << std::endl;	  
 	  init_fragments_v.push_back( builder.build() );
 	}
       }
+    }
+    if ( inseg ) {
+      // end it
+      init_fragments_v.push_back( builder.build() );
+      inseg = false;
     }
 
     std::cout << "Fragments: " << init_fragments_v.size() << std::endl;
@@ -364,7 +392,8 @@ namespace larlitecv {
 	  T3DCluster& fb = *(fragment_list[frag_b]);
 	  if ( fb.getPath().size()<2 )
 	    continue;
-	  
+
+	  /*
 	  // compare end points and their direction
 	  float dist2[4]  = {0};
 	  float cosend[4] = {0};
@@ -425,6 +454,10 @@ namespace larlitecv {
 	    }
 	    performed_merge = true;
 	  }//end of if merger condition passes
+	  */
+	  
+	  performed_merge = mergeEnds( fa, fb, 3.0, 0.0 );
+	  temp_fraglist.push_back( fragment_list[frag_a] );
 	  
 	  if ( performed_merge ) {
 	    // we need to stop the merger loop, but first we store in the other fragments
@@ -438,13 +471,14 @@ namespace larlitecv {
 	}//end of loop over frag_b
       }//end of loop over frag_a
 
-
       std::cout << "merger iterations = " << merger_iterations << " fraglist=" << fragment_list.size() << " templist=" << temp_fraglist.size() << std::endl;
       if ( performed_merge ) {
 	// clear out the fragmentlist and fill it with the new one
 	fragment_list.clear();
-	for ( auto& pfrag : temp_fraglist )
-	  fragment_list.push_back( pfrag );
+	for ( auto& pfrag : temp_fraglist ) {
+	  if ( pfrag->getPath().size()>=2 )
+	    fragment_list.push_back( pfrag );
+	}
       }
       merger_iterations++;
     }//end of merger loop
@@ -481,7 +515,7 @@ namespace larlitecv {
     bool inseg = false;
     for ( int idx_b=0; idx_b<(int)trackb.getPath().size(); idx_b++ ) {
       auto const& pt = trackb.getPath()[idx_b];
-      std::vector<int> matched_idx_a = anne_a.regionQuery( pt, 5.0, 0.0 );
+      std::vector<int> matched_idx_a = anne_a.regionQuery( pt, 10.0, 0.0 );
       bool overlaps = false;
       if ( matched_idx_a.size()>0 ) {
 	overlap_info[idx_b] = 1;
@@ -519,6 +553,78 @@ namespace larlitecv {
     ann::ANNAlgo::cleanup();
 
     return segments;
+  }
+
+  bool Track3DRecluster::mergeEnds( T3DCluster& fa, T3DCluster& fb, float max_dist, float min_cos ) {
+
+    enum EndPair_t { kStartStart=0, kStartEnd, kEndStart, kEndEnd };
+    
+    bool performed_merge = false;
+    if ( fa.getPath().size()<2 )
+      return performed_merge;
+	  
+    if ( fb.getPath().size()<2 )
+      return performed_merge;
+	  
+    // compare end points and their direction
+    float dist2[4]  = {0};
+    float cosend[4] = {0};
+	  
+    for (int i=0; i<3; i++) {
+      // distance
+      dist2[kStartStart] += ( fa.getPath().front()[i] - fb.getPath().front()[i] )*( fa.getPath().front()[i] - fb.getPath().front()[i] );
+      dist2[kStartEnd]   += ( fa.getPath().front()[i] - fb.getPath().back()[i] )*(  fa.getPath().front()[i] - fb.getPath().back()[i] );
+      dist2[kEndStart]   += ( fa.getPath().back()[i]  - fb.getPath().front()[i] )*( fa.getPath().back()[i]  - fb.getPath().front()[i] );
+      dist2[kEndEnd]     += ( fa.getPath().back()[i]  - fb.getPath().back()[i] )*(  fa.getPath().back()[i]  - fb.getPath().back()[i] );
+      // cosine
+      cosend[kStartStart] += fa.getPathDir().front()[i]*(-1.0*fb.getPathDir().front()[i]);
+      cosend[kStartEnd]   += fa.getPathDir().front()[i]*fb.getPathDir().back()[i];
+      cosend[kEndStart]   += fa.getPathDir().back()[i]*fb.getPathDir().front()[i];
+      cosend[kEndEnd]     += fa.getPathDir().back()[i]*(-1.0*fb.getPathDir().back()[i]);
+    }
+    int closest_pair = 0;
+    float min_dist2   = dist2[kStartStart];
+    for (int i=1; i<4; i++) {
+      if ( dist2[i]<min_dist2 ) {
+	min_dist2 = dist2[i];
+	closest_pair = i;
+      }
+    }
+
+    std::cout << "test pair merge "
+	      << "frag A size=" << fa.getPath().size()
+	      << " s=(" << fa.getPath().front()[0] << "," << fa.getPath().front()[1] << "," << fa.getPath().front()[2] << ") "
+	      << " e=(" << fa.getPath().back()[0] << ", " << fa.getPath().back()[1] << ", " << fa.getPath().back()[2] << ") "
+	      << " sdir=(" << fa.getPathDir().front()[0] << "," << fa.getPathDir().front()[1] << "," << fa.getPathDir().front()[2] << ") "
+	      << " edir=(" << fa.getPathDir().back()[0] << "," << fa.getPathDir().back()[1] << "," << fa.getPathDir().back()[2] << ") "	    
+	      << "frag B size=" << fb.getPath().size()
+	      << " s=(" << fb.getPath().front()[0] << "," << fb.getPath().front()[1] << "," << fb.getPath().front()[2] << ") "
+	      << " e=(" << fb.getPath().back()[0] << ", " << fb.getPath().back()[1] << ", " << fb.getPath().back()[2] << ") "
+	      << " sdir=(" << fb.getPathDir().front()[0] << "," << fb.getPathDir().front()[1] << "," << fb.getPathDir().front()[2] << ") "
+	      << " edir=(" << fb.getPathDir().back()[0] << "," << fb.getPathDir().back()[1] << "," << fb.getPathDir().back()[2] << ") "	    	    
+	      << "closest_pair=" << closest_pair << " mindist=" << sqrt(min_dist2)
+	      << " cosend=" << cosend[closest_pair] << std::endl;
+    
+    if ( sqrt(min_dist2)<max_dist && cosend[closest_pair]>min_cos ) {
+      if ( closest_pair==kStartStart ) {
+	fa.reverse();
+	fa.append(fb);
+      }
+      else if ( closest_pair==kStartEnd ) {
+	fb.append(fa);
+	std::swap(fa,fb);
+      }
+      else if ( closest_pair==kEndStart ) {
+	fa.append( fb );
+      }
+      else if ( closest_pair==kEndEnd ) {
+	fb.reverse();
+	fa.append( fb );
+      }
+      performed_merge = true;
+    }//end of if merger condition passes
+
+    return performed_merge;
   }
   
 }
