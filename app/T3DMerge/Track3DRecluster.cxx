@@ -71,7 +71,7 @@ namespace larlitecv {
       std::cout << "RECLUSTER iter=" << iterations << " oldsize=" << old_size << " new size=" << m_tracks.size() << std::endl;
       iterations++;
       std::cin.get();
-    } while ( reclustered && iterations<10 );
+    } while ( reclustered && iterations<200 );
     
     return m_tracks;
   }
@@ -87,15 +87,32 @@ namespace larlitecv {
     const geoalgo::AABox& boxa = tracka.getBBox();
     const geoalgo::AABox& boxb = trackb.getBBox();
 
+    bool bbox_intersect = false;
     if ( boxa.Contain( boxb.Min() ) || boxa.Contain(boxb.Max() )
 	 || boxb.Contain( boxa.Min() ) || boxb.Contain( boxa.Max() ) ) {
+      bbox_intersect = true;
+    }
+    
+    if (!bbox_intersect) {
       std::cout << "reclusterpair::no bounding box overlap" << std::endl;
-      // no overlap. just return.
-      //tracks_v.push_back( tracka );
-      //tracks_v.push_back( trackb );
-      return false;
+      std::cout << "  box a (" << boxa.Min()[0] << "," << boxa.Min()[1] << "," << boxa.Min()[2] << ") "
+		<< " to (" << boxa.Max()[0] << "," << boxa.Max()[1] << "," << boxa.Max()[2] << ") " << std::endl;
+      std::cout << "  box b (" << boxb.Min()[0] << "," << boxb.Min()[1] << "," << boxb.Min()[2] << ") "
+		<< " to (" << boxb.Max()[0] << "," << boxb.Max()[1] << "," << boxb.Max()[2] << ") " << std::endl;
     }
 
+
+    // std::cout << "TRACK A" << std::endl;
+    // for ( int i=0; i<(int)tracka.getPath().size(); i++ ) {
+    //   auto const& pt_core = tracka.getPath()[i];
+    //   std::cout << "  [" << i << "] : (" << tracka.getPath()[i][0]  << "," << tracka.getPath()[i][1]  << "," << tracka.getPath()[i][2]  << ")" << std::endl;      
+    // }
+    // std::cout << "TRACK B" << std::endl;
+    // for ( int i=0; i<(int)trackb.getPath().size(); i++ ) {
+    //   auto const& pt_core = trackb.getPath()[i];
+    //   std::cout << "  [" << i << "] : (" << trackb.getPath()[i][0]  << "," << trackb.getPath()[i][1]  << "," << trackb.getPath()[i][2]  << ")" << std::endl;      
+    // }
+    
     // make fragments. first make tracks based on overlapping regions
     // then for non overlapping regions, build track fragments
     std::vector<T3DCluster> init_fragments_v;
@@ -184,7 +201,7 @@ namespace larlitecv {
       geoalgo::Trajectory seg_traj;
       i=0; 
       for ( auto const& pt_core : core->getPath() ) {
-	std::cout << "core pt [" << i << "]: " << pt_core[0] << ", " << pt_core[1] << ", " << pt_core[2] << std::endl;
+	//std::cout << "core pt [" << i << "]: " << pt_core[0] << ", " << pt_core[1] << ", " << pt_core[2] << std::endl;
 	seg_traj.push_back( pt_core );
 	i++;
       }
@@ -335,12 +352,18 @@ namespace larlitecv {
       for (int frag_a=0; frag_a<(int)fragment_list.size(); frag_a++) {
 	if ( performed_merge )
 	  break;
+
+	T3DCluster& fa = *(fragment_list[frag_a]);
+	if ( fa.getPath().size()<2 )
+	  continue;
+	  
 	for (int frag_b=frag_a+1; frag_b<(int)fragment_list.size(); frag_b++) {
 	  if ( performed_merge )
 	    break;
 	  
-	  T3DCluster& fa = *(fragment_list[frag_a]);
 	  T3DCluster& fb = *(fragment_list[frag_b]);
+	  if ( fb.getPath().size()<2 )
+	    continue;
 	  
 	  // compare end points and their direction
 	  float dist2[4]  = {0};
@@ -371,10 +394,15 @@ namespace larlitecv {
 		    << "frag" << frag_a << " size=" << fa.getPath().size()
 		    << " s=(" << fa.getPath().front()[0] << "," << fa.getPath().front()[1] << "," << fa.getPath().front()[2] << ") "
 		    << " e=(" << fa.getPath().back()[0] << ", " << fa.getPath().back()[1] << ", " << fa.getPath().back()[2] << ") "
+		    << " sdir=(" << fa.getPathDir().front()[0] << "," << fa.getPathDir().front()[1] << "," << fa.getPathDir().front()[2] << ") "
+		    << " edir=(" << fa.getPathDir().back()[0] << "," << fa.getPathDir().back()[1] << "," << fa.getPathDir().back()[2] << ") "	    
 		    << "frag" << frag_b << " size=" << fb.getPath().size()
 		    << " s=(" << fb.getPath().front()[0] << "," << fb.getPath().front()[1] << "," << fb.getPath().front()[2] << ") "
 		    << " e=(" << fb.getPath().back()[0] << ", " << fb.getPath().back()[1] << ", " << fb.getPath().back()[2] << ") "
-		    << "closest_pair=" << closest_pair << " mindist=" << sqrt(min_dist2) << " cosend=" << cosend[closest_pair] << std::endl;
+		    << " sdir=(" << fb.getPathDir().front()[0] << "," << fb.getPathDir().front()[1] << "," << fb.getPathDir().front()[2] << ") "
+		    << " edir=(" << fb.getPathDir().back()[0] << "," << fb.getPathDir().back()[1] << "," << fb.getPathDir().back()[2] << ") "	    	    
+		    << "closest_pair=" << closest_pair << " mindist=" << sqrt(min_dist2)
+		    << " cosend=" << cosend[closest_pair] << std::endl;
 	  
 	  if ( sqrt(min_dist2)<15.0 && cosend[closest_pair]>0 ) {
 	    if ( closest_pair==kStartStart ) {
@@ -474,6 +502,7 @@ namespace larlitecv {
 	if ( !overlaps ) {
 	  // turn off segment and store
 	  inseg = false;
+	  break;
 	}
 	else {
 	  // continue segment

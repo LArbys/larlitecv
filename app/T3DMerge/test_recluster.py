@@ -9,12 +9,12 @@ print "TEST RECLUSTER"
 config = """Config: {
   IOManager: {
     IOMode: 2
-    Verbosity: 1
+    Verbosity: 2
     OutFileName: \"test_recluster_larcv.root\"
   }
   StorageManager: {
     IOMode: 2
-    Verbosity: 1
+    Verbosity: 2
     OutFileName: \"test_recluster_larlite.root\"
   }
 }
@@ -26,8 +26,8 @@ fout.close()
 
 datacoord = larlitecv.DataCoordinator()
 datacoord.configure( "recluster.cfg", "StorageManager", "IOManager", "Config" )
-datacoord.add_inputfile( "../TaggerCROI/bin/tagger_anaout_larcv_seg.root",   "larcv" )
-datacoord.add_inputfile( "../TaggerCROI/bin/tagger_anaout_larlite_seg.root", "larlite" )
+datacoord.add_inputfile( "../TaggerCROI/bin/tagger_anaout_larcv.root",   "larcv" )
+datacoord.add_inputfile( "../TaggerCROI/bin/tagger_anaout_larlite.root", "larlite" )
 datacoord.initialize()
 
 nentries = datacoord.get_nentries("larlite")
@@ -36,20 +36,26 @@ print "NENTRIES: ", nentries
 recluster_algo = larlitecv.Track3DRecluster()
 
 for ientry in range(nentries):
+    if ientry not in [0]:
+        continue
+    
     datacoord.goto_entry(ientry,"larlite")
     
     print "Entry: ",ientry
+    ev_thrumu_tracks = datacoord.get_larlite_data( larlite.data.kTrack, "thrumu3d" )    
     ev_stopmu_tracks = datacoord.get_larlite_data( larlite.data.kTrack, "stopmu3d" )
-    ev_thrumu_tracks = datacoord.get_larlite_data( larlite.data.kTrack, "thrumu3d" )
 
     print "StopMu Tracks: ",ev_stopmu_tracks.size()
     print "ThruMu Tracks: ",ev_thrumu_tracks.size()
-
-    for itrack in range(ev_stopmu_tracks.size()+ev_thrumu_tracks.size()):
-        if itrack<ev_stopmu_tracks.size():
-            track = ev_stopmu_tracks[itrack]
+    #ntracks = ev_stopmu_tracks.size()+ev_thrumu_tracks.size()
+    ntracks = ev_thrumu_tracks.size()    
+    print "NTRACKS=",ntracks
+    
+    for itrack in range(ntracks):
+        if itrack<ev_thrumu_tracks.size():
+            track = ev_thrumu_tracks[itrack]
         else:
-            track = ev_thrumu_tracks[itrack-ev_stopmu_tracks.size()]
+            track = ev_stopmu_tracks[itrack-ev_thrumu_tracks.size()]
         npts = track.NumberTrajectoryPoints()
         #print "track %d number of pts="%(npts),npts
         path = std.vector("vector<float>")()
@@ -68,7 +74,13 @@ for ientry in range(nentries):
 
     ev_recluster_out = datacoord.get_larlite_data( larlite.data.kTrack, "recluster3d" )
     for itrack in range(recluster_tracks.size()):
-        lltrack = larlitecv.T3D2LarliteTrack( recluster_tracks[itrack] )
+        track = recluster_tracks[itrack]
+        print "TRACK #%d"%(itrack),
+        print " (",track.getPath().front()[0],",",track.getPath().front()[1],",",track.getPath().front()[2],") ",
+        print " (",track.getPath().back()[0],",",track.getPath().back()[1],",",track.getPath().back()[2],") "        
+        #for ipt in range(track.getPath().size()):
+        #    print "   [ipt] (",track.getPath()[ipt][0],",",track.getPath()[ipt][1],",",track.getPath()[ipt][2],")"
+        lltrack = larlitecv.T3D2LarliteTrack( track )
         ev_recluster_out.push_back( lltrack )
     datacoord.save_entry()
 

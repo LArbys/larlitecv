@@ -46,6 +46,7 @@ namespace larlitecv {
     void reverse();
     void append( const T3DCluster& end );
     void makePathDir();
+    void updateBBox();    
 
   };
 
