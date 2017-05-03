@@ -17,7 +17,7 @@ except:
 
 rt.gStyle.SetOptStat(0)
 
-testfile = "../ChargeSegmentAlgos/test/tagger_anaout_larcv_seg.root"
+testfile = "../ChargeSegmentAlgos/test/tagger_anaout_larcv.root"
 img_producer = "modimg"
 badch_producer = "gapchs"
 makebadch = False
@@ -62,6 +62,7 @@ endptnames = ["topspacepts","botspacepts","upspacepts","downspacepts","anodepts"
 ev_boundary_pts = {}
 for endptname in endptnames:
     ev_boundary_pts[endptname] = ioman.get_data(larcv.kProductPixel2D, endptname )
+    print "Number of ",endptname,": ",ev_boundary_pts[endptname].Pixel2DArray(0).size()
     for ipt in range(ev_boundary_pts[endptname].Pixel2DArray(0).size()):
         print endptname," #%d"%(ipt),": ",
         print "tick=",meta.pos_y( ev_boundary_pts[endptname].Pixel2DArray(0).at(ipt).Y())," ",
@@ -111,17 +112,18 @@ foxalgo = larlitecv.FoxTrotTrackerAlgo( cfg )
 typedict = { "topspacepts": larlitecv.kTop,
              "botspacepts": larlitecv.kBottom,
              "anodepts":larlitecv.kAnode,
-             "cathodepts":larlitecv.kCathode }
+             "cathodepts":larlitecv.kCathode,
+             "imgendpts":larlitecv.kImageEnd }
 
 # RUN OVER LOOPS
-for boundary in ["topspacepts","botspacepts","anodepts","cathodepts"]:
+for boundary in ["topspacepts","botspacepts","anodepts","cathodepts","imgendpts"]:
   npts = ev_boundary_pts[boundary].Pixel2DArray(0).size()
 
-  if boundary not in ["botspacepts"]:
+  if boundary not in ["imgendpts"]:
      continue
 
   for endptid in range(npts):
-    if endptid not in [4]:
+    if endptid not in [1]:
       continue
 
     # reconstitute boundary space point

@@ -10,7 +10,7 @@
 namespace larlitecv {
 
   std::vector< Segment3D_t > Segment3DAlgo::find3DSegments( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
-							  const int row_a, const int row_b, const std::vector<float>& thresholds, const int min_hit_width ) {
+							    const int row_a, const int row_b, const std::vector<float>& thresholds, const int min_hit_width ) {
 
     // first find a list of "hits" for each row on each plane
     int lowrow = row_a;
@@ -280,7 +280,10 @@ namespace larlitecv {
         int nrows;
         checkSegmentCharge( img_v.at(otherplane_high), badch_v.at(otherplane_high), seg_a.row_low, othercol_low, seg_a.row_high, othercol_high,
 			    hit_width, thresholds.at(otherplane_high), nrows_w_charge, nrows );
-        //std::cout << "combo(" << i << "," << j << ") nrows=" << nrows << " frac=" << float(nrows_w_charge)/nrows << std::endl;
+        // std::cout << "     2d combo(" << i << "," << j << ") "
+	// 	  << " rowhi=" << row_high << " (p" << idx_a.plane << "," << high_wire_a << ") (p" << idx_b.plane << "," << high_wire_b << ") "
+	// 	  << " rowlo=" << row_low  << " (p" << idx_a.plane << "," << low_wire_a  << ") (p" << idx_b.plane << "," << low_wire_b << ") "
+	// 	  << " otherplane=" << otherplane_high << " nrows=" << nrows << " frac=" << float(nrows_w_charge)/nrows << std::endl;
         if ( nrows>0 && float(nrows_w_charge)/nrows > good_frac ) {
           // make segment3d
           Segment3D_t seg3d;

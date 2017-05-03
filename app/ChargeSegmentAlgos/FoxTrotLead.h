@@ -22,7 +22,7 @@ namespace larlitecv {
     virtual ~FoxTrotLead() {};
 
     // implement this
-    virtual bool chooseBestSegment( const FoxStep& current, const std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
+    virtual bool chooseBestSegment( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
 				    const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx ) = 0;
     
   };

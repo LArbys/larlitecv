@@ -58,7 +58,9 @@ namespace larlitecv {
       m_default_lead.setMinCos( min_dcos );
       FoxStep next = getNextStep( track.back(), img_v, badch_v, track );
       if ( m_config.verbosity>0 && next.isgood() )
-	std::cout << "next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") good=" << next.isgood() << std::endl;
+	std::cout << "next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") "
+		  << " dir=(" << next.dir()[0] << "," << next.dir()[1] << "," << next.dir()[2] << ") "
+		  << " good=" << next.isgood() << std::endl;
       else if ( m_config.verbosity>0 && !next.isgood() )
 	std::cout << "next fox step is bad." << std::endl;
       track.emplace_back( std::move(next) );
@@ -92,69 +94,6 @@ namespace larlitecv {
 	std::cout << "  attempt=" << iattempt << " numsegs=" << candidate_segs.size() << std::endl;
       }
 
-      /*
-      int ibest = -1;
-      float bestdcos = 2.;
-      std::vector<float> bestdir(3,0);
-      std::vector<float> bestpos(3,0);
-      for ( size_t iseg=0; iseg<candidate_segs.size(); iseg++) {
-        Segment3D_t& seg = candidate_segs[iseg];
-
-        // first, which is the near and far points?
-        float dist_start=0;
-        float dist_end=0;
-        for (int v=0; v<1; v++) {
-          dist_start += ( current.pos()[v]-seg.start[v] )*( current.pos()[v]-seg.start[v] );
-          dist_end   += ( current.pos()[v]-seg.end[v] )*( current.pos()[v]-seg.end[v] );
-        }
-	dist_start = sqrt(dist_start);
-	dist_end   = sqrt(dist_end);
-
-	if ( m_config.verbosity>1 ) {
-	  std::cout << "    iseg " << iseg << ": start=(" << seg.start[0] << "," << seg.start[1] << "," << seg.start[2] << ")"
-		    << " end=(" << seg.end[0] << "," << seg.end[1] << "," << seg.end[2] << ")"
-		    << std::endl;
-	}
-	
-        if ( dist_start > dist_end ) {
-          // flip
-	  if ( m_config.verbosity>1 )
-	    std::cout << "  flip seg start/end. startdist=" << dist_start << " enddist=" << dist_end << std::endl;
-          float tmp[3] = { seg.start[0], seg.start[1], seg.start[2] };
-          for (int v=0; v<3; v++) {
-            seg.start[v] = seg.end[v];
-            seg.end[v] = tmp[v];
-          }
-        }
-
-        std::vector<float> canddir(3,0);
-        float dist = 0.;
-        for (int v=0; v<3; v++) {
-          canddir[v] = seg.end[v]-seg.start[v];
-          dist += canddir[v]*canddir[v];
-        }
-        dist = sqrt(dist);
-        for (int v=0; v<3; v++)
-          canddir[v] /= dist;
-        float cosseg = 0;
-        for (int v=0; v<3; v++) {
-          cosseg += canddir[v]*current.dir()[v];
-        }
-        float dcos = cosseg;
-	if ( m_config.verbosity>1 )
-	  std::cout << "  seg " << iseg << " dcos=" << dcos << std::endl;
-        if ( dcos >min_dcos ) {
-	  if ( dcos>bestdcos || ibest<0 ) {
-	    ibest = iseg;
-	    bestdcos = dcos;
-	    bestdir = canddir;
-	    for (int v=0; v<3; v++)
-	      bestpos[v] = seg.end[v];
-	  }
-	}
-      }
-      */
-
       bool goodseg = false;
       int ibest = -1;
       if ( m_user_lead!=0 ) {
@@ -168,8 +107,13 @@ namespace larlitecv {
         current_radius *= m_config.radius_reduction_factor;
       }
       else {
-
-        Segment3D_t& seg = candidate_segs[ibest];	
+        Segment3D_t& seg = candidate_segs[ibest];
+	if ( m_config.verbosity>1 ) {
+	  std::cout << "    chosen best segment idx=" << ibest
+		    << " (" << seg.start[0] << "," << seg.start[1] << "," << seg.start[2] << ") -> "
+		    << " (" << seg.end[0] << "," << seg.end[1] << "," << seg.end[2] << ")"
+		    << std::endl;
+	}
         std::vector<float> canddir(3,0);
 	std::vector<float> candpos(3,0);
         float dist = 0.;
@@ -194,15 +138,18 @@ namespace larlitecv {
 
   }
 
-  bool FoxTrotLeadStraight::chooseBestSegment( const FoxStep& current, const std::vector<Segment3D_t>& candidate_segs, const FoxTrack& past,
+  bool FoxTrotLeadStraight::chooseBestSegment( const FoxStep& current, std::vector<Segment3D_t>& candidate_segs, const FoxTrack& past,
 					       const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx ) {
 
-    int ibest = -1;
+    best_seg_idx = -1;
     float bestdcos = 2.;
     std::vector<float> bestdir(3,0);
     std::vector<float> bestpos(3,0);
+    if ( config.verbosity>1 ) {
+      std::cout << "    FoxTrotLeadStraight::chooseBestSegment" << std::endl;
+    }
     for ( size_t iseg=0; iseg<candidate_segs.size(); iseg++) {
-      Segment3D_t seg = candidate_segs[iseg]; // copy
+      Segment3D_t& seg = candidate_segs[iseg];
 
       // first, which is the near and far points?
       float dist_start=0;
@@ -223,7 +170,7 @@ namespace larlitecv {
       if ( dist_start > dist_end ) {
 	// flip
 	if ( config.verbosity>1 )
-	  std::cout << "  flip seg start/end. startdist=" << dist_start << " enddist=" << dist_end << std::endl;
+	  std::cout << "    flip seg start/end. startdist=" << dist_start << " enddist=" << dist_end << std::endl;
 	float tmp[3] = { seg.start[0], seg.start[1], seg.start[2] };
 	for (int v=0; v<3; v++) {
 	  seg.start[v] = seg.end[v];
@@ -246,10 +193,15 @@ namespace larlitecv {
       }
       float dcos = cosseg;
       if ( config.verbosity>1 )
-	std::cout << "  seg " << iseg << " dcos=" << dcos << std::endl;
+	std::cout << "    seg " << iseg << " dcos=" << dcos
+		  << " (" << seg.start[0] << "," << seg.start[1] << "," << seg.start[2] << ") -> "
+		  << " (" << seg.end[0] << "," << seg.end[1] << "," << seg.end[2] << ")"
+		  << " segdir=(" << canddir[0] << "," << canddir[1] << "," << canddir[2] << ")"
+		  << " current=(" << current.dir()[0] << "," << current.dir()[1] << "," << current.dir()[2] << ")"
+		  << std::endl;
       if ( dcos >min_dcos ) {
-	if ( dcos>bestdcos || ibest<0 ) {
-	  ibest = iseg;
+	if ( dcos>bestdcos || best_seg_idx<0 ) {
+	  best_seg_idx = iseg;
 	  bestdcos = dcos;
 	  bestdir = canddir;
 	  for (int v=0; v<3; v++)

@@ -31,7 +31,7 @@ namespace larlitecv {
     FoxTrotLeadStraight() { min_dcos = 0.0; };
     virtual ~FoxTrotLeadStraight() {};
     
-    bool chooseBestSegment( const FoxStep& current, const std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
+    bool chooseBestSegment( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
 			    const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx );
 
     void setMinCos( float mc ) { min_dcos = mc; };
