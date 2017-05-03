@@ -35,6 +35,7 @@ nentries = datacoord.get_nentries("larlite")
 print "NENTRIES: ", nentries
 
 recluster_algo = larlitecv.Track3DRecluster()
+recluster_algo.setVerbosity(3)
 
 thresholds = std.vector("float")(3,10.0)
 neighborhood = std.vector("int")(3,5)
@@ -94,7 +95,8 @@ for ientry in range(0,1):
         track = recluster_tracks[itrack]
         print "TRACK #%d"%(itrack),
         print " (",track.getPath().front()[0],",",track.getPath().front()[1],",",track.getPath().front()[2],") ",
-        print " (",track.getPath().back()[0],",",track.getPath().back()[1],",",track.getPath().back()[2],") "        
+        print " (",track.getPath().back()[0],",",track.getPath().back()[1],",",track.getPath().back()[2],") ",
+        print " size=",track.getPath().size()
         #for ipt in range(track.getPath().size()):
         #    print "   [ipt] (",track.getPath()[ipt][0],",",track.getPath()[ipt][1],",",track.getPath()[ipt][2],")"
         lltrack = larlitecv.T3D2LarliteTrack( track )

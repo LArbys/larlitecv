@@ -37,11 +37,15 @@ namespace larlitecv {
     std::vector< Point_t > m_path;
     std::vector< std::vector<double> > m_dir;
     geoalgo::AABox m_bbox;
-
+    float m_ave_stepsize;
+    
   public:
+    T3DCluster( const std::vector<Point_t>& path );
     T3DCluster( const std::vector<Point_t>& path, const std::vector< std::vector<double> >& pathdir, const geoalgo::AABox& bbox );
     virtual ~T3DCluster() {};
-    
+
+    bool overlaps( const T3DCluster& rhs ) const;
+    float getAveStepSize() const { return m_ave_stepsize; };
     const std::vector< Point_t >& getPath() const { return m_path; };
     const std::vector< std::vector<double>  >& getPathDir() const { return m_dir; };
     const geoalgo::AABox& getBBox() const { return m_bbox; };
@@ -49,12 +53,12 @@ namespace larlitecv {
     void append( const T3DCluster& end );
     void makePathDir();
     void updateBBox();    
+    int pathSize() { return m_path.size(); };
 
     std::vector<larcv::Pixel2DCluster> getPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
 							    const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
 							    const float stepsize );
 						 
-    
   };
 
   class T3DCluster::Builder {
@@ -62,8 +66,6 @@ namespace larlitecv {
   protected:
     
     std::vector<Point_t> path;
-    std::vector< std::vector<double> > dir;    
-    geoalgo::AABox bbox;
     
   public:
     
@@ -71,8 +73,6 @@ namespace larlitecv {
 
     Builder& setPath( const std::vector<Point_t>& path );
     Builder& addPoint( const Point_t& pt );
-    Builder& updateBBox();
-    Builder& buildDirList();
     int pathSize() { return path.size(); };
 
     T3DCluster build();

@@ -14,13 +14,14 @@ namespace larlitecv {
 
   class Track3DRecluster {
   public:
-    Track3DRecluster() {};
+    Track3DRecluster();
     virtual ~Track3DRecluster() {};
 
     void addPath( const std::vector< std::vector<double> >& path );
     void addPath( const std::vector< std::vector<float> >& path );
     std::vector< T3DCluster > recluster();
     bool mergeEnds( T3DCluster& fa, T3DCluster& fb, float max_dist, float min_cos );
+    void setVerbosity( int v ) { m_verbosity=v; };
 
   protected:
 
@@ -38,6 +39,10 @@ namespace larlitecv {
     geoalgo::GeoAlgo m_geoalgo;
 
     TRandom3 m_rand;
+    int m_verbosity;
+    int m_min_segoverlap;
+    double m_ann_dist;
+    double m_max_end_dist;
   };
     
   
