@@ -44,10 +44,10 @@ namespace larlitecv {
     int m_min_segoverlap;
     double m_ann_dist;
     double m_max_end_dist;
-    double m_min_end_cos;    
+    double m_min_end_cos;
+    int m_max_iterations;
+    bool m_merge;
   };
-    
-  
 }
 
 #endif

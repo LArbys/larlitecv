@@ -21,8 +21,26 @@ config = """Config: {
 }
 """
 
+configout = """ConfigOut: {
+  IOManager: {
+    IOMode: 1
+    Verbosity: 2
+    OutFileName: \"out_recluster_larcv.root\"
+  }
+  StorageManager: {
+    IOMode: 1
+    Verbosity: 2
+    OutFileName: \"out_recluster_larlite.root\"
+  }
+}
+"""
+
 fout = open("recluster.cfg",'w')
 print >> fout,config
+fout.close()
+
+fout = open("out.cfg",'w')
+print >> fout,configout
 fout.close()
 
 datacoord = larlitecv.DataCoordinator()
@@ -30,6 +48,10 @@ datacoord.configure( "recluster.cfg", "StorageManager", "IOManager", "Config" )
 datacoord.add_inputfile( "../TaggerCROI/bin/tagger_anaout_larcv.root",   "larcv" )
 datacoord.add_inputfile( "../TaggerCROI/bin/tagger_anaout_larlite.root", "larlite" )
 datacoord.initialize()
+
+dataout = larlitecv.DataCoordinator()
+dataout.configure("out.cfg","StorageManager", "IOManager", "ConfigOut" )
+dataout.initialize()
 
 nentries = datacoord.get_nentries("larlite")
 print "NENTRIES: ", nentries
@@ -42,7 +64,7 @@ neighborhood = std.vector("int")(3,5)
 stepsize = 0.3
 
 #for ientry in range(2,nentries):
-for ientry in range(0,1):
+for ientry in range(67,68):
     
     datacoord.goto_entry(ientry,"larlite")
     
@@ -90,7 +112,7 @@ for ientry in range(0,1):
     print "Recluster images=",recluster_v.size()
     raw_input()    
     
-    ev_recluster_out = datacoord.get_larlite_data( larlite.data.kTrack, "recluster3d" )
+    ev_recluster_out = dataout.get_larlite_data( larlite.data.kTrack, "recluster3d" )
     for itrack in range(recluster_tracks.size()):
         track = recluster_tracks[itrack]
         print "TRACK #%d"%(itrack),
@@ -109,14 +131,18 @@ for ientry in range(0,1):
         
         ev_recluster_out.push_back( lltrack )
 
-    ev_recluster_pixels = datacoord.get_larcv_data( larcv.kProductImage2D, "reclusterpixels" )    
+    ev_recluster_pixels = dataout.get_larcv_data( larcv.kProductImage2D, "reclusterpixels" )    
     for p in range(recluster_v.size()):
         ev_recluster_pixels.Append( recluster_v[p] )
     print "Saving ",ev_recluster_pixels.Image2DArray().size()," recluster images"
-        
-    datacoord.save_entry()
 
-    
+    run    = datacoord.run()
+    subrun = datacoord.subrun()
+    event  = datacoord.event()
+    dataout.set_id( run, subrun, event );
+    dataout.save_entry()
+    datacoord.save_entry()    
     break
 
+dataout.finalize()
 datacoord.finalize()

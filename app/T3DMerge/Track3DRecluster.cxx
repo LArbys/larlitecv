@@ -10,10 +10,12 @@ namespace larlitecv {
 
   Track3DRecluster::Track3DRecluster() {
     m_verbosity = 0;
-    m_min_segoverlap = 0; // should be dist
+    m_min_segoverlap = 2; // should be dist
     m_ann_dist = 5.0;
     m_max_end_dist = 20.0;
     m_min_end_cos = 0.0;
+    m_max_iterations = 10000;
+    m_merge = false;
   }
   
   void Track3DRecluster::addPath( const std::vector< std::vector<float> >& path ) {
@@ -82,7 +84,7 @@ namespace larlitecv {
       iterations++;
       if ( m_verbosity>2 )
 	std::cin.get();
-    } while ( reclustered && iterations<2000 );
+    } while ( reclustered && iterations<m_max_iterations );
     
     return m_tracks;
   }
@@ -155,19 +157,21 @@ namespace larlitecv {
     // }
     
 
+    if ( m_verbosity>1 )
+      std::cout << "StepSize A=" << tracka.getAveStepSize() << " StepSize B=" << trackb.getAveStepSize() << std::endl;
+    
     if ( segoverlap_a.size()==0 ) {
       // no meaningful overlap
       return false;
     }
-    
+
     // we build a track from the overlap
     std::vector<int> useda( tracka.getPath().size(), 0 );
     std::vector<int> usedb( trackb.getPath().size(), 0 );
     bool merge_overlap = false;
-    
+
     for ( auto const& overlap : segoverlap_a ) {
 	
-      
       // we orchestrate a combination of the two tracks over the overlap region
       T3DCluster const* core = NULL;
       T3DCluster const* transfer = NULL;
@@ -220,7 +224,7 @@ namespace larlitecv {
       }
 
 
-      if ( (int)indices_core.size()<m_min_segoverlap || (int)indices_transfer.size()<m_min_segoverlap ) {
+      if ( (int)indices_transfer.size()<m_min_segoverlap ) {
 	if (m_verbosity>1) {
 	  std::cout << "segment overlap too small" << std::endl;
 	  if ( m_verbosity>2 )
@@ -228,8 +232,6 @@ namespace larlitecv {
 	}
 	continue;
       }
-
-      merge_overlap = true;
       
       std::vector< std::vector<int> > insert_idx_core( core->getPath().size()+1 ); // additional 0-index is the underflow
       
@@ -248,6 +250,7 @@ namespace larlitecv {
 	int idx_core = -1;
 	float min_dist2 = 0;
 	//geoalgo::Point_t traj_pt = m_geoalgo.ClosestPt( seg_traj, pt_trans, idx_core ); // this is not what we need, the trajectory returns the wrong segment!
+	
 	for ( int ipt=0; ipt<(int)core->getPath().size(); ipt++ ) {
 	  float dist2 = 0;
 	  for (int v=0; v<3; v++) {
@@ -259,6 +262,7 @@ namespace larlitecv {
 	  }
 	}
 	geoalgo::Point_t traj_pt = core->getPath()[idx_core];
+	
 	std::vector<double> dir_b2a(3);
 	float dist_b2a = 0.;
 	for (int i=0; i<3; i++) {
@@ -307,8 +311,10 @@ namespace larlitecv {
 	  //std::cout << "inserting " << insert_idx_core[idx_a].size() << " points after idx_a=" << idx_a << std::endl;
 	  for (auto const& idx_trans : insert_idx_core[idx_a] ) {
 	    //std::cout << "  insert idx_trans=" << idx_trans << " after idxa=" << idx_a << std::endl;
-	    newpath.push_back( transfer->getPath()[idx_trans] );
+	    if ( m_merge )
+	      newpath.push_back( transfer->getPath()[idx_trans] );
 	    (*used_trans)[idx_trans] = 1;
+	    merge_overlap = true;
 	  }
 	}
       }
@@ -319,7 +325,7 @@ namespace larlitecv {
       init_fragments_v.emplace_back( std::move(t3d) );
       
     }// loop over segments
-
+    
     if ( m_verbosity>1 ) {
       std::cout << "TRACK A" << std::endl;
       for ( int i=0; i<(int)tracka.getPath().size(); i++ ) {
@@ -333,7 +339,11 @@ namespace larlitecv {
       }
     }
     
-
+    if ( !merge_overlap ) {
+      std::cout << " no overlapping fragments" << std::endl;
+      return false;
+    }
+    
     // build track out of unused points
     bool inseg = false;
     T3DCluster::Builder builder;
