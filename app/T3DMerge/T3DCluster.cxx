@@ -1,5 +1,7 @@
 #include "T3DCluster.h"
 
+#include "TaggerTypes/Path2Pixels.h"
+
 namespace larlitecv {
 
   // =============================================================================
@@ -69,6 +71,13 @@ namespace larlitecv {
     return;
   }
 
+  std::vector<larcv::Pixel2DCluster> T3DCluster::getPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+								      const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
+								      const float stepsize ) {
+    return getTrackPixelsFromImages( m_path, imgs, badchimgs, thresholds, neighborhood_size, stepsize );
+  }
+
+  
   // =============================================================================
   // T3DCluster Builder
 

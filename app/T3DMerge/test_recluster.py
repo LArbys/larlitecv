@@ -2,6 +2,7 @@ import os,sys
 import ROOT
 from ROOT import std
 from larlite import larlite
+from larcv import larcv
 from larlitecv import larlitecv
 
 print "TEST RECLUSTER"
@@ -35,16 +36,24 @@ print "NENTRIES: ", nentries
 
 recluster_algo = larlitecv.Track3DRecluster()
 
-for ientry in range(nentries):
-    if ientry not in [2]:
-        continue
+thresholds = std.vector("float")(3,10.0)
+neighborhood = std.vector("int")(3,5)
+stepsize = 0.3
+
+#for ientry in range(2,nentries):
+for ientry in range(0,1):
     
     datacoord.goto_entry(ientry,"larlite")
     
     print "Entry: ",ientry
+    ev_img_v         = datacoord.get_larcv_data( larcv.kProductImage2D, "modimg" )
+    ev_gapch_v       = datacoord.get_larcv_data( larcv.kProductImage2D, "gapchs" )    
     ev_thrumu_tracks = datacoord.get_larlite_data( larlite.data.kTrack, "thrumu3d" )    
     ev_stopmu_tracks = datacoord.get_larlite_data( larlite.data.kTrack, "stopmu3d" )
 
+    img_v   = ev_img_v.Image2DArray()
+    gapch_v = ev_gapch_v.Image2DArray()
+    
     print "StopMu Tracks: ",ev_stopmu_tracks.size()
     print "ThruMu Tracks: ",ev_thrumu_tracks.size()
     ntracks = ev_stopmu_tracks.size()+ev_thrumu_tracks.size()
@@ -72,6 +81,14 @@ for ientry in range(nentries):
     recluster_tracks = recluster_algo.recluster()
     print "Number of recluster tracks: ",recluster_tracks.size()
 
+    recluster_v = std.vector("larcv::Image2D")()
+    for p in range(img_v.size()):
+        recluster_img = larcv.Image2D( img_v[p].meta() )
+        recluster_img.paint(0)
+        recluster_v.push_back( recluster_img )
+    print "Recluster images=",recluster_v.size()
+    raw_input()    
+    
     ev_recluster_out = datacoord.get_larlite_data( larlite.data.kTrack, "recluster3d" )
     for itrack in range(recluster_tracks.size()):
         track = recluster_tracks[itrack]
@@ -81,7 +98,20 @@ for ientry in range(nentries):
         #for ipt in range(track.getPath().size()):
         #    print "   [ipt] (",track.getPath()[ipt][0],",",track.getPath()[ipt][1],",",track.getPath()[ipt][2],")"
         lltrack = larlitecv.T3D2LarliteTrack( track )
+
+        pix_clusters_v = track.getPixelsFromImages( img_v, gapch_v, thresholds, neighborhood, stepsize )
+        for p in range(recluster_v.size()):
+            for ipix in range(pix_clusters_v[p].size()):
+                pix = pix_clusters_v[p][ipix]
+                recluster_v[p].set_pixel( pix.Y(), pix.X(), 3*itrack )
+        
         ev_recluster_out.push_back( lltrack )
+
+    ev_recluster_pixels = datacoord.get_larcv_data( larcv.kProductImage2D, "reclusterpixels" )    
+    for p in range(recluster_v.size()):
+        ev_recluster_pixels.Append( recluster_v[p] )
+    print "Saving ",ev_recluster_pixels.Image2DArray().size()," recluster images"
+        
     datacoord.save_entry()
 
     

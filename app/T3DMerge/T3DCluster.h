@@ -21,6 +21,8 @@
 // larlitecv/BasicTool
 #include "GeoAlgo/GeoAABox.h"
 
+#include "DataFormat/Pixel2DCluster.h"
+
 namespace larlitecv {
 
   typedef std::vector<double> Point_t;
@@ -48,6 +50,11 @@ namespace larlitecv {
     void makePathDir();
     void updateBBox();    
 
+    std::vector<larcv::Pixel2DCluster> getPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+							    const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
+							    const float stepsize );
+						 
+    
   };
 
   class T3DCluster::Builder {

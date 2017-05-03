@@ -18,6 +18,7 @@
 #pragma link C++ class larlitecv::BMTrackCluster2D+;
 #pragma link C++ class larlitecv::BMTrackCluster3D+;
 
+#pragma link C++ function larlitecv::getTrackPixelsFromImages+;
 
 //ADD_NEW_CLASS ... do not change this line
 #endif
