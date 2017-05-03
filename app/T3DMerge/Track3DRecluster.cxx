@@ -13,6 +13,7 @@ namespace larlitecv {
     m_min_segoverlap = 0; // should be dist
     m_ann_dist = 5.0;
     m_max_end_dist = 20.0;
+    m_min_end_cos = 0.0;
   }
   
   void Track3DRecluster::addPath( const std::vector< std::vector<float> >& path ) {
@@ -141,7 +142,6 @@ namespace larlitecv {
     else
       segoverlap_a = getOverlapSegmentsOfBonA( trackb, tracka, point_has_overlap_a );
     
-    std::cout << "reclusterpair::number of segments=" << segoverlap_a.size() << std::endl;
     // for ( auto const& seg : segoverlap_a ) {
     //   std::cout << "segment" << std::endl;
     //   std::cout << "  segment indices: " << seg.indices.size() << std::endl;
@@ -188,8 +188,6 @@ namespace larlitecv {
 	indices_core.push_back(idx);
       indices_transfer = overlap.indices;
 
-      std::cout << "tracka avestepsize=" << tracka.getAveStepSize() << " trackb avestepsize=" << trackb.getAveStepSize() << std::endl;
-      
       if ( tracka.getAveStepSize()<trackb.getAveStepSize() ) {
 	core = &tracka;
 	transfer = &trackb;
@@ -388,7 +386,7 @@ namespace larlitecv {
       inseg = false;
     }
 
-    if ( m_verbosity>0 ) {
+    if ( m_verbosity>1 ) {
       std::cout << "Fragments: " << init_fragments_v.size() << std::endl;
       for (int i=0; i<(int)init_fragments_v.size(); i++) {
 	T3DCluster& frag = init_fragments_v[i];
@@ -434,7 +432,7 @@ namespace larlitecv {
 	  // if ( fb.getPath().size()<2 )
 	  //   continue;
 	  
-	  performed_merge = mergeEnds( fa, fb, m_max_end_dist, 0.0 );
+	  performed_merge = mergeEnds( fa, fb, m_max_end_dist, m_min_end_cos );
 	  
 	  if ( performed_merge ) {
 	    temp_fraglist.push_back( fragment_list[frag_a] );	    
@@ -442,7 +440,6 @@ namespace larlitecv {
 	    for ( int frag_c=0; frag_c<(int)fragment_list.size(); frag_c++ ) {
 	      if ( fragment_list[frag_c]==fragment_list[frag_a] || fragment_list[frag_c]==fragment_list[frag_b] )
 		continue; // skip these
-	      std::cout << "  keep frag " << frag_c << ": " << fragment_list[frag_c] << std::endl;	      
 	      temp_fraglist.push_back( fragment_list[frag_c] );
 	    }
 	    break;
@@ -456,7 +453,6 @@ namespace larlitecv {
 	// clear out the fragmentlist and fill it with the new one
 	fragment_list.clear();
 	for ( auto& pfrag : temp_fraglist ) {
-	  std::cout << "  storing " << pfrag << std::endl;
 	  //if ( pfrag->getPath().size()>=2 )
 	  fragment_list.push_back( pfrag );
 	}
@@ -564,18 +560,16 @@ namespace larlitecv {
     // clean up
     anne_a.deinitialize();
     ann::ANNAlgo::cleanup();
-    std::cout << "overlap segments=" << segments.size() << std::endl;
     if ( segments.size()>1 ) {
       int iseg = 0;
       int longest = segments.front().othertrackmatches.size();
       std::vector< SegmentOverlap_t > out;
       for (int i=1; i<(int)segments.size(); i++) {
-	if ( segments[i].othertrackmatches.size()>longest ) {
+	if ( (int)segments[i].othertrackmatches.size()>longest ) {
 	  longest = segments[i].othertrackmatches.size();
 	iseg = i;
 	}
       }
-      std::cout << "longest seg: " << iseg << " size=" << longest << std::endl;
       out.emplace_back( std::move(segments[iseg]) );
       return out;
     }else {
@@ -665,7 +659,6 @@ namespace larlitecv {
 	fb.reverse();
 	fa.append( fb );
       }
-      std::cout << "  performed merge." << std::endl;
       performed_merge = true;
     }//end of if merger condition passes
 
