@@ -4,6 +4,7 @@
 
 // larlite
 #include "DataFormat/opflash.h"
+#include "DataFormat/user_info.h"
 
 // larcv
 #include "DataFormat/DataFormatTypes.h"
@@ -294,6 +295,22 @@ namespace larlitecv {
       for ( auto const& opflash : data.track_opflash_v) {
         track_opflash_out->push_back(opflash);
       }
+    }
+
+    // Store cut results
+    if ( config.croi_write_cfg.get<bool>("WriteCutResults") ) {
+      larlite::event_user* ev_user_info = (larlite::event_user*)dataco.get_larlite_data( larlite::data::kUserInfo, "croicutresults" );
+      larlite::user_info cutinfo;
+      for ( auto const& result : data.flashdata_passes_containment_v ) {
+	cutinfo.append( "containment", result );
+      }
+      for ( auto const& result : data.flashdata_passes_flashmatch_v ) {
+	cutinfo.append( "flashmatch", result );
+      }
+      for ( auto const& result : data.flashdata_passes_cosmicflash_ratio_v ) {
+	cutinfo.append( "cosmicratio", result );
+      }
+      ev_user_info->emplace_back( std::move(cutinfo) );
     }
   }
 }

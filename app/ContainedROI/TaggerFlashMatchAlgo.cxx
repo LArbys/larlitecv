@@ -24,6 +24,24 @@ namespace larlitecv {
     }
   }
 
+  bool TaggerFlashMatchAlgo::didTrackPassContainmentCut( int itrack ) {
+    if ( itrack<0 || itrack>=(int)m_passes_containment.size() )
+      return false;
+    return m_passes_containment[itrack];
+  }
+
+  bool TaggerFlashMatchAlgo::didTrackPassFlashMatchCut( int itrack ) {
+    if ( itrack<0 || itrack>=(int)m_passes_flashmatch.size() )
+      return false;
+    return m_passes_flashmatch[itrack];
+  }
+  
+  bool TaggerFlashMatchAlgo::didTrackPassCosmicFlashCut( int itrack ) {
+    if ( itrack<0 || itrack>=(int)m_passes_cosmicflash_ratio.size() )
+      return false;
+    return m_passes_cosmicflash_ratio[itrack];
+  }
+  
   std::vector<larcv::ROI> TaggerFlashMatchAlgo::FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata,
 									       const std::vector<larlite::event_opflash*>& opflashes_v, std::vector<int>& flashdata_selected ) {
 
@@ -48,9 +66,9 @@ namespace larlitecv {
     // merge objects [later if needed]
 
     // choose contained candidates
-    std::vector<int> passes_containment( inputdata.size(), 0 );
-    std::vector<int> passes_flashmatch(  inputdata.size(), 0 );
-    std::vector<int> passes_cosmicflash_ratio(  inputdata.size(), 0 );
+    m_passes_containment.resize( inputdata.size(), 0 );
+    m_passes_flashmatch.resize( inputdata.size(), 0 );
+    m_passes_cosmicflash_ratio.resize( inputdata.size(), 0 );
 
     for ( size_t i=0; i<inputdata.size(); i++ ) {
 
@@ -65,10 +83,10 @@ namespace larlitecv {
         std::cout << ": ";
       }
 
-      passes_containment[i] = ( IsClusterContained( inputdata.at(i) ) ) ? 1 : 0;
+      m_passes_containment[i] = ( IsClusterContained( inputdata.at(i) ) ) ? 1 : 0;
 
       if ( m_verbosity>=2 ) {
-      	if ( passes_containment[i] )
+      	if ( m_passes_containment[i] )
           std::cout << " {contained}" << std::endl;
       	else
           std::cout << "{uncontained}" << std::endl;
@@ -77,27 +95,27 @@ namespace larlitecv {
       // flash-match candidates
       flashana::QCluster_t qcluster = GenerateQCluster( inputdata.at(i) );
 
-      passes_flashmatch[i] = ( DoesQClusterMatchInTimeFlash( data_flashana, qcluster )  ) ? 1 : 0;
+      m_passes_flashmatch[i] = ( DoesQClusterMatchInTimeFlash( data_flashana, qcluster )  ) ? 1 : 0;
 
       float dchi2=0;
-      passes_cosmicflash_ratio[i] = ( DoesQClusterMatchInTimeBetterThanCosmic( data_flashana, qcluster, inputdata[i], i, dchi2 ) ) ? 1 : 0;
+      m_passes_cosmicflash_ratio[i] = ( DoesQClusterMatchInTimeBetterThanCosmic( data_flashana, qcluster, inputdata[i], i, dchi2 ) ) ? 1 : 0;
 
       if ( m_verbosity>=2 ) {
         std::cout << "  ";
 
-      	if ( passes_containment[i] )
+      	if ( m_passes_containment[i] )
           std::cout << " {contained}";
       	else
           std::cout << "{uncontained}";
 
-        if ( passes_flashmatch[i]==1 ) {
+        if ( m_passes_flashmatch[i]==1 ) {
           std::cout << " {in-time flash-matched}";
         }
         else {
           std::cout << " {not-matched}";
         }
 
-	if ( !passes_cosmicflash_ratio[i] )
+	if ( !m_passes_cosmicflash_ratio[i] )
 	  std::cout << " {fails cosmic-flash match: dchi2=" << dchi2 << "}";
 	else if ( dchi2!=0 )
 	  std::cout << " {fails cosmic-flash match: dchi2=" << dchi2 << "}";
@@ -105,14 +123,14 @@ namespace larlitecv {
 	  std::cout << " { no flash end }";
 	  
 	
-	if ( passes_flashmatch[i] && passes_containment[i] && passes_cosmicflash_ratio[i] )
+	if ( m_passes_flashmatch[i] && m_passes_containment[i] && m_passes_cosmicflash_ratio[i] )
           std::cout << " **PASSES**";
         std::cout << std::endl;
       }
     }//end of input data loop
 
     for ( size_t i=0; i<inputdata.size(); i++) {
-      if ( passes_containment[i] && passes_flashmatch[i] && passes_cosmicflash_ratio[i] ) {
+      if ( m_passes_containment[i] && m_passes_flashmatch[i] && m_passes_cosmicflash_ratio[i] ) {
         // Make ROI
         flashdata_selected[i] = 1;
       }
@@ -570,9 +588,9 @@ namespace larlitecv {
     }
 
     //  still a dumb cut
-    if ( mean[0] < 100.0 && chi2< 400 )
+    if ( mean[0] < 100.0 && chi2< m_config.flashmatch_chi2_cut*1.5 )
       return true;
-    else if ( mean[0]>100.0 && chi2<200 )
+    else if ( mean[0]>100.0 && chi2<m_config.flashmatch_chi2_cut )
       return true;
     else
       return false;

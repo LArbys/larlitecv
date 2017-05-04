@@ -74,6 +74,13 @@ namespace larlitecv {
     bool DoesQClusterMatchInTimeBetterThanCosmic( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster,
 						  const larlitecv::TaggerFlashMatchData& taggertrack, const int trackidx, float& dchi2 );
     
+    bool didTrackPassContainmentCut( int itrack );
+    bool didTrackPassFlashMatchCut( int itrack );
+    bool didTrackPassCosmicFlashCut( int itrack );
+
+    const std::vector<int>& getContainmentCutResults() { return m_passes_containment; };
+    const std::vector<int>& getFlashMatchCutResults() { return m_passes_flashmatch; };
+    const std::vector<int>& getCosmicRatioCutResults() { return m_passes_cosmicflash_ratio; };    
 
   protected:
 
@@ -85,6 +92,11 @@ namespace larlitecv {
     std::map<int,int> m_opch_from_opdet;
     std::vector<larlite::opflash> m_opflash_hypos; ///< flash hypotheses for each track
     std::vector<float> m_min_chi2; ///< min-chi2 score for each flash
+
+    std::vector<int> m_passes_containment;
+    std::vector<int> m_passes_flashmatch;
+    std::vector<int> m_passes_cosmicflash_ratio;
+    
 
   };
 

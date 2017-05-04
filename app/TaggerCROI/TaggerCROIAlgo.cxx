@@ -501,6 +501,13 @@ namespace larlitecv {
       output.croi_v.emplace_back( std::move(croi) );
     }
 
+    // -----------------------------------------------------------------------
+    // Copy cut results
+    
+    output.flashdata_passes_containment_v = selectionalgo.getContainmentCutResults();
+    output.flashdata_passes_cosmicflash_ratio_v = selectionalgo.getCosmicRatioCutResults();
+    output.flashdata_passes_flashmatch_v = selectionalgo.getFlashMatchCutResults();    
+
     // ------------------------------------------------------------------------//
     // Make Combined Tagged Image
 
