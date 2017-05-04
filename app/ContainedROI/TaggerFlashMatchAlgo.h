@@ -71,6 +71,10 @@ namespace larlitecv {
 
     bool DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster );
 
+    bool DoesQClusterMatchInTimeBetterThanCosmic( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster,
+						  const larlitecv::TaggerFlashMatchData& taggertrack, const int trackidx, float& dchi2 );
+    
+
   protected:
 
     const TaggerFlashMatchAlgoConfig m_config;   //< configuration class

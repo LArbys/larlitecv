@@ -5,6 +5,9 @@
 #include "LArUtil/Geometry.h"
 #include "OpT0Finder/Algorithms/QLLMatch.h"
 
+// larlitecv
+#include "FlashMatchMetricMethods.h"
+
 namespace larlitecv {
 
   TaggerFlashMatchAlgo::TaggerFlashMatchAlgo()
@@ -47,6 +50,7 @@ namespace larlitecv {
     // choose contained candidates
     std::vector<int> passes_containment( inputdata.size(), 0 );
     std::vector<int> passes_flashmatch(  inputdata.size(), 0 );
+    std::vector<int> passes_cosmicflash_ratio(  inputdata.size(), 0 );
 
     for ( size_t i=0; i<inputdata.size(); i++ ) {
 
@@ -75,6 +79,9 @@ namespace larlitecv {
 
       passes_flashmatch[i] = ( DoesQClusterMatchInTimeFlash( data_flashana, qcluster )  ) ? 1 : 0;
 
+      float dchi2=0;
+      passes_cosmicflash_ratio[i] = ( DoesQClusterMatchInTimeBetterThanCosmic( data_flashana, qcluster, inputdata[i], i, dchi2 ) ) ? 1 : 0;
+
       if ( m_verbosity>=2 ) {
         std::cout << "  ";
 
@@ -90,14 +97,22 @@ namespace larlitecv {
           std::cout << " {not-matched}";
         }
 
-        if ( passes_flashmatch[i] && passes_containment[i] )
+	if ( !passes_cosmicflash_ratio[i] )
+	  std::cout << " {fails cosmic-flash match: dchi2=" << dchi2 << "}";
+	else if ( dchi2!=0 )
+	  std::cout << " {fails cosmic-flash match: dchi2=" << dchi2 << "}";
+	else
+	  std::cout << " { no flash end }";
+	  
+	
+	if ( passes_flashmatch[i] && passes_containment[i] && passes_cosmicflash_ratio[i] )
           std::cout << " **PASSES**";
         std::cout << std::endl;
       }
     }//end of input data loop
 
     for ( size_t i=0; i<inputdata.size(); i++) {
-      if ( passes_containment[i] && passes_flashmatch[i] ) {
+      if ( passes_containment[i] && passes_flashmatch[i] && passes_cosmicflash_ratio[i] ) {
         // Make ROI
         flashdata_selected[i] = 1;
       }
@@ -564,4 +579,40 @@ namespace larlitecv {
     
   }
 
+  bool TaggerFlashMatchAlgo::DoesQClusterMatchInTimeBetterThanCosmic( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster,
+								      const larlitecv::TaggerFlashMatchData& taggertrack, const int trackidx, float& dchi2 ) {
+    if ( !taggertrack.hasStartFlash() && !taggertrack.hasEndFlash() ) {
+      // No flash associated to this track.
+      return true;
+    }
+    
+    float intime_min_chi2 = m_min_chi2[trackidx]; // we cheat and use this stored value instead of recalculating
+    
+    std::vector< larlite::opflash > cosmicflash_v;
+    if ( taggertrack.hasStartFlash() )
+      cosmicflash_v.push_back( *(taggertrack.m_pstart_flash ) );
+    if ( taggertrack.hasEndFlash() )
+      cosmicflash_v.push_back( *(taggertrack.m_pend_flash) );
+    
+    flashana::Flash_t flash_hypo = GenerateUnfittedFlashHypothesis( qcluster );
+    larlite::opflash opflash_hypo = MakeOpFlashFromFlash( flash_hypo );
+
+    float totpe_cosmicflash = 0.;
+    float totpe_hypoflash = 0;
+    float cosmicflash_chi2 = larlitecv::CalculateFlashMatchChi2( cosmicflash_v, opflash_hypo, totpe_cosmicflash, totpe_hypoflash, m_config.fudge_factor, false );
+    
+
+    dchi2 = intime_min_chi2 - cosmicflash_chi2;
+    
+    if ( cosmicflash_chi2 < intime_min_chi2 ) {
+      // matches cosmic flash better
+      return false;
+    }
+    else {
+      return true;
+    }
+    
+    return true; // never gets here
+  }
+  
 }

@@ -45,8 +45,8 @@ namespace larlitecv {
       else
 	has_endflash=false;
     };
-    bool hasStartFlash() { return has_startflash; };
-    bool hasEndFlash() { return has_endflash; };
+    bool hasStartFlash() const { return has_startflash; };
+    bool hasEndFlash() const { return has_endflash; };
     
   };
  
