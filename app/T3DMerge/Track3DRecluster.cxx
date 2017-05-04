@@ -14,7 +14,7 @@ namespace larlitecv {
     m_ann_dist = 5.0;
     m_max_end_dist = 20.0;
     m_min_end_cos = 0.0;
-    m_max_iterations = 10000;
+    m_max_iterations = 1000;
     m_merge = false;
   }
   
@@ -79,7 +79,7 @@ namespace larlitecv {
 	m_tracks.emplace_back( std::move(track) );
       }
       temp_list.clear();
-      if ( m_verbosity>0 )
+      if ( m_verbosity>0 && iterations%100==0 )
 	std::cout << "RECLUSTER iter=" << iterations << " oldsize=" << old_size << " new size=" << m_tracks.size() << std::endl;
       iterations++;
       if ( m_verbosity>2 )
