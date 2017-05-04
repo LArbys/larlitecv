@@ -3,7 +3,9 @@ import ROOT as rt
 
 rt.gStyle.SetOptStat(0)
 
-rfile = rt.TFile("output_flash_timing.root")
+inputfile = sys.argv[1]
+
+rfile = rt.TFile(inputfile)
 
 tree = rfile.Get("flashtimes")
 

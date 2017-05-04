@@ -1,5 +1,6 @@
 #include <iostream>
 #include <vector>
+#include <sstream>
 
 // larcv
 #include "DataFormat/EventImage2D.h"
@@ -23,6 +24,7 @@
 // ROOT
 #include "TFile.h"
 #include "TTree.h"
+#include "TVector.h"
 
 int main( int nargs, char** argv ) {
 
@@ -53,15 +55,29 @@ int main( int nargs, char** argv ) {
   }
 
   // Stages
-  enum { kThruMu=0, kStopMu, kUntagged, kCROI, kNumStages } Stages_t;
-  std::string stages_track_producers[kNumStages] = { "thrumu3d", "stopmu3d", "untagged3d", "croi3d" };
-
+  //enum Stages_t { kThruMu=0, kStopMu, kUntagged, kCROI, kNumStages };
+  int kThruMu, kStopMu, kUntagged, kCROI, kNumStages;
+  bool use_streclustered = pset.get<bool>("UseReclusteredStopThru");
+  std::vector<std::string> stages_track_producers;
+  if ( use_streclustered ) {
+    kNumStages = 3;
+    kThruMu = 0;
+    kUntagged = 1;
+    kCROI = 2;
+    kStopMu = -1;
+    stages_track_producers.resize(3);
+    stages_track_producers[0] = "streclustered3d";
+    stages_track_producers[1] = "untagged3d";
+    stages_track_producers[2] = "croi3d";    
+  }
+  
   // program configuration parameters
   std::vector<int> beam_tick_range(2);
   beam_tick_range[0] = 100;
   beam_tick_range[1] = 400.0;
   const float us_per_tick = 0.015625;
   const float bbox_buffer = 0.0;
+  const float match_radius = 20.0;
 
   // space charge correction class
   larlitecv::SpaceChargeMicroBooNE sce;
@@ -85,7 +101,13 @@ int main( int nargs, char** argv ) {
 
 
   // flash metrics output
-
+  int num_true_bbox = 0;
+  int num_vtxmatched_tracks = 0;
+  float closest_vtx_dist = -1;
+  tree->Branch("num_true_bbox", &num_true_bbox, "num_true_bbox/I" );
+  tree->Branch("num_vtxmatched_tracks", &num_vtxmatched_tracks, "num_vtxmatched_tracks/I" );
+  tree->Branch("closest_vtx_dist", &closest_vtx_dist, "closest_vtx_dist/F" );    
+  
   // binned poisson likelihood ratio
   std::vector<float> smallest_chi2_falseflash_v; // chi2 to flash hypothesis not corresponding to true source of trigger
   std::vector<float> smallest_chi2_trueflash_v;  // chi2 to flash hypothesis corresponding to true source of trigger
@@ -150,6 +172,9 @@ int main( int nargs, char** argv ) {
     smallest_gausll_falseflash_v.clear();
     containment_trueflash_v.clear();
     containment_falseflash_v.clear();
+    num_vtxmatched_tracks = 0;
+    num_true_bbox = 0;
+    closest_vtx_dist = -1;
 
     // we get wnat to get:
     //  (1) truth info
@@ -204,6 +229,7 @@ int main( int nargs, char** argv ) {
     larlite::event_track* ev_tagger_tracks[kNumStages];
     std::vector<const larlite::track*> track_list;
     for ( int istage=0; istage<=kUntagged; istage++ ) {
+      std::cout << "Loding stage #" << istage << ": " << stages_track_producers[istage] << std::endl;
       ev_tagger_tracks[istage] = (larlite::event_track*)dataco[kCROIfile].get_larlite_data( larlite::data::kTrack, stages_track_producers[istage] );
       for ( auto const& track : *(ev_tagger_tracks[istage]) ) {
         if ( istage==kUntagged && track.NumberTrajectoryPoints()==0 ) {
@@ -218,13 +244,14 @@ int main( int nargs, char** argv ) {
 
     if ( flash_hypo_v.size()>0 && track_list.size()!=flash_hypo_v.size() ) {
       //continue; // freak out and skip event
-      throw std::runtime_error("Number of tracks and number of flash hypotheses do not match.");
+      std::stringstream ss;
+      ss << "Number of tracks, " << track_list.size() << ", and number of flash hypotheses, " << flash_hypo_v.size() << ", do not match." << std::endl;
+      throw std::runtime_error( ss.str() );
     }
     else if ( flash_hypo_v.size()==0 )
       continue;
 
     // loop through tracks and flash hypotheses. Get metrics for each.
-    int num_true_bbox = 0;
     for ( size_t itrack=0; itrack<track_list.size(); itrack++ ) {
       const larlite::track& track = *(track_list.at(itrack));
       const larlite::opflash& ophypo = ev_data_ophypo->at(itrack);
@@ -236,6 +263,7 @@ int main( int nargs, char** argv ) {
       float tot_temp2 = 0;
       float smallest_gausll = larlitecv::CalculateShapeOnlyUnbinnedLL( intime_data, ophypo, tot_temp, tot_temp2, false );
 
+      // -----------------------------------------------
       // need to determine if this track is the intime track or not
       // we do this by checking if track gets close to true vertex. slow AF.
       std::vector< std::vector<float> > bbox = larlitecv::TaggerFlashMatchAlgo::GetAABoundingBox( track );
@@ -252,11 +280,33 @@ int main( int nargs, char** argv ) {
         }
       }
 
+      // -----------------------------------------------
+      // .. scan tracks for proximinty to neutrino vertex
+      bool matchvtx = false;
+      int npts = track.NumberTrajectoryPoints();      
+      
+      for (int ipt=0; ipt<npts; ipt++) {
+	float dist = 0.;
+	const TVector3& pos = track.LocationAtPoint(ipt);
+	for (int v=0; v<3; v++)
+	  dist += (pos[v]-apparent_vtx[v])*(pos[v]-apparent_vtx[v]);
+	dist = sqrt(dist);
+	if ( closest_vtx_dist<0 || closest_vtx_dist>dist )
+	  closest_vtx_dist = dist;
+	if ( dist<match_radius )
+	  matchvtx = true;
+      }
+      
+      if ( matchvtx ) {
+	num_vtxmatched_tracks++;
+      }
+      // ------------------------------------
+
       bool contained = false;
       if ( bbox[0][0]>=-10 && bbox[0][0]<=275 && bbox[0][1]>=-10 && bbox[0][1]<=275 )
 	contained = true;
 
-      if ( inbbox ) {
+      if ( matchvtx ) {
         smallest_chi2_trueflash_v.push_back( smallest_chi2 );
         smallest_gausll_trueflash_v.push_back( smallest_gausll );
         totpe_hypo_trueflash_v.push_back( totpe_hypo );
@@ -276,6 +326,7 @@ int main( int nargs, char** argv ) {
 	  containment_falseflash_v.push_back( 0 );	
       }
 
+      
     }
     std::cout << "Number of Vertex Enclosing BBox: " << num_true_bbox << std::endl;
 

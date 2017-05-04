@@ -808,64 +808,66 @@ int main( int nargs, char** argv ) {
 
 #ifdef USE_OPENCV
     // draw image
-    int color_codes[7][3] = { {255,0,0}, // top
-			      {0,0,255}, // bot
-			      {0,255,255}, // upstream
-			      {0,255,0}, // downstream
-			      {255,255,0}, // anode
-			      {255,0,255}, // cathode
-			      {0,128,255} }; // imageend
-    for ( size_t p=0; p<cvleftover_v.size(); p++ ) {
-      auto& leftover = cvleftover_v.at(p);
+    if ( pset.get<bool>("SaveJPEG") ) {
+      int color_codes[7][3] = { {255,0,0}, // top
+				{0,0,255}, // bot
+				{0,255,255}, // upstream
+				{0,255,0}, // downstream
+				{255,255,0}, // anode
+				{255,0,255}, // cathode
+				{0,128,255} }; // imageend
+      for ( size_t p=0; p<cvleftover_v.size(); p++ ) {
+	auto& leftover = cvleftover_v.at(p);
 
-      if ( ismc ) {
-	// draw truth end points!
-	std::cout << "startpixels=" << xingptdata.start_pixels.size() << " " << xingptdata.start_type.size() << std::endl;
-	for ( size_t istart=0; istart<xingptdata.start_type.size(); istart++) {
-	  auto const& start_pix = xingptdata.start_pixels[istart];
-	  int i = xingptdata.start_type[istart];
-	  if ( xingptdata.start_type[istart]<4 )
-	    cv::circle( leftover, cv::Point(start_pix[p+1],start_pix[0]), 4, cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 2, -1 );
-	  else
-	    cv::rectangle( leftover, cv::Point(start_pix[p+1]-4,start_pix[0]-4), cv::Point(start_pix[p+1]+4,start_pix[0]+4),
-			   cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 1 );
-	}
-	std::cout << "endpixels=" << xingptdata.end_pixels.size() << " " << xingptdata.end_type.size() << std::endl;	
-	for ( size_t iend=0; iend<xingptdata.end_type.size(); iend++) {	
-	  auto const& end_pix = xingptdata.end_pixels[iend];
-	  int i = xingptdata.end_type[iend];	  
-	  if ( xingptdata.end_type[iend]<4 )
-	    cv::circle( leftover, cv::Point(end_pix[p+1],end_pix[0]), 4, cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 2, -1 );
-	  else
-	    cv::rectangle( leftover, cv::Point(end_pix[p+1]-4,end_pix[0]-4), cv::Point(end_pix[p+1]+4,end_pix[0]+4),
-			   cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 1 );
-	}
-	
-	// draw proposed end points
-	for ( int i=0; i<7; i++) {
-	  if ( ev_spacepoints[i]==NULL )
-	    continue;
-	  for ( auto const& endpt : ev_spacepoints[i]->Pixel2DArray(p) ) {
-	    cv::drawMarker( leftover, cv::Point(endpt.X(), endpt.Y()),  cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), cv::MARKER_CROSS, 6, 2);
+	if ( ismc ) {
+	  // draw truth end points!
+	  std::cout << "startpixels=" << xingptdata.start_pixels.size() << " " << xingptdata.start_type.size() << std::endl;
+	  for ( size_t istart=0; istart<xingptdata.start_type.size(); istart++) {
+	    auto const& start_pix = xingptdata.start_pixels[istart];
+	    int i = xingptdata.start_type[istart];
+	    if ( xingptdata.start_type[istart]<4 )
+	      cv::circle( leftover, cv::Point(start_pix[p+1],start_pix[0]), 4, cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 2, -1 );
+	    else
+	      cv::rectangle( leftover, cv::Point(start_pix[p+1]-4,start_pix[0]-4), cv::Point(start_pix[p+1]+4,start_pix[0]+4),
+			     cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 1 );
 	  }
+	  std::cout << "endpixels=" << xingptdata.end_pixels.size() << " " << xingptdata.end_type.size() << std::endl;	
+	  for ( size_t iend=0; iend<xingptdata.end_type.size(); iend++) {	
+	    auto const& end_pix = xingptdata.end_pixels[iend];
+	    int i = xingptdata.end_type[iend];	  
+	    if ( xingptdata.end_type[iend]<4 )
+	      cv::circle( leftover, cv::Point(end_pix[p+1],end_pix[0]), 4, cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 2, -1 );
+	    else
+	      cv::rectangle( leftover, cv::Point(end_pix[p+1]-4,end_pix[0]-4), cv::Point(end_pix[p+1]+4,end_pix[0]+4),
+			     cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 1 );
+	  }
+	
+	  // draw proposed end points
+	  for ( int i=0; i<7; i++) {
+	    if ( ev_spacepoints[i]==NULL )
+	      continue;
+	    for ( auto const& endpt : ev_spacepoints[i]->Pixel2DArray(p) ) {
+	      cv::drawMarker( leftover, cv::Point(endpt.X(), endpt.Y()),  cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), cv::MARKER_CROSS, 6, 2);
+	    }
+	  }
+
+	  // sce vertex
+	  cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), 4, cv::Scalar(0,0,255),   2, -1 );
+	  cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), 3, cv::Scalar(0,255,255), 1, -1 );      
+
 	}
 
-	// sce vertex
-	cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), 4, cv::Scalar(0,0,255),   2, -1 );
-	cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), 3, cv::Scalar(0,255,255), 1, -1 );      
-
-      }
-
-      // draw roi
-      for ( auto const& roi : containedrois_v ) {
-        larcv::draw_bb( leftover, imgs_v.front().meta(), roi.BB(p), 255, 0, 255, 2 );
-      }
+	// draw roi
+	for ( auto const& roi : containedrois_v ) {
+	  larcv::draw_bb( leftover, imgs_v.front().meta(), roi.BB(p), 255, 0, 255, 2 );
+	}
 
       
-      std::stringstream ss;
-      ss << "leftover_clust_i" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
-      std::cout << "write: " << ss.str() << std::endl;
-      cv::imwrite( ss.str(), leftover );
+	std::stringstream ss;
+	ss << "leftover_clust_i" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
+	std::cout << "write: " << ss.str() << std::endl;
+	cv::imwrite( ss.str(), leftover );
+      }
     }
 #endif
 
