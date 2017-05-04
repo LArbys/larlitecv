@@ -93,12 +93,18 @@ namespace larlitecv {
         // to set the range, we find the first hit above threshold from the mean
         float min_dist_z = 1e9;
         float max_dist_z = 0;
+	float z_max = 0;
+	float q_max = -1;
         for (int ipmt=0; ipmt<32; ipmt++) {
           float pe = opflash.PE(ipmt);
           float dist = pmtpos[ipmt][2]-z_weighted;
           if ( pe>5.0 ) {
             if ( dist<0 && min_dist_z>dist ) min_dist_z = dist;
             else if ( dist>0 && max_dist_z<dist ) max_dist_z = dist;
+	    if ( pe>q_max ) {
+	      z_max = pmtpos[ipmt][2];
+	      q_max = pe;
+	    }
           }
         }
 
@@ -129,6 +135,8 @@ namespace larlitecv {
                     << " tick_target=" << tick_target
                     << " row_target=" << row_target
                     << " qtot= " << qtot
+		    << " zmax=" << z_max
+		    << " qmax=" << q_max
                     << " z_range=[" << z_range[0] << "," << z_range[1] << "] "
                     << " w_range=[" << int(z_range[0]/0.3/meta.pixel_width()) << "," << int(z_range[1]/0.3/meta.pixel_width()) << "] "
                     << " drift_t=" << fConfig.drift_distance/fConfig.drift_velocity/fConfig.usec_per_tick+200.0 << " ticks"
@@ -139,7 +147,7 @@ namespace larlitecv {
 	if ( fConfig.endpoint_clustering_algo=="cluster" )
 	  FindFlashesByChargeClusters( row_target, point_type, tpc_imgs, badch_imgs, z_range, y_range, trackendpts );
 	else if ( fConfig.endpoint_clustering_algo=="segment" )
-	  FindFlashesBy3DSegments( row_target, point_type, tpc_imgs, badch_imgs, z_range, trackendpts );
+	  FindFlashesBy3DSegments( row_target, point_type, tpc_imgs, badch_imgs, z_max, z_range, trackendpts );
 	else
 	  throw std::runtime_error("FlashMuonTaggerAlgo:: end point clustering strategy not recognized. options: \"cluster\" or \"segment\"");
 
@@ -840,7 +848,7 @@ namespace larlitecv {
 
   void FlashMuonTaggerAlgo::FindFlashesBy3DSegments( const int row_target, const larlitecv::BoundaryEnd_t point_type,
 						     const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-						     const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts ) {
+						     const float z_max, const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts ) {
     const int row_gap_size = 6;
     Segment3DAlgo segalgo;
     Linear3DChargeTaggerConfig linalgocfg;
@@ -872,6 +880,8 @@ namespace larlitecv {
       std::cout << "Found " << seg3d_v.size() << " 3D segments" << std::endl;
     
     // We keep those in the same z-range as the flash seen
+    std::vector< BoundarySpacePoint > candidate_endpts;
+    
     for ( auto const& seg3d : seg3d_v ) {
       bool pos_matches = false;
       if ( (z_range[0]<=seg3d.start[2] && seg3d.start[2]<=z_range[1]) || (z_range[0]<=seg3d.end[2] && seg3d.end[2]<=z_range[1]) ) {
@@ -961,9 +971,61 @@ namespace larlitecv {
 	  std::cout << "Make SpacePoint of type: " << point_type << std::endl;
 	}
 	larlitecv::BoundarySpacePoint sp( point_type, std::move(endpt_v), (float)*(xyz+0), (float)*(xyz+1), (float)*(xyz+2) );
-	trackendpts.emplace_back( sp );
+	candidate_endpts.emplace_back( sp );
       }//end if position matches
     }//end of seg3d loop
+
+    if ( (int)candidate_endpts.size()<=fConfig.max_nsegments_per_flash || point_type==larlitecv::kImageEnd ) {
+      // If under the max, pass them on
+      for ( auto& sp : candidate_endpts ) {
+	trackendpts.emplace_back(std::move(sp));
+      }
+    }
+    else {
+      std::cout << "Need to select best " << fConfig.max_nsegments_per_flash << " from " << candidate_endpts.size() << " endpts" << std::endl;
+      // Or select the best by position
+      class Qindex {
+	// we use this class to sort the indices by distance from the maximum
+      public:
+	Qindex() {};
+	~Qindex() {};
+	int idx;
+	float z_dist;
+	bool operator<( const Qindex& rhs ) const {
+	  if ( z_dist < rhs.z_dist )
+	    return true;
+	  return false;
+	};
+      };
+
+      std::vector< Qindex > qlist( candidate_endpts.size() );
+      std::cout << "Select best flashes based on zmax=" << z_max << std::endl;      
+      for ( int idx=0; idx<(int)candidate_endpts.size(); idx++ ) {
+	Qindex& qidx = qlist[idx];
+	qidx.idx=idx;
+	qidx.z_dist = fabs( z_max - candidate_endpts[idx].pos()[2] );
+      }
+
+      std::sort( qlist.begin(), qlist.end() );
+
+      if ( point_type==larlitecv::kAnode ) {
+	// if crossing the anode, we should be close to the max
+	std::cout << "Anode select." << std::endl;
+	for (int i=0; i<fConfig.max_nsegments_per_flash; i++ ) {
+	  std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;
+	  trackendpts.emplace_back( std::move( candidate_endpts[ qlist[i].idx ] ) );
+	}
+      }
+      else {
+	// if crossing the cathode, we should be away from the max, to some degree
+	std::cout << "Cathode select" << std::endl;
+	for (int i=(int)candidate_endpts.size()-1; i>=(int)candidate_endpts.size()-fConfig.max_nsegments_per_flash; i-- ) {
+	  std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;	  
+	  trackendpts.emplace_back( std::move( candidate_endpts[ qlist[i].idx ] ) );
+	}	
+      }
+    }
+    // fin. 
   }
   
 }

@@ -111,7 +111,7 @@ namespace larlitecv {
 
     void FindFlashesBy3DSegments( const int row_target, const larlitecv::BoundaryEnd_t point_type,
 				  const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-				  const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts );
+				  const float z_max, const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts );
     
     
 
