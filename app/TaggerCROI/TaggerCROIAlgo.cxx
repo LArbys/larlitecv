@@ -24,6 +24,7 @@
 #include "UntaggedClustering/ClusterGroupAlgo.h"
 #include "UntaggedClustering/ClusterGroupMatchingAlgo.h"
 #include "ContainedROI/TaggerFlashMatchAlgo.h"
+#include "ContainedROI/MatchTaggerData2Flash.h"
 #include "T3DMerge/T3DCluster.h"
 #include "T3DMerge/Track3DRecluster.h"
 #include "T3DMerge/T3D2LarliteTrack.h"
@@ -281,6 +282,7 @@ namespace larlitecv {
 	reclusteralgo.addPath( path );
       }
 
+      std::cout << "Run Recluster Algo." << std::endl;
       output.stopthru_reclustered_v = reclusteralgo.recluster();
 
       // Use reclustering to tag image
@@ -358,6 +360,9 @@ namespace larlitecv {
 	larlitecv::TaggerFlashMatchData reclustered_track( larlitecv::TaggerFlashMatchData::kThruMu, output.stopthru_reclustered_pixels_v[itrack], lltrack );
 	output.flashdata_v.emplace_back( std::move(reclustered_track) );
       }
+      // ASSOCIATE FLASHES TO THE TAGGER DATA
+      larlitecv::MatchTaggerData2Flash( output.flashdata_v, input.opflashes_v, thrumu.anode_spacepoint_v, thrumu.cathode_spacepoint_v, 10.0 );
+      
     }
     else {
       // DONT USE RECLUSTERED STOP/THRU MU TRACKS
@@ -384,6 +389,8 @@ namespace larlitecv {
       }
     }
 
+    // ------------------------------------------------------------------
+    // FIND CONTAINED CLUSTERS
     
     // Find Contained Clusters
     float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;

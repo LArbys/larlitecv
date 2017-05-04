@@ -11,6 +11,7 @@
 #include "Base/LArCVBaseUtilFunc.h"
 #include "Base/DataCoordinator.h"
 #include "DataFormat/EventImage2D.h"
+#include "DataFormat/EventROI.h"
 #include "DataFormat/Image2D.h"
 #include "DataFormat/ImageMeta.h"
 #include "ANN/ANNAlgo.h"
@@ -290,6 +291,14 @@ int main(int nargs, char** argv ) {
       for ( auto const& shower : *event_mcshower ) evout_mcshower->push_back( shower  );
     }
 
+    if ( save_mc && pset.get<larcv::PSet>("MCWriteConfig").get<bool>("WriteMCROI") ) {
+      std::cout << "WRITE MC TRACK SHOWER INFORMATION" << std::endl;
+      larcv::PSet mcwritecfg = pset.get<larcv::PSet>("MCWriteConfig");
+      larcv::EventROI* event_roi = (larcv::EventROI*)dataco.get_larcv_data(     larcv::kProductROI, mcwritecfg.get<std::string>("MCROIProducer") );
+      larcv::EventROI* evout_roi = (larcv::EventROI*)dataco_out.get_larcv_data( larcv::kProductROI, mcwritecfg.get<std::string>("MCROIProducer") );
+      evout_roi->Set( event_roi->ROIArray() );
+    }
+    
     dataco_out.save_entry();
 
     ann::ANNAlgo::cleanup();
