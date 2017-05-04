@@ -63,8 +63,8 @@ thresholds = std.vector("float")(3,10.0)
 neighborhood = std.vector("int")(3,5)
 stepsize = 0.3
 
-#for ientry in range(2,nentries):
-for ientry in range(67,68):
+for ientry in range(0,5):
+#for ientry in range(0,1):
     
     datacoord.goto_entry(ientry,"larlite")
     
