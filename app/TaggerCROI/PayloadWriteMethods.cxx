@@ -310,6 +310,9 @@ namespace larlitecv {
       for ( auto const& result : data.flashdata_passes_cosmicflash_ratio_v ) {
 	cutinfo.append( "cosmicratio", result );
       }
+      for ( auto const& result : data.flashdata_passes_totpe_v ) {
+	cutinfo.append( "totalpe", result );
+      }
       ev_user_info->emplace_back( std::move(cutinfo) );
     }
   }

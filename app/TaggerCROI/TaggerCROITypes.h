@@ -132,7 +132,8 @@ namespace larlitecv {
 
     std::vector< int > flashdata_passes_containment_v;
     std::vector< int > flashdata_passes_cosmicflash_ratio_v;
-    std::vector< int > flashdata_passes_flashmatch_v;    
+    std::vector< int > flashdata_passes_flashmatch_v;
+    std::vector< int > flashdata_passes_totpe_v;
 
     std::vector< larcv::ROI > croi_v;
     std::vector< larcv::Image2D > combined_v;

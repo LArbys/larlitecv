@@ -506,7 +506,8 @@ namespace larlitecv {
     
     output.flashdata_passes_containment_v = selectionalgo.getContainmentCutResults();
     output.flashdata_passes_cosmicflash_ratio_v = selectionalgo.getCosmicRatioCutResults();
-    output.flashdata_passes_flashmatch_v = selectionalgo.getFlashMatchCutResults();    
+    output.flashdata_passes_flashmatch_v = selectionalgo.getFlashMatchCutResults();
+    output.flashdata_passes_totpe_v      = selectionalgo.getTotalPECutResults();
 
     // ------------------------------------------------------------------------//
     // Make Combined Tagged Image
