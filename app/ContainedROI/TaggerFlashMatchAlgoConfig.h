@@ -20,11 +20,14 @@ namespace larlitecv {
   	float qcluster_stepsize;
   	float MeV_per_cm;
   	float fudge_factor;
+	float fudge_factor_cosmic;
   	float us_per_tick;
   	float pmtflash_thresh;
   	float flashmatch_chi2_cut;
   	float flashpe_thresh;
-	float bbox_pad;	
+	float totpe_sigma_cut;
+	float bbox_pad;
+	bool use_gaus2d;
   	std::vector<int> beam_tick_range;
   	std::vector<float> FVCutX;
   	std::vector<float> FVCutY;

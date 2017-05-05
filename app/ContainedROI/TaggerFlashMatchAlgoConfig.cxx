@@ -12,7 +12,8 @@ namespace larlitecv {
 		verbosity = 0;
 		qcluster_stepsize = 0.3;
 		MeV_per_cm = 2.3;
-		fudge_factor = 1.0;
+		fudge_factor = 33333.0;
+		fudge_factor_cosmic = 16666.5;		
 		beam_tick_range.resize(2);
 		beam_tick_range[0] = 150;
 		beam_tick_range[1] = 400;
@@ -31,6 +32,8 @@ namespace larlitecv {
 		FVCutZ[0] = 0.0;
 		FVCutZ[1] = 1037.0;
 		gain_correction.resize(32,1.0);
+		totpe_sigma_cut = 4.0;
+		use_gaus2d = false;
 	}
 
 	TaggerFlashMatchAlgoConfig TaggerFlashMatchAlgoConfig::MakeTaggerFlashMatchAlgoConfigFromPSet( const larcv::PSet& pset ) {
@@ -39,6 +42,7 @@ namespace larlitecv {
 		cfg.qcluster_stepsize = pset.get<float>("QClusterStepSize");
 		cfg.MeV_per_cm        = pset.get<float>("MeV_per_cm");
 		cfg.fudge_factor      = pset.get<float>("FudgeFactor");
+		cfg.fudge_factor_cosmic = pset.get<float>("CosmicDiscFudgeFactor");		
 		cfg.pmtflash_thresh   = pset.get<float>("PMTFlashThreshold");
 		cfg.flashpe_thresh    = pset.get<float>("FlashPEThreshold");
 		cfg.beam_tick_range   = pset.get< std::vector<int> >("BeamTickRange");
@@ -46,6 +50,8 @@ namespace larlitecv {
 		cfg.FVCutY            = pset.get< std::vector<float> >("FVCutY");
 		cfg.FVCutZ            = pset.get< std::vector<float> >("FVCutZ");
 		cfg.flashmatch_chi2_cut = pset.get<float>("FlashMatchChi2Cut");
+		cfg.totpe_sigma_cut   = pset.get<float>("TotalPESigmaCut");
+		cfg.use_gaus2d        = pset.get<bool>("UseGaus2D");		
 		cfg.bbox_pad          = pset.get<float>("BBoxPadcm");
 		//cfg.gain_correction   = pset.get< std::vector<float> >("GainCorrection");
 		//larcv::PSet flashmatchman_cfg = pset.get<larcv::PSet>("FlashMatchManager");

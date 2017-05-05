@@ -57,9 +57,8 @@ namespace larlitecv {
    std::vector<flashana::QCluster_t> GenerateQClusters( const std::vector<TaggerFlashMatchData>& inputdata );
    void ChooseContainedCandidates( const std::vector<TaggerFlashMatchData>& inputdata, std::vector<int>& passes_containment );
    bool IsClusterContained( const TaggerFlashMatchData& data );
-   float InTimeFlashComparison( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster );
-   void ChooseInTimeFlashMatchedCandidates( const std::vector<flashana::QCluster_t>& inputdata,
-					     const std::vector<flashana::Flash_t>& intime_flashes, std::vector<int>& passes_flashmatch );
+   float InTimeFlashComparison( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster, float& totpe_data, float& totpe_hypo );
+
    larlite::opflash MakeOpFlashFromFlash(const flashana::Flash_t& inFlash);
    void clearFlashInfo() {
      m_opflash_hypos.clear();
@@ -69,10 +68,11 @@ namespace larlitecv {
 
     static std::vector< std::vector<float> > GetAABoundingBox( const larlite::track& track );
 
-    bool DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster );
+    bool DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster, float& totpe_data, float& totpe_hypo );
 
     bool DoesQClusterMatchInTimeBetterThanCosmic( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster,
 						  const larlitecv::TaggerFlashMatchData& taggertrack, const int trackidx, float& dchi2 );
+    bool DoesTotalPEMatch( float totpe_data, float totpe_hypo );
     
     bool didTrackPassContainmentCut( int itrack );
     bool didTrackPassFlashMatchCut( int itrack );
@@ -80,7 +80,10 @@ namespace larlitecv {
 
     const std::vector<int>& getContainmentCutResults() { return m_passes_containment; };
     const std::vector<int>& getFlashMatchCutResults() { return m_passes_flashmatch; };
-    const std::vector<int>& getCosmicRatioCutResults() { return m_passes_cosmicflash_ratio; };    
+    const std::vector<int>& getCosmicRatioCutResults() { return m_passes_cosmicflash_ratio; };
+    const std::vector<int>& getTotalPECutResults() { return m_passes_totpe; };    
+    
+    const TaggerFlashMatchAlgoConfig& getConfig() { return m_config; };
 
   protected:
 
@@ -95,6 +98,7 @@ namespace larlitecv {
 
     std::vector<int> m_passes_containment;
     std::vector<int> m_passes_flashmatch;
+    std::vector<int> m_passes_totpe;    
     std::vector<int> m_passes_cosmicflash_ratio;
     
 
