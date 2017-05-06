@@ -6,7 +6,7 @@
 #include "DataFormat/mcpart.h"
 #include "DataFormat/mctrajectory.h"
 
-#include "dwall.h"
+#include "TaggerTypes/dwall.h"
 
 namespace larlitecv {
 

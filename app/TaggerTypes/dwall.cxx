@@ -4,12 +4,19 @@
 
 namespace larlitecv {
 
+  double dwall( const std::vector<double>& pos, int& boundary_type ) {
+    std::vector<float> fpos(3);
+    for (int i=0; i<3; i++)
+      fpos[i] = (float)pos[i];
+    return dwall( fpos, boundary_type);
+  }
+  
   float dwall( const std::vector<float>& pos, int& boundary_type ) {
 
     float dx1 = fabs(pos[0]);
-    float dx2 = fabs(255-pos[0]);
-    float dy1 = fabs(116.0-pos[1]);
-    float dy2 = fabs(-116.0-pos[1]);
+    float dx2 = fabs(258-pos[0]);
+    float dy1 = fabs(117.0-pos[1]);
+    float dy2 = fabs(-117.0-pos[1]);
     float dz1 = fabs(pos[2]);
     float dz2 = fabs(1036.0-pos[2]);
 

@@ -12,10 +12,12 @@
 #include "DataFormat/opflash.h"
 #include "DataFormat/trigger.h"
 #include "DataFormat/track.h"
+#include "DataFormat/user_info.h"
 #include "LArUtil/Geometry.h"
 
 // larlitecv
 #include "Base/DataCoordinator.h"
+#include "ContainedROI/TaggerFlashMatchAlgoConfig.h"
 #include "ContainedROI/TaggerFlashMatchAlgo.h"
 #include "ContainedROI/FlashMatchMetricMethods.h"
 #include "SCE/SpaceChargeMicroBooNE.h"
@@ -82,6 +84,11 @@ int main( int nargs, char** argv ) {
   // space charge correction class
   larlitecv::SpaceChargeMicroBooNE sce;
 
+  // set up an algo
+  larcv::PSet flashalgo_pset = pset.get<larcv::PSet>("TaggerFlashMatchAlgo");
+  larlitecv::TaggerFlashMatchAlgoConfig flashalgo_cfg = larlitecv::TaggerFlashMatchAlgoConfig::MakeTaggerFlashMatchAlgoConfigFromPSet( flashalgo_pset );
+  larlitecv::TaggerFlashMatchAlgo flashalgo( flashalgo_cfg );
+  
   // Flash Match Metrics we want to test
 
   TFile* rfile = new TFile( pset.get<std::string>("OutputAnaFile").c_str(), "recreate");
@@ -126,12 +133,24 @@ int main( int nargs, char** argv ) {
   tree->Branch("smallest_gausll_falseflashes", &smallest_gausll_falseflash_v );
   tree->Branch("smallest_gausll_trueflashes",  &smallest_gausll_trueflash_v );
 
+  // scanned chi2 for minimum
+  std::vector<float> smallest_scan_falseflash_v; // chi2 to flash hypothesis not corresponding to true source of trigger
+  std::vector<float> smallest_scan_trueflash_v;  // chi2 to flash hypothesis corresponding to true source of trigger
+  tree->Branch("smallest_scan_falseflashes", &smallest_scan_falseflash_v );
+  tree->Branch("smallest_scan_trueflashes",  &smallest_scan_trueflash_v );
+  
   // obvious containment
   std::vector<int> containment_trueflash_v;    // chi2 to flash hypothesis not corresponding to true source of trigger
   std::vector<int> containment_falseflash_v;  // chi2 to flash hypothesis corresponding to true source of trigger
   tree->Branch("containment_falseflashes", &containment_falseflash_v );
   tree->Branch("containment_trueflashes",  &containment_trueflash_v );
 
+  // cosmic ratio
+  std::vector<int> cosmicratio_trueflash_v;    // chi2 to flash hypothesis not corresponding to true source of trigger
+  std::vector<int> cosmicratio_falseflash_v;  // chi2 to flash hypothesis corresponding to true source of trigger
+  tree->Branch("cosmicratio_falseflashes", &cosmicratio_falseflash_v );
+  tree->Branch("cosmicratio_trueflashes",  &cosmicratio_trueflash_v );
+  
 
   // containment metric: most negative dwall value, from bounding box
   std::vector<float> roi_dwallx;
@@ -170,8 +189,12 @@ int main( int nargs, char** argv ) {
     totpe_hypo_falseflash_v.clear();
     smallest_gausll_trueflash_v.clear();
     smallest_gausll_falseflash_v.clear();
+    smallest_scan_trueflash_v.clear();
+    smallest_scan_falseflash_v.clear();    
     containment_trueflash_v.clear();
     containment_falseflash_v.clear();
+    cosmicratio_trueflash_v.clear();
+    cosmicratio_falseflash_v.clear();
     num_vtxmatched_tracks = 0;
     num_true_bbox = 0;
     closest_vtx_dist = -1;
@@ -196,6 +219,10 @@ int main( int nargs, char** argv ) {
     larlite::event_opflash* ev_data_opflash = (larlite::event_opflash*)dataco[kSource].get_larlite_data( larlite::data::kOpFlash, "simpleFlashBeam" );
     larlite::event_opflash* ev_data_ophypo  = (larlite::event_opflash*)dataco[kCROIfile].get_larlite_data( larlite::data::kOpFlash, "ophypo" );
 
+    // get cut data results
+    // ---------------------
+    larlite::event_user* ev_user_info  = (larlite::event_user*)dataco[kCROIfile].get_larlite_data( larlite::data::kUserInfo, "croicutresults" );    
+
     // select in time beam flashes
     std::vector<larlite::opflash> intime_data;
     for ( auto const& flash : *ev_data_opflash ) {
@@ -216,7 +243,7 @@ int main( int nargs, char** argv ) {
     for ( auto const& flash : *ev_data_ophypo ) {
       float totpe_hypo = 0.;
       for (int ich=0; ich<32; ich++) {
-        totpe_hypo += flash.PE(ich)*20000.0;
+        totpe_hypo += flash.PE(ich)*flashalgo_cfg.fudge_factor;
       }
       flash_hypo_v.push_back( flash );
     }
@@ -257,11 +284,15 @@ int main( int nargs, char** argv ) {
       const larlite::opflash& ophypo = ev_data_ophypo->at(itrack);
       float totpe_data = 0;
       float totpe_hypo = 0.;
-      float smallest_chi2 = larlitecv::CalculateFlashMatchChi2( intime_data, ophypo, totpe_data, totpe_hypo, 20000.0, false );
+      float smallest_chi2 = larlitecv::CalculateFlashMatchChi2( intime_data, ophypo, totpe_data, totpe_hypo, flashalgo_cfg.fudge_factor, false );
 
       float tot_temp = 0;
       float tot_temp2 = 0;
       float smallest_gausll = larlitecv::CalculateShapeOnlyUnbinnedLL( intime_data, ophypo, tot_temp, tot_temp2, false );
+
+      float smallest_scanchi2 = 0;
+      if ( pset.get<bool>("RunScanChi2") )
+	smallest_scanchi2 = larlitecv::ScanFlashMatchChi2( 25.0, 25.0, 25.0, 10.0, intime_data, track, flashalgo );
 
       // -----------------------------------------------
       // need to determine if this track is the intime track or not
@@ -300,30 +331,56 @@ int main( int nargs, char** argv ) {
       if ( matchvtx ) {
 	num_vtxmatched_tracks++;
       }
+      
       // ------------------------------------
+      // Containment cut
+      bool contained = true;
+      if ( bbox[0][0]<flashalgo_cfg.FVCutX[0] || bbox[0][1]>flashalgo_cfg.FVCutX[1] )
+	contained = false;
+      if ( bbox[1][0]<flashalgo_cfg.FVCutY[0] || bbox[1][1]>flashalgo_cfg.FVCutY[1] )
+	contained = false;
+      if ( bbox[2][0]<flashalgo_cfg.FVCutZ[0] || bbox[2][1]>flashalgo_cfg.FVCutZ[1] )
+	contained = false;
 
-      bool contained = false;
-      if ( bbox[0][0]>=-10 && bbox[0][0]<=275 && bbox[0][1]>=-10 && bbox[0][1]<=275 )
-	contained = true;
+      // ------------------------------------
+      // Cosmic Ratio Cut
+      bool cosmicratio = false;
+      if ( ev_user_info->size()>0 && (*(ev_user_info->front().get_iarray( "cosmicratio" )))[itrack]==1 )
+	cosmicratio = true;
 
+      // ------------------------------------
+      // Save Flash Info: True and False
+      
       if ( matchvtx ) {
         smallest_chi2_trueflash_v.push_back( smallest_chi2 );
         smallest_gausll_trueflash_v.push_back( smallest_gausll );
+	smallest_scan_trueflash_v.push_back( smallest_scanchi2 );
         totpe_hypo_trueflash_v.push_back( totpe_hypo );
         num_true_bbox++;
 	if ( contained )
 	  containment_trueflash_v.push_back( 1 );
 	else
 	  containment_trueflash_v.push_back( 0 );
+
+      	if ( cosmicratio )
+	  cosmicratio_trueflash_v.push_back( 1 );
+	else
+	  cosmicratio_trueflash_v.push_back( 0 );
       }
       else {
         smallest_chi2_falseflash_v.push_back( smallest_chi2 );
         smallest_gausll_falseflash_v.push_back( smallest_gausll );
+	smallest_scan_falseflash_v.push_back( smallest_scanchi2 );	
         totpe_hypo_falseflash_v.push_back( totpe_hypo );
 	if ( contained )
 	  containment_falseflash_v.push_back( 1 );
 	else
 	  containment_falseflash_v.push_back( 0 );	
+
+      	if ( cosmicratio )
+	  cosmicratio_falseflash_v.push_back( 1 );
+	else
+	  cosmicratio_falseflash_v.push_back( 0 );	
       }
 
       

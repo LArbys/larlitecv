@@ -15,7 +15,8 @@
 #include "DataFormat/mctrack.h"
 #include "DataFormat/trigger.h"
 
-#include "dwall.h"
+// larlitecv
+#include "TaggerTypes/dwall.h"
 
 namespace larlitecv {
 

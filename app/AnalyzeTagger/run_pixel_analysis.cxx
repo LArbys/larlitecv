@@ -66,7 +66,7 @@
 #include "Base/DataCoordinator.h"
 #include "SCE/SpaceChargeMicroBooNE.h"
 #include "GapChs/EmptyChannelAlgo.h"
-#include "dwall.h"
+#include "TaggerTypes/dwall.h"
 #include "extractTruthMethods.h"
 #include "crossingPointsAnaMethods.h"
 
@@ -415,7 +415,7 @@ int main( int nargs, char** argv ) {
 	  if ( vertex_tick>=bb.min_y() && vertex_tick<=bb.max_y() && vertex_col[p]>=bb.min_x() && vertex_col[p]<=bb.max_x() )
 	    nplanes_in_roi++;
 	}
-	if (nplanes_in_roi==3) {
+	if (nplanes_in_roi>=2) {
 	  vertex_in_croi = 1;
 	  break;
 	}
