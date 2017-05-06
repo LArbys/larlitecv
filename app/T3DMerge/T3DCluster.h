@@ -36,8 +36,16 @@ namespace larlitecv {
 
     std::vector< Point_t > m_path;
     std::vector< std::vector<double> > m_dir;
+    std::vector< std::vector<double> > m_pc_v; // principle component vectors
+    std::vector< std::vector<double> > m_pc_bounds; // values of start and end on PCA axes
+    std::vector< double > m_mean; // mean from PCA calculation
     geoalgo::AABox m_bbox;
     float m_ave_stepsize;
+
+    // support a graph structure
+    T3DCluster* m_parent;
+    std::vector< T3DCluster* > m_daughters;
+    bool m_is_primary;
     
   public:
     T3DCluster( const std::vector<Point_t>& path );
@@ -48,16 +56,31 @@ namespace larlitecv {
     float getAveStepSize() const { return m_ave_stepsize; };
     const std::vector< Point_t >& getPath() const { return m_path; };
     const std::vector< std::vector<double>  >& getPathDir() const { return m_dir; };
+    const std::vector<double>& getPCADir(int ipca) const { return m_pc_v.at(ipca); };
+    const std::vector<double>& getPCABounds(int ipca) const { return m_pc_bounds.at(ipca); };
+    const std::vector<double>& getMean() const { return m_mean; };
+    double getPCvalue( const std::vector<double>& pt, int ipca) const;
     const geoalgo::AABox& getBBox() const { return m_bbox; };
     void reverse();
     void append( const T3DCluster& end );
     void makePathDir();
-    void updateBBox();    
+    void updateBBox();
+    void updatePCA();
+    void update();
     int pathSize() { return m_path.size(); };
 
     std::vector<larcv::Pixel2DCluster> getPixelsFromImages( const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
 							    const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
 							    const float stepsize );
+
+    void addDaughter( T3DCluster* daugher );
+    bool isPrimary() { return m_is_primary; };
+    const std::vector<T3DCluster*>& getDaughterList() { return m_daughters; };
+    const std::vector<T3DCluster*>& getDaughterList() const { return m_daughters; };    
+    int numDaughters() { return m_daughters.size(); };
+    T3DCluster* getParent() { return m_parent; };
+    const T3DCluster* getParent() const { return m_parent; };    
+    
   };
 
   class T3DCluster::Builder {

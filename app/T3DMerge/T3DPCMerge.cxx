@@ -1,0 +1,284 @@
+#include "T3DPCMerge.h"
+
+namespace larlitecv {
+
+  T3DPCMerge::T3DPCMerge() {
+    m_max_endmerge_dist = 20.0;
+  }
+  
+  std::vector<T3DCluster> T3DPCMerge::merge( const std::vector<T3DCluster>& tracks ) {
+
+    // techniques we use:
+    //  (1) look at shortest distance between primary principle components. if small and cosine between them is below a threshold, then merge
+    //  (2) if track is short, end is close to longer track, and pca intersects middle of other track, add it as subtrack
+    std::vector<T3DCluster> endpoint_merged = endPointMerge(tracks);
+
+    //std::vector<T3DCluster> submerged = mergeSubTracks( endpoint_merged );
+
+    return endpoint_merged;
+    
+  }
+
+  std::vector< T3DCluster > T3DPCMerge::endPointMerge( const std::vector<T3DCluster>& tracks ) {
+    bool performed_merge = false;
+    int max_iterations = 100;
+    int iter=0;
+
+    std::vector<T3DCluster> tracklist;
+    // we copy
+    for (auto& track : tracks ) {
+      tracklist.push_back( track );
+    }
+
+    std::vector<T3DCluster*> current_list;
+    for (auto& track : tracklist )
+      current_list.push_back( &track );
+    
+    do {
+      performed_merge = false;
+
+      std::vector<T3DCluster*> merge_list;
+
+      for (int i=0; i<(int)current_list.size(); i++) {
+	for (int j=i+1; j<(int)current_list.size(); j++) {
+
+	  T3DCluster& track_i = *(current_list[i]);
+	  T3DCluster& track_j = *(current_list[j]);
+
+
+	  // --------------------------------------------------------------------
+	  // END POINT MERGE
+	  double closest_dist = 1.0e6;
+	  std::vector<int> whichends;	  
+	  bool valid = shouldWeEndPointMerge( track_i, track_j, closest_dist, whichends );
+
+	  if ( valid && closest_dist<m_max_endmerge_dist ) {
+	    performed_merge = true;
+	    if ( whichends[0]==0 && whichends[1]==0 ) {
+	      // start/start
+	      track_i.reverse();
+	      track_i.append( track_j );
+	      track_i.reverse();
+	    }
+	    else if ( whichends[0]==1 && whichends[1]==0 ) {
+	      // end/start
+	      track_i.append( track_j );
+	    }
+	    else if ( whichends[0]==0 && whichends[1]==1 ) {
+	      // start/end
+	      track_j.append( track_i );
+	      std::swap( track_i, track_j ); // dangerous?
+	    }
+	    else if ( whichends[0]==1 && whichends[1]==1 ) {
+	      //end/end
+	      track_j.reverse();
+	      track_i.append( track_j );
+	    }
+	  }
+	  // hmm
+	  // if ( i==21 && j==36 )
+	  //   std::cin.get();
+	  
+	  // --------------------------------------------------------------------	  
+	  // GATHER MERGED TRACKS
+	  if ( performed_merge ) {
+	    std::cout << "PERFORM MERGE" << std::endl;
+	    std::cin.get();
+	    // fill the merge list to go to the next round
+	    merge_list.push_back( &track_i );	    
+	    for ( auto& ptrack : current_list ) {
+	      if ( ptrack==&track_i || ptrack==&track_j )
+		continue;
+	      merge_list.push_back( ptrack );
+	    }
+	    
+	    break;
+	  }
+	}
+	
+	if ( performed_merge )
+	  break;	
+      }
+      
+      // update track list
+      if ( performed_merge ) {
+	current_list.clear();
+	current_list = merge_list;
+      }
+      
+      iter++;
+    } while ( performed_merge && iter<max_iterations );
+    
+
+    // copy current track list objects to output vector
+    std::vector<T3DCluster> out;
+    for ( auto& ptrack : current_list ) {
+      out.push_back( *ptrack );
+    }
+    return out;    
+  }
+  
+  bool T3DPCMerge::shouldWeEndPointMerge( const T3DCluster& ta, const T3DCluster& tb, double& closest_dist, std::vector<int>& whichends ) {
+
+    std::cout << "----------------------" << std::endl;
+    std::cout << " should we merge" << std::endl;
+
+    // Make PCA line
+    std::vector<double> staa(3);
+    std::vector<double> stab(3);
+    std::vector<double> enda(3);
+    std::vector<double> endb(3);
+    for (int i=0; i<3; i++) {
+      staa[i] = ta.getMean()[i]+ta.getPCABounds(0)[0]*ta.getPCADir(0)[i];
+      enda[i] = ta.getMean()[i]+ta.getPCABounds(0)[1]*ta.getPCADir(0)[i];
+      
+      stab[i] = tb.getMean()[i]+tb.getPCABounds(0)[0]*tb.getPCADir(0)[i];
+      endb[i] = tb.getMean()[i]+tb.getPCABounds(0)[1]*tb.getPCADir(0)[i];
+    }
+    geoalgo::Line_t linea( staa, enda );
+    geoalgo::Line_t lineb( stab, endb );
+
+    // Distance between end points (or pca ends?)
+    double enddist[4] = {0};
+    for (int i=0; i<3; i++) {
+      enddist[0] += (ta.getPath().front()[i]-tb.getPath().front()[i])*(ta.getPath().front()[i]-tb.getPath().front()[i]); // start to start
+      enddist[1] += (ta.getPath().front()[i]-tb.getPath().back()[i])*(ta.getPath().front()[i]-tb.getPath().back()[i]); // start to end
+      enddist[2] += (ta.getPath().back()[i]-tb.getPath().front()[i])*(ta.getPath().back()[i]-tb.getPath().front()[i]); // end to start
+      enddist[3] += (ta.getPath().back()[i]-tb.getPath().back()[i])*(ta.getPath().back()[i]-tb.getPath().back()[i]); // end to end
+      // enddist[0] += (linea.Pt1()[i]-lineb.Pt1()[i])*(linea.Pt1()[i]-lineb.Pt1()[i]); // start to start
+      // enddist[1] += (linea.Pt1()[i]-lineb.Pt2()[i])*(linea.Pt1()[i]-lineb.Pt2()[i]); // start to end
+      // enddist[2] += (linea.Pt2()[i]-lineb.Pt1()[i])*(linea.Pt2()[i]-lineb.Pt1()[i]); // end to start
+      // enddist[3] += (linea.Pt2()[i]-lineb.Pt2()[i])*(linea.Pt2()[i]-lineb.Pt2()[i]); // end to end
+    }
+    double endmin = enddist[0];
+    int endtype = 0;
+    for (int i=1;i<4; i++) {
+      if ( enddist[i]<endmin ) {
+	endtype = i;
+	endmin = enddist[i];
+      }
+    }
+    endmin = sqrt(endmin);
+    std::cout << "End point match Type: " << endtype << std::endl;
+    std::cout << "Distance between closest ends: " << endmin << " cm" << std::endl;
+    
+    whichends.resize(2);
+
+    geoalgo::Point_t midpt(3);
+    for (int i=0; i<3; i++) {
+      switch (endtype) {
+      case 0:
+	midpt[i] = 0.5*(ta.getPath().front()[i]+tb.getPath().front()[i]);
+	whichends[0] = 0;
+	whichends[1] = 0;	
+	break;
+      case 1:
+	midpt[i] = 0.5*(ta.getPath().front()[i]+tb.getPath().back()[i]);
+	whichends[0] = 0;
+	whichends[1] = 1;
+	break;
+      case 2:
+	midpt[i] = 0.5*(ta.getPath().back()[i]+tb.getPath().front()[i]);
+	whichends[0] = 1;
+	whichends[1] = 0;	
+	break;
+      case 3:
+	midpt[i] = 0.5*(ta.getPath().back()[i]+tb.getPath().back()[i]);
+	whichends[0] = 1;
+	whichends[1] = 1;
+	break;
+      default:
+	throw std::runtime_error("bad end type");
+	break;
+      }//end of switch
+      // case 0:
+      // 	midpt[i] = 0.5*(linea.Pt1()[i]+lineb.Pt1()[i]);
+      // 	l2pt[i] = 0.5*(linea.Pt1()[i]+lineb.Pt1()[i]);	
+      // 	break;
+      // case 1:
+      // 	midpt[i] = 0.5*(linea.Pt1()[i]+lineb.Pt2()[i]);
+      // 	l2pt[i] = 0.5*(linea.Pt1()[i]+lineb.Pt2()[i]);	
+      // 	break;
+      // case 2:
+      // 	midpt[i] = 0.5*(linea.Pt2()[i]+lineb.Pt1()[i]);
+      // 	l2pt[i] = 0.5*(linea.Pt2()[i]+lineb.Pt1()[i]);	
+      // 	break;
+      // case 3:
+      // 	midpt[i] = 0.5*(linea.Pt2()[i]+lineb.Pt2()[i]);
+      // 	l2pt[i] = 0.5*(linea.Pt2()[i]+lineb.Pt2()[i]);	
+      // 	break;
+      // default:
+      // 	throw std::runtime_error("bad end type");
+      // 	break;
+      // }//end of switch
+    }
+    closest_dist = 0.;
+
+    std::cout << "TA: (" << ta.getPath().front()[0] << "," << ta.getPath().front()[1] << "," << ta.getPath().front()[2] << ")"
+	      << "-> "
+	      << "(" << ta.getPath().back()[0] << "," << ta.getPath().back()[1] << "," << ta.getPath().back()[2] << ")"
+	      << std::endl;
+    std::cout << "TB: (" << tb.getPath().front()[0] << "," << tb.getPath().front()[1] << "," << tb.getPath().front()[2] << ")"
+	      << "-> "
+	      << "(" << tb.getPath().back()[0] << "," << tb.getPath().back()[1] << "," << tb.getPath().back()[2] << ")"
+	      << std::endl;
+
+    std::cout << "TA PCA0: (" << linea.Pt1()[0] << "," << linea.Pt1()[1] << "," << linea.Pt1()[2] << ")"
+	      << "-> "
+	      << "(" << linea.Pt2()[0] << "," << linea.Pt2()[1] << "," << linea.Pt2()[2] << ")"
+	      << std::endl;
+    std::cout << "TB PCA0: (" << lineb.Pt1()[0] << "," << lineb.Pt1()[1] << "," << lineb.Pt1()[2] << ")"
+	      << "-> "
+	      << "(" << lineb.Pt2()[0] << "," << lineb.Pt2()[1] << "," << lineb.Pt2()[2] << ")"
+	      << std::endl;
+
+    std::cout << "TA pc-0 dir: (" << ta.getPCADir(0)[0] << "," << ta.getPCADir(0)[1] << "," << ta.getPCADir(0)[2] << ")" << std::endl;
+    std::cout << "TB pc-0 dir: (" << tb.getPCADir(0)[0] << "," << tb.getPCADir(0)[1] << "," << tb.getPCADir(0)[2] << ")" << std::endl;
+    std::cout << "TA mean: (" << ta.getMean()[0] << "," << ta.getMean()[1] << "," << ta.getMean()[2] << ")" << std::endl;
+    std::cout << "TB mean: (" << tb.getMean()[0] << "," << tb.getMean()[1] << "," << tb.getMean()[2] << ")" << std::endl;
+
+    std::cout << "Mid point between close end: (" << midpt[0] << "," << midpt[1] << "," << midpt[2] << ") " << std::endl;
+    std::cout << "closest point distance=" << closest_dist << " cm" << std::endl;
+
+    float pcacos = 0.;
+    for (int i=0; i<3; i++)
+      pcacos += ta.getPCADir(0)[i]*tb.getPCADir(0)[i];
+    std::cout << "PCA cosine: " << pcacos << std::endl;
+    
+    // midpt and l2pt need to extend beyond
+    double pca_l1 = ta.getPCvalue(midpt,0);
+    double pca_l2 = tb.getPCvalue(midpt,0);
+    bool outside_segment = false;
+    std::cout << "PtA PC-0 value: " << pca_l1 << " bounds: [" << ta.getPCABounds(0)[0] << "," << ta.getPCABounds(0)[1] << "]" << std::endl;
+    std::cout << "PtB PC-0 value: " << pca_l2 << " bounds: [" << tb.getPCABounds(0)[0] << "," << tb.getPCABounds(0)[1] << "]" << std::endl;
+
+    // dist to midpoint
+    float middist_a = sqrt(m_geoalgo.SqDist( midpt, linea )); // not reasonable
+    float middist_b = sqrt(m_geoalgo.SqDist( midpt, lineb ));
+
+    std::cout << "TA: dist to midpoint=" << middist_a << " cm" << std::endl;
+    std::cout << "TB: dist to midpoint=" << middist_b << " cm" << std::endl;    
+    
+    if ( (pca_l1<ta.getPCABounds(0)[0] || pca_l1>ta.getPCABounds(0)[1] )
+	 && (pca_l2<tb.getPCABounds(0)[0] || pca_l2>tb.getPCABounds(0)[1] ) ) {
+      outside_segment = true;
+    }
+    std::cout << "Is midpoint outside segment: " << outside_segment << std::endl;
+    
+
+    std::cout << "End Matching Code: A=" << whichends[0] << " B=" << whichends[1] << std::endl;
+
+    // if ( middist_a<20 && middist_b<20 )
+    //   std::cin.get();
+
+    // should we match
+    bool match = false;
+    if ( endmin<30.0 && fabs(pcacos)>0.8 && outside_segment )
+      match = true;
+
+    std::cout << "MATCH=" << match << std::endl;
+    //return outside_segment && valid_intersection;
+    return match;
+  }
+
+}

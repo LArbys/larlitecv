@@ -38,6 +38,10 @@ namespace larlitecv {
     m_tracks.emplace_back( std::move(track) );
   }
 
+  void Track3DRecluster::addTrack( const T3DCluster& t ) {
+    m_tracks.push_back( t );
+  }
+
   std::vector< T3DCluster > Track3DRecluster::recluster() {
     int iterations = 0;
     int num_reclustered = 0;

@@ -21,8 +21,10 @@ namespace larlitecv {
     
     void addPath( const std::vector< std::vector<double> >& path );
     void addPath( const std::vector< std::vector<float> >& path );
+    void addTrack( const T3DCluster& t );
     bool mergeEnds( T3DCluster& fa, T3DCluster& fb, float max_dist, float min_cos );
     void setVerbosity( int v ) { m_verbosity=v; };
+    void clear() { m_tracks.clear(); };
 
   protected:
 
