@@ -84,7 +84,7 @@ namespace larlitecv {
   };
 
   class T3DCluster::Builder {
-
+    // In the end, this wasn't needed as one can simply specify path and then update.
   protected:
     
     std::vector<Point_t> path;

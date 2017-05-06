@@ -12,8 +12,8 @@
 #include "DataFormat/ROI.h"
 
 // larlitecv
+#include "TaggerTypes/dwall.h"
 #include "ThruMu/FlashMuonTaggerAlgoConfig.h"
-
 #include "ThruMu/BoundaryMuonTaggerAlgo.h"
 #include "ThruMu/FlashMuonTaggerAlgo.h"
 #include "ThruMu/EndPointFilter.h"
@@ -27,6 +27,7 @@
 #include "ContainedROI/MatchTaggerData2Flash.h"
 #include "T3DMerge/T3DCluster.h"
 #include "T3DMerge/Track3DRecluster.h"
+#include "T3DMerge/T3DPCMerge.h"
 #include "T3DMerge/T3D2LarliteTrack.h"
 
 namespace larlitecv {
@@ -256,6 +257,7 @@ namespace larlitecv {
     ClusterGroupMatchingAlgo matchingalgo;
     TaggerFlashMatchAlgo     selectionalgo( m_config.croi_selection_cfg );
     Track3DRecluster         reclusteralgo;
+    T3DPCMerge               pcamergealgo;
 
     if ( m_config.recluster_stop_and_thru ) {
       // we recluster tracks
@@ -355,6 +357,7 @@ namespace larlitecv {
 
     if ( m_config.recluster_stop_and_thru ) {
       // USE RECLUSTERED STOP/THRU TRACKS
+      /*
       for (int itrack=0; itrack<(int)output.stopthru_reclustered_v.size(); itrack++) {
 	larlite::track lltrack = larlitecv::T3D2LarliteTrack( output.stopthru_reclustered_v[itrack] );
 	larlitecv::TaggerFlashMatchData reclustered_track( larlitecv::TaggerFlashMatchData::kThruMu, output.stopthru_reclustered_pixels_v[itrack], lltrack );
@@ -362,28 +365,18 @@ namespace larlitecv {
       }
       // ASSOCIATE FLASHES TO THE TAGGER DATA
       larlitecv::MatchTaggerData2Flash( output.flashdata_v, input.opflashes_v, thrumu.anode_spacepoint_v, thrumu.cathode_spacepoint_v, 10.0 );
-      
+      */
     }
     else {
       // DONT USE RECLUSTERED STOP/THRU MU TRACKS
       // ThruMu
       for ( int itrack=0; itrack<(int)thrumu.trackcluster3d_v.size(); itrack++ ) {
-	//const BMTrackCluster3D& track = thrumu.trackcluster3d_v.at(itrack);
-	//std::vector< larcv::Pixel2DCluster > pixels;
-	//for ( size_t p=0; p<input.img_v.size(); p++)
-	//  pixels.push_back( track.plane_paths.at(p).pixelpath );
-	//larlitecv::TaggerFlashMatchData thrumu_track( larlitecv::TaggerFlashMatchData::kThruMu, pixels, track.makeTrack() );
 	larlitecv::TaggerFlashMatchData thrumu_track( larlitecv::TaggerFlashMatchData::kThruMu, thrumu.pixelcluster_v.at(itrack), thrumu.track_v.at(itrack) );
 	output.flashdata_v.emplace_back( std::move(thrumu_track) );
       }
 
       // StopMu
       for ( int itrack=0; itrack<(int)stopmu.stopmu_trackcluster_v.size(); itrack++ ) {
-	//const BMTrackCluster3D& track = stopmu.stopmu_trackcluster_v.at(itrack);
-	//std::vector< larcv::Pixel2DCluster > pixels;
-	//for ( size_t p=0; p<input.img_v.size(); p++)
-	//  pixels.push_back( track.plane_paths.at(p).pixelpath );
-	//larlitecv::TaggerFlashMatchData stopmu_track( larlitecv::TaggerFlashMatchData::kStopMu, pixels, track.makeTrack() );
 	larlitecv::TaggerFlashMatchData stopmu_track( larlitecv::TaggerFlashMatchData::kStopMu, stopmu.pixelcluster_v.at(itrack), stopmu.track_v.at(itrack) );
 	output.flashdata_v.emplace_back( std::move(stopmu_track) );
       }
@@ -393,7 +386,8 @@ namespace larlitecv {
     // FIND CONTAINED CLUSTERS
     
     // Find Contained Clusters
-    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+    std::vector<larlitecv::TaggerFlashMatchData> contained_tracks_v;
     for ( auto const& vol : output.vols_v ) {
 
       // there should be a selection here...
@@ -476,9 +470,78 @@ namespace larlitecv {
       if ( contained_track.NumberTrajectoryPoints()==0 )
         continue;
       larlitecv::TaggerFlashMatchData contained_cluster( larlitecv::TaggerFlashMatchData::kUntagged, vol.m_plane_pixels, contained_track );
-      output.flashdata_v.emplace_back( std::move(contained_cluster) );
+      //output.flashdata_v.emplace_back( std::move(contained_cluster) );
+      contained_tracks_v.emplace_back( std::move(contained_cluster) );
     }// end of vol loop
 
+
+    // --------------------------------------------------------------------//
+    // RECLUSTER CONTAINED TRACKS
+    
+    reclusteralgo.clear();
+    for ( auto const& contained : contained_tracks_v ) {
+      // convert larlite into T3DCluster (avoiding this copy can come later)
+      std::vector< std::vector<double> > path;
+      for (int ipt=0; ipt<(int)contained.m_track3d.NumberTrajectoryPoints(); ipt++) {
+	std::vector<double> pos(3);
+	for (int i=0; i<3; i++)
+	  pos[i] = contained.m_track3d.LocationAtPoint(ipt)[i];
+	path.push_back( pos );
+      }
+      reclusteralgo.addPath( path );
+    }
+    std::vector< T3DCluster > reclustered_contained = reclusteralgo.recluster();
+    std::cout << "Reclustered Contained Tracks from " << contained_tracks_v.size() << " to " << reclustered_contained.size();
+
+    // --------------------------------------------------------------------//
+    // RECLUSTER CONTAINED + STOP/THRUMU
+    reclusteralgo.clear();
+    
+    for ( auto& t3d : output.stopthru_reclustered_v ) {
+      reclusteralgo.addTrack( t3d );
+    }
+    for ( auto& t3d : reclustered_contained) {
+      reclusteralgo.addTrack( t3d );
+    }
+    std::vector< T3DCluster > reclustered_alltracks_v = reclusteralgo.recluster();
+
+    // --------------------------------------------------------------------//
+    // PCAMERGE
+
+    std::vector< T3DCluster > pcmerged_v = pcamergealgo.merge( reclustered_alltracks_v );
+
+    // --------------------------------------------------------------------//
+    // CONVERT TRACKS TO TAGGERFLASHMATCH DATA AND REASSOCIATE THEM TO FLASHES
+    
+    for (int itrack=0; itrack<(int)pcmerged_v.size(); itrack++) {
+      T3DCluster& t3d = pcmerged_v[itrack];
+      larlite::track lltrack = larlitecv::T3D2LarliteTrack( t3d );
+      std::vector< larcv::Pixel2DCluster > pixel_v = t3d.getPixelsFromImages( input.img_v, input.gapch_v,
+									      m_config.thrumu_tracker_cfg.pixel_threshold,
+									      m_config.thrumu_tracker_cfg.tag_neighborhood, 0.3 );
+      larlitecv::TaggerFlashMatchData pcmerged_track( larlitecv::TaggerFlashMatchData::kThruMu, pixel_v, lltrack );
+
+      // we tag the type based on dwall
+      int start_boundary = -1;
+      int end_boundary = -1;
+      double start_dwall = larlitecv::dwall( t3d.getPath().front(), start_boundary );
+      double end_dwall   = larlitecv::dwall( t3d.getPath().back(), end_boundary );
+      if ( start_dwall<10.0 && end_dwall<10.0 ) {
+	pcmerged_track.m_type = larlitecv::TaggerFlashMatchData::kThruMu;
+      }
+      else if ( start_dwall<10.0 || end_dwall<10.0 ) {
+	pcmerged_track.m_type = larlitecv::TaggerFlashMatchData::kStopMu;
+      }
+      else {
+	pcmerged_track.m_type = larlitecv::TaggerFlashMatchData::kUntagged;	
+      }
+      
+      output.flashdata_v.emplace_back( std::move(pcmerged_track) );
+    }
+
+    // reassociate flashes
+    larlitecv::MatchTaggerData2Flash( output.flashdata_v, input.opflashes_v, thrumu.anode_spacepoint_v, thrumu.cathode_spacepoint_v, 10.0 );    
+    
     // --------------------------------------------------------------------//
     // SELECT ROIs
 
