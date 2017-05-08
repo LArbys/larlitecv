@@ -89,7 +89,7 @@ namespace larlitecv {
     for (int iattempt=0; iattempt<m_config.num_step_attempts; iattempt++) {
 
       std::vector< Segment3D_t > candidate_segs = m_radialalgo.find3Dsegments( img_v, badch_v, current.pos(), current_radius, m_config.pixel_thresholds,
-									       m_config.min_hit_width, m_config.segment_frac_w_charge, m_config.verbosity );
+									       m_config.min_hit_width, m_config.hit_neighborhood, m_config.segment_frac_w_charge, m_config.verbosity );
       if ( m_config.verbosity>1 ) {
 	std::cout << "  attempt=" << iattempt << " numsegs=" << candidate_segs.size() << std::endl;
       }
@@ -138,8 +138,8 @@ namespace larlitecv {
 
   }
 
-  bool FoxTrotLeadStraight::chooseBestSegment( const FoxStep& current, std::vector<Segment3D_t>& candidate_segs, const FoxTrack& past,
-					       const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx ) {
+  bool FoxTrotLeadStraight::_chooseBestSegment_( const FoxStep& current, std::vector<Segment3D_t>& candidate_segs, const FoxTrack& past,
+						 const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx ) {
 
     best_seg_idx = -1;
     float bestdcos = 2.;
@@ -151,32 +151,32 @@ namespace larlitecv {
     for ( size_t iseg=0; iseg<candidate_segs.size(); iseg++) {
       Segment3D_t& seg = candidate_segs[iseg];
 
-      // first, which is the near and far points?
-      float dist_start=0;
-      float dist_end=0;
-      for (int v=0; v<1; v++) {
-	dist_start += ( current.pos()[v]-seg.start[v] )*( current.pos()[v]-seg.start[v] );
-	dist_end   += ( current.pos()[v]-seg.end[v] )*( current.pos()[v]-seg.end[v] );
-      }
-      dist_start = sqrt(dist_start);
-      dist_end   = sqrt(dist_end);
+      // // first, which is the near and far points?
+      // float dist_start=0;
+      // float dist_end=0;
+      // for (int v=0; v<1; v++) {
+      // 	dist_start += ( current.pos()[v]-seg.start[v] )*( current.pos()[v]-seg.start[v] );
+      // 	dist_end   += ( current.pos()[v]-seg.end[v] )*( current.pos()[v]-seg.end[v] );
+      // }
+      // dist_start = sqrt(dist_start);
+      // dist_end   = sqrt(dist_end);
 
-      if ( config.verbosity>1 ) {
-	std::cout << "    iseg " << iseg << ": start=(" << seg.start[0] << "," << seg.start[1] << "," << seg.start[2] << ")"
-		  << " end=(" << seg.end[0] << "," << seg.end[1] << "," << seg.end[2] << ")"
-		  << std::endl;
-      }
+      // if ( config.verbosity>1 ) {
+      // 	std::cout << "    iseg " << iseg << ": start=(" << seg.start[0] << "," << seg.start[1] << "," << seg.start[2] << ")"
+      // 		  << " end=(" << seg.end[0] << "," << seg.end[1] << "," << seg.end[2] << ")"
+      // 		  << std::endl;
+      // }
 	
-      if ( dist_start > dist_end ) {
-	// flip
-	if ( config.verbosity>1 )
-	  std::cout << "    flip seg start/end. startdist=" << dist_start << " enddist=" << dist_end << std::endl;
-	float tmp[3] = { seg.start[0], seg.start[1], seg.start[2] };
-	for (int v=0; v<3; v++) {
-	  seg.start[v] = seg.end[v];
-	  seg.end[v] = tmp[v];
-	}
-      }
+      // if ( dist_start > dist_end ) {
+      // 	// flip
+      // 	if ( config.verbosity>1 )
+      // 	  std::cout << "    flip seg start/end. startdist=" << dist_start << " enddist=" << dist_end << std::endl;
+      // 	float tmp[3] = { seg.start[0], seg.start[1], seg.start[2] };
+      // 	for (int v=0; v<3; v++) {
+      // 	  seg.start[v] = seg.end[v];
+      // 	  seg.end[v] = tmp[v];
+      // 	}
+      // }
 
       std::vector<float> canddir(3,0);
       float dist = 0.;

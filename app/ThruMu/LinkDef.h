@@ -33,6 +33,10 @@
 
 #pragma link C++ function larlitecv::Pixel2SpacePoint;
 
+#pragma link C++ class larlitecv::ThruMuFoxTrotConfig+;
+#pragma link C++ class larlitecv::ThruMuFoxTrotLead+;
+#pragma link C++ class larlitecv::ThruMuFoxTrot+;
+
 //#pragma link C++ class larlitecv::BezierCurve+;
 
 

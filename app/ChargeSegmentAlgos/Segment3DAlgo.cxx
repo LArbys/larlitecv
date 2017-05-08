@@ -10,7 +10,7 @@
 namespace larlitecv {
 
   std::vector< Segment3D_t > Segment3DAlgo::find3DSegments( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
-							    const int row_a, const int row_b, const std::vector<float>& thresholds, const int min_hit_width ) {
+							    const int row_a, const int row_b, const std::vector<float>& thresholds, const int min_hit_width, const int hit_neighborhood ) {
 
     // first find a list of "hits" for each row on each plane
     int lowrow = row_a;
@@ -27,12 +27,12 @@ namespace larlitecv {
       std::vector<int> hits_high = findHits( img_v.at(p), highrow, thresholds[p], min_hit_width );
 
       // get 2D line segments
-      std::vector< Segment2D_t > segments2d = make2DSegments( img_v.at(p), badch_v.at(p), lowrow, hits_low, highrow, hits_high, thresholds[p], min_hit_width, 0.9 );
+      std::vector< Segment2D_t > segments2d = make2DSegments( img_v.at(p), badch_v.at(p), lowrow, hits_low, highrow, hits_high, thresholds[p], hit_neighborhood, 0.9 );
       plane_segments2d.emplace_back( std::move(segments2d) );
     }
 
     std::vector< Segment3D_t > segments;
-    combine2Dinto3D( plane_segments2d, img_v, badch_v, min_hit_width, thresholds, 0.9, segments );
+    combine2Dinto3D( plane_segments2d, img_v, badch_v, hit_neighborhood, thresholds, 0.9, segments );
 
     return segments;
   }
@@ -127,13 +127,13 @@ namespace larlitecv {
     return segments;
   }
 
-  void Segment3DAlgo::checkSegmentCharge( const larcv::Image2D& img, const larcv::Image2D& badch, const int low_row, const int low_col, const int high_row, const int high_col, const int hit_width,
-					  const float threshold, int& nrows_w_charge, int& num_rows ) {
+  void Segment3DAlgo::checkSegmentCharge( const larcv::Image2D& img, const larcv::Image2D& badch, const int low_row, const int low_col, const int high_row, const int high_col,
+					  const int hit_neighborhood, const float threshold, int& nrows_w_charge, int& num_rows ) {
     //std::cout << "checkSegmentCharge" << std::endl;
     int drow  = abs(high_row-low_row);
     int dcol  = high_col-low_col;
     float slope = float(dcol)/float(drow);
-
+    
     bool hascharge = false;
     nrows_w_charge = 0;
     num_rows = 0;
@@ -142,11 +142,16 @@ namespace larlitecv {
       int pixc = low_col + slope*r;
       if ( pixr<0 || pixr>=(int)img.meta().rows()) continue;
       hascharge = false;
-      for (int dc=-hit_width; dc<=hit_width; dc++) {
-	if ( pixc+dc<0 || pixc+dc>=(int)img.meta().cols() ) continue;
-	if ( img.pixel(pixr,pixc+dc)>threshold || badch.pixel(pixr,pixc+dc)>0) {
-	  hascharge = true;
-	  break;
+      for (int dr=-hit_neighborhood; dr<=hit_neighborhood; dr++) {
+	int rtest = pixr + dr;
+	if ( rtest<0 || rtest>=(int)img.meta().rows()) continue;
+	for (int dc=-hit_neighborhood; dc<=hit_neighborhood; dc++) {
+	  int ctest = pixc+dc;
+	  if ( ctest<0 || ctest>=(int)img.meta().cols() ) continue;
+	  if ( img.pixel(rtest,ctest)>threshold || badch.pixel(rtest,ctest)>0) {
+	    hascharge = true;
+	    break;
+	  }
 	}
       }
       //std::cout << " check (c,r)=(" << pixc << "," << pixr << ") hascharge=" << hascharge << std::endl;
@@ -154,7 +159,7 @@ namespace larlitecv {
 	nrows_w_charge++;
       num_rows++;
     }//end of row loop
-
+    
   }
 
 
@@ -183,7 +188,8 @@ namespace larlitecv {
       }
     }
 
-    //std::cout << "Combine2d into 3d" << std::endl;
+    if ( verbosity>1 )
+      std::cout << "    Segment3DAlgo: Combine2d into 3d" << std::endl;
 
     for (int i=0; i<num_segs; i++) {
       for (int j=i+1; j<num_segs; j++) {
@@ -209,25 +215,31 @@ namespace larlitecv {
 
         if ( same_high_row && same_low_row ) {
           //made in the shade
-          //std::cout << "  same low (" << seg_a.row_low << ") and high (" << seg_a.row_high << ") rows." << std::endl;
+	  if ( verbosity>1 )
+	    std::cout << "      same low (" << seg_a.row_low << ") and high (" << seg_a.row_high << ") rows." << std::endl;
         }
         else if ( same_high_row ) {
           // we have to adjust the bottom ends to match at same row
-          //std::cout << "  same high (" << seg_a.row_high << ") rows." << std::endl;
           int target_row = (seg_a.row_low<seg_b.row_low) ? seg_a.row_low : seg_b.row_low;
           float dcol_a = (low_wire_a-high_wire_a);
           float drow_a = (seg_a.row_low-seg_a.row_high);
-          float ftarget_wire_a = ( drow_a!=0 ) ? (dcol_a/drow_a)*fabs(target_row-seg_a.row_high) + high_wire_a : low_wire_a;
+          float ftarget_wire_a = ( drow_a!=0 ) ? (dcol_a/drow_a)*(target_row-seg_a.row_high) + high_wire_a : low_wire_a;
           float dcol_b = (low_wire_b-high_wire_b);
           float drow_b = (seg_b.row_low-seg_b.row_high);
-          float ftarget_wire_b = ( drow_b!=0 ) ? (dcol_b/drow_b)*fabs(target_row-seg_b.row_high) + high_wire_b : low_wire_b;
+          float ftarget_wire_b = ( drow_b!=0 ) ? (dcol_b/drow_b)*(target_row-seg_b.row_high) + high_wire_b : low_wire_b;
           low_wire_a = ftarget_wire_a;
           low_wire_b = ftarget_wire_b;
           row_low = target_row;
+	  if ( verbosity>1 )  {
+	    std::cout << "      same high (" << seg_a.row_high << ") rows. adjusted low= " << row_low
+		      << " A(p=" << segidx[i].plane << "): (" << seg_a.row_low << "," << seg_a.col_low << ")->(" << row_low << "," << low_wire_a << ")"
+		      << " B(p=" << segidx[j].plane << "): (" << seg_b.row_low << "," << seg_b.col_low << ")->(" << row_low << "," << low_wire_b << ")"
+		      << std::endl;
+	  }
+	  
         }
         else if ( same_low_row ) {
           // we adjust so that top ends match at same row
-          //std::cout << "  same low (" << seg_a.row_low << ") rows." << std::endl;
           int target_row = (seg_a.row_high>seg_b.row_high) ? seg_a.row_high : seg_b.row_high;
           float dcol_a = (high_wire_a-low_wire_a);
           float drow_a = (seg_a.row_high-seg_a.row_low);
@@ -238,8 +250,15 @@ namespace larlitecv {
           high_wire_a = ftarget_wire_a;
           high_wire_b = ftarget_wire_b;
           row_high = target_row;
+	  if ( verbosity>1 )  {
+	    std::cout << "      same low (" << seg_a.row_low << ") rows. adjusted high= " << row_high
+		      << " low_wire_a=" << high_wire_a << " low_wire_b=" << high_wire_b
+		      << std::endl;
+	  }
+	  
         }
         else {
+	  std::cout << "    should not get here." << std::endl;
           continue;
         }
 

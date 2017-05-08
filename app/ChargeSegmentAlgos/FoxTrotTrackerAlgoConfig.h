@@ -15,6 +15,7 @@ namespace larlitecv {
     int num_step_attempts;
     std::vector<float> pixel_thresholds;
     int min_hit_width;
+    int hit_neighborhood;
     float segment_frac_w_charge;
     float radius_reduction_factor;
     float min_cosine;

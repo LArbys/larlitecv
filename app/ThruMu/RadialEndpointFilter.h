@@ -32,7 +32,7 @@ namespace larlitecv {
     virtual ~RadialEndpointFilter() {};
 
     bool isWithinStraightSegment( const std::vector<float>& pos3d, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
-				  const float segment_radius, const float segment_min_width, const float segment_frac_w_charge,
+				  const float segment_radius, const int segment_min_width, const int hit_neighborhood, const float segment_frac_w_charge,
 				  const std::vector<float>& pixel_thresholds, const float acceptance_angle, int& num_seg3d );
 
     bool isWithinStraightSegment( const std::vector<float>& pos3d, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,

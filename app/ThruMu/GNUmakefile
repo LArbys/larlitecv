@@ -14,7 +14,8 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 INCFLAGS  = -g -I.                       #Include itself
 INCFLAGS += $(shell larlite-config --includes)
 INCFLAGS += $(shell larcv-config --includes) 
-INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool/GeoAlgo
+INCFLAGS += -I$(LARLITE_BASEDIR)/UserDev
+INCFLAGS += -I$(LARLITECV_BASEDIR)/app
 INCFLAGS += $(shell larlitecv-config --includes)
 INCFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
 

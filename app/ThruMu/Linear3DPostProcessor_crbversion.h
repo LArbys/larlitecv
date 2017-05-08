@@ -20,8 +20,8 @@
 #include <vector>
 
 // larlite/UserDev/BasicTool/GeoAlgo
-#include "GeoAlgo.h"
-#include "GeoLineSegment.h"
+#include "BasicTool/GeoAlgo/GeoAlgo.h"
+#include "BasicTool/GeoAlgo/GeoLineSegment.h"
 
 // larlitecv/app/Thrumu
 #include "TaggerTypes/BMTrackCluster3D.h"

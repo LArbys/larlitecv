@@ -24,7 +24,7 @@ namespace larlitecv {
     virtual ~Segment3DAlgo() {};
 
     std::vector< Segment3D_t > find3DSegments( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
-					       const int row_a, const int row_b, const std::vector<float>& thresholds, const int min_hit_width );
+					       const int row_a, const int row_b, const std::vector<float>& thresholds, const int min_hit_width, const int hit_neighborhood );
 
     std::vector<int> findHits( const larcv::Image2D& img, const int row, const float& threshold, const int min_hit_width );
     

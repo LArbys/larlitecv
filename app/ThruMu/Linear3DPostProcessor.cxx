@@ -1,8 +1,8 @@
 #include "Linear3DPostProcessor.h"
 
 // larlite/UserDev/BasicTool/GeoAlgo
-#include "GeoAlgo.h"
-#include "GeoLineSegment.h"
+#include "BasicTool/GeoAlgo/GeoAlgo.h"
+#include "BasicTool/GeoAlgo/GeoLineSegment.h"
 
 //larlitecv/app
 #include "TaggerTypes/BoundarySpacePoint.h"

@@ -6,8 +6,8 @@
 
 // Add an 'include' statement for the '.h' file in the header
 #include "AStar3DPostProcessor.h"
-#include "GeoAlgo.h"
-#include "GeoLineSegment.h"
+#include "BasicTool/GeoAlgo/GeoAlgo.h"
+#include "BasicTool/GeoAlgo/GeoLineSegment.h"
 
 // Include 'math.h' so I will certainly have access to the 'sqrt' functionality that it has.
 #include <math.h>

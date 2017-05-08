@@ -875,7 +875,7 @@ namespace larlitecv {
     }
 
     // Use ssegment3d algo to get us 3D segments in this time neighborhood
-    std::vector< Segment3D_t > seg3d_v = segalgo.find3DSegments( tpc_imgs, badch_imgs, row_a, row_b, fConfig.pixel_value_threshold, 1 );
+    std::vector< Segment3D_t > seg3d_v = segalgo.find3DSegments( tpc_imgs, badch_imgs, row_a, row_b, fConfig.pixel_value_threshold, 1, 2 );
     if ( fConfig.verbosity>0 )
       std::cout << "Found " << seg3d_v.size() << " 3D segments" << std::endl;
     

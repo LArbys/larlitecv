@@ -9,7 +9,7 @@
 // larlite
 #include "LArUtil/Geometry.h"
 #include "LArUtil/LArProperties.h"
-#include "GeoAlgo.h"
+#include "BasicTool/GeoAlgo/GeoAlgo.h"
 
 // larcv
 #include "UBWireTool/UBWireTool.h"

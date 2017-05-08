@@ -21,9 +21,14 @@ namespace larlitecv {
     FoxTrotLead() {};
     virtual ~FoxTrotLead() {};
 
-    // implement this
-    virtual bool chooseBestSegment( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
-				    const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx ) = 0;
+    // function for choosing best segment for next step
+    bool chooseBestSegment( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
+			    const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx );
+
+  protected:
+
+    virtual bool _chooseBestSegment_( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
+				      const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx ) = 0;
     
   };
 

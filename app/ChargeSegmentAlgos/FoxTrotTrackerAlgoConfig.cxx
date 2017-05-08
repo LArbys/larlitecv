@@ -8,6 +8,7 @@ namespace larlitecv {
     num_step_attempts = 2;
     pixel_thresholds.resize(3,10.0);
     min_hit_width = 1;
+    hit_neighborhood = 2;
     segment_frac_w_charge = 0.5;
     radius_reduction_factor = 0.5;
     min_cosine = 0.0;
@@ -21,6 +22,7 @@ namespace larlitecv {
     cfg.num_step_attempts = pset.get<int>("NumStepAttempts");
     cfg.pixel_thresholds = pset.get<std::vector<float> >("PixelThresholds");
     cfg.min_hit_width = pset.get<int>("SegmentMinHitWidth");
+    cfg.hit_neighborhood = pset.get<int>("HitNeighborhood");    
     cfg.segment_frac_w_charge = pset.get<float>("SegmentFractionWithCharge");
     cfg.radius_reduction_factor = pset.get<float>("StepReductionFactor");
     cfg.min_cosine = pset.get<float>("MinCosine");

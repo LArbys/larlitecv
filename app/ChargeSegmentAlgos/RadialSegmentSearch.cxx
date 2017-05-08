@@ -211,7 +211,7 @@ namespace larlitecv {
 
   std::vector< Segment3D_t > RadialSegmentSearch::find3Dsegments( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
 								  const std::vector<float>& pos3d, const float search_radius, const std::vector<float>& pixel_thresholds,
-								  const int min_hit_width, const float segment_frac_w_charge, int verbosity ) {
+								  const int min_hit_width, const int hit_neighborhood, const float segment_frac_w_charge, int verbosity ) {
     // check arguments
     if ( img_v.size()!=badch_v.size() || img_v.size()!=pixel_thresholds.size() ) {
       throw std::runtime_error( "number of entries in img_v, badch_v, and/or pixel_thresholds does not match." );
@@ -254,8 +254,8 @@ namespace larlitecv {
         }
       }
       std::vector<Segment2D_t> seg2d_v = make2Dsegments( img_v[p], badch_v[p], radhits, pos3d, pixel_thresholds[p],
-        min_hit_width, segment_frac_w_charge, verbosity );
-
+        hit_neighborhood, segment_frac_w_charge, verbosity );
+      
       // we sort the segments into hi and lo
       for ( auto& seg2d : seg2d_v ) {
         if ( seg2d.row_low<row ) {
@@ -280,9 +280,10 @@ namespace larlitecv {
 
     // combine into 3D segments
     Segment3DAlgo algo;
+    algo.setVerbosity( verbosity );
     std::vector< Segment3D_t > seg3d_v;
-    algo.combine2Dinto3D( plane_seg2d_hi, img_v, badch_v, min_hit_width, pixel_thresholds, segment_frac_w_charge, seg3d_v );
-    algo.combine2Dinto3D( plane_seg2d_lo, img_v, badch_v, min_hit_width, pixel_thresholds, segment_frac_w_charge, seg3d_v );
+    algo.combine2Dinto3D( plane_seg2d_hi, img_v, badch_v, hit_neighborhood, pixel_thresholds, segment_frac_w_charge, seg3d_v );
+    algo.combine2Dinto3D( plane_seg2d_lo, img_v, badch_v, hit_neighborhood, pixel_thresholds, segment_frac_w_charge, seg3d_v );
 
     return seg3d_v;
   }
