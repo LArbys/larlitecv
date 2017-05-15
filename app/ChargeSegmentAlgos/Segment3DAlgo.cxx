@@ -9,6 +9,10 @@
 
 namespace larlitecv {
 
+  Segment3DAlgo::Segment3DAlgo()
+  : verbosity(0) {
+  }
+
   std::vector< Segment3D_t > Segment3DAlgo::find3DSegments( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
 							    const int row_a, const int row_b, const std::vector<float>& thresholds, const int min_hit_width, const int hit_neighborhood ) {
 
@@ -131,37 +135,177 @@ namespace larlitecv {
 					  const int hit_neighborhood, const float threshold, int& nrows_w_charge, int& num_rows ) {
     //std::cout << "checkSegmentCharge" << std::endl;
     int drow  = abs(high_row-low_row);
-    int dcol  = high_col-low_col;
-    float slope = float(dcol)/float(drow);
-    
+    int dcol  = abs(high_col-low_col);
+
     bool hascharge = false;
     nrows_w_charge = 0;
-    num_rows = 0;
-    for (int r=0; r<=drow; r++) {
-      int pixr = low_row + r;
-      int pixc = low_col + slope*r;
-      if ( pixr<0 || pixr>=(int)img.meta().rows()) continue;
-      hascharge = false;
-      for (int dr=-hit_neighborhood; dr<=hit_neighborhood; dr++) {
-	int rtest = pixr + dr;
-	if ( rtest<0 || rtest>=(int)img.meta().rows()) continue;
-	for (int dc=-hit_neighborhood; dc<=hit_neighborhood; dc++) {
-	  int ctest = pixc+dc;
-	  if ( ctest<0 || ctest>=(int)img.meta().cols() ) continue;
-	  if ( img.pixel(rtest,ctest)>threshold || badch.pixel(rtest,ctest)>0) {
-	    hascharge = true;
-	    break;
-	  }
-	}
-      }
-      //std::cout << " check (c,r)=(" << pixc << "," << pixr << ") hascharge=" << hascharge << std::endl;
-      if ( hascharge )
-	nrows_w_charge++;
-      num_rows++;
-    }//end of row loop
-    
+    num_rows = 0; // should read numsteps
+
+    // we need to handle horizontal and vertical cases
+    // we want to step using the slowest axis
+    if ( drow>=dcol) {
+      // vertical segments
+      float slope = float(high_col-low_col)/float(high_row-low_row);
+      for (int r=0; r<=drow; r++) {
+        int pixr = low_row + r;
+        int pixc = low_col + slope*r;
+        if ( pixr<0 || pixr>=(int)img.meta().rows()) continue;
+        hascharge = false;
+        for (int dr=-hit_neighborhood; dr<=hit_neighborhood; dr++) {
+          int rtest = pixr + dr;
+          if ( rtest<0 || rtest>=(int)img.meta().rows()) continue;
+          for (int dc=-hit_neighborhood; dc<=hit_neighborhood; dc++) {
+            int ctest = pixc+dc;
+            if ( ctest<0 || ctest>=(int)img.meta().cols() ) continue;
+            if ( img.pixel(rtest,ctest)>threshold || badch.pixel(rtest,ctest)>0) {
+              hascharge = true;
+              break;
+            }
+          }
+        }
+        //std::cout << " check (c,r)=(" << pixc << "," << pixr << ") hascharge=" << hascharge << std::endl;
+        if ( hascharge )
+          nrows_w_charge++;
+        num_rows++;
+      }//end of row loop
+    }
+    else {
+      // horizontal segments
+      float slope = float(high_row-low_row)/float(high_col-low_col);
+      for (int c=0; c<=dcol; c++) {
+        int pixc = low_col + c;
+        int pixr = low_row + slope*c;
+        if ( pixr<0 || pixr>=(int)img.meta().rows()) continue;
+        hascharge = false;
+        for (int dr=-hit_neighborhood; dr<=hit_neighborhood; dr++) {
+          int rtest = pixr + dr;
+          if ( rtest<0 || rtest>=(int)img.meta().rows()) continue;
+          for (int dc=-hit_neighborhood; dc<=hit_neighborhood; dc++) {
+            int ctest = pixc+dc;
+            if ( ctest<0 || ctest>=(int)img.meta().cols() ) continue;
+            if ( img.pixel(rtest,ctest)>threshold || badch.pixel(rtest,ctest)>0) {
+              hascharge = true;
+              break;
+            }
+          }
+        }
+        //std::cout << " check (c,r)=(" << pixc << "," << pixr << ") hascharge=" << hascharge << std::endl;
+        if ( hascharge )
+          nrows_w_charge++;
+        num_rows++;
+      }//end of col loop
+    }//end of if horizontal
   }
 
+/*
+  void Segment3DAlgo::checkSegmentChargeWithVariation( const std::vector<float>& fixedend, std::vector<float>& variable_end,
+    const larcv::Image2D& img, const larcv::Image2D& badch, const float variation_dist, const std::vector<float>& thresholds, float& good_frac ) {
+    // we vary the variable end in 3-space and calculate the good_frac.
+    // we return the variable_end with the best good fraction and most in the current direction
+
+    // make variation list
+    std::vector< std::vector<float> > varend_list;
+    varend_list.reserve(9);
+    varend_list.push_back( variable_end ); // null variation
+
+    // we basically are trying variations that amount to 1-pixel changes in the different project axes
+    // tick direction: (1,0,0)
+    // Y-plane: (0,0,1)
+    // U-plane: (0, -sqrt(3)/2, 0.5)
+    // V-plane: (0, +sqrt(3)/2, 0.5)
+    const double sr3 = sqrt(3)/2.0;
+    double varbases[8][3] = { { 1.0, 0.0, 0.0},
+                              {-1.0, 0.0, 0.0},
+                              { 0.0, 0.0, 1.0},
+                              { 0.0, 0.0,-1.0},
+                              { 0.0,-sr3, 0.5},
+                              { 0.0, sr3,-0.5},
+                              { 0.0,-sr3,-0.5},
+                              { 0.0, sr3, 0.5} };
+    // amounts to a 9 point star
+    for (int b=0; b<8; b++) {
+      std::vector<float> pos(3);
+      for (int i=0; i<3; i++)
+        pos[i] = variable_end[i] + variation_dist*varbases[b][i];
+      varend_list.push_back( pos );
+    }
+
+    // get direction
+    float segdir(3,0);
+    float segnorm = 0.;
+    for (int i=0; i<3; i++) {
+      segdir[i] = varpos[i]-fixedend[i];
+      segnorm += segdir[i]*segdir[i];
+    }
+    segnorm = sqrt(segnorm);
+    for (int i=0; i<3; i++)
+      segdir[i] /= segnorm;
+
+    // now test
+    // anchor image coordinates
+    const larcv::ImageMeta& meta = img_v.front().meta();
+    std::vector<int> fixedcoords = larcv::UBWireTool::getProjectedImagePixel( fixedend, meta, 3);
+
+    std::vector< float > best_var_pos(3);
+    float best_frac_good = 0;
+    float best_cos = 0;
+    for ( auto& varpos : varend_list ) {
+      // get image coordinates
+      std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( varpos, meta, 3 );
+      for (size_t p=0; p<3; p++) {
+        int lo_row, hi_row, lo_col, hi_col;
+        if ( fixedcoords[0]<imgcoords[0] ) {
+          lo_row  = fixedcoords[0];
+          lo_col  = fixedcoords[p+1];
+          hi_row  = imgcoords[0];
+          hi_col  = imgcoords[p+1];
+        }
+        else {
+          lo_row = imgcoords[0];
+          lo_col = imgcoords[p+1];
+          hi_row = fixedcoords[0];
+          hi_col = fixedcoords[p+1];
+        }
+        int nrows, nrows_w_charge;
+        checkSegmentCharge( img_v[p], badch_v[p], lo_row, lo_col, hi_row, lo_row, hit_neighborhood, thresholds[p], nrows_w_charge, nrows );
+        float frac = 0.0;
+        if ( nrows==0 ) {
+          // not useable
+          continue;
+        }
+        else {
+          frac = float(nrows_w_charge)/float(nrows);
+          // dir
+          float varnorm = 0.;
+          float vardir[3] = {0};
+          for (int i=0; i<3; i++) {
+            vardir[i] = varpos[i]-fixedend[i];
+            varnorm = vardir[i]*vardir[i];
+          }
+          varnorm = sqrt(varnorm);
+          float varcos = 0.;
+          for (int i=0; i<3; i++) {
+            varcos += vardir[i]*segdir[i]/varnorm;
+          }
+
+          if ( frac>best_frac_good ) {
+            best_frac_good = frac;
+            best_var_pos = varpos;
+            best_cos = varcos;
+          }
+          else if ( frac==best_frac_good ) {
+            if ( varcos>best_cos ) {
+              varcos = best_cos;
+              best_var_pos = varpos;
+              best_frac_good = frac;
+            }
+          }
+        }//else number of pixels along segment is non-zero
+      }//end of plane
+    }
+
+  }
+*/
 
   void Segment3DAlgo::combine2Dinto3D( const std::vector< std::vector<Segment2D_t> >& plane_segments2d, const std::vector< larcv::Image2D >& img_v, const std::vector<larcv::Image2D>& badch_v,
 				       const int hit_width, const std::vector<float>& thresholds, float good_frac, std::vector<Segment3D_t>& segments ) {
@@ -202,6 +346,14 @@ namespace larlitecv {
         const Segment2D_t& seg_a = plane_segments2d.at(idx_a.plane).at(idx_a.idx);
         const Segment2D_t& seg_b = plane_segments2d.at(idx_b.plane).at(idx_b.idx);
 
+        if ( verbosity>1 ) {
+          std::cout << "      combo(" << i << "," << j << ") "
+                    << "planes=(" << idx_a.plane << "," << idx_b.plane << ")"
+                    << std::endl;
+          std::cout << "        seg a=(" << seg_a.row_low << "," << seg_a.col_low << ") -> (" << seg_a.row_high << "," << seg_a.col_high << ")" << std::endl;
+          std::cout << "        seg b=(" << seg_b.row_low << "," << seg_b.col_low << ") -> (" << seg_b.row_high << "," << seg_b.col_high << ")" << std::endl;
+        }
+
         // what regime are we dealing with
         bool same_high_row = (seg_a.row_high==seg_b.row_high);
         bool same_low_row  = (seg_a.row_low==seg_b.row_low);
@@ -215,8 +367,8 @@ namespace larlitecv {
 
         if ( same_high_row && same_low_row ) {
           //made in the shade
-	  if ( verbosity>1 )
-	    std::cout << "      same low (" << seg_a.row_low << ") and high (" << seg_a.row_high << ") rows." << std::endl;
+          if ( verbosity>1 )
+            std::cout << "        same high and low row " << std::endl;
         }
         else if ( same_high_row ) {
           // we have to adjust the bottom ends to match at same row
@@ -230,36 +382,35 @@ namespace larlitecv {
           low_wire_a = ftarget_wire_a;
           low_wire_b = ftarget_wire_b;
           row_low = target_row;
-	  if ( verbosity>1 )  {
-	    std::cout << "      same high (" << seg_a.row_high << ") rows. adjusted low= " << row_low
-		      << " A(p=" << segidx[i].plane << "): (" << seg_a.row_low << "," << seg_a.col_low << ")->(" << row_low << "," << low_wire_a << ")"
-		      << " B(p=" << segidx[j].plane << "): (" << seg_b.row_low << "," << seg_b.col_low << ")->(" << row_low << "," << low_wire_b << ")"
-		      << std::endl;
-	  }
-	  
+          if ( verbosity>1 )  {
+            std::cout << "        same high (" << seg_a.row_high << ") rows. adjusted low= " << row_low
+		              << " A(p=" << segidx[i].plane << "): (" << seg_a.row_low << "," << seg_a.col_low << ")->(" << row_low << "," << low_wire_a << ")"
+		              << " B(p=" << segidx[j].plane << "): (" << seg_b.row_low << "," << seg_b.col_low << ")->(" << row_low << "," << low_wire_b << ")"
+		              << std::endl;
+          }
         }
         else if ( same_low_row ) {
           // we adjust so that top ends match at same row
           int target_row = (seg_a.row_high>seg_b.row_high) ? seg_a.row_high : seg_b.row_high;
           float dcol_a = (high_wire_a-low_wire_a);
           float drow_a = (seg_a.row_high-seg_a.row_low);
-          float ftarget_wire_a = ( drow_a!=0 ) ? (dcol_a/drow_a)*fabs(target_row-seg_a.row_low) + low_wire_a : high_wire_a;
+          float ftarget_wire_a = ( drow_a!=0 ) ? (dcol_a/drow_a)*(target_row-seg_a.row_low) + low_wire_a : high_wire_a;
           float dcol_b = (high_wire_b-low_wire_b);
           float drow_b = (seg_b.row_high-seg_b.row_low);
-          float ftarget_wire_b = ( drow_b!=0 ) ? (dcol_b/drow_b)*fabs(target_row-seg_b.row_low) + low_wire_b : high_wire_b;
+          float ftarget_wire_b = ( drow_b!=0 ) ? (dcol_b/drow_b)*(target_row-seg_b.row_low) + low_wire_b : high_wire_b;
           high_wire_a = ftarget_wire_a;
           high_wire_b = ftarget_wire_b;
           row_high = target_row;
-	  if ( verbosity>1 )  {
-	    std::cout << "      same low (" << seg_a.row_low << ") rows. adjusted high= " << row_high
-		      << " low_wire_a=" << high_wire_a << " low_wire_b=" << high_wire_b
-		      << std::endl;
-	  }
-	  
+          if ( verbosity>1 )  {
+            std::cout << "        same low (" << seg_a.row_low << ") rows. adjusted high= " << row_high
+              << " A(p=" << segidx[i].plane << "): (" << seg_a.row_high << "," << seg_a.col_high << ")->(" << row_high << "," << high_wire_a << ")"
+              << " B(p=" << segidx[j].plane << "): (" << seg_b.row_high << "," << seg_b.col_high << ")->(" << row_high << "," << high_wire_b << ")"
+              << std::endl;
+          }
         }
         else {
-	  std::cout << "    should not get here." << std::endl;
-          continue;
+          std::cout << "      should not get here." << std::endl;
+            continue;
         }
 
         std::vector<float> poszy_high;
@@ -278,31 +429,40 @@ namespace larlitecv {
         int otherplane_low = 0;
         larcv::UBWireTool::getMissingWireAndPlane( (int)idx_a.plane, low_wire_a, (int)idx_b.plane, low_wire_b, otherplane_low, otherwire_low, poszy_low, crosses_low );
         if ( crosses_low==0 ) {
-          //std::cout << "    low hit does not cross." << std::endl;
+          if ( verbosity>1 )
+          std::cout << "        low hit does not cross." << std::endl;
           continue; // these wires don't intersect anywhere
         }
 
         // ok so both wires cross.
         if ( otherwire_high<0 || otherwire_high>=img_v.at(otherplane_high).meta().max_x() ) {
-          //std::cout << "    high is out of bounds" << std::endl;
+          if ( verbosity>1 )
+          std::cout << "        high is out of bounds" << std::endl;
           continue;
         }
         if ( otherwire_low<0 || otherwire_low>=img_v.at(otherplane_low).meta().max_x() ) {
-          //std::cout << "     low is out of bounds" << std::endl;
+          if ( verbosity>1 )
+            std::cout << "        low is out of bounds" << std::endl;
           continue;
         }
         // let's check the other plane
         int othercol_high = img_v.at(otherplane_high).meta().col( otherwire_high );
         int othercol_low  = img_v.at(otherplane_low).meta().col( otherwire_low );
 
+        // check the segment on the other plane
         int nrows_w_charge = 0;
         int nrows;
-        checkSegmentCharge( img_v.at(otherplane_high), badch_v.at(otherplane_high), seg_a.row_low, othercol_low, seg_a.row_high, othercol_high,
-			    hit_width, thresholds.at(otherplane_high), nrows_w_charge, nrows );
-        // std::cout << "     2d combo(" << i << "," << j << ") "
-	// 	  << " rowhi=" << row_high << " (p" << idx_a.plane << "," << high_wire_a << ") (p" << idx_b.plane << "," << high_wire_b << ") "
-	// 	  << " rowlo=" << row_low  << " (p" << idx_a.plane << "," << low_wire_a  << ") (p" << idx_b.plane << "," << low_wire_b << ") "
-	// 	  << " otherplane=" << otherplane_high << " nrows=" << nrows << " frac=" << float(nrows_w_charge)/nrows << std::endl;
+        checkSegmentCharge( img_v.at(otherplane_high), badch_v.at(otherplane_high), row_low, othercol_low, row_high, othercol_high,
+          hit_width, thresholds.at(otherplane_high), nrows_w_charge, nrows );
+        if ( verbosity>1 ) {
+          // std::cout << "     2d combo(" << i << "," << j << ") "
+          // 	  << " rowhi=" << row_high << " (p" << idx_a.plane << "," << high_wire_a << ") (p" << idx_b.plane << "," << high_wire_b << ") "
+          // 	  << " rowlo=" << row_low  << " (p" << idx_a.plane << "," << low_wire_a  << ") (p" << idx_b.plane << "," << low_wire_b << ") "
+          std::cout << "        otherplane=" << otherplane_high << " (" << row_low << "," << othercol_low << ") -> (" << row_high << "," << othercol_high << ")"
+                    << " nrows=" << nrows << " frac=" << float(nrows_w_charge)/nrows
+                    << std::endl;
+        }
+
         if ( nrows>0 && float(nrows_w_charge)/nrows > good_frac ) {
           // make segment3d
           Segment3D_t seg3d;
@@ -332,10 +492,12 @@ namespace larlitecv {
           }
 
           if ( !isduplicate ) {
-            // std::cout << "Making 3D segment: "
-            // 	      << " start(" << seg3d.start[0] << "," << seg3d.start[1] << "," << seg3d.start[2] << ") "
-            // 	      << " end(" << seg3d.end[0] << "," << seg3d.end[1] << "," << seg3d.end[2] << ")"
-            // 	      << std::endl;
+            if ( verbosity>1 ) {
+              std::cout << "        Making 3D segment: "
+                	      << " start(" << seg3d.start[0] << "," << seg3d.start[1] << "," << seg3d.start[2] << ") "
+                	      << " end(" << seg3d.end[0] << "," << seg3d.end[1] << "," << seg3d.end[2] << ")"
+                 	      << std::endl;
+            }
             segments.emplace_back( std::move(seg3d) );
           }
         }

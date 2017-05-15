@@ -59,6 +59,7 @@
 #include "DataFormat/mcshower.h"
 #include "DataFormat/simch.h"
 #include "DataFormat/trigger.h"
+#include "DataFormat/track.h"
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
 
@@ -122,13 +123,35 @@ int main( int nargs, char** argv ) {
   std::string inputimgs  = pset.get<std::string>("InputLArCVImages");
   std::string trigname   = pset.get<std::string>("TriggerProducerName");
   bool printFlashEnds    = pset.get<bool>("PrintFlashEnds");
+  bool use_reclustered   = pset.get<bool>("UseReclustered");  
   std::vector<std::string> flashprod  = pset.get<std::vector<std::string> >("OpFlashProducer");
 
  // =====================================================================
 
-  // setup output
-  enum Stages_t { kThruMu=0, kStopMu, kUntagged, kCROI, kNumStages };
+  // setup input
+  int kThruMu, kStopMu, kUntagged, kCROI, kNumStages;
 
+  std::vector<std::string> stages_pixel_producers;
+  std::vector<std::string> stages_track_producers;  
+  if ( use_reclustered ) {
+    kNumStages = 4;
+    kThruMu = 0;
+    kStopMu = 1;    
+    kUntagged = 2;
+    kCROI = 3;
+    stages_pixel_producers.resize(kNumStages);
+    stages_pixel_producers[0] = "mergedthrumupixels";
+    stages_pixel_producers[1] = "mergedstopmupixels";
+    stages_pixel_producers[2] = "mergeduntaggedpixels";
+    stages_pixel_producers[3] = "croipixels";
+    stages_track_producers.resize(kNumStages);    
+    stages_track_producers[0] = "mergedthrumu3d";
+    stages_track_producers[1] = "mergedstopmu3d";
+    stages_track_producers[2] = "mergeduntagged3d";
+    stages_track_producers[3] = "croi3d";    
+  }
+  
+  // setup output
   TFile* rfile = new TFile(outfname.c_str(), "recreate");
   TTree* tree = new TTree("pixana", "Pixel-level analysis");
 
@@ -159,6 +182,8 @@ int main( int nargs, char** argv ) {
   int num_rois;     // number of identified ROis
   int nnu_inroi[4]; // number of nu pixels contained in the CROI
   int vertex_in_croi; // is vertex in an CROI
+  float closest_dist_to_vertex;
+  int closest_dist_stage;
 
   // Crossing Point data
   larlitecv::CrossingPointAnaData_t xingptdata;
@@ -186,7 +211,9 @@ int main( int nargs, char** argv ) {
 
   tree->Branch("num_rois", &num_rois, "num_rois/I");
   tree->Branch("nnu_inroi", nnu_inroi, "nnu_inroi[4]" );
-  tree->Branch("vtx_in_croi",             &vertex_in_croi,         "vtx_in_croi/I" );
+  tree->Branch("vtx_in_croi", &vertex_in_croi,         "vtx_in_croi/I" );
+  tree->Branch("dist_to_vtx", &closest_dist_to_vertex, "dist_to_vtx/F" );
+  tree->Branch("stage_at_vtx", &closest_dist_stage, "stage_at_vtx/I" );
   
   xingptdata.bindToTree( tree );
   
@@ -255,11 +282,7 @@ int main( int nargs, char** argv ) {
       nvertex_incroi[p] = 0;
     }
     vertex_in_croi = 0;    
-    // proposed_crossingpoints = 0;
-    // tagged_crossingpoints = 0;
-    // true_crossingpoints = 0;
-    // true_intime_stopmu = 0;
-    // true_intime_thrumu = 0;
+
 
     // ok now to do damage
 
@@ -284,26 +307,32 @@ int main( int nargs, char** argv ) {
 
     // get the output of the tagger
     larcv::EventPixel2D* ev_pix[kNumStages] = {0};
+    larlite::event_track* ev_track[kNumStages] = {0};
     try {
-      ev_pix[kThruMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"thrumupixels");
+      ev_pix[kThruMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,stages_pixel_producers[kThruMu]);
+      ev_track[kThruMu]  = (larlite::event_track*)dataco[kCROIfile].get_larlite_data(larlite::data::kTrack,stages_track_producers[kThruMu]);      
     }
     catch (...) {
       ev_pix[kThruMu] = NULL;
+      ev_track[kThruMu] = NULL;
     }
     try {
-      ev_pix[kStopMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"stopmupixels");
+      ev_pix[kStopMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,stages_pixel_producers[kStopMu]);
+      ev_track[kStopMu]  = (larlite::event_track*)dataco[kCROIfile].get_larlite_data(larlite::data::kTrack,stages_track_producers[kStopMu]);            
     }
     catch (...) {
       ev_pix[kStopMu] = NULL;
     }
     try {
-      ev_pix[kUntagged]  = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"untaggedpixels");
+      ev_pix[kUntagged]  = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,stages_pixel_producers[kUntagged]);
+      ev_track[kUntagged]  = (larlite::event_track*)dataco[kCROIfile].get_larlite_data(larlite::data::kTrack,stages_track_producers[kUntagged]);                  
     }
     catch (...) {
       ev_pix[kUntagged] = NULL;
     }
     try {
-      ev_pix[kCROI]      = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"croipixels");
+      ev_pix[kCROI]      = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,stages_pixel_producers[kCROI]);
+      ev_track[kCROI]  = (larlite::event_track*)dataco[kCROIfile].get_larlite_data(larlite::data::kTrack,stages_track_producers[kCROI]);                  
     }
     catch (...) {
       ev_pix[kCROI] = NULL;
@@ -381,6 +410,7 @@ int main( int nargs, char** argv ) {
     // std::vector< std::vector<int> > end_pixels;
     // std::vector< std::vector<float> > end_crossingpts;
     std::vector<int> vertex_col(3,-1);
+    std::vector<double> vtx_sce(3,0);    
     int vertex_row = -1;
       
     if ( ismc ) {
@@ -390,7 +420,7 @@ int main( int nargs, char** argv ) {
       std::vector<double> dpos(3);
       for (int i=0; i<3; i++ ) dpos[i] = truthdata.pos[i];
       std::vector<double> vtx_offset = sce.GetPosOffsets( dpos[0], dpos[1], dpos[2] );
-      std::vector<double> vtx_sce(3,0);
+
       for (int i=1; i<3; i++ ) vtx_sce[i] = dpos[i] + vtx_offset[i];
       vtx_sce[0] = dpos[0] - vtx_offset[0] + 0.7;
       
@@ -552,93 +582,6 @@ int main( int nargs, char** argv ) {
     analyzeCrossingDataOnly( xingptdata, ev_spacepoints );
     analyzeCrossingMatches( xingptdata,  ev_spacepoints, imgs_v.front().meta() );
     
-      // analyze proposed boundary points
-      // std::cout << "Analyze Boundary Points" << std::endl;
-      // xingptdata.proposed_crossingpoints = 0;
-      // for (int i=0; i<7; i++) {
-      // 	if ( ev_spacepoints[i]==NULL)
-      // 	  throw std::runtime_error("wtf");
-      // 	std::cout << " endtype " << spacepoint_producers[i] << ": ";
-      // 	std::cout << ev_spacepoints[i]->Pixel2DArray(0).size() << std::endl;
-      // 	xingpdata.tot_proposed_crossingpoints += (int)(ev_spacepoints[i]->Pixel2DArray(0).size());
-      // }
-
-
-      // std::cout << "Match Truth to Tagged" << std::endl;
-
-      // std::vector<bool> matched_startpoint( start_pixels.size(), false );
-      // std::vector<bool> matched_endpoint( end_pixels.size(), false );
-
-      // std::vector< std::vector<int> >* p_crossing_pixel_v[2] = { &start_pixels, &end_pixels }; // truth pixels for crossing points
-      // std::vector< std::vector<float> >* p_crossingpts_v[2]  = { &start_crossingpts, &end_crossingpts }; // truth 3D positions
-      // std::vector<bool>* p_matched_v[2] = { &matched_startpoint, &matched_endpoint };
-
-
-      // for ( int v=0; v<2; v++ ) {
-      // 	for ( int ipix=0; ipix<(int)p_crossing_pixel_v[v]->size(); ipix++ ) {
-
-      // 	  // we need to get the 3D position to compare against
-      // 	  const std::vector<int>&  pixinfo     = p_crossing_pixel_v[v]->at(ipix); // position in image
-      // 	  const std::vector<float>& crossingpt = p_crossingpts_v[v]->at(ipix);    // position in 3D
-
-      // 	  // use TPC position to get X
-      // 	  std::vector<float> crossingpt_tpcx(3);
-      // 	  crossingpt_tpcx[0] = (imgs_v.at(0).meta().pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
-      // 	  crossingpt_tpcx[1] = crossingpt[1];
-      // 	  crossingpt_tpcx[2] = crossingpt[2];
-
-      // 	  // scan for pixel, loop over types and pts
-      // 	  bool matched = false;
-      // 	  for (int i=0; i<7; i++) {
-      // 	    if ( matched )
-      // 	      break;
-
-      // 	    for ( int j=0; j<(int)ev_spacepoints[i]->Pixel2DArray(0).size(); j++ ) {
-
-
-      // 	      std::vector<float> intersect(2,0.0);
-      // 	      std::vector<int> wids(3,0);
-      // 	      int crossing = 0;
-      // 	      double triangle_area = 0.0;
-      // 	      for (int p=0; p<3; p++) {
-      // 		wids[p] = ev_spacepoints[i]->Pixel2DArray(p).at(j).X();
-      // 	      }
-
-
-      // 	      larcv::UBWireTool::wireIntersection( wids, intersect, triangle_area, crossing );
-      // 	      float x = ( imgs_v.at(0).meta().pos_y( ev_spacepoints[i]->Pixel2DArray(0).at(j).Y() ) - 3200.0 )*cm_per_tick;
-
-      // 	      std::vector<float> spacepoints(3);
-      // 	      spacepoints[0] = x;
-      // 	      spacepoints[1] = intersect[1];
-      // 	      spacepoints[2] = intersect[0];
-
-      // 	      float dist = 0;
-      // 	      for (int d=0; d<3; d++) {
-      // 		dist += (spacepoints[d]-crossingpt_tpcx[d])*(spacepoints[d]-crossingpt_tpcx[d]);
-      // 	      }
-      // 	      dist = sqrt(dist);
-      // 	      //std::cout << "true[" << v << "," << ipix << "] vs. proposed[" << i << "," << j << "] dist=" << dist << std::endl;
-      // 	      if (dist<20.0) {
-      // 		matched = true;
-      // 	      }
-
-      // 	      if ( matched )
-      // 		break;
-      // 	    }// end of loop over tagged points of type i
-      // 	  }//end of boundary point types
-
-      // 	  p_matched_v[v]->at(ipix) = matched;
-
-      // 	  if ( matched )
-      // 	    tagged_crossingpoints++;
-      // 	}
-
-      // std::cout << "Proposed Crossing Points: " << proposed_crossingpoints << std::endl;
-      // std::cout << "Tagged Crossing Points: " << tagged_crossingpoints << std::endl;
-      // std::cout << "True Crossing Points: " << true_crossingpoints << std::endl;
-
-    //end of MC counting
     // ==========================================================================================
 
 
@@ -805,6 +748,32 @@ int main( int nargs, char** argv ) {
       }
     }
 
+
+    //================================================================================
+    // Analyze if a track came close to a vertex
+    if (ismc) {
+      closest_dist_to_vertex = 1.0e6;
+      closest_dist_stage = -1;
+      for (int istage=0; istage<kNumStages; istage++) {
+	for (int itrack=0; itrack<(int)(ev_track[istage]->size()); itrack++) {
+	  const larlite::track& t = (*ev_track[istage])[itrack];
+	  for (int ipt=0; ipt<(int)t.NumberTrajectoryPoints(); ipt++) {
+	    float dist=0;
+	    for (int v=0; v<3; v++) {
+	      float dx = vtx_sce[v]-t.LocationAtPoint(ipt)[v];
+	      dist += dx*dx;
+	    }
+	    dist = sqrt(dist);
+	    if ( dist<=closest_dist_to_vertex ) {
+	      closest_dist_to_vertex = dist;
+	      closest_dist_stage = istage;
+	    }
+	  }
+	}
+      }
+    }
+
+    //================================================================================
 
 #ifdef USE_OPENCV
     // draw image

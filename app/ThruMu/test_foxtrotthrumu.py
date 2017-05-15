@@ -22,7 +22,7 @@ img_producer = "modimg"
 badch_producer = "gapchs"
 makebadch = False
 run_2d = False
-label_badchs = False
+label_badchs = True
 
 ioman = larcv.IOManager( larcv.IOManager.kREAD );
 ioman.add_in_file( testfile )
@@ -78,13 +78,14 @@ raw_input()
 
 # make cvimage for drawing
 threshold = 10.0
+maxrgb = 255
 imgshp = ( meta.rows(), meta.cols(), 3 )
 cvimg  = np.zeros( imgshp )
 for p in range(0,3):
   imgarr = larcv.as_ndarray( img_v.at(p) )
   imgarr = np.transpose( imgarr )
   imgarr[ imgarr<threshold ] = 0
-  imgarr[ imgarr>255+threshold ] = 255+threshold
+  imgarr[ imgarr>maxrgb+threshold ] = maxrgb+threshold
   imgarr -= threshold
 
   if p==0:
@@ -95,24 +96,26 @@ for p in range(0,3):
     cvimg[:,:,0] += imgarr
     cvimg[:,:,1] += imgarr
 
-  cvimg[ cvimg>255 ] = 255
+  cvimg[ cvimg>maxrgb ] = 255
 
 # badchannels
 if label_badchs:
   for c in range(meta.cols()):
     for p in range(3):
       if badch_v[p].pixel(1,c)>0:
-        cvimg[:,c,p] = 20
+        cvimg[:,c,p] += 20
         #cvimg[:,c,1] = 5
         #cvimg[:,c,2] = 5
+  cvimg[ cvimg>maxrgb ] = 255
 
 
 # SETUP THE ALGO
 cfg = larlitecv.ThruMuFoxTrotConfig()
+cfg.use_thrumu_lead = False
 cfg.foxtrotalgo_cfg.segment_radius = 8.0
 cfg.foxtrotalgo_cfg.segment_frac_w_charge = 0.5
 cfg.foxtrotalgo_cfg.num_step_attempts = 4
-cfg.foxtrotalgo_cfg.hit_neighborhood = 2
+cfg.foxtrotalgo_cfg.hit_neighborhood = 1
 cfg.foxtrotalgo_cfg.verbosity = 3
 
 foxalgo = larlitecv.ThruMuFoxTrot( cfg )
@@ -131,24 +134,30 @@ typedict = { "topspacepts": larlitecv.kTop,
 #end_pt_type = "cathodepts"
 #end_pt_idx = 2
 
-# LOT'SO GAPS
+# LOT'SO GAPS. Also, scattering point somewhere in the middle
 #start_pt_type = "anodepts"
 #start_pt_idx = 3
 #end_pt_type = "cathodepts"
 #end_pt_idx = 0
 
 # Has small gap
-start_pt_type = "botspacepts"
-start_pt_idx = 4
-end_pt_type = "cathodepts"
-end_pt_idx = 4
+#start_pt_type = "botspacepts"
+#start_pt_idx = 4
+#end_pt_type = "cathodepts"
+#end_pt_idx = 4
+
+# Horizontal Gap + dead channels
+start_pt_type = "topspacepts"
+start_pt_idx  = 4
+end_pt_type   = "botspacepts"
+end_pt_idx    = 5
 
 start_pix_v = std.vector('larcv::Pixel2D')()
 end_pix_v = std.vector('larcv::Pixel2D')()
 for p in range(3):
   start_pix_v.push_back( ev_boundary_pts[start_pt_type].Pixel2DArray(p).at(start_pt_idx) )
   end_pix_v.push_back(   ev_boundary_pts[end_pt_type].Pixel2DArray(p).at(end_pt_idx) )
-  
+
 start_sp = larlitecv.Pixel2SpacePoint( start_pix_v, typedict[start_pt_type], img_v.front().meta() )
 end_sp   = larlitecv.Pixel2SpacePoint( end_pix_v,   typedict[end_pt_type], img_v.front().meta() )
 
@@ -165,10 +174,14 @@ for istep in range(track.size()):
     pos[i] = step.pos()[i]
   tick = step.pos()[0]/(larutil.LArProperties.GetME().DriftVelocity()*0.5)+3200.0
   row  = img_v.front().meta().row( tick )
+  if foxalgo.getStepTypes()[istep]==0:
+    color=(255,0,255)
+  else:
+    color=(0,255,255)
   for p in range(3):
     wire = larutil.Geometry.GetME().WireCoordinate( pos, p )
     col = img_v.front().meta().col( wire )
-    cv2.circle( cvimg, (col,row), 1, (255,0,255), 1 )
+    cv2.circle( cvimg, (col,row), 1, color, 1 )
 
 cv2.imwrite( "thrumufoxtrot_test.png", cvimg )
 

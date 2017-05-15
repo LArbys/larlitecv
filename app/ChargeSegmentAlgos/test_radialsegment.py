@@ -1,6 +1,7 @@
 import os,sys
 import ROOT as rt
 from ROOT import std
+from ROOT import Long, Double
 from larcv import larcv
 from larlitecv import larlitecv
 from ROOT import larutil
@@ -13,7 +14,7 @@ try:
   print "Has OpenCV"
 except:
   has_cv = False
-  print "No OpenCV"  
+  print "No OpenCV"
 
 rt.gStyle.SetOptStat(0)
 
@@ -22,6 +23,9 @@ img_producer = "modimg"
 badch_producer = "gapchs"
 makebadch = False
 run_2d = False
+colors = {0:(255,0,255,255),
+          1:(255,255,0,255),
+          2:(0,255,255,255)}
 
 ioman = larcv.IOManager( larcv.IOManager.kREAD );
 ioman.add_in_file( testfile )
@@ -53,7 +57,7 @@ if makebadch:
 else:
   ev_badch_v = ioman.get_data( larcv.kProductImage2D, badch_producer )
   badch_v = ev_badch_v.Image2DArray()
-  
+
 
 print "Images Ready."
 
@@ -73,6 +77,7 @@ for endptname in endptnames:
 # make cvimage
 # output image
 threshold = 10.0
+maxval = 100.0
 imgshp = ( meta.rows(), meta.cols(), 3 )
 cvimg  = np.zeros( imgshp )
 for p in range(0,3):
@@ -90,7 +95,7 @@ for p in range(0,3):
     cvimg[:,:,0] += imgarr
     cvimg[:,:,1] += imgarr
 
-  cvimg[ cvimg>255 ] = 255
+  cvimg[ cvimg>maxval ] = 255
 
 
 # SETUP THE ALGO
@@ -100,104 +105,66 @@ radialalgo = larlitecv.RadialSegmentSearch()
 # ENTRY 0
 # example where one track needs to get fixed
 
-# Test point
+# Test points
 "#topspacepts  #6 :  tick= 6120.0   214   827   369  \n",
-#boundary_type = "botspacepts"
-#endptid = 3
+"#topspacepts  #12 :  tick= 3192.0   1257   1911   2497 \n" # horizontal segments
 
-def segment_box( boundary_type, endptid, radius ):
-  row = int(ev_boundary_pts[boundary_type].Pixel2DArray(0).at(endptid).Y())
-  tick = meta.pos_y(row)
-  cols = std.vector("int")(3)
-  poszy = std.vector("float")()
-  for p in range(0,3):
-    cols[p] = int(meta.pos_x( ev_boundary_pts[boundary_type].Pixel2DArray(p).at(endptid).X() ))
-  pos3d = std.vector("float")(3)      
-  triarea = rt.Double(0)
-  crosses = rt.Long(0)
-  larcv.UBWireTool.wireIntersection( cols, poszy, triarea, crosses )
-  pos3d[0] = ( tick-3200.0 )*(larutil.LArProperties.GetME().DriftVelocity()*0.5)
-  pos3d[1] = poszy[1];
-  pos3d[2] = poszy[0];
-  print boundary_type, " #",endptid," pos=(",pos3d[0],",",pos3d[1],",",pos3d[2],")",
-  
-  plane_points = {}
-  for p in range(0,3):
-    radial_points = radialalgo.findIntersectingChargeClusters( img_v[p], badch_v[p], pos3d, radius, 10.0 )
-    print "  plane ",p," radial points: ",radial_points.size()
-    plane_points[p] = radial_points
-    for iradpix in range(radial_points.size()):
-      radhit = plane_points[p].at(iradpix)
-      if radhit.max_idx<0 or radhit.max_idx>=radial_points.size():
-        continue
-      radpix = radhit.pixlist[ radhit.max_idx ]
-      print " tick=", meta.pos_y(radpix.Y())," max=",radpix.X(),
-      for ipix in range( radhit.pixlist.size() ):
-        radpix = radhit.pixlist[ ipix ]
-        print "(%d,%d)"%(meta.pos_y(radpix.Y()),radpix.X())," ",
-      print
+boundary_type = "topspacepts"
+endptid = 12
 
-  # output image
-  for p in range(0,3):
-    cv2.circle( cvimg, (cols[p],row), 5, (255,255,255), 1 )
+# get 3d point
 
-    for iradpix in range(plane_points[p].size()):
-      radhit = plane_points[p].at(iradpix)
-      radpix = radhit.pixlist[ radhit.max_idx ]
-      cv2.circle( cvimg, (radpix.X(),radpix.Y()), 2, (255,0,0), -1 )
-  return plane_points, pos3d
+cm_per_tick = larutil.LArProperties.GetME().DriftVelocity()*0.5
+wids = std.vector("int")(3)
+for p in range(0,3):
+  wids[p] = ev_boundary_pts[boundary_type].Pixel2DArray(p).at(endptid).X()
+row = ev_boundary_pts[boundary_type].Pixel2DArray(0).at(endptid).Y()
+tick = img_v.front().meta().pos_y( ev_boundary_pts[boundary_type].Pixel2DArray(0).at(endptid).Y() )
+x = (img_v.front().meta().pos_y( ev_boundary_pts[boundary_type].Pixel2DArray(0).at(endptid).Y() ) - 3200.0)*cm_per_tick
+
+poszy = std.vector("float")()
+crosses = Long(0)
+triarea  = Double(0)
+larcv.UBWireTool.wireIntersection( wids, poszy, triarea, crosses )
+pos3d = std.vector("float")(3)
+pos3d[0] = x
+pos3d[1] = poszy[1]
+pos3d[2] = poszy[0]
+
+print "Test point 3d pos: (",pos3d[0],",",pos3d[1],",",pos3d[2],"), img coords: (",tick,",",wids[0],",",wids[1],",",wids[2],")"
+for p in range(0,3):
+  cv2.circle( cvimg, (wids[p],row), 1, (255,255,255,255), 1 )
+pixel_thresholds = std.vector("float")(3,10.0)
+
+seg3d_v = radialalgo.find3Dsegments( img_v, badch_v, pos3d, 8.0, pixel_thresholds, 1, 1, 0.8, 3 )
+print "Number of 3D segments: ",seg3d_v.size()
+
+for p in range(3):
+  for ihit in range(radialalgo.m_planehits[p].size()):
+    radhit = radialalgo.m_planehits[p].at(ihit)
+    cv2.circle( cvimg, (radhit.col(),radhit.row()), 1, colors[p], 1 )
 
 
-def make2dseg( plane_points ):
-  return
-      
-for boundary in ["topspacepts","botspacepts"]:
-  npts = ev_boundary_pts[boundary].Pixel2DArray(0).size()
+for iseg in range(seg3d_v.size()):
+  seg3d = seg3d_v[iseg]
+  startpos3d = std.vector("float")(3)
+  endpos3d   = std.vector("float")(3)
+  for i in range(3):
+    startpos3d[i] = seg3d.start[i]
+    endpos3d[i] = seg3d.end[i]
+  startimgcoord = larcv.UBWireTool.getProjectedImagePixel( startpos3d, img_v.front().meta(), 3 )
+  endimgcoord   = larcv.UBWireTool.getProjectedImagePixel( endpos3d, img_v.front().meta(), 3 )
 
-  if boundary not in ["topspacepts"]:
-    continue
-  
-  for endptid in range(npts):
-    if endptid not in [6]:
-      continue
+  print "iseg #",iseg,": (",startpos3d[0],",",startpos3d[1],",",startpos3d[2],") -> (",endpos3d[0],",",endpos3d[1],",",endpos3d[2],")"
 
-    if run_2d:
-      plane_radhits, pos3d = segment_box( boundary, endptid, 10.0 )
-      plane_seg2d = {}
-      for p in range(3):
-        plane_seg2d[p] = radialalgo.make2Dsegments( img_v[p], badch_v[p], plane_radhits[p], pos3d, 10.0, 1, 0.8 )
-        print "number of 2d segments: ",plane_seg2d[p].size()
-        for iseg in range(plane_seg2d[p].size()):
-          seg2d = plane_seg2d[p][iseg]
-          cv2.line( cvimg, (seg2d.col_low,seg2d.row_low), (seg2d.col_high,seg2d.row_high), (0,125,255), 1 )
-    else:
-      # run 3D
-      row = int(ev_boundary_pts[boundary].Pixel2DArray(0).at(endptid).Y())
-      tick = meta.pos_y(row)
-      cols = std.vector("int")(3)
-      poszy = std.vector("float")()
-      for p in range(0,3):
-        cols[p] = int(meta.pos_x( ev_boundary_pts[boundary].Pixel2DArray(p).at(endptid).X() ))
-        pos3d = std.vector("float")(3)      
-        triarea = rt.Double(0)
-        crosses = rt.Long(0)
-      larcv.UBWireTool.wireIntersection( cols, poszy, triarea, crosses )
-      pos3d[0] = ( tick-3200.0 )*(larutil.LArProperties.GetME().DriftVelocity()*0.5)
-      pos3d[1] = poszy[1];
-      pos3d[2] = poszy[0];
-      print boundary, " #",endptid," pos=(",pos3d[0],",",pos3d[1],",",pos3d[2],")"
-
-      pix_thresholds = std.vector("float")(3,10.0)
-      seg3d_v = radialalgo.find3Dsegments( img_v, badch_v, pos3d, 10.0, pix_thresholds, 1, 0.8 )
-      print "  number of 3d segments=", seg3d_v.size()
-          
+  for p in range(3):
+    cv2.circle( cvimg, (startimgcoord[p+1],startimgcoord[0]), 3, (255,255,255,255), 1 )
+    cv2.circle( cvimg, (endimgcoord[p+1],endimgcoord[0]), 3, colors[p], 1 )
 
 
-
-          
 cv2.imwrite( "radial_test.png", cvimg )
 
-    
-  
+
+
 print "[ENTER] to finish."
 raw_input()

@@ -11,5 +11,6 @@
 
 #pragma link C++ namespace larlitecv;
 //ADD_NEW_CLASS ... do not change this line
-#pragma link C++ class larlitecv::SpaceChargeEffectMicroBooNE+;
+#pragma link C++ class larlitecv::SpaceChargeMicroBooNE+;
+#pragma link C++ class larlitecv::ReverseSCE+;
 #endif

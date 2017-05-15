@@ -11,9 +11,13 @@ tree = rfile.Get("flashtimes")
 
 nentries = tree.GetEntries()
 
-lowx_cut  = 400
-highx_cut = 200
+highx_cut = 100.0
+lowx_cut  = highx_cut*1.5
 peratio_cut = 1000.0
+use_scan = True
+golden_cut = True
+use_containment = False
+use_cosmicratio = True
 
 # test cut variables
 neff_truepos = 0   # fraction of vertex-matched rois that pass
@@ -56,16 +60,27 @@ for ptype in plot_types[:2]:
     hchi2[ptype]     = rt.TH1D("hchi2_"+ptype,";#chi^{2}; counts",50,0,1000.0)
     hchi2_v_x[ptype] = rt.TH2D("hchi2_v_x_"+ptype,";x (cm);#chi^{2}",30,-25,275,50,0,1000.0)
 
+# scanned chi-squared
+hscan = {}
+hscan_v_x = {}
+for ptype in plot_types[:2]:
+    hscan[ptype]     = rt.TH1D("hscan_"+ptype,";#chi^{2}; counts",50,0,1000.0)
+    hscan_v_x[ptype] = rt.TH2D("hscan_v_x_"+ptype,";x (cm);#chi^{2}",30,-25,275,50,0,1000.0)
+
 # gaus ll
 hgausll = {}
 hgausll_v_x = {}
 for ptype in plot_types[:2]:
     hgausll[ptype]     = rt.TH1D("hgausll_"+ptype,";#chi^{2}; counts",150,0,15.0)
     hgausll_v_x[ptype] = rt.TH2D("hgausll_v_x_"+ptype,";x (cm);#chi^{2}",30,-25,275,50,0,10.0)
-
+    
 # event efficiency
 heff_pass = rt.TH1D("heff_pass",";Enu;efficiency",10,0,1000)
 heff_tot = rt.TH1D("heff_tot",";Enu;efficiency",10,0,1000)
+
+# num ROI
+hnroi_pass = rt.TH1D("hnroi_pass",";Num ROI;",30,0,30)
+hnroi_tot  = rt.TH1D("hnroi_tot",";Num ROI;",30,0,30)
 
 
 while bytesread>0:
@@ -101,38 +116,13 @@ while bytesread>0:
                 if fabs(pefrac_false[j])>fabs(pefracdiff):
                     pefrac_false[j] = pefracdiff
 
-    # CHI2
-    hastruepass = False
+    # FIXED CHI2
     for j in range(0,tree.smallest_chi2_trueflashes.size()):
         hchi2["vtxmatched"].Fill( tree.smallest_chi2_trueflashes[j] )
         hchi2_v_x["vtxmatched"].Fill( tree.pos[0], tree.smallest_chi2_trueflashes[j] )
-        if tree.pos[0]<100 and tree.smallest_chi2_trueflashes[j]<lowx_cut and tree.containment_trueflashes[j]==1:
-            neff_truepos+=1
-            hastruepass = True
-        elif tree.pos[0]>100 and tree.smallest_chi2_trueflashes[j]<highx_cut and tree.containment_trueflashes[j]==1:
-            neff_truepos+=1
-            hastruepass = True
-        nmatched += 1
-    if hastruepass:
-        neff_event += 1
-    if tree.smallest_chi2_trueflashes.size()>0:
-        nevents_wmatch += 1
-    nevents += 1
-
-    if hastruepass:
-        heff_pass.Fill( tree.EnuGeV*1000.0 )
-    heff_tot.Fill( tree.EnuGeV*1000.0 )
-        
     for j in range(0,tree.smallest_chi2_falseflashes.size()):
         hchi2["notvtxmatched"].Fill( tree.smallest_chi2_falseflashes[j] )
         hchi2_v_x["notvtxmatched"].Fill( tree.pos[0], tree.smallest_chi2_falseflashes[j] )
-        if tree.pos[0]<100 and tree.smallest_chi2_falseflashes[j]<lowx_cut and tree.containment_falseflashes[j]==1:
-            neff_falsepos+=1
-        elif tree.pos[0]>100 and tree.smallest_chi2_falseflashes[j]<highx_cut and tree.containment_falseflashes[j]==1:
-            neff_falsepos+=1
-        nnon_matched += 1
-
-    
 
     # Gaus LL
     for j in range(0,tree.smallest_gausll_trueflashes.size()):
@@ -142,10 +132,81 @@ while bytesread>0:
         hgausll["notvtxmatched"].Fill( tree.smallest_gausll_falseflashes[j] )
         hgausll_v_x["notvtxmatched"].Fill( tree.pos[0], tree.smallest_gausll_falseflashes[j] )
 
+    # Gaus LL
+    for j in range(0,tree.smallest_scan_trueflashes.size()):
+        hscan["vtxmatched"].Fill( tree.smallest_scan_trueflashes[j] )
+        hscan_v_x["vtxmatched"].Fill( tree.pos[0], tree.smallest_scan_trueflashes[j] )
+    for j in range(0,tree.smallest_scan_falseflashes.size()):
+        hscan["notvtxmatched"].Fill( tree.smallest_scan_falseflashes[j] )
+        hscan_v_x["notvtxmatched"].Fill( tree.pos[0], tree.smallest_scan_falseflashes[j] )
+
+    # determine cut
+    hastruepass = False    
+    src_trueflashes = tree.smallest_chi2_trueflashes
+    src_falseflashes = tree.smallest_chi2_falseflashes    
+    if use_scan:
+        src_trueflashes = tree.smallest_scan_trueflashes
+        src_falseflashes = tree.smallest_scan_falseflashes
+
+    nroi = 0
+    nroi_tot = 0
+    for j in range(0,src_trueflashes.size()):
+        # nonflash cuts
+        nonflashcut = True
+        nroi_tot+=1
+        if use_containment and tree.containment_trueflashes[j]==0:
+            nonflashcut = False
+        if use_cosmicratio and tree.cosmicratio_trueflashes[j]==0:
+            nonflashcut = False
+        
+        if tree.pos[0]<100 and src_trueflashes[j]<lowx_cut and nonflashcut:
+            neff_truepos+=1
+            hastruepass = True
+            nroi += 1
+        elif tree.pos[0]>100 and src_trueflashes[j]<highx_cut and nonflashcut:
+            neff_truepos+=1
+            hastruepass = True
+            nroi += 1
+        nmatched += 1
+    for j in range(0,src_falseflashes.size()):
+        nonflashcut = True
+        nroi_tot+=1        
+        if use_containment and tree.containment_falseflashes[j]==0:
+            nonflashcut = False
+        if use_cosmicratio and tree.cosmicratio_falseflashes[j]==0:
+            nonflashcut = False        
+        if tree.pos[0]<100 and src_falseflashes[j]<lowx_cut and nonflashcut:
+            neff_falsepos+=1
+            nroi += 1
+        elif tree.pos[0]>100 and src_falseflashes[j]<highx_cut and nonflashcut:
+            neff_falsepos+=1
+            nroi += 1
+        nnon_matched += 1
+
+    if not golden_cut:
+        nevents += 1
+        if hastruepass:
+            neff_event += 1
+            nevents_wmatch += 1
+        hnroi_pass.Fill( nroi )
+        hnroi_tot.Fill( nroi_tot )        
+    else:
+        if tree.EnuGeV>0.2 and tree.dwall>10.0:
+            nevents += 1
+            if hastruepass:
+                neff_event += 1
+                nevents_wmatch += 1
+            hnroi_pass.Fill( nroi )
+            hnroi_tot.Fill( nroi_tot )
+
+    if hastruepass:
+        heff_pass.Fill( tree.EnuGeV*1000.0 )
+    heff_tot.Fill( tree.EnuGeV*1000.0 )
+        
     # ROI-x
-    for j in range(0,tree.smallest_chi2_trueflashes.size()):
+    for j in range(0,src_trueflashes.size()):
        hroix["vtxmatched"].Fill( tree.pos[0] )
-    for j in range(0,tree.smallest_chi2_falseflashes.size()):
+    for j in range(0,src_falseflashes.size()):
        hroix["notvtxmatched"].Fill( tree.pos[0] )
         
     ientry += 1
@@ -173,7 +234,7 @@ cpediff_v_x.Draw()
 cpediff_v_x.Update()
 
 # Chi2
-cchi2 = rt.TCanvas("cchi2","",800,600)
+cchi2 = rt.TCanvas("cchi2","FIXED CHI2",800,600)
 cchi2.Draw()
 hchi2["vtxmatched"].SetLineColor(rt.kRed)
 hchi2["notvtxmatched"].SetMinimum(0)
@@ -182,7 +243,7 @@ hchi2["vtxmatched"].Draw("same")
 cchi2.Update()
 
 # chi2 v x
-cchi2_v_x = rt.TCanvas("chi2_v_pos","Chi-squared versus x",1400,600)
+cchi2_v_x = rt.TCanvas("chi2_v_pos","FIXED Chi-squared versus x",1400,600)
 cchi2_v_x.Divide(2,1)
 cchi2_v_x.cd(1)
 hchi2_v_x["vtxmatched"].Draw("COLZ")
@@ -192,7 +253,7 @@ cchi2_v_x.Draw()
 cchi2_v_x.Update()
 
 # Gausll
-cgausll = rt.TCanvas("cgausll","",800,600)
+cgausll = rt.TCanvas("cgausll","GAUS LL",800,600)
 cgausll.Draw()
 hgausll["vtxmatched"].SetLineColor(rt.kRed)
 hgausll["notvtxmatched"].SetMinimum(0)
@@ -200,8 +261,17 @@ hgausll["notvtxmatched"].Draw()
 hgausll["vtxmatched"].Draw("same")
 cgausll.Update()
 
+# Scan
+cscan = rt.TCanvas("cscan","SCAN CHI2",800,600)
+cscan.Draw()
+hscan["vtxmatched"].SetLineColor(rt.kRed)
+hscan["notvtxmatched"].SetMinimum(0)
+hscan["notvtxmatched"].Draw()
+hscan["vtxmatched"].Draw("same")
+cscan.Update()
+
 # gausll v x
-cgausll_v_x = rt.TCanvas("gausll_v_pos","Chi-squared versus x",1400,600)
+cgausll_v_x = rt.TCanvas("gausll_v_pos","Gaus LL versus x",1400,600)
 cgausll_v_x.Divide(2,1)
 cgausll_v_x.cd(1)
 hgausll_v_x["vtxmatched"].Draw("COLZ")
@@ -209,6 +279,16 @@ cgausll_v_x.cd(2)
 hgausll_v_x["notvtxmatched"].Draw("COLZ")
 cgausll_v_x.Draw()
 cgausll_v_x.Update()
+
+# scan v x
+cscan_v_x = rt.TCanvas("scan_v_pos","SCAN Chi-squared versus x",1400,600)
+cscan_v_x.Divide(2,1)
+cscan_v_x.cd(1)
+hscan_v_x["vtxmatched"].Draw("COLZ")
+cscan_v_x.cd(2)
+hscan_v_x["notvtxmatched"].Draw("COLZ")
+cscan_v_x.Draw()
+cscan_v_x.Update()
 
 # ROI-x
 croix = rt.TCanvas("croix","",800,600)
@@ -225,12 +305,32 @@ heff_pass.Divide(heff_tot)
 heff_pass.Draw()
 ceff.Draw()
 
+# Efficiency versus EnuGeV
+cnroi = rt.TCanvas("cnroi","Num ROI per event", 1400, 600 )
+cnroi.Divide(2,1)
+cnroi.cd(1)
+hnroi_pass.Draw()
+cnroi.cd(2)
+hnroi_tot.Draw()
+cnroi.Draw()
+
+
+# Efficiency numbers
+nevts_has_matched = tree.GetEntries("num_vtxmatched_tracks>0")
+nevts_has_matchedbbox = tree.GetEntries("num_true_bbox>0")
+
+print "High-x chi-2 cut: ",highx_cut
+print "Low-x chi-2 cut: ",lowx_cut
+
 print "Number of Events: ",nevents
+print "Number of Events w/ vertex-matched tracks: ",nevts_has_matched," ",float(nevts_has_matched)/float(nevents)
+print "Number of Events w/ vertex-matched ROIs: ",nevts_has_matchedbbox," ",float(nevts_has_matchedbbox)/float(nevents)
 print "Efficiency for Vertex-matched ROIs: ",float(neff_truepos)/float(nmatched)
-print "Fraction of non-vertex-matched ROIs that PASS: ",float(neff_falsepos)/float(nnon_matched)
-print "Fraction of non-vertex-matched ROIs that REJECTED: ",1.0-float(neff_falsepos)/float(nnon_matched)
-print "Fraction of events with match: ",float(nevents_wmatch)/float(nevents)
+print "Fraction of non-vertex-matched ROIs that PASS (false positives): ",float(neff_falsepos)/float(nnon_matched)
+print "Fraction of non-vertex-matched ROIs that REJECTED (true negatives): ",1.0-float(neff_falsepos)/float(nnon_matched)
+print "Total Fraction of events with ROI match: ",float(nevents_wmatch)/float(nevents)
 print "Fraction of events with passing vertex-matched ROI: ",float(neff_event)/float(nevents)
+print "False positives per event: ",float(neff_falsepos)/float(nevents)
 print "True/False positive ratio: ",float(neff_truepos)/float(neff_falsepos)
 
 raw_input()

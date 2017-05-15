@@ -264,8 +264,51 @@ namespace larlitecv {
 	larlite::track lltrack = larlitecv::T3D2LarliteTrack( data.stopthru_reclustered_v[itrack] );
 	evout_tracks_streclustered->emplace_back( std::move(lltrack) );
       }
-    }
 
+      // ---------------------------------------------------------------------------------------------------------
+      larlite::event_track* evout_tracks_alltracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "all3d" );
+      larlite::event_track* evout_tracks_mergedstopmu3d = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "mergedstopmu3d" );
+      larlite::event_track* evout_tracks_mergedthrumu3d = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "mergedthrumu3d" );
+      larlite::event_track* evout_tracks_mergeduntagged = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "mergeduntagged3d" );
+      
+      for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
+        auto const& flashdata = data.flashdata_v.at(itrack);
+        if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
+          continue;
+	evout_tracks_alltracks->push_back( flashdata.m_track3d );
+	
+	if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kStopMu )
+	  evout_tracks_mergedstopmu3d->push_back( flashdata.m_track3d );
+	else if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kThruMu )
+	  evout_tracks_mergedthrumu3d->push_back( flashdata.m_track3d );
+	else if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kUntagged )
+	  evout_tracks_mergeduntagged->push_back( flashdata.m_track3d );
+      }
+
+      // ---------------------------------------------------------------------------------------------------------
+
+      larcv::EventPixel2D* out_pixels_alltracks      = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "allpixels" );
+      larcv::EventPixel2D* out_pixels_mergedstopmu3d = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "mergedstopmupixels" );
+      larcv::EventPixel2D* out_pixels_mergedthrumu3d = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "mergedthrumupixels" );
+      larcv::EventPixel2D* out_pixels_mergeduntagged = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "mergeduntaggedpixels" );
+      for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
+	const larlitecv::TaggerFlashMatchData& flashtrack = data.flashdata_v[itrack];
+	const std::vector< larcv::Pixel2DCluster >& pixel_v = flashtrack.m_pixels;
+	// all
+	for (size_t p=0; p<pixel_v.size(); p++) {
+	  out_pixels_alltracks->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );
+	  
+	  if ( flashtrack.m_type==larlitecv::TaggerFlashMatchData::kStopMu )
+	    out_pixels_mergedstopmu3d->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );
+	  else if ( flashtrack.m_type==larlitecv::TaggerFlashMatchData::kThruMu )
+	    out_pixels_mergedthrumu3d->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );
+	  else if ( flashtrack.m_type==larlitecv::TaggerFlashMatchData::kUntagged )
+	    out_pixels_mergeduntagged->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );	    
+	}
+      }
+      
+    }
+    
     // selected tracks
     if ( config.croi_write_cfg.get<bool>("WriteSelectedTracks")) {
       larlite::event_track* evout_tracks_selected = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "croi3d" );
@@ -301,18 +344,29 @@ namespace larlitecv {
     if ( config.croi_write_cfg.get<bool>("WriteCutResults") ) {
       larlite::event_user* ev_user_info = (larlite::event_user*)dataco.get_larlite_data( larlite::data::kUserInfo, "croicutresults" );
       larlite::user_info cutinfo;
-      for ( auto const& result : data.flashdata_passes_containment_v ) {
+      
+      for ( auto const& result : data.flashdata_passes_containment_v )
 	cutinfo.append( "containment", result );
-      }
-      for ( auto const& result : data.flashdata_passes_flashmatch_v ) {
+      for ( auto const& fdwall : data.containment_dwall_v )
+	cutinfo.append( "containment_dwall", fdwall );
+      
+      for ( auto const& result : data.flashdata_passes_flashmatch_v )
 	cutinfo.append( "flashmatch", result );
-      }
-      for ( auto const& result : data.flashdata_passes_cosmicflash_ratio_v ) {
+      for ( auto const& intimechi2 : data.min_chi2_v )
+	cutinfo.append( "flashmatch_intimechi2", intimechi2 );
+	      
+      for ( auto const& result : data.flashdata_passes_cosmicflash_ratio_v )
 	cutinfo.append( "cosmicratio", result );
+      for ( auto const& dchi2 : data.cosmicflash_ratio_dchi_v ) {
+	cutinfo.append( "cosmicratio_dchi2", dchi2 );
       }
-      for ( auto const& result : data.flashdata_passes_totpe_v ) {
+      
+      for ( auto const& result : data.flashdata_passes_totpe_v )
 	cutinfo.append( "totalpe", result );
+      for ( auto const& totpe_ratio : data.totpe_peratio_v ) {
+	cutinfo.append( "totalpe_peratio",totpe_ratio );
       }
+      
       ev_user_info->emplace_back( std::move(cutinfo) );
     }
   }

@@ -1,3 +1,6 @@
+#ifndef __SPACECHARGEMICROBOONE_H__
+#define __SPACECHARGEMICROBOONE_H__
+
 ////////////////////////////////////////////////////////////////////////
 // \file SpaceChargeMicroBooNE.h
 //
@@ -127,3 +130,5 @@ namespace larlitecv{
     
   }; // class SpaceChargeMicroBooNE
 }
+
+#endif

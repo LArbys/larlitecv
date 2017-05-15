@@ -25,6 +25,7 @@ namespace larlitecv {
     // support functions
     std::vector<T3DCluster> endPointMerge( const std::vector<T3DCluster>& tracks );
     bool shouldWeEndPointMerge( const T3DCluster& ta, const T3DCluster& tb, double& closest_dist, std::vector<int>& whichends );
+    void mergeTracks( T3DCluster& ta, T3DCluster& tb, const std::vector<int>& whichends );
     void setVerbosity( int v ) { m_verbose = v; };
     void configEndPointMerge( double max_endmerge_dist, double min_pcacos, int max_iterations ) {
       m_max_endmerge_dist = max_endmerge_dist;

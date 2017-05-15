@@ -54,6 +54,9 @@ namespace larlitecv {
     FoxTrack followTrack( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
 			  const BoundarySpacePoint& start );
 
+    FoxTrack followTrack( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+			  const BoundarySpacePoint& start, const std::vector<float>& startdir );
+
     void setUserLead( FoxTrotLead* userlead ) { m_user_lead = userlead; }; // is not responsible for this pointer
 
   protected:

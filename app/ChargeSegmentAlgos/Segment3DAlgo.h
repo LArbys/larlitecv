@@ -20,7 +20,7 @@ namespace larlitecv {
 
   public:
     
-    Segment3DAlgo() {};
+    Segment3DAlgo();
     virtual ~Segment3DAlgo() {};
 
     std::vector< Segment3D_t > find3DSegments( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,

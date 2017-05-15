@@ -111,6 +111,8 @@ hefftot_all    = rt.TH1D("hefftot_all",";total pixels; efficiency",10,0,1e5)
 hefftot_incroi = hefftot_all.Clone( str(hefftot_all.GetName()).replace("all","incroi") )
 hefftot_ratio  = hefftot_all.Clone( str(hefftot_all.GetName()).replace("all","ratio") )
 
+fmissed = open("missed_events.txt",'w')
+
 while bytesread>0:
     print "entry ",ientry
 
@@ -147,6 +149,7 @@ while bytesread>0:
         htag2_v_totpixels[stage].Fill(totpixels,frac_many)
 
     # neutrino tagging
+    frac_vertex = 0.0
     if totpixels>0 and tree.nvertex_pixels[3]>0:
         frac_vertex = float(tree.nvertex_tagged[4*3+3])/float(tree.nvertex_pixels[3])
         htagged["croi"].Fill( frac_vertex )
@@ -185,8 +188,12 @@ while bytesread>0:
         else:
             hvertex_badch_nocroi.Fill( fracbad )
 
+    if tree.vtx_in_croi==0:
+        print >> fmissed,ientry,"\t",tree.run,'\t',tree.subrun,'\t',tree.event,'\t',frac_vertex,'\t',tree.dist_to_vtx,'\t',tree.stage_at_vtx
+            
     ientry += 1
     bytesread = tree.GetEntry(ientry)
+fmissed.close()
 
 # CANVASES
 
@@ -250,7 +257,7 @@ cvertex_v_dwall.cd(4)
 hvertex_v_dwall["croi"].Draw("COLZ")
 
 # many tagged versus complexity
-ctag1_v_totpixels = rt.TCanvas("ctag1_v_totpixels","Fraction of pixels tagged many times versus total pixels (complexity)",1200,1200)
+ctag1_v_totpixels = rt.TCanvas("ctag1_v_totpixels","Fraction of pixels tagged only once versus total pixels (complexity)",1200,1200)
 ctag1_v_totpixels.Divide(2,2)
 ctag1_v_totpixels.Draw()
 ctag1_v_totpixels.cd(1)

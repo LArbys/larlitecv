@@ -29,15 +29,15 @@ namespace larlitecv {
     };
     void update_max( int idx, float val ) {
       if ( val > maxval ) {
-	max_idx = idx;
-	maxval = val;
+        max_idx = idx;
+        maxval = val;
       }
     };
     void add_pixel( const larcv::Pixel2D& pix ) {
       if ( min_row<0 || min_row>(int)pix.Y() )
-	min_row = pix.Y();
+        min_row = pix.Y();
       if ( max_row<0 || max_row<(int)pix.Y() )
-	max_row = pix.Y();
+        max_row = pix.Y();
       pixlist.push_back( pix );
     };
     void set_end( int idx ) {
@@ -46,12 +46,19 @@ namespace larlitecv {
       max_idx -= start_idx;
       //std::cout << "set end: start=" << start_idx << " max=" << max_idx << " end=" << end_idx << " pixlist.size=" << pixlist.size() << std::endl;
       if (max_idx>=(int)pixlist.size())
-	max_idx = pixlist.size()-1;      
+        max_idx = pixlist.size()-1;
       start_idx = 0;
     };
+    int row() {
+      return pixlist[max_idx].Y();
+    };
+    int col() {
+      return pixlist[max_idx].X();
+    };
+
 
   };
-  
+
 
 }
 

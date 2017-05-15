@@ -32,9 +32,6 @@ namespace larlitecv {
     std::vector<larcv::ROI> roi_v;
 
     // clear state
-    m_opflash_hypos.clear();
-    m_min_chi2.clear();
-
     if (flashdata_selected.size()!=inputdata.size()) {
       flashdata_selected.resize( inputdata.size(), 0 );
     }
@@ -53,6 +50,14 @@ namespace larlitecv {
     m_passes_flashmatch.resize( inputdata.size(), 0 );
     m_passes_totpe.resize( inputdata.size(), 0 );    
     m_passes_cosmicflash_ratio.resize( inputdata.size(), 0 );
+
+    m_min_chi2.clear();
+    m_opflash_hypos.clear();
+    m_totpe_peratio.clear();
+    m_cosmicflash_ratio_dchi.clear();
+    m_min_chi2.reserve( inputdata.size() );
+    m_totpe_peratio.reserve( inputdata.size() );
+    m_cosmicflash_ratio_dchi.reserve( inputdata.size() );
 
     for ( size_t i=0; i<inputdata.size(); i++ ) {
 
@@ -564,6 +569,7 @@ namespace larlitecv {
 
   bool TaggerFlashMatchAlgo::DoesTotalPEMatch( float totpe_data, float totpe_hypo )  {
     float frac_diff = fabs(totpe_data-totpe_hypo)/totpe_hypo;
+    m_totpe_peratio.push_back(frac_diff);
     if ( frac_diff > m_config.totpe_sigma_cut )
       return false;
     return true;
@@ -610,6 +616,7 @@ namespace larlitecv {
     float cosmicflash_chi2 = ( cosmicflash_start_chi2<cosmicflash_end_chi2 ) ? cosmicflash_start_chi2 : cosmicflash_end_chi2;
     
     dchi2 = intime_min_chi2 - cosmicflash_chi2;
+    m_cosmicflash_ratio_dchi.push_back( dchi2 );
     
     if ( cosmicflash_chi2 < intime_min_chi2 ) {
       // matches cosmic flash better

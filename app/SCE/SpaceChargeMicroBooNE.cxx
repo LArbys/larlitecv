@@ -151,15 +151,15 @@ namespace larlitecv {
   /// Provides position offsets using a parametric representation
   std::vector<double> SpaceChargeMicroBooNE::GetPosOffsetsParametric(double xVal, double yVal, double zVal) const
   {
-    std::vector<double> thePosOffsetsParametric;
+    std::vector<double> thePosOffsetsParametric(3,0);
 
     double xValNew = TransformX(xVal);
     double yValNew = TransformY(yVal);
     double zValNew = TransformZ(zVal);
 
-    thePosOffsetsParametric.push_back(GetOnePosOffsetParametric(xValNew,yValNew,zValNew,"X"));
-    thePosOffsetsParametric.push_back(GetOnePosOffsetParametric(xValNew,yValNew,zValNew,"Y"));
-    thePosOffsetsParametric.push_back(GetOnePosOffsetParametric(xValNew,yValNew,zValNew,"Z"));
+    thePosOffsetsParametric[0] = GetOnePosOffsetParametric(xValNew,yValNew,zValNew,"X");
+    thePosOffsetsParametric[1] = GetOnePosOffsetParametric(xValNew,yValNew,zValNew,"Y");
+    thePosOffsetsParametric[2] = GetOnePosOffsetParametric(xValNew,yValNew,zValNew,"Z");
 
     return thePosOffsetsParametric;
   }

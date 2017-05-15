@@ -14,7 +14,7 @@ namespace larlitecv {
 						      const std::vector<float>& pixel_thresholds, const float acceptance_angle, int& num_seg3d ) {
 
     larlitecv::RadialSegmentSearch segalgo;
-    std::vector< Segment3D_t > seg3d_v = segalgo.find3Dsegments( img_v, badch_v, pos3d, segment_radius, pixel_thresholds, segment_min_width, hit_neighborhood, segment_frac_w_charge );
+    std::vector< Segment3D_t > seg3d_v = segalgo.find3Dsegments( img_v, badch_v, pos3d, segment_radius, pixel_thresholds, segment_min_width, hit_neighborhood, segment_frac_w_charge, 0 );
     num_seg3d = (int)seg3d_v.size();
 
     if ( seg3d_v.size()<=1 ) {

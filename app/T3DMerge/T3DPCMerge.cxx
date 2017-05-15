@@ -298,4 +298,27 @@ namespace larlitecv {
     return match;
   }
 
+  void T3DPCMerge::mergeTracks( T3DCluster& track_i, T3DCluster& track_j, const std::vector<int>& whichends ) {
+    if ( whichends[0]==0 && whichends[1]==0 ) {
+      // start/start
+      track_i.reverse();
+      track_i.append( track_j );
+      track_i.reverse();
+    }
+    else if ( whichends[0]==1 && whichends[1]==0 ) {
+      // end/start
+      track_i.append( track_j );
+    }
+    else if ( whichends[0]==0 && whichends[1]==1 ) {
+      // start/end
+      track_j.append( track_i );
+      std::swap( track_i, track_j ); // dangerous?
+    }
+    else if ( whichends[0]==1 && whichends[1]==1 ) {
+      //end/end
+      track_j.reverse();
+      track_i.append( track_j );
+    }
+  }
+  
 }

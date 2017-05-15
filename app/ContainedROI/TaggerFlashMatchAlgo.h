@@ -78,10 +78,17 @@ namespace larlitecv {
     bool didTrackPassFlashMatchCut( int itrack );
     bool didTrackPassCosmicFlashCut( int itrack );
 
+    // selection results
     const std::vector<int>& getContainmentCutResults() { return m_passes_containment; };
     const std::vector<int>& getFlashMatchCutResults() { return m_passes_flashmatch; };
     const std::vector<int>& getCosmicRatioCutResults() { return m_passes_cosmicflash_ratio; };
-    const std::vector<int>& getTotalPECutResults() { return m_passes_totpe; };    
+    const std::vector<int>& getTotalPECutResults() { return m_passes_totpe; };
+
+    // selection variables
+    const std::vector<float>& getContainmentCutValues() { return m_containment_dwall; };
+    const std::vector<float>& getInTimeChi2Values() { return m_min_chi2; };
+    const std::vector<float>& getTotPEratioValues() { return m_totpe_peratio; };
+    const std::vector<float>& getCosmicDeltaChi2Values() { return m_cosmicflash_ratio_dchi; };
     
     const TaggerFlashMatchAlgoConfig& getConfig() { return m_config; };
 
@@ -93,14 +100,26 @@ namespace larlitecv {
     //SpaceChargeMicroBooNE m_sce;           //< Space Charge Effect Calculator
     int m_verbosity;
     std::map<int,int> m_opch_from_opdet;
+
+    // -----------------------------------------------------------------------------------------
+    // We save the cut results and cut variables of this algo. We'll save it to a larlite::user_info product if requested
+    // This is useful for study of the cuts
+
+    // CONTAINMENT CUT
+    std::vector<int> m_passes_containment;
+    std::vector<float> m_containment_dwall;
+
+    // IN-TIME FLASH CUT
+    std::vector<int> m_passes_flashmatch;
     std::vector<larlite::opflash> m_opflash_hypos; ///< flash hypotheses for each track
     std::vector<float> m_min_chi2; ///< min-chi2 score for each flash
 
-    std::vector<int> m_passes_containment;
-    std::vector<int> m_passes_flashmatch;
-    std::vector<int> m_passes_totpe;    
-    std::vector<int> m_passes_cosmicflash_ratio;
+    // TOTAL PE
+    std::vector<int> m_passes_totpe;
+    std::vector<float> m_totpe_peratio; //< fraction difference of total pe between hypothesis and in-time
     
+    std::vector<int> m_passes_cosmicflash_ratio;
+    std::vector<float> m_cosmicflash_ratio_dchi; //< delta-Chi-squared between in-time flash and matched flash to track
 
   };
 

@@ -62,15 +62,16 @@ int main( int nargs, char** argv ) {
   bool use_streclustered = pset.get<bool>("UseReclusteredStopThru");
   std::vector<std::string> stages_track_producers;
   if ( use_streclustered ) {
-    kNumStages = 3;
+    kNumStages = 4;
     kThruMu = 0;
-    kUntagged = 1;
-    kCROI = 2;
-    kStopMu = -1;
-    stages_track_producers.resize(3);
-    stages_track_producers[0] = "streclustered3d";
-    stages_track_producers[1] = "untagged3d";
-    stages_track_producers[2] = "croi3d";    
+    kStopMu = 1;    
+    kUntagged = 2;
+    kCROI = 3;
+    stages_track_producers.resize(kNumStages);
+    stages_track_producers[0] = "mergedthrumu3d";
+    stages_track_producers[1] = "mergedstopmu3d";
+    stages_track_producers[2] = "mergeduntagged3d";
+    stages_track_producers[3] = "croi3d";    
   }
   
   // program configuration parameters

@@ -41,6 +41,7 @@ int main(int nargs, char** argv ) {
   larcv::PSet pset = cfg.get<larcv::PSet>("TaggerCROI");
   larlitecv::TaggerCROIAlgoConfig tagger_cfg = larlitecv::TaggerCROIAlgoConfig::makeConfigFromFile( cfg_file );
   std::string larcv_image_producer = pset.get<std::string>("LArCVImageProducer");
+  std::string larcv_chstatus_producer = pset.get<std::string>("LArCVChStatusProducer");  
   bool DeJebWires = pset.get<bool>("DeJebWires");
   float jebwiresfactor = pset.get<float>("JebWiresFactor");
   std::vector<float> emptych_thresh = pset.get< std::vector<float> >("EmptyChannelThreshold");
@@ -183,7 +184,7 @@ int main(int nargs, char** argv ) {
       ev_status->clear(); // clear, we copied the info
     }
     else if ( chstatus_datatype=="LARCV" ) {
-      larcv::EventChStatus* ev_status = (larcv::EventChStatus*)dataco.get_larcv_data( larcv::kProductChStatus, "tpc" );
+      larcv::EventChStatus* ev_status = (larcv::EventChStatus*)dataco.get_larcv_data( larcv::kProductChStatus, larcv_chstatus_producer );
       input_data.badch_v = emptyalgo.makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
       ev_status->clear(); // clear, we copied the info
     }

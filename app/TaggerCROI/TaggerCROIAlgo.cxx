@@ -515,6 +515,8 @@ namespace larlitecv {
     
     for (int itrack=0; itrack<(int)pcmerged_v.size(); itrack++) {
       T3DCluster& t3d = pcmerged_v[itrack];
+      if ( t3d.getPath().size()==0 )
+	continue;
       larlite::track lltrack = larlitecv::T3D2LarliteTrack( t3d );
       std::vector< larcv::Pixel2DCluster > pixel_v = t3d.getPixelsFromImages( input.img_v, input.gapch_v,
 									      m_config.thrumu_tracker_cfg.pixel_threshold,
@@ -566,11 +568,19 @@ namespace larlitecv {
 
     // -----------------------------------------------------------------------
     // Copy cut results
+    if ( m_config.croi_write_cfg.get<bool>("WriteCutResults") ) {
+
+      output.containment_dwall_v = selectionalgo.getContainmentCutValues();
+      output.min_chi2_v          = selectionalgo.getInTimeChi2Values();
+      output.totpe_peratio_v     = selectionalgo.getTotPEratioValues();
+      output.cosmicflash_ratio_dchi_v = selectionalgo.getCosmicDeltaChi2Values();
+      
+      output.flashdata_passes_containment_v = selectionalgo.getContainmentCutResults();
+      output.flashdata_passes_cosmicflash_ratio_v = selectionalgo.getCosmicRatioCutResults();
+      output.flashdata_passes_flashmatch_v = selectionalgo.getFlashMatchCutResults();
+      output.flashdata_passes_totpe_v      = selectionalgo.getTotalPECutResults();
+    }
     
-    output.flashdata_passes_containment_v = selectionalgo.getContainmentCutResults();
-    output.flashdata_passes_cosmicflash_ratio_v = selectionalgo.getCosmicRatioCutResults();
-    output.flashdata_passes_flashmatch_v = selectionalgo.getFlashMatchCutResults();
-    output.flashdata_passes_totpe_v      = selectionalgo.getTotalPECutResults();
 
     // ------------------------------------------------------------------------//
     // Make Combined Tagged Image
@@ -612,6 +622,7 @@ namespace larlitecv {
       for ( auto const& ophypo : selectionalgo.getOpFlashHypotheses() )
         output.track_opflash_v.push_back( ophypo );
     }
+
 
     return output;
   }
