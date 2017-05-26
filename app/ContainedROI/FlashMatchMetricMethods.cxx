@@ -223,7 +223,7 @@ namespace larlitecv {
       for (int iy=0; iy<=nsteps[1]; iy++) {
 	for (int iz=0; iz<=nsteps[2]; iz++) {
 	  
-	  float idx[3] = { ix, iy, iz };
+	  float idx[3] = { (float)ix, (float)iy, (float)iz };
 	  
 	  float deltapos[3];
 	  for (int i=0; i<3; i++)
