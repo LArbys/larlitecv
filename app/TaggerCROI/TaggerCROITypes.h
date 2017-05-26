@@ -42,6 +42,12 @@ namespace larlitecv {
     int entry;
 
     virtual void saveSpace() {};
+    void clear() {
+      img_v.clear();
+      badch_v.clear();
+      gapch_v.clear();
+      opflashes_v.clear(); // we are assuming, this doesn't own the objects (dangerous)
+    };
 
   };
 

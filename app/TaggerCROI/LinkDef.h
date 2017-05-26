@@ -10,6 +10,7 @@
 #pragma link off all functions;
 
 #pragma link C++ namespace larlitecv;
+#pragma link C++ class larlitecv::CosmicTagger+;
 
 //ADD_NEW_CLASS ... do not change this line
 #endif
