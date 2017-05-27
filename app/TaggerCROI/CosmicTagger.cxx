@@ -23,6 +23,9 @@ namespace larlitecv {
     : m_toplevel_pset("toplevel")
     , m_pset("TaggerCROI")
     , m_cfg_file(tagger_cfg)
+    , m_emptyalgo(NULL)
+    , m_unihackalgo(NULL)
+    , m_taggercroialgo(NULL)
   {
     setConfigFile( tagger_cfg );
 
@@ -46,7 +49,10 @@ namespace larlitecv {
   CosmicTagger::CosmicTagger( std::string tagger_cfg, std::string larcv_list, std::string larlite_list )
     : m_toplevel_pset("toplevel")
     , m_pset("TaggerCROI")
-    , m_cfg_file(tagger_cfg)      
+    , m_cfg_file(tagger_cfg)
+    , m_emptyalgo(NULL)
+    , m_unihackalgo(NULL)
+    , m_taggercroialgo(NULL)      
   {
     setConfigFile( tagger_cfg );
 
@@ -70,7 +76,10 @@ namespace larlitecv {
   CosmicTagger::CosmicTagger( std::string tagger_cfg, const std::vector<std::string>& larcv_filepaths, const std::vector<std::string>& larlite_filepaths )
     : m_toplevel_pset("toplevel")
     , m_pset("TaggerCROI")
-    , m_cfg_file(tagger_cfg)      
+    , m_cfg_file(tagger_cfg)
+    , m_emptyalgo(NULL)
+    , m_unihackalgo(NULL)
+    , m_taggercroialgo(NULL)      
   {
     setConfigFile( tagger_cfg );
 
@@ -96,6 +105,12 @@ namespace larlitecv {
   }
   
   CosmicTagger::~CosmicTagger() {
+    if ( m_emptyalgo!=NULL )
+      delete m_emptyalgo;
+    if ( m_unihackalgo!=NULL )
+      delete m_unihackalgo;
+    if ( m_taggercroialgo!=NULL )
+      delete m_taggercroialgo;    
   }
 
   void CosmicTagger::setConfigFile( std::string cfgfile ) {
@@ -109,6 +124,7 @@ namespace larlitecv {
     }
 
     m_tagger_cfg = TaggerCROIAlgoConfig::makeConfigFromFile( m_cfg_file );
+    setRunParameters();
   }
 
   std::string CosmicTagger::printState() {
@@ -170,6 +186,8 @@ namespace larlitecv {
     m_save_mc                 = m_pset.get<bool>("SaveMC",false);
     m_skip_empty_events       = m_pset.get<bool>("SkipEmptyEvents",false);
     m_apply_unipolar_hack     = m_pset.get<bool>("ApplyUnipolarHack",false);
+    configure_algos();
+    m_state.configured = true;      
   }
   
   void CosmicTagger::configure_algos() {
@@ -188,7 +206,9 @@ namespace larlitecv {
 
   void CosmicTagger::runOneEvent( int ientry ) {
     setEntry( ientry );
-
+    bool ok = processInputImages();
+    if ( !ok )
+      return;
   /*
     // -------------------------------------------------------------------------------------------//
     // RUN ALGOS
@@ -267,9 +287,14 @@ namespace larlitecv {
  
 
   bool CosmicTagger::processInputImages() {
+
+    if ( !m_state.configured ) {
+      std::cout << "Invalid state to run processInputImages: " << printState() << std::endl;
+      return false;
+    }
     
     // set the state: we reset all downstream states
-    m_state.clear();
+    m_state.input_ready = m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
     // -----------------------------------------------------------------------------
     // Load the data
@@ -459,5 +484,88 @@ namespace larlitecv {
     m_state.input_ready = true;
     return true;
   }
+
+  bool CosmicTagger::findThruMu() {
+    // check pre-reqs
+    if ( !m_state.configured || !m_state.input_ready ) {
+      std::cout << "Invalid state to run findThruMu: " << printState() << std::endl;
+      return false;
+    }
+    
+    // invalidate downstream
+    m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
+
+    larlitecv::ThruMuPayload thrumu_data;
+    try {
+      thrumu_data = m_taggercroialgo->runThruMu( m_input_data );
+    }
+    catch ( const std::exception& e ) {
+      std::cerr << "Error Running ThruMu: " << e.what() << std::endl;
+      return false;
+    }
+
+    std::swap( m_thrumu_data, thrumu_data );
+    thrumu_data.clear();
+
+    // set stte
+    m_state.thrumu_run = true;
+    return true;
+  }
+
+  bool CosmicTagger::findStopMu() {
+
+    if ( !m_state.configured || !m_state.input_ready || !m_state.thrumu_run ) {
+      std::cout << "Invalid state to run StopMu: " << printState() << std::endl;
+      return false;
+    }
+
+    // reset downstream
+    m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
+    
+    larlitecv::StopMuPayload stopmu_data;
+    try {
+      stopmu_data = m_taggercroialgo->runStopMu( m_input_data, m_thrumu_data );
+    }
+    catch ( const std::exception& e ) {
+      std::cerr << "Error finding StopMu: " << e.what() << std::endl;
+      return false;
+    }
+    
+    if ( m_save_stopmu_space )
+      stopmu_data.saveSpace();
+
+    std::swap( m_stopmu_data, stopmu_data );
+
+    m_state.stopmu_run = true;
+    m_state.untagged_run = true; // no untagged stage yet
+    
+    return true;
+  }
+
+  bool CosmicTagger::findCROI() {
+
+    if ( !m_state.configured || !m_state.input_ready || !m_state.thrumu_run || !m_state.stopmu_run ) {
+      std::cout << "Invalid state to run Untagged/CROI step: " << printState() << std::endl;
+      return false;
+    }
+
+    m_croi_data_v.clear();
+    
+    try {
+      larlitecv::CROIPayload croi_data = m_taggercroialgo->runCROISelection( m_input_data, m_thrumu_data, m_stopmu_data );
+      m_croi_data_v.emplace_back( std::move(croi_data) );
+    }
+    catch ( const std::exception& e ) {
+      std::cerr << "Error finding untagged and CROI: " << e.what() << std::endl;
+      return false;
+    }
+    
+    if ( m_save_croi_space )
+      m_croi_data_v.front().saveSpace();
+
+    m_state.croi_run = true;
+    
+    return true;
+  }  
 
 }

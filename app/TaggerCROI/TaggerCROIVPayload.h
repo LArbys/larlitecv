@@ -26,7 +26,7 @@ namespace larlitecv {
 
   protected:
 
-  	const std::string m_payloadname;
+    std::string m_payloadname;
   	
   };
 
