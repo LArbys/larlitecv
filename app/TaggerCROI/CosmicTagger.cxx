@@ -19,6 +19,17 @@
 
 namespace larlitecv {
 
+  CosmicTagger::CosmicTagger()
+    : m_toplevel_pset("toplevel")
+    , m_pset("TaggerCROI")
+    , m_cfg_file("")
+    , m_emptyalgo(NULL)
+    , m_unihackalgo(NULL)
+    , m_taggercroialgo(NULL)
+  {
+    // private default constructor
+  }
+  
   CosmicTagger::CosmicTagger( std::string tagger_cfg )
     : m_toplevel_pset("toplevel")
     , m_pset("TaggerCROI")

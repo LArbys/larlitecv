@@ -40,6 +40,7 @@ namespace larlitecv {
     void configure( std::string cfgfile, 
 		    std::string larlite_cfgname, 
 		    std::string larcv_cfgname, std::string coord_cfgname="DataCoordinator" );
+    void configure( larcv::PSet& larcv_io_pset, larcv::PSet& larlite_io_pset ); //< directory configure with psets
     
     // add input files
     void add_inputfile( std::string file, std::string ftype );

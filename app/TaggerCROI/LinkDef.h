@@ -11,6 +11,7 @@
 
 #pragma link C++ namespace larlitecv;
 #pragma link C++ class larlitecv::CosmicTagger+;
+#pragma link C++ class larlitecv::CosmicRetagger+;
 
 //ADD_NEW_CLASS ... do not change this line
 #endif

@@ -194,6 +194,11 @@ namespace larlitecv {
     
   }
 
+  void DataCoordinator::configure( larcv::PSet& larcv_io_pset, larcv::PSet& larlite_io_pset ) {
+    larlite_pset = larlite_io_pset;
+    larcv_pset   = larcv_io_pset;
+  }
+
   larlite::data::DataType_t DataCoordinator::get_enum_fromstring( std::string name ) {
     for (int i=0; i<larlite::data::kDATA_TYPE_MAX; i++) {
       if ( larlite::data::kDATA_TREE_NAME[i]==name )

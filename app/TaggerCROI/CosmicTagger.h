@@ -27,6 +27,10 @@ namespace larlitecv {
   class TaggerCROIAlgo;
   
   class CosmicTagger {
+
+  protected:
+    CosmicTagger();
+    
   public:
     CosmicTagger( std::string tagger_cfg );
     CosmicTagger( std::string tagger_cfg, std::string larcv_list, std::string larlite_list );
@@ -36,7 +40,7 @@ namespace larlitecv {
 
     void setEntry( int ientry ) { m_entry = ientry; };
     void runOneEvent( int ientry );
-    bool processInputImages();
+    virtual bool processInputImages();
     bool findThruMu();
     bool findStopMu();
     //bool findUntaggedClusters();
