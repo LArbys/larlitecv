@@ -72,8 +72,11 @@ namespace larlitecv {
     std::cout << "--------------------" << std::endl;
     std::cout << "=====================================================" << std::endl;
 
-    // get images (from larcv)
+    // -----------------------------------------------------------------------------------------------------------------------
+    // LOAD INPUT_DATA
     m_input_data.clear();
+    
+    // get images (from larcv)    
     larcv::EventImage2D* event_imgs    = (larcv::EventImage2D*)m_dataco_input.get_larcv_data( larcv::kProductImage2D, "modimg" );
     if ( event_imgs->Image2DArray().size()==0) {
       if ( !m_skip_empty_events )
