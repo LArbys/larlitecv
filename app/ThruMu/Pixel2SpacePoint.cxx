@@ -17,6 +17,7 @@ namespace larlitecv {
     for (size_t p=0; p<pixels.size(); p++) {
       BoundaryEndPt pt( pixels[p].Y(), pixels[p].X(), endtype );
       wire[p] = meta.pos_x( pixels[p].X() );
+      endpt_v.push_back(pt);
     }
     std::vector<float> poszy;
     int crosses = 0;
@@ -27,7 +28,8 @@ namespace larlitecv {
     float x = ( meta.pos_y( pixels.front().Y() ) - 3200.0 )*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);
     float y = poszy[1];
     float z = poszy[0];
-    return BoundarySpacePoint( endtype, std::move(endpt_v), x, y, z );
+    BoundarySpacePoint sp( endtype, std::move(endpt_v), x, y, z );
+    return sp;
   }
 
 }

@@ -55,15 +55,15 @@ namespace larlitecv {
 
     // side tagger -- real space hits
     if ( config.sidetagger_cfg.save_endpt_images ) {
-    	if ( config.thrumu_write_cfg.get<bool>("WriteRealSpaceHitsImage") ) {
-	      larcv::EventImage2D* realspace_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "realspacehits" );
-  	    for ( auto const& img : data.realspacehit_image_v ) realspace_imgs->Append( img );
-  	  }
-
+      if ( config.thrumu_write_cfg.get<bool>("WriteRealSpaceHitsImage") ) {
+	larcv::EventImage2D* realspace_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "realspacehits" );
+	for ( auto const& img : data.realspacehit_image_v ) realspace_imgs->Append( img );
+      }
+      
       // boundary pixels
-  	  if ( config.thrumu_write_cfg.get<bool>("WriteBoundaryPixelsImage") ) {
-        larcv::EventImage2D* boundarypixels_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "boundarypixels" );
-        for ( auto const& img : data.boundarypixel_image_v ) boundarypixels_imgs->Append( img );
+      if ( config.thrumu_write_cfg.get<bool>("WriteBoundaryPixelsImage") ) {
+	larcv::EventImage2D* boundarypixels_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "boundarypixels" );
+	for ( auto const& img : data.boundarypixel_image_v ) boundarypixels_imgs->Append( img );
       }
     }
 
@@ -153,9 +153,9 @@ namespace larlitecv {
       for ( auto const& tagged : data.tagged_v ) event_markedimgs->Append( tagged );
     }
 
-	}
+  }
 
-	void WriteStopMuPayload( const StopMuPayload& data, const InputPayload& input, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
+  void WriteStopMuPayload( const StopMuPayload& data, const InputPayload& input, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
 
     // save 3D track object
     if ( config.stopmu_write_cfg.get<bool>("WriteStopMuTracks") ) {

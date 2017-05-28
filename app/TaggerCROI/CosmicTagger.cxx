@@ -20,7 +20,8 @@
 namespace larlitecv {
 
   CosmicTagger::CosmicTagger()
-    : m_toplevel_pset("toplevel")
+    : m_entry(-1)
+    , m_toplevel_pset("toplevel")
     , m_pset("TaggerCROI")
     , m_cfg_file("")
     , m_emptyalgo(NULL)
@@ -31,7 +32,8 @@ namespace larlitecv {
   }
   
   CosmicTagger::CosmicTagger( std::string tagger_cfg )
-    : m_toplevel_pset("toplevel")
+    : m_entry(-1)
+    , m_toplevel_pset("toplevel")
     , m_pset("TaggerCROI")
     , m_cfg_file(tagger_cfg)
     , m_emptyalgo(NULL)
@@ -58,7 +60,8 @@ namespace larlitecv {
   }
 
   CosmicTagger::CosmicTagger( std::string tagger_cfg, std::string larcv_list, std::string larlite_list )
-    : m_toplevel_pset("toplevel")
+    : m_entry(-1)
+    , m_toplevel_pset("toplevel")
     , m_pset("TaggerCROI")
     , m_cfg_file(tagger_cfg)
     , m_emptyalgo(NULL)
@@ -85,7 +88,8 @@ namespace larlitecv {
   }
 
   CosmicTagger::CosmicTagger( std::string tagger_cfg, const std::vector<std::string>& larcv_filepaths, const std::vector<std::string>& larlite_filepaths )
-    : m_toplevel_pset("toplevel")
+    : m_entry(-1)
+    , m_toplevel_pset("toplevel")
     , m_pset("TaggerCROI")
     , m_cfg_file(tagger_cfg)
     , m_emptyalgo(NULL)

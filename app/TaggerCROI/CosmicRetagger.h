@@ -14,6 +14,8 @@
 #include <string>
 #include "CosmicTagger.h"
 
+#include "DataFormat/ImageMeta.h"
+
 namespace larlitecv {
 
   class CosmicRetagger : public CosmicTagger {
@@ -23,7 +25,15 @@ namespace larlitecv {
     virtual ~CosmicRetagger() {};
 
     virtual bool processInputImages() override; // we change how we load data, using the input of the tagger out
+    bool readData();
+    bool readInputData();
+    bool readThrumuData();
 
+  protected:
+    int m_last_loaded_entry;
+    bool m_last_loaded_image_result;
+    larcv::ImageMeta m_meta;
+    
   };
   
 }
