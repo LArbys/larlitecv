@@ -30,6 +30,7 @@ namespace larlitecv {
     float               max_triarea;
     float               max_triarea_tight;
     float               cathode_drift_tick_correction;
+    float               anode_drift_tick_correction;
     int                 max_nsegments_per_flash;
     std::string         endpoint_clustering_algo; // [options: cluster, segment]
 
