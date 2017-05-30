@@ -371,7 +371,7 @@ namespace larlitecv {
             std::cout << "        same high and low row " << std::endl;
         }
         else if ( same_high_row ) {
-          // we have to adjust the bottom ends to match at same row
+          // we have to adjust the bottom ends to match at the same row
           int target_row = (seg_a.row_low<seg_b.row_low) ? seg_a.row_low : seg_b.row_low;
           float dcol_a = (low_wire_a-high_wire_a);
           float drow_a = (seg_a.row_low-seg_a.row_high);
@@ -445,7 +445,7 @@ namespace larlitecv {
             std::cout << "        low is out of bounds" << std::endl;
           continue;
         }
-        // let's check the other plane
+        // let's check the other plane for charge
         int othercol_high = img_v.at(otherplane_high).meta().col( otherwire_high );
         int othercol_low  = img_v.at(otherplane_low).meta().col( otherwire_low );
 
@@ -463,7 +463,13 @@ namespace larlitecv {
                     << std::endl;
         }
 
-        if ( nrows>0 && float(nrows_w_charge)/nrows > good_frac ) {
+	// note that for plane V, the bipolar shape can integrate the charge to zero
+	// so we will relax the good fraction for it, for tracks going along the V wire
+	bool along_v = false;
+	if ( otherplane_high==1 && abs(othercol_low-othercol_high)<=3 )
+	  along_v = true;
+	
+        if ( (along_v==true) || ( nrows>0 && along_v==false && float(nrows_w_charge)/nrows > good_frac) ) {
           // make segment3d
           Segment3D_t seg3d;
           seg3d.start[1] = poszy_high[1];
