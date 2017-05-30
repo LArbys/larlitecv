@@ -28,7 +28,8 @@ namespace larlitecv {
     bool readData();
     bool readInputData();
     bool readThrumuData();
-
+    bool readCROIData();
+    
   protected:
     int m_last_loaded_entry;
     bool m_last_loaded_image_result;

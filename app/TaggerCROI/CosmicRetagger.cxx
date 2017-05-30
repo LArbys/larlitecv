@@ -388,5 +388,36 @@ namespace larlitecv {
     
     return true;    
   }
-  
+
+  bool CosmicRetagger::readCROIData() {
+    // CROI
+    larlite::event_track* evout_tracks_alltracks      = NULL;
+    try {
+      evout_tracks_alltracks = (larlite::event_track*)m_dataco_input.get_larlite_data( larlite::data::kTrack, "all3d" );
+    }
+    catch (...){
+    }
+    
+    larlite::event_track* evout_tracks_mergedstopmu3d = NULL;
+    try {
+      evout_tracks_mergedstopmu3d = (larlite::event_track*)m_dataco_input.get_larlite_data( larlite::data::kTrack, "mergedstopmu3d" );
+    }
+    catch (...){
+    }
+    
+    larlite::event_track* evout_tracks_mergedthrumu3d = NULL;
+    try {
+      evout_tracks_mergedthrumu3d = (larlite::event_track*)m_dataco_input.get_larlite_data( larlite::data::kTrack, "mergedthrumu3d" );
+    }
+    catch (...){
+    }
+    
+    larlite::event_track* evout_tracks_mergeduntagged = NULL;
+    try {
+      evout_tracks_mergeduntagged = (larlite::event_track*)m_dataco_input.get_larlite_data( larlite::data::kTrack, "mergeduntagged3d" );
+    }
+    catch (...){
+    }
+    
+  }
 }

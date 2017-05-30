@@ -156,7 +156,13 @@ namespace larlitecv {
       ss << "[true]";
     else
       ss << "[false]";
-    
+
+    ss << " BoundaryTag ";
+    if ( m_state.boundary_run )
+      ss << "[true]";
+    else
+      ss << "[false]";
+
     ss << " ThruMu ";
     if ( m_state.thrumu_run )
       ss << "[true]";
@@ -500,7 +506,7 @@ namespace larlitecv {
     return true;
   }
 
-  bool CosmicTagger::findThruMu() {
+  bool CosmicTagger::runCombinedThruMu() {
     // check pre-reqs
     if ( !m_state.configured || !m_state.input_ready ) {
       std::cout << "Invalid state to run findThruMu: " << printState() << std::endl;
@@ -508,7 +514,7 @@ namespace larlitecv {
     }
     
     // invalidate downstream
-    m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
+    m_state.boundary_run = m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
     larlitecv::ThruMuPayload thrumu_data;
     try {
@@ -523,10 +529,57 @@ namespace larlitecv {
     thrumu_data.clear();
 
     // set stte
-    m_state.thrumu_run = true;
+    m_state.boundary_run = m_state.thrumu_run = true;
     return true;
   }
 
+  bool CosmicTagger::findBoundaryEnds() {
+    // check pre-reqs
+    if ( !m_state.configured || !m_state.input_ready ) {
+      std::cout << "Invalid state to run findBoundaryEnds: " << printState() << std::endl;
+      return false;
+    }
+    
+    // invalidate downstream
+    m_state.boundary_run = m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
+
+    m_thrumu_data.clear();
+    try {
+      m_taggercroialgo->runBoundaryTagger( m_input_data, m_thrumu_data );
+    }
+    catch ( const std::exception& e ) {
+      std::cerr << "Error Running Boundary Tagger: " << e.what() << std::endl;
+      return false;
+    }
+
+    // set stte
+    m_state.boundary_run = true;
+    return true;
+  }
+
+  bool CosmicTagger::findThruMuTracks() {
+    // check pre-reqs
+    if ( !m_state.configured || !m_state.input_ready || !m_state.boundary_run) {
+      std::cout << "Invalid state to run findThruMuTracks: " << printState() << std::endl;
+      return false;
+    }
+    
+    // invalidate downstream
+    m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
+    
+    try {
+      m_taggercroialgo->runThruMuTracker( m_input_data, m_thrumu_data );
+    }
+    catch ( const std::exception& e ) {
+      std::cerr << "Error Running ThruMu Tracker: " << e.what() << std::endl;
+      return false;
+    }
+    
+    // set stte
+    m_state.thrumu_run = true;
+    return true;
+  }
+  
   bool CosmicTagger::findStopMu() {
 
     if ( !m_state.configured || !m_state.input_ready || !m_state.thrumu_run ) {

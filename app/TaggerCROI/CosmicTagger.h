@@ -41,15 +41,20 @@ namespace larlitecv {
     void setEntry( int ientry ) { m_entry = ientry; };
     void runOneEvent( int ientry );
     virtual bool processInputImages();
-    bool findThruMu();
+    bool findBoundaryEnds();
+    bool findThruMuTracks();
+    bool runCombinedThruMu(); //< run boundary endpoint finder and thrumu tracker in one step    
     bool findStopMu();
     //bool findUntaggedClusters();
     bool findCROI();
 
+    larlitecv::TaggerCROIAlgoConfig& getConfig() { return m_tagger_cfg; }; //< can change any parameter here
+
     std::string printState();
 
     bool isInputReady() { return m_state.input_ready; };
-    bool hasThruMuRun() { return m_state.thrumu_run; };
+    bool hasBoundaryTaggerRun() { return m_state.boundary_run; };    
+    bool hasThruMuTrackerRun() { return m_state.thrumu_run; };
     bool hasStopMuRun() { return m_state.stopmu_run; };
     //bool hasUntaggedRun() { return m_state.untagged_run; };
     bool hasCROIrun() { return m_state.croi_run; };
@@ -100,6 +105,7 @@ namespace larlitecv {
     struct State_t {
       bool configured;
       bool input_ready;
+      bool boundary_run;
       bool thrumu_run;
       bool stopmu_run;
       bool untagged_run;
@@ -108,7 +114,7 @@ namespace larlitecv {
 	clear();
       };
       void clear() {
-	configured = input_ready = thrumu_run = stopmu_run = untagged_run = croi_run = false;
+	configured = input_ready = boundary_run = thrumu_run = stopmu_run = untagged_run = croi_run = false;
       };
     } m_state;
 
