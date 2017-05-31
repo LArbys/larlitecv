@@ -153,6 +153,28 @@ namespace larlitecv {
 
     virtual void saveSpace() {
     };
+
+    void clean() {
+      stopthru_reclustered_v.clear();
+      stopthru_reclustered_pixels_v.clear();
+      plane_groups_v.clear();
+      vols_v.clear();
+      tagged_v.clear();
+      subimg_v.clear();
+      flashdata_v.clear();
+      flashdata_selected_v.clear();
+      flashdata_passes_containment_v.clear();
+      flashdata_passes_cosmicflash_ratio_v.clear();
+      flashdata_passes_flashmatch_v.clear();
+      flashdata_passes_totpe_v.clear();
+      containment_dwall_v.clear();
+      min_chi2_v.clear();
+      totpe_peratio_v.clear();
+      cosmicflash_ratio_dchi_v.clear();
+      croi_v.clear();
+      combined_v.clear();
+      track_opflash_v.clear();
+    }
   };
   
 }

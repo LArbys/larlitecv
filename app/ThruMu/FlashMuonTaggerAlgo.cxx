@@ -37,6 +37,10 @@ namespace larlitecv {
       std::cout << "Begin FlashMuonTaggerAlgo::flashMatchTrackEnds [verbsity=" << fConfig.verbosity << "]" << std::endl;
       std::cout << "  drift_v = " << fConfig.drift_velocity << " (fcl) vs." << larutil::LArProperties::GetME()->DriftVelocity() << std::endl;
       std::cout << "  drift distance =" << fConfig.drift_distance << std::endl;
+      std::cout << "  number of opflash containers: " << opflashsets.size() << std::endl;
+      for ( int i=0; i<(int)opflashsets.size(); i++) {
+	std::cout << "    #" << i << ": " << opflashsets[i]->size() << " flashes" << std::endl;
+      }
     }
     
     // get a meta
@@ -53,7 +57,7 @@ namespace larlitecv {
         larlitecv::BoundaryEnd_t point_type;
         std::string modename;
         if ( fSearchMode==kAnode ) {
-          flash_tick = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick + 15;
+          flash_tick = fConfig.trigger_tick + opflash.Time()/fConfig.usec_per_tick + fConfig.anode_drift_tick_correction;;
           tick_target = flash_tick;
           point_type = larlitecv::kAnode;
           modename = "anode";
@@ -76,8 +80,14 @@ namespace larlitecv {
         }
         
         // check if the opflash time occurs within the image
-        if ( tick_target<meta.min_y() || tick_target>=meta.max_y() )
+        if ( tick_target<meta.min_y() || tick_target>=meta.max_y() ) {
+	  if ( fConfig.verbosity>0 ) {
+	    std::cout << "============================================================================================" << std::endl;	    
+	    std::cout << " [opflash search] Op Flash out of time. tick_target=" << tick_target << " flash_tick=" << flash_tick
+		      << " Image bounds: [" << meta.min_y() << "," << meta.max_y() << "]" << std::endl;
+	  }
           continue;
+	}
 
         // first find the weighted mean and total q     
         float qtot = 0;
@@ -109,11 +119,20 @@ namespace larlitecv {
         }
 
         // extend by some factor (example 10%). This is to ensure acceptance of tracks.
-        float zwidth = fabs(min_dist_z)+fabs(max_dist_z);
+        float zwidth = fabs(max_dist_z)+fabs(min_dist_z);
         float extension = zwidth*fConfig.flash_zrange_extension*0.5;
 
-        std::vector<float> z_range = { z_weighted+min_dist_z-extension, z_weighted+max_dist_z+extension}; // be more intelligent later
+        std::vector<float> z_range = { z_weighted+min_dist_z, z_weighted+max_dist_z}; // be more intelligent later
         std::vector<float> y_range = { -120.0, 120.0 };
+
+	if ( fSearchMode==kCathode ) {
+	  // flash position is not super helpful for cathode muons. biases towards position of end point
+	  z_range[0] -= extension;
+	  z_range[1] += extension;
+	  if ( fConfig.verbosity>1 ) {
+	    std::cout << "extending cathode window by " << extension << std::endl;
+	  }
+	}
         if ( fSearchMode==kOutOfImage ) {
           // accept all
           z_range[0] = 0;
@@ -851,6 +870,7 @@ namespace larlitecv {
 						     const float z_max, const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts ) {
     const int row_gap_size = 6;
     Segment3DAlgo segalgo;
+    segalgo.setVerbosity( fConfig.verbosity );
     Linear3DChargeTaggerConfig linalgocfg;
     linalgocfg.neighborhood_square = 2;
     linalgocfg.neighborhood_posttick = 2;
@@ -874,10 +894,11 @@ namespace larlitecv {
 	row_b += 30;
     }
 
-    // Use ssegment3d algo to get us 3D segments in this time neighborhood
+    // Use segment3d algo to get us 3D segments in this time neighborhood
     std::vector< Segment3D_t > seg3d_v = segalgo.find3DSegments( tpc_imgs, badch_imgs, row_a, row_b, fConfig.pixel_value_threshold, 1, 2 );
-    if ( fConfig.verbosity>0 )
+    if ( fConfig.verbosity>0 ) {
       std::cout << "Found " << seg3d_v.size() << " 3D segments" << std::endl;
+    }
     
     // We keep those in the same z-range as the flash seen
     std::vector< BoundarySpacePoint > candidate_endpts;
@@ -954,7 +975,7 @@ namespace larlitecv {
 	inmiddle = false;
 
       if ( fConfig.verbosity>0 )
-	std::cout << " segment extension majfrac=" << extension_info.fractionHasChargeOnMajorityOfPlanes() << std::endl;
+	std::cout << " segment extension majfrac=" << extension_info.fractionHasChargeOnMajorityOfPlanes() << " in-middel=" << inmiddle << std::endl;
       
       
       if ( pos_matches && !inmiddle ) {

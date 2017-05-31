@@ -21,6 +21,10 @@ namespace larlitecv {
     CROIPayload   runCROISelection( const InputPayload& input, const ThruMuPayload& thrumu, const StopMuPayload& stopmu );    
 
     void printTimeTracker( int num_events=0 );
+
+    // subroutines: for some development and flexibility
+    void runBoundaryTagger( const InputPayload& data, ThruMuPayload& thrumu );
+    void runThruMuTracker( const InputPayload& data, ThruMuPayload& thrumu );
     
   protected:
 

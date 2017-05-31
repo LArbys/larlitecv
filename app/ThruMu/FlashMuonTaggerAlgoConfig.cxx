@@ -16,7 +16,8 @@ namespace larlitecv {
     flash_zrange_extension = 1.1;
     max_triarea = 10.0;
     max_nsegments_per_flash = 3;
-    cathode_drift_tick_correction = 240.0;
+    cathode_drift_tick_correction = -90.0;
+    anode_drift_tick_correction   = 18.0;
     endpoint_clustering_algo = "segments";
     
   }
@@ -37,6 +38,7 @@ namespace larlitecv {
     flashtagger_cfg.max_triarea                  = flashtagger_pset.get< float >( "MaxTriArea", 10.0 );
     flashtagger_cfg.max_nsegments_per_flash      = flashtagger_pset.get< int >( "MaxNumSegmentsPerFlash", 3 );
     flashtagger_cfg.cathode_drift_tick_correction = flashtagger_pset.get< float >( "CathodeDriftTickCorrection" );
+    flashtagger_cfg.anode_drift_tick_correction  = flashtagger_pset.get< float >( "AnodeDriftTickCorrection" );
     flashtagger_cfg.endpoint_clustering_algo     = flashtagger_pset.get< std::string >("EndPointClusteringAlgo");
     return flashtagger_cfg;
   }
