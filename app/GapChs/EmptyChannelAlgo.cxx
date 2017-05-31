@@ -3,7 +3,6 @@
 
 // larcv
 #include "DataFormat/ImageMeta.h"
-#include "DataFormat/ChStatus.h"
 
 namespace larlitecv {
 

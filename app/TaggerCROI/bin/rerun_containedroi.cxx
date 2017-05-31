@@ -2,6 +2,9 @@
 #include <string>
 #include <vector>
 
+// Band-Aid for the use of 'DataFommat/ROI.h'
+#include "/Users/barnchri/dllee_unified/LArCV/core/DataFormat/ROI.h"
+
 // larlite
 #include "DataFormat/mctrack.h"
 #include "DataFormat/mcshower.h"

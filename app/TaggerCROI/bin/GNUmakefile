@@ -16,8 +16,8 @@ CXXFLAGS += -I$(OPENCV_INCDIR) -DUSE_OPENCV
 endif
 
 # Include your shared object lib location
-LDFLAGS += $(shell larlitecv-config --libs)
 LDFLAGS += $(shell larcv-config --libs)
+LDFLAGS += $(shell larlitecv-config --libs)
 LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
 LDFLAGS += $(shell larlite-config --libs) -lBasicTool_FhiclLite
 LDFLAGS += $(shell larlite-config --libs) -lSelectionTool_OpT0FinderAna -lSelectionTool_OpT0FinderApp \

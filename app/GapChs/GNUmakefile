@@ -15,6 +15,8 @@ INCFLAGS  = -g -I.                       #Include itself
 INCFLAGS += $(shell larlite-config --includes)
 INCFLAGS += $(shell larcv-config --includes) 
 INCFLAGS += $(shell larlitecv-config --includes)
+INCFLAGS += -I$(LARCV_BASEDIR)/../
+INCFLAGS += -I$(LARLITE_BASEDIR)/../
 
 # platform-specific options
 OSNAME          = $(shell uname -s)
