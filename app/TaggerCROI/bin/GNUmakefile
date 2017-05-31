@@ -32,7 +32,7 @@ include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 # Add your program below with a space after the previous one.
 # This makefile compiles all binaries specified below.
-PROGRAMS = run_tagger rerun_containedroi
+PROGRAMS = run_tagger run_cosmictagger
 
 all: $(PROGRAMS)
 
