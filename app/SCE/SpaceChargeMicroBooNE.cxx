@@ -146,7 +146,7 @@ namespace larlitecv {
 
     return thePosOffsets;
   }
-
+  
   //----------------------------------------------------------------------------
   /// Provides position offsets using a parametric representation
   std::vector<double> SpaceChargeMicroBooNE::GetPosOffsetsParametric(double xVal, double yVal, double zVal) const

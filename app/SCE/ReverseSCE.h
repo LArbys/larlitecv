@@ -14,6 +14,9 @@ namespace larlitecv {
 
     std::vector<double> getOriginalPos( const std::vector<double>& shiftedpos ) const;
     std::vector<float>  getOriginalPos( const std::vector<float>&  shiftedpos ) const;
+
+    std::vector<double> getOffsets( const std::vector<double>& shiftedpos ) const;
+    std::vector<float>  getOffsets( const std::vector<float>& shiftedpos ) const;
     
   protected:
 
