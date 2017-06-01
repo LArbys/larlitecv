@@ -219,11 +219,36 @@ namespace larlitecv {
 
     }//end of while loop
 
-    //larcv::Image2D fscoreimg = visualizeScores( "fscore", img, min_c, min_r, win_c, win_r, position_lookup );
-    //larcv::Image2D gscoreimg = visualizeScores( "gscore", img, min_c, min_r, win_c, win_r, position_lookup );    
-    //m_visualizedimgs.clear();
-    //m_visualizedimgs.emplace_back( std::move(fscoreimg) );
-    //m_visualizedimgs.emplace_back( std::move(gscoreimg) );    
+    if ( _config.store_score_image ) {
+      m_visualizedimgs.clear();
+      std::vector<larcv::Image2D> fscoreimg_v = visualizeScores( "fscore", img_v, lattice );
+      std::vector<larcv::Image2D> gscoreimg_v = visualizeScores( "gscore", img_v, lattice );
+      for ( size_t p=0; p<img_v.size(); p++ ) {
+	m_visualizedimgs.push_back( img_v[p] );	
+	for (size_t c=0; c<img_v[p].meta().cols(); c++) {
+	  if ( badch_v[p].pixel(0,c)>0 )
+	    m_visualizedimgs[p].paint_col(c,_config.astar_threshold[p]);
+	}
+      }
+      size_t p=0;
+      for (auto& fscoreimg : fscoreimg_v ) {
+	m_visualizedimgs.emplace_back( std::move(fscoreimg) );
+	for (size_t c=0; c<img_v[p].meta().cols(); c++) {
+	  if ( badch_v[p].pixel(0,c)>0 )
+	    m_visualizedimgs.back().paint_col(c,_config.astar_threshold[p]);
+	}
+	p++;
+      }
+      p=0;
+      for (auto& gscoreimg : gscoreimg_v ) {
+	m_visualizedimgs.emplace_back( std::move(gscoreimg) );
+	for (size_t c=0; c<img_v[p].meta().cols(); c++) {
+	  if ( badch_v[p].pixel(0,c)>0 )
+	    m_visualizedimgs.back().paint_col(c,_config.astar_threshold[p]);
+	}
+	p++;	
+      }
+    }
 
     bool path_completed = false;
     std::vector<AStar3DNode> path;
@@ -370,6 +395,7 @@ namespace larlitecv {
 
     int nplanes_abovethreshold_or_bad = 0;
     int nplanes_bad = 0;
+    int nplanes_wcharge = 0;
     std::vector<float> pixval(nplanes,0.0);
     for (int p=0; p<nplanes; p++){
       int row = neighbor_node->row;
@@ -377,6 +403,7 @@ namespace larlitecv {
 
       if ( img_v.at(p).pixel( row, neighbor_node->cols[p] )>_config.astar_threshold[p] ) {
         nplanes_abovethreshold_or_bad++;
+	nplanes_wcharge++;
         pixval.at(p) = img_v.at(p).pixel( row, neighbor_node->cols[p] );
       }
       else if ( badch_v.at(p).pixel(row,neighbor_node->cols[p])>0 ) {
@@ -403,12 +430,19 @@ namespace larlitecv {
       if ( verbose>3 ) std::cout << " closed by criteria-2" << std::endl;      
       return false;
     }
-    if ( !isgoal && _config.restrict_path && _config.path_restriction_radius<distanceFromCentralLine( start->tyz, goal->tyz, neighbor_node->tyz ) ) {
-      neighbor_node->closed = true;      
+    if ( _config.accept_badch_nodes && !within_pad && !isgoal && nplanes_wcharge<_config.min_nplanes_w_charge ) {
+      neighbor_node->closed = true; // we close this node as it won't be used
       closedset.addnode( neighbor_node );
       if ( verbose>3 ) std::cout << " closed by criteria-3" << std::endl;      
       return false;
+    }    
+    if ( !isgoal && _config.restrict_path && _config.path_restriction_radius<distanceFromCentralLine( start->tyz, goal->tyz, neighbor_node->tyz ) ) {
+      neighbor_node->closed = true;      
+      closedset.addnode( neighbor_node );
+      if ( verbose>3 ) std::cout << " closed by criteria-4" << std::endl;      
+      return false;
     }
+    
 
     // is the node in a previously thrumu-tagged track
     // int nplanes_wtagged = 0;
@@ -691,38 +725,43 @@ namespace larlitecv {
 
   }
 
-  /*
-  larcv::Image2D AStar3DAlgo::visualizeScores( std::string score_name, const larcv::Image2D& orig_img, 
-    const int min_c, const int min_r, const int win_c, const int win_r, 
-    const std::map<PixPos_t,AStar3DNode*>  position_lookup) {
+  
+  std::vector<larcv::Image2D> AStar3DAlgo::visualizeScores( std::string score_name, const std::vector<larcv::Image2D>& orig_img_v, larlitecv::Lattice& lattice ) {
 
     // create the blank image
-    const larcv::ImageMeta& orig_meta = orig_img.meta();
-    // create the new meta
-    double width = win_c*orig_meta.pixel_width();
-    double height = win_r*orig_meta.pixel_height();
-    double origin_x = orig_meta.pos_x( min_c );
-    double origin_y = orig_meta.pos_y( min_r );
-    larcv::ImageMeta meta( width, height, win_r, win_c, origin_x, origin_y, orig_img.meta().plane() );
-    larcv::Image2D img( meta );
-    img.paint(0.0);
-    for ( int r=0; r<win_r; r++ ) {
-      for (int c=0; c<win_c; c++ ) {
-        PixPos_t pos(c,r);
-        auto it = position_lookup.find( pos );
-        if ( it!=position_lookup.end() ) {
-          if ( score_name=="fscore" )
-            img.set_pixel(r,c,(*it).second->fscore);
-          else if ( score_name=="gscore" )
-            img.set_pixel(r,c,(*it).second->gscore);
-          else
-            throw std::runtime_error("unrecognized score to visualize");
-        }
-      }
+    const larcv::ImageMeta& orig_meta = orig_img_v.front().meta();
+    std::vector<larcv::Image2D> score_img_v;
+    for ( auto const& orig_img : orig_img_v ) {
+      larcv::Image2D img( orig_img.meta() );
+      img.paint(0.0);
+      score_img_v.emplace_back( std::move(img) );
     }
-    return img;
+
+    // loop through lattice points
+    int npts = 0;
+    for ( auto& latticept : lattice ) {
+      int row;
+      std::vector<int> cols;
+      bool within;
+      lattice.getImageCoordinates( latticept.first, row, cols, within );
+      for (size_t p=0; p<cols.size(); p++) {
+	double score = 0.;
+	if ( score_name=="fscore" )
+	  score = (*(latticept.second)).fscore;
+	else if ( score_name=="gscore" )
+	  score = (*(latticept.second)).gscore;
+	else
+	  throw std::runtime_error("AStar3DAlgo::visualizeScore - did not recognize score name");	
+	double val=score_img_v[p].pixel(row,cols[p]);
+	if ( val<score )
+	  val = score;
+	score_img_v[p].set_pixel( row, cols[p], val );
+      }
+      npts++;
+    }
+    std::cout << "filled " << npts << " visual pts" << std::endl;
+    return score_img_v;
   }
-  */
 
   float AStar3DAlgo::distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz ) {
     // returns the shortest distance of the test point from the line segment between the start and end points
@@ -765,6 +804,60 @@ namespace larlitecv {
     return dist;
   }
 
+  std::vector<AStar3DNode> AStar3DAlgo::downsampleAndFindPath( const int downsampling_factor, const std::vector<larcv::Image2D>& img_v,
+							       const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+							       const int start_row, const int goal_row,
+							       const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached,
+							       int compression_mode ) {
+
+    if ( compression_mode<0 && compression_mode>larcv::Image2D::kOverWrite ) {
+      throw std::runtime_error("Invalid compression mode");
+    }
+    
+    // compress image for astar. store in member class. we'll use these again in runAStarTagger
+    std::vector< larcv::Image2D > img_compressed_v;
+    std::vector< larcv::Image2D > badch_compressed_v;
+    //std::vector< larcv::Image2D > tagged_compressed_v;
+    
+    for (size_t p=0; p<img_v.size(); p++) {
+      larcv::Image2D img_compressed( img_v[p] );
+      larcv::Image2D badch_compressed( badch_v[p] );
+      img_compressed.compress( img_v[p].meta().rows()/downsampling_factor, img_v[p].meta().cols()/downsampling_factor, (larcv::Image2D::CompressionModes_t)compression_mode );
+      badch_compressed.compress( img_v[p].meta().rows()/downsampling_factor, img_v[p].meta().cols()/downsampling_factor, (larcv::Image2D::CompressionModes_t)compression_mode );
+      img_compressed_v.emplace_back( std::move(img_compressed) );
+      badch_compressed_v.emplace_back( std::move(badch_compressed) );
+    }
+    
+    // collect meta/translate start/goal tick/wires to row/col in compressed image
+    std::vector< const larcv::ImageMeta* > meta_compressed_v;
+    std::vector<int> start_cols_comp(img_compressed_v.size(),0);
+    std::vector<int> start_rows_comp(img_compressed_v.size(),0);
+    std::vector<int> goal_cols_comp(img_compressed_v.size(),0);
+    std::vector<int> goal_rows_comp(img_compressed_v.size(),0);
+    std::vector< const larcv::Pixel2D* > start_pix_comp;
+    std::vector< const larcv::Pixel2D* > goal_pix_comp;
+
+
+    for (size_t p=0; p<img_compressed_v.size(); p++) {
+
+      // get start/end point information in compressed image
+      const larcv::ImageMeta* ptr_meta = &(img_compressed_v[p].meta()); // compressed image meta
+      const larcv::ImageMeta& meta     = img_v[p].meta(); // original image meta
+
+      start_rows_comp[p] =  ptr_meta->row( meta.pos_y( start_row ) );
+      start_cols_comp[p] =  ptr_meta->col( meta.pos_x( start_cols[p] ) );
+      //start_pix.push_back( new larcv::Pixel2D( start_cols[0], start_endpt.getrow() ) );
+      
+      goal_rows_comp[p]  =  ptr_meta->row( meta.pos_y( goal_row ) );
+      goal_cols_comp[p]  =  ptr_meta->col( meta.pos_x( goal_cols[p] ) );
+      //goal_pix.push_back( new larcv::Pixel2D( goal_endpt.getcol(), goal_endpt.getrow() ) );
+      
+      meta_compressed_v.push_back( ptr_meta );
+    }
+    
+    return findpath( img_compressed_v, badch_compressed_v, badch_compressed_v, // tagged_compressed_v
+		     start_rows_comp.front(), goal_rows_comp.front(), start_cols_comp, goal_cols_comp, goal_reached );
+  }
 
   // =========================================================================================================
   // LATTICE METHODS
@@ -853,7 +946,7 @@ namespace larlitecv {
     cols.resize(3,0);
     within_image = true;
     for ( int p=0; p<3; p++ ) {
-      Double_t xyz[3] { (tyz[0]-3200)*0.5*0.110, tyz[1], tyz[2] }; // (x doesn't matter really)
+      Double_t xyz[3] { (tyz[0]-3200)*0.5*::larutil::LArProperties::GetME()->DriftVelocity(), tyz[1], tyz[2] }; // (x doesn't matter really)
       wid[p] = larutil::Geometry::GetME()->WireCoordinate( xyz, p );
       if ( wid[p]<=m_meta_v.at(p)->min_x() || wid[p]>=m_meta_v.at(p)->max_x() ) {
         within_image = false;

@@ -41,6 +41,7 @@ namespace larlitecv {
     passcfg.astar3d_cfg.lattice_padding = 10;
     passcfg.astar3d_cfg.accept_badch_nodes = true;
     passcfg.astar3d_cfg.min_nplanes_w_hitpixel = 3;
+    passcfg.astar3d_cfg.min_nplanes_w_charge = 3;    
     passcfg.astar3d_cfg.restrict_path = true;
     passcfg.astar3d_cfg.verbosity = 0;
     passcfg.astar3d_cfg.path_restriction_radius = 30.0;

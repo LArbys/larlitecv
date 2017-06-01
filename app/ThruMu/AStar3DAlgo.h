@@ -255,6 +255,15 @@ namespace larlitecv {
     std::vector<AStar3DNode> findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
       const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached );
 
+    std::vector<AStar3DNode> downsampleAndFindPath( const int downsampling_factor, const std::vector<larcv::Image2D>& img_v,
+						    const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+						    const int start_row, const int goal_row,
+						    const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached,
+						    int compression_mode=0 );
+    
+    const std::vector<larcv::Image2D>& getScoreImages() { return m_visualizedimgs; }
+    
+    // supporting 
     std::vector<AStar3DNode> makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed );  
 
     void evaluateNeighborNodes( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
@@ -267,18 +276,15 @@ namespace larlitecv {
 
     float distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz );
 
-    // larcv::Image2D visualizeScores( std::string score_name, const larcv::Image2D& orig_img, 
-    //   const int min_c, const int min_r, const int win_c, const int win_r, 
-    //   const std::map<A3DPixPos_t,AStar3DNode*>  position_lookup);
-
-    const std::vector<larcv::Image2D>& getScoreImages() { return m_visualizedimgs; }
 
   protected:
 
     AStar3DAlgoConfig _config;
     int verbose;
 
-   // void evaluateBadChNeighbors( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
+    std::vector<larcv::Image2D> visualizeScores( std::string score_name, const std::vector<larcv::Image2D>& orig_img_v, Lattice& lattice );    
+    
+    // void evaluateBadChNeighbors( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
    //    AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, 
    //    const int neighborhood_size, const int min_c, const int min_r, const int win_c, const int win_r, 
    //    const larcv::Image2D& img, const larcv::ImageMeta& meta, const bool use_bad_chs, std::map< A3DPixPos_t, AStar3DNode* >& position_lookup);

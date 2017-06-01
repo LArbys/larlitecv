@@ -26,6 +26,7 @@ namespace larlitecv {
       astar_end_padding = 0;
       restrict_path = false;
       path_restriction_radius = 10.0;
+      store_score_image = false;
     };
     virtual ~AStar3DAlgoConfig() {};
 
@@ -35,10 +36,14 @@ namespace larlitecv {
     int astar_end_padding;   // region around end node where we will accept any node to form path
     int lattice_padding; // once start and end points in 3D space are given, we pad around the axis-aligned box defined by the start and end point
     bool accept_badch_nodes; // allow path to travel through bad nodes
-    int min_nplanes_w_hitpixel; // minimum number of planes which must have charge
+    int min_nplanes_w_hitpixel; // minimum number of planes which must have charge or badch
+    int min_nplanes_w_charge;   // minimum number of planes which must have charge    
     bool restrict_path; // restrict the path to be within some distance from the straigh line path
     float path_restriction_radius; // max distance path can deviate from straight line
     int verbosity; // verbosity of the algorithm: 0=most silent, >0 progressively more verbose
+    bool store_score_image; // store image with scores for visualization. useful for debug.
+
+    void dump();
 
     static AStar3DAlgoConfig MakeFromPSet( const larcv::PSet& pset ); //< make a config instance whose values have been set from a larcv PSet
 
