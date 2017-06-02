@@ -12,11 +12,11 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 
 # include options for this package
 INCFLAGS  = -g -I.                       #Include itself
+INCFLAGS += -I$(LARCV_BASEDIR)/../
+INCFLAGS += -I$(LARLITE_BASEDIR)/../
 INCFLAGS += $(shell larlite-config --includes)
 INCFLAGS += $(shell larcv-config --includes) 
 INCFLAGS += $(shell larlitecv-config --includes)
-INCFLAGS += -I$(LARCV_BASEDIR)/../
-INCFLAGS += -I$(LARLITE_BASEDIR)/../
 
 # platform-specific options
 OSNAME          = $(shell uname -s)
