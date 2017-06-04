@@ -34,20 +34,22 @@ namespace larlitecv {
       }
 
       if ( config.verbosity>1 ) {
-        std::cout << "    iseg " << iseg << ": start=(" << seg.start[0] << "," << seg.start[1] << "," << seg.start[2] << ")"
+        std::cout << "    iseg " << iseg << ": "
+                  << "q(" << seg.plane_frac_w_charge[0] << "," << seg.plane_frac_w_charge[1] << "," << seg.plane_frac_w_charge[2] << ")"
+                  << " start=(" << seg.start[0] << "," << seg.start[1] << "," << seg.start[2] << ")"
 		              << " end=(" << seg.end[0] << "," << seg.end[1] << "," << seg.end[2] << ")"
 		              << std::endl;
       }
 
       if ( dist_start > dist_end ) {
-	// flip
-	if ( config.verbosity>1 )
-	  std::cout << "    flip seg start/end. startdist=" << dist_start << " enddist=" << dist_end << std::endl;
-	float tmp[3] = { seg.start[0], seg.start[1], seg.start[2] };
-	for (int v=0; v<3; v++) {
-	  seg.start[v] = seg.end[v];
-	  seg.end[v] = tmp[v];
-	}
+        // flip
+        if ( config.verbosity>1 )
+          std::cout << "    flip seg start/end. startdist=" << dist_start << " enddist=" << dist_end << std::endl;
+        float tmp[3] = { seg.start[0], seg.start[1], seg.start[2] };
+        for (int v=0; v<3; v++) {
+          seg.start[v] = seg.end[v];
+          seg.end[v] = tmp[v];
+        }
       }
     }
 

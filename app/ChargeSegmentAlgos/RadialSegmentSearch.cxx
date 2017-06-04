@@ -292,10 +292,13 @@ namespace larlitecv {
       int num_rows = 0;
       segalgo.checkSegmentCharge( img, badch, seg2d.row_low, seg2d.col_low, seg2d.row_high, seg2d.col_high, min_hit_width, threshold, rows_w_charge, num_rows );
       float frac = (float)rows_w_charge/(float)num_rows;
+      seg2d.frac_w_charge = frac;
+      seg2d.npix_w_charge = rows_w_charge;
+      seg2d.npix_tot = num_rows;
       // for debug
       if ( verbosity>2 ) {
         std::cout << "      radial segment: (" << seg2d.row_low << "," << seg2d.col_low << ") to (" << seg2d.row_high << "," << seg2d.col_high << ") "
-                  << " frac charge=" << frac << " w/charge=" << rows_w_charge << " nrows=" << num_rows << std::endl;
+                  << " frac charge=" << seg2d.frac_w_charge << " w/charge=" << seg2d.npix_w_charge << " nrows=" << seg2d.npix_tot << std::endl;
       }
 
       if ( frac > frac_w_charges ) {

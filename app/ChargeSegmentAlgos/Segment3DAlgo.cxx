@@ -108,23 +108,26 @@ namespace larlitecv {
     for (int ilow=0; ilow<(int)hits_low.size(); ilow++) {
       for (int ihigh=0; ihigh<(int)hits_high.size(); ihigh++) {
 
-	int low  = hits_low[ilow];
-	int high = hits_high[ihigh];
+        int low  = hits_low[ilow];
+        int high = hits_high[ihigh];
 
-	int num_rows, nrows_w_charge;
-	checkSegmentCharge( img, badch, lowrow, low, highrow, high, hit_width, threshold, nrows_w_charge, num_rows );
-	float frac = nrows_w_charge/float(num_rows);
-	//std::cout << "hit (lo,hi) combo: (" << low << "," << high << ") "
-	//	  << "nrows w/ q=" << nrows_w_charge << " nrows=" << num_rows << " frac_good=" << frac << std::endl;
+        int num_rows, nrows_w_charge;
+        checkSegmentCharge( img, badch, lowrow, low, highrow, high, hit_width, threshold, nrows_w_charge, num_rows );
+        float frac = nrows_w_charge/float(num_rows);
+        //std::cout << "hit (lo,hi) combo: (" << low << "," << high << ") "
+        //	  << "nrows w/ q=" << nrows_w_charge << " nrows=" << num_rows << " frac_good=" << frac << std::endl;
 
-	if ( frac>frac_good ) {
-	  Segment2D_t seg2d;
-	  seg2d.row_high = highrow;
-	  seg2d.row_low  = lowrow;
-	  seg2d.col_high = high;
-	  seg2d.col_low  = low;
-	  segments.emplace_back( std::move(seg2d) );
-	}
+        if ( frac>frac_good ) {
+          Segment2D_t seg2d;
+          seg2d.row_high = highrow;
+          seg2d.row_low  = lowrow;
+          seg2d.col_high = high;
+          seg2d.col_low  = low;
+          seg2d.frac_w_charge = frac;
+          seg2d.npix_w_charge = nrows_w_charge;
+          seg2d.npix_tot = num_rows;
+          segments.emplace_back( std::move(seg2d) );
+        }
       }// high loop
     }// low loop
 
@@ -348,7 +351,8 @@ namespace larlitecv {
 
         if ( verbosity>1 ) {
           std::cout << "      combo(" << i << "," << j << ") "
-                    << "planes=(" << idx_a.plane << "," << idx_b.plane << ")"
+                    << "planes=(" << idx_a.plane << "," << idx_b.plane << ") "
+                    << "frac_w_q=(" <<seg_a.frac_w_charge << "," << seg_b.frac_w_charge << ")"
                     << std::endl;
           std::cout << "        seg a=(" << seg_a.row_low << "," << seg_a.col_low << ") -> (" << seg_a.row_high << "," << seg_a.col_high << ")" << std::endl;
           std::cout << "        seg b=(" << seg_b.row_low << "," << seg_b.col_low << ") -> (" << seg_b.row_high << "," << seg_b.col_high << ")" << std::endl;
@@ -463,13 +467,13 @@ namespace larlitecv {
                     << std::endl;
         }
 
-	// note that for plane V, the bipolar shape can integrate the charge to zero
-	// so we will relax the good fraction for it, for tracks going along the V wire
-	bool along_v = false;
-	if ( otherplane_high==1 && abs(othercol_low-othercol_high)<=3 )
-	  along_v = true;
-	
-        if ( (along_v==true) || ( nrows>0 && along_v==false && float(nrows_w_charge)/nrows > good_frac) ) {
+        // note that for plane V, the bipolar shape can integrate the charge to zero
+        // so we will relax the good fraction for it, for tracks going along the V wire
+        bool along_uv = false;
+        if ( (otherplane_high==1 || otherplane_high==0 ) && abs(othercol_low-othercol_high)<=3 )
+          along_uv = true;
+
+        if ( (along_uv==true) || ( nrows>0 && along_uv==false && float(nrows_w_charge)/nrows > good_frac) ) {
           // make segment3d
           Segment3D_t seg3d;
           seg3d.start[1] = poszy_high[1];
@@ -478,6 +482,10 @@ namespace larlitecv {
           seg3d.end[1]   = poszy_low[1];
           seg3d.end[2]   = poszy_low[0];
           seg3d.end[0]   = (img_v.at(otherplane_low).meta().pos_y(  row_low )-3200.0)*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);
+          seg3d.plane_frac_w_charge.resize(3,0);
+          seg3d.plane_frac_w_charge[ idx_a.plane ] = seg_a.frac_w_charge;
+          seg3d.plane_frac_w_charge[ idx_b.plane ] = seg_b.frac_w_charge;
+          seg3d.plane_frac_w_charge[ otherplane_high ] = float(nrows_w_charge)/float(nrows);
 
           // check it's not repeating
           bool isduplicate = false;
@@ -500,6 +508,7 @@ namespace larlitecv {
           if ( !isduplicate ) {
             if ( verbosity>1 ) {
               std::cout << "        Making 3D segment: "
+                        << "q(" << seg3d.plane_frac_w_charge[0] << "," << seg3d.plane_frac_w_charge[1] << "," << seg3d.plane_frac_w_charge[2] << ")"
                 	      << " start(" << seg3d.start[0] << "," << seg3d.start[1] << "," << seg3d.start[2] << ") "
                 	      << " end(" << seg3d.end[0] << "," << seg3d.end[1] << "," << seg3d.end[2] << ")"
                  	      << std::endl;

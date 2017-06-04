@@ -67,7 +67,9 @@ namespace larlitecv {
 
     if ( m_config.verbosity>0 )
       std::cout << "start of fox track: (" << firststep.pos()[0] << "," << firststep.pos()[1] << "," <<  firststep.pos()[2] << ")" << std::endl;
-    float min_dcos = -1.0;
+
+
+    float min_dcos = -1.0; // first step is harder to choose because we don't have a good initial direction typically
     do {
       // if we've moved beyond the first step, we enforce a forward-going track
       if ( track.size()>0 )
@@ -161,6 +163,7 @@ namespace larlitecv {
 
     best_seg_idx = -1;
     float bestdcos = 2.;
+    float highest_frac = 0.;
     std::vector<float> bestdir(3,0);
     std::vector<float> bestpos(3,0);
     if ( config.verbosity>1 ) {
@@ -169,7 +172,13 @@ namespace larlitecv {
     for ( size_t iseg=0; iseg<candidate_segs.size(); iseg++) {
       Segment3D_t& seg = candidate_segs[iseg];
 
-      // // first, which is the near and far points?
+      bool all_have_q = true;
+      for (auto const& q : seg.plane_frac_w_charge ) {
+        if ( q<config.segment_frac_w_charge )
+          all_have_q = false;
+      }
+
+      // // first, which is the near and far points? (why don't i do this still?)
       // float dist_start=0;
       // float dist_end=0;
       // for (int v=0; v<1; v++) {
@@ -211,13 +220,20 @@ namespace larlitecv {
       }
       float dcos = cosseg;
       if ( config.verbosity>1 )
-      std::cout << "    seg " << iseg << " dcos=" << dcos
-      	  << " (" << seg.start[0] << "," << seg.start[1] << "," << seg.start[2] << ") -> "
-      	  << " (" << seg.end[0] << "," << seg.end[1] << "," << seg.end[2] << ")"
-      	  << " segdir=(" << canddir[0] << "," << canddir[1] << "," << canddir[2] << ")"
-      	  << " current=(" << current.dir()[0] << "," << current.dir()[1] << "," << current.dir()[2] << ")"
-      	  << std::endl;
-      if ( dcos >min_dcos ) {
+        std::cout << "    seg " << iseg << " dcos=" << dcos << " allq=" << all_have_q
+        	  << " (" << seg.start[0] << "," << seg.start[1] << "," << seg.start[2] << ") -> "
+        	  << " (" << seg.end[0] << "," << seg.end[1] << "," << seg.end[2] << ")"
+        	  << " segdir=(" << canddir[0] << "," << canddir[1] << "," << canddir[2] << ")"
+        	  << " current=(" << current.dir()[0] << "," << current.dir()[1] << "," << current.dir()[2] << ")"
+        	  << std::endl;
+
+      // if ( path.size()<=1 ) {
+      //   // first step selection. highest charge in forward going
+      //   if ( best_seg_idx<0 || dcos>0 ) {
+
+      //   }
+      // }
+      if ( all_have_q && dcos >min_dcos ) {
         if ( dcos>bestdcos || best_seg_idx<0 ) {
           best_seg_idx = iseg;
           bestdcos = dcos;
