@@ -63,6 +63,9 @@ namespace larlitecv {
 #endif
 #endif
 
+    // Copy Constructor
+    //BoundarySpacePoint( const BoundarySpacePoint& src );
+
     virtual ~BoundarySpacePoint() {};
 
     BoundaryEnd_t type() const { return boundary_type; }
