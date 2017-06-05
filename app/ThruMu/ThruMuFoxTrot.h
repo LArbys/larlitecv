@@ -64,8 +64,8 @@ namespace larlitecv {
     double m_shiftx;
 
 
-    ReverseSCE m_sce; // get the offsets
-    SpaceChargeMicroBooNE m_sce_forward;
+    larlitecv::ReverseSCE m_sce; // get the offsets
+    larlitecv::SpaceChargeMicroBooNE m_sce_forward;
     geoalgo::GeoAlgo m_geoalgo;
   };
 
