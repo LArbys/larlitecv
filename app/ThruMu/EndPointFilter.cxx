@@ -5,7 +5,7 @@
 
 namespace larlitecv {
 
-	void EndPointFilter::filterEndPts( const std::vector< const BoundarySpacePoint* >& source, 
+	void EndPointFilter::filterEndPts( const std::vector< const BoundarySpacePoint* >& source,
 		const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, std::vector<int>& endpoint_passes ) {
 		int nendpts = (int)source.size();
 
@@ -14,10 +14,10 @@ namespace larlitecv {
 
 		// our job will be to filter them out
 		removeBoundaryAndFlashDuplicates( source, img_v, badch_v, endpoint_passes);
-
+    removeSameBoundaryDuplicates( source, img_v, badch_v, endpoint_passes);
 	}
 
-  void EndPointFilter::removeBoundaryAndFlashDuplicates( const std::vector< const BoundarySpacePoint* >& source, 
+  void EndPointFilter::removeBoundaryAndFlashDuplicates( const std::vector< const BoundarySpacePoint* >& source,
   	const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, std::vector<int>& endpoint_passes ) {
   	// simply look for boundary (top,bottom,upstream,downstream) and flash (anode,cathode,imageends) that are close and on the same cluster
   	// for anode/cathode remove them when near (top,bottom,upstream,downstream)
@@ -30,8 +30,17 @@ namespace larlitecv {
 
   	// get the indices of flash end points and boundary end points
   	std::vector<int> flash_indices;
-  	std::vector<int> boundary_indices;  	
+  	std::vector<int> boundary_indices;
   	for ( size_t idx=0; idx<source.size(); idx++ ) {
+      if ( source.at(idx)==NULL || source.at(idx)->size()!=3 ) {
+        std::stringstream ss;
+        ss << __FILE__ << ":" << __LINE__
+            << ": BoundarySpacePoints are not well formed."
+            << " size()=" << source.at(idx)->size()
+            << " idx=" << idx
+            << std::endl;
+        throw std::runtime_error(ss.str());
+      }
   		if ( source.at(idx)->type()==larlitecv::kAnode || source.at(idx)->type()==larlitecv::kCathode ) {
   			flash_indices.push_back(idx);
   		}
@@ -48,6 +57,18 @@ namespace larlitecv {
 
   			const BoundarySpacePoint& sp_boundary = *(source.at(boundary_idx));
   			const BoundarySpacePoint& sp_flash    = *(source.at(flash_idx));
+
+        // data well formed?
+        if ( source.at(boundary_idx)==NULL || source.at(flash_idx)==NULL || sp_boundary.size()!=3 && sp_flash.size()!=3 ) {
+          std::stringstream ss;
+          ss << __FILE__ << ":" << __LINE__
+              << ": BoundarySpacePoints are not well formed."
+              << " sp_boundary.size()=" << sp_boundary.size() << " sp_flash.size()=" << sp_flash.size()
+              << " boundary_idx=" << boundary_idx << "/" << source.size()
+              << " flash_idx=" << flash_idx << "/" << source.size()
+              << std::endl;
+          throw std::runtime_error(ss.str());
+        }
 
   			// check if endpts are on same cluster
   			int planes_on_same_endpt = 0;
@@ -67,16 +88,16 @@ namespace larlitecv {
   				// we use the direction to get direction of each space point
   				// 3D dir
   				/*
-  				std::vector<float> dir(3,0.0);  				
+  				std::vector<float> dir(3,0.0);
   				if ( fabs(sp_boundary.dwall()) < fabs(sp_flash.dwall()) ) {
   					// boundary is closer to the wall
   					dir[1] = sp_flash.pos()[1] - sp_boundary.pos()[1];
-  					dir[2] = sp_flash.pos()[2] - sp_boundary.pos()[2];  					
+  					dir[2] = sp_flash.pos()[2] - sp_boundary.pos()[2];
   				}
   				else {
   					// flash is closer to the wall.
   					dir[1] = sp_boundary.pos()[1] - sp_flash.pos()[1];
-  					dir[2] = sp_boundary.pos()[2] - sp_flash.pos()[2];  					
+  					dir[2] = sp_boundary.pos()[2] - sp_flash.pos()[2];
   				}
   				float norm = sqrt( dir[1]*dir[1] + dir[2]*dir[2] );
   				sp_boundary.dir( dir );
@@ -90,8 +111,8 @@ namespace larlitecv {
   	std::cout << "Number of Flash Endpoints filtered: " << number_flashpts_filtered << std::endl;
   }
 
-  void EndPointFilter::removeSameBoundaryDuplicates( const std::vector< const BoundarySpacePoint* >& source, 
-  	const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, std::vector<int>& endpoint_passes ) { 
+  void EndPointFilter::removeSameBoundaryDuplicates( const std::vector< const BoundarySpacePoint* >& source,
+  	const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, std::vector<int>& endpoint_passes ) {
   	// for same boundary duplicates: those close to one another and on same cluster
  		// set passing flag to 'yes' if the pass vector has not been setup
   	if ( endpoint_passes.size()!=source.size() )
@@ -126,8 +147,8 @@ namespace larlitecv {
 	  				const BoundaryEndPt& endpt_a = sp_a.at(p);
   					const BoundaryEndPt& endpt_b = sp_b.at(p);
 	  				dbscan::dbPoints cluster_hits;
-  					if ( areEndPointsNearbyAndOnSameCluster( endpt_a, endpt_b, img_v.at(p), badch_v.at(p), 10.0, false, cluster_hits ) ) {
-	  					opt_clusters.emplace_back( std::move(cluster_hits) );	
+  					if ( areEndPointsNearbyAndOnSameCluster( endpt_a, endpt_b, img_v.at(p), badch_v.at(p), 5.0, false, cluster_hits ) ) {
+	  					opt_clusters.emplace_back( std::move(cluster_hits) );
   						planes_on_same_endpt++;
   					}
   				}
@@ -148,9 +169,9 @@ namespace larlitecv {
   		}
   	}
   	std::cout << "Number of Same-type Endpoints filtered: " << number_endpts_filtered << std::endl;
-  }  	 	
+  }
 
-  void EndPointFilter::removeDiffBoundaryDuplicates( const std::vector< const BoundarySpacePoint* >& source, 
+  void EndPointFilter::removeDiffBoundaryDuplicates( const std::vector< const BoundarySpacePoint* >& source,
   	const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, std::vector<int>& endpoint_passes ) {
 
   	// for different boundary duplicates: those close to one another and on same cluster
@@ -170,10 +191,10 @@ namespace larlitecv {
   	// now check combinations of boundary and flashes
   	int number_endpts_filtered = 0;
   	for (int itypea=0; itypea<(int)boundary_indices.size();  itypea++ ) {
-	  	for (int itypeb=itypea+1; itypeb<(int)boundary_indices.size();  itypeb++ ) {  		
+	  	for (int itypeb=itypea+1; itypeb<(int)boundary_indices.size();  itypeb++ ) {
 
 	  		std::vector< int >& indices_a = boundary_indices.at(itypea);
-	  		std::vector< int >& indices_b = boundary_indices.at(itypeb);	  			
+	  		std::vector< int >& indices_b = boundary_indices.at(itypeb);
 
   			for (int ia=0; ia<(int)indices_a.size(); ia++) {
 		  		int idx_a = indices_a.at(ia);
@@ -181,7 +202,7 @@ namespace larlitecv {
 	  			for (int ib=0; ib<(int)indices_b.size(); ib++ ) {
 
 	  				int idx_b = indices_b.at(ib);
-  
+
 		  			const BoundarySpacePoint& sp_a = *(source.at(idx_a));
   					const BoundarySpacePoint& sp_b = *(source.at(idx_b));
 
@@ -193,7 +214,7 @@ namespace larlitecv {
   						const BoundaryEndPt& endpt_b = sp_b.at(p);
 	  					dbscan::dbPoints cluster_hits;
   						if ( areEndPointsNearbyAndOnSameCluster( endpt_a, endpt_b, img_v.at(p), badch_v.at(p), 20.0, false, cluster_hits ) ) {
-	  						opt_clusters.emplace_back( std::move(cluster_hits) );	
+	  						opt_clusters.emplace_back( std::move(cluster_hits) );
   							planes_on_same_endpt++;
   						}
   					}
@@ -217,12 +238,12 @@ namespace larlitecv {
   	std::cout << "Number of Different-type Endpoints filtered: " << number_endpts_filtered << std::endl;
   }
 
-  bool EndPointFilter::areEndPointsNearbyAndOnSameCluster( const larlitecv::BoundaryEndPt& pta, const larlitecv::BoundaryEndPt& ptb, 
+  bool EndPointFilter::areEndPointsNearbyAndOnSameCluster( const larlitecv::BoundaryEndPt& pta, const larlitecv::BoundaryEndPt& ptb,
   	const larcv::Image2D& img, const larcv::Image2D& badch, const float radius_cm, bool return_cluster, dbscan::dbPoints& opt_cluster ) {
   	// static utility function
   	// we check if points are within radius in the projected (x,dwire) 2D-plane
   	// if they are, we form a window around the two points and cluster, checking if they are on the same cluster.
-  	// if not, then we use AStar* to try and bridge cluster. 
+  	// if not, then we use AStar* to try and bridge cluster.
   	// we return the cluster the end points sit on
 
   	const larcv::ImageMeta& meta = img.meta();
@@ -243,7 +264,7 @@ namespace larlitecv {
   	int row_min = ( pta.row<ptb.row ) ? pta.row : ptb.row;
   	int row_max = ( pta.row>ptb.row ) ? pta.row : ptb.row;
   	int col_min = ( pta.col<ptb.col ) ? pta.col : ptb.col;
-  	int col_max = ( pta.col>ptb.col ) ? pta.col : ptb.col;  	
+  	int col_max = ( pta.col>ptb.col ) ? pta.col : ptb.col;
 
   	// get hits within window
   	dbscan::dbPoints winhits;
