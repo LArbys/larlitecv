@@ -101,6 +101,17 @@ namespace larlitecv {
 						      const RadialEndpointFilterConfig& config, int& num_seg3d ) {
     return isWithinStraightSegment( pos3d, img_v, badch_v, config.segment_radius, config.segment_min_width, config.segment_hit_neighborhood, config.segment_frac_w_charge, config.pixel_thresholds, config.acceptance_angle, num_seg3d );
   }
+
+  bool RadialEndpointFilter::canFormSegment( const std::vector<float>& pos3d, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+					     const float radius, const std::vector<float>& thresholds, const int hitwidth, const int hitneighborhood, const float min_frac_charge, bool verbose ) {
+
+    larlitecv::RadialSegmentSearch segalgo;    
+    std::vector<Segment3D_t> seg_v = segalgo.find3Dsegments( img_v, badch_v, pos3d, radius, thresholds, hitwidth, hitneighborhood, min_frac_charge, verbose );
+    if ( seg_v.size()==0 )
+      return false;
+
+    return true;
+  }
   
 
   

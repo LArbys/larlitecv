@@ -37,6 +37,9 @@ namespace larlitecv {
 
     bool isWithinStraightSegment( const std::vector<float>& pos3d, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
 				  const RadialEndpointFilterConfig& config, int& num_seg3d );
+
+    bool canFormSegment( const std::vector<float>& pos3d, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+			 const float radius, const std::vector<float>& thresholds, const int hitwidth, const int hitneighborhood, const float min_frac_charge, bool verbose );
     
     
   };
