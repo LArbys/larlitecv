@@ -259,7 +259,7 @@ namespace larlitecv {
 						    const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
 						    const int start_row, const int goal_row,
 						    const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached,
-						    int compression_mode=0 );
+						    int compression_mode=-1 );
     
     const std::vector<larcv::Image2D>& getScoreImages() { return m_visualizedimgs; }
     

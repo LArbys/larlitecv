@@ -813,6 +813,9 @@ namespace larlitecv {
     if ( compression_mode<0 && compression_mode>larcv::Image2D::kOverWrite ) {
       throw std::runtime_error("Invalid compression mode");
     }
+
+    if ( compression_mode<0 )
+      compression_mode = _config.compression_mode;
     
     // compress image for astar. store in member class. we'll use these again in runAStarTagger
     std::vector< larcv::Image2D > img_compressed_v;

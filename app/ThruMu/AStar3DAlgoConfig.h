@@ -26,6 +26,7 @@ namespace larlitecv {
       astar_end_padding = 0;
       restrict_path = false;
       path_restriction_radius = 10.0;
+      compression_mode = 2;
       store_score_image = false;
     };
     virtual ~AStar3DAlgoConfig() {};
@@ -40,6 +41,7 @@ namespace larlitecv {
     int min_nplanes_w_charge;   // minimum number of planes which must have charge    
     bool restrict_path; // restrict the path to be within some distance from the straigh line path
     float path_restriction_radius; // max distance path can deviate from straight line
+    int compression_mode; // compression mode used (check Image2D for enum) if calling downsampleAndFindPath
     int verbosity; // verbosity of the algorithm: 0=most silent, >0 progressively more verbose
     bool store_score_image; // store image with scores for visualization. useful for debug.
 

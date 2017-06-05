@@ -12,7 +12,8 @@ namespace larlitecv {
     cfg.lattice_padding        = pset.get< int >( "LatticePadding" );
     cfg.accept_badch_nodes     = pset.get< bool >( "AcceptBadChannelNodes" );
     cfg.min_nplanes_w_hitpixel = pset.get< int >( "MinNumPlanesWithHitPixel" );
-    cfg.min_nplanes_w_charge   = pset.get< int >( "MinNumPlanesWithCharge" );    
+    cfg.min_nplanes_w_charge   = pset.get< int >( "MinNumPlanesWithCharge" );
+    cfg.compression_mode       = pset.get< int >( "CompressionMode" );
     cfg.restrict_path          = pset.get< bool >( "RestrictPath", false );
     cfg.verbosity              = pset.get< int >( "Verbosity" );
     if ( cfg.restrict_path ) {
@@ -40,6 +41,7 @@ namespace larlitecv {
     std::cout << " Min Nplanes w/ Charged Pixel: " << min_nplanes_w_charge << std::endl;    
     std::cout << " Restrict Path: " << restrict_path << std::endl;
     std::cout << " Restrict Radius: " << path_restriction_radius << std::endl;
+    std::cout << " Compression Mode: " << compression_mode << std::endl;
     std::cout << " Verbosity: " << verbosity << std::endl;
     std::cout << " Store Score Image: " << store_score_image << std::endl;
     std::cout << "--------------------------------" << std::endl;
