@@ -30,7 +30,7 @@ namespace larlitecv {
   {
     // private default constructor
   }
-  
+
   CosmicTagger::CosmicTagger( std::string tagger_cfg )
     : m_entry(-1)
     , m_toplevel_pset("toplevel")
@@ -56,7 +56,7 @@ namespace larlitecv {
 
     // num entries
     m_nentries = m_dataco_input.get_nentries("larcv");
-    std::cout << "NUMBER OF ENTRIES: LARCV=" << m_nentries << " LARLITE=" << m_dataco_input.get_nentries("larlite") << std::endl;    
+    std::cout << "NUMBER OF ENTRIES: LARCV=" << m_nentries << " LARLITE=" << m_dataco_input.get_nentries("larlite") << std::endl;
   }
 
   CosmicTagger::CosmicTagger( std::string tagger_cfg, std::string larcv_list, std::string larlite_list )
@@ -66,7 +66,7 @@ namespace larlitecv {
     , m_cfg_file(tagger_cfg)
     , m_emptyalgo(NULL)
     , m_unihackalgo(NULL)
-    , m_taggercroialgo(NULL)      
+    , m_taggercroialgo(NULL)
   {
     setConfigFile( tagger_cfg );
 
@@ -84,7 +84,7 @@ namespace larlitecv {
 
     // num entries
     m_nentries = m_dataco_input.get_nentries("larcv");
-    std::cout << "NUMBER OF ENTRIES: LARCV=" << m_nentries << " LARLITE=" << m_dataco_input.get_nentries("larlite") << std::endl;    
+    std::cout << "NUMBER OF ENTRIES: LARCV=" << m_nentries << " LARLITE=" << m_dataco_input.get_nentries("larlite") << std::endl;
   }
 
   CosmicTagger::CosmicTagger( std::string tagger_cfg, const std::vector<std::string>& larcv_filepaths, const std::vector<std::string>& larlite_filepaths )
@@ -94,7 +94,7 @@ namespace larlitecv {
     , m_cfg_file(tagger_cfg)
     , m_emptyalgo(NULL)
     , m_unihackalgo(NULL)
-    , m_taggercroialgo(NULL)      
+    , m_taggercroialgo(NULL)
   {
     setConfigFile( tagger_cfg );
 
@@ -116,16 +116,16 @@ namespace larlitecv {
 
     // num entries
     m_nentries = m_dataco_input.get_nentries("larcv");
-    std::cout << "NUMBER OF ENTRIES: LARCV=" << m_nentries << " LARLITE=" << m_dataco_input.get_nentries("larlite") << std::endl;    
+    std::cout << "NUMBER OF ENTRIES: LARCV=" << m_nentries << " LARLITE=" << m_dataco_input.get_nentries("larlite") << std::endl;
   }
-  
+
   CosmicTagger::~CosmicTagger() {
     if ( m_emptyalgo!=NULL )
       delete m_emptyalgo;
     if ( m_unihackalgo!=NULL )
       delete m_unihackalgo;
     if ( m_taggercroialgo!=NULL )
-      delete m_taggercroialgo;    
+      delete m_taggercroialgo;
   }
 
   void CosmicTagger::setConfigFile( std::string cfgfile ) {
@@ -150,7 +150,7 @@ namespace larlitecv {
       ss << "[true]";
     else
       ss << "[false]";
-    
+
     ss << " Input ";
     if ( m_state.input_ready )
       ss << "[true]";
@@ -186,13 +186,13 @@ namespace larlitecv {
       ss << "[true]";
     else
       ss << "[false]";
-	
+
     return ss.str();
   }
-  
+
   void CosmicTagger::setRunParameters() {
     m_larcv_image_producer    = m_pset.get<std::string>("LArCVImageProducer");
-    m_larcv_chstatus_producer = m_pset.get<std::string>("LArCVChStatusProducer");  
+    m_larcv_chstatus_producer = m_pset.get<std::string>("LArCVChStatusProducer");
     m_DeJebWires              = m_pset.get<bool>("DeJebWires");
     m_jebwiresfactor          = m_pset.get<float>("JebWiresFactor");
     m_emptych_thresh          = m_pset.get< std::vector<float> >("EmptyChannelThreshold");
@@ -208,9 +208,9 @@ namespace larlitecv {
     m_skip_empty_events       = m_pset.get<bool>("SkipEmptyEvents",false);
     m_apply_unipolar_hack     = m_pset.get<bool>("ApplyUnipolarHack",false);
     configure_algos();
-    m_state.configured = true;      
+    m_state.configured = true;
   }
-  
+
   void CosmicTagger::configure_algos() {
     if ( m_emptyalgo!=NULL )
       delete m_emptyalgo;
@@ -223,7 +223,7 @@ namespace larlitecv {
     m_taggercroialgo = new larlitecv::TaggerCROIAlgo( m_tagger_cfg );
   }
 
-  
+
 
   void CosmicTagger::runOneEvent( int ientry ) {
     setEntry( ientry );
@@ -299,13 +299,13 @@ namespace larlitecv {
       larcv::EventROI* evout_roi = (larcv::EventROI*)dataco_out.get_larcv_data( larcv::kProductROI, mcwritecfg.get<std::string>("MCROIProducer") );
       evout_roi->Set( event_roi->ROIArray() );
     }
-    
+
     dataco_out.save_entry();
 
     ann::ANNAlgo::cleanup();
   */
   }
- 
+
 
   bool CosmicTagger::processInputImages() {
 
@@ -313,7 +313,7 @@ namespace larlitecv {
       std::cout << "Invalid state to run processInputImages: " << printState() << std::endl;
       return false;
     }
-    
+
     // set the state: we reset all downstream states
     m_state.input_ready = m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
@@ -331,14 +331,14 @@ namespace larlitecv {
       std::cerr << "Error reading the input data: " << e.what() << std::endl;
       return false;
     }
-      
+
     std::cout << "=====================================================" << std::endl;
     std::cout << "--------------------" << std::endl;
     std::cout << " Entry " << m_entry << " : " << run << " " << subrun << " " << event << std::endl;
     std::cout << "--------------------" << std::endl;
     std::cout << "=====================================================" << std::endl;
-    
-    
+
+
     // ------------------------------------------------------------------------------------------//
     // PREPARE THE INPUT
 
@@ -374,7 +374,7 @@ namespace larlitecv {
     m_input_data.img_v.clear();
     event_imgs->Move( m_input_data.img_v );
     try {
-      
+
       if ( m_DeJebWires ) {
 	for ( auto &img : m_input_data.img_v ) {
 	  const larcv::ImageMeta& meta = img.meta();
@@ -431,7 +431,7 @@ namespace larlitecv {
     // LABEL BAD CHANNELS
 
     m_input_data.badch_v.clear();
-    try { 
+    try {
       if ( m_chstatus_datatype=="LARLITE" ) {
 	larlite::event_chstatus* ev_status = (larlite::event_chstatus*)m_dataco_input.get_larlite_data( larlite::data::kChStatus, "chstatus" );
 	m_input_data.badch_v = m_emptyalgo->makeBadChImage( 4, 3, 2400, 6048, 3456, 6, 1, *ev_status );
@@ -452,7 +452,7 @@ namespace larlitecv {
       else {
 	throw std::runtime_error("ERROR: ChStatusDataType must be either LARCV or LARLITE");
       }
-      
+
       if ( m_input_data.badch_v.size()!=3 ) {
 	throw std::runtime_error("Number of Bad Channels not correct.");
       }
@@ -470,10 +470,10 @@ namespace larlitecv {
       gapchimgs_v = m_emptyalgo->findMissingBadChs( m_input_data.img_v, m_input_data.badch_v, 5, maxgap );
       // combine with badchs
       for ( size_t p=0; p<gapchimgs_v.size(); p++ ) {
-	larcv::Image2D& gapchimg = gapchimgs_v[p];
-	gapchimg += m_input_data.badch_v[p];
+        larcv::Image2D& gapchimg = gapchimgs_v[p];
+        gapchimg += m_input_data.badch_v[p];
       }
-      
+
       // Set BadCh in input data
       for ( size_t p=0; p<gapchimgs_v.size(); p++ ) {
       m_input_data.gapch_v.emplace_back( std::move(gapchimgs_v.at(p)) );
@@ -491,9 +491,9 @@ namespace larlitecv {
 
     try {
       for ( auto &flashproducer : m_opflash_producers ) {
-	larlite::event_opflash* opdata = (larlite::event_opflash*)m_dataco_input.get_larlite_data(larlite::data::kOpFlash, flashproducer );
-	std::cout << "search for flash hits from " << flashproducer << ": " << opdata->size() << " flashes" << std::endl;
-	m_input_data.opflashes_v.push_back( opdata );
+        larlite::event_opflash* opdata = (larlite::event_opflash*)m_dataco_input.get_larlite_data(larlite::data::kOpFlash, flashproducer );
+        std::cout << "search for flash hits from " << flashproducer << ": " << opdata->size() << " flashes" << std::endl;
+        m_input_data.opflashes_v.push_back( opdata );
       }
     }
     catch ( const std::exception& e ) {
@@ -512,7 +512,7 @@ namespace larlitecv {
       std::cout << "Invalid state to run findThruMu: " << printState() << std::endl;
       return false;
     }
-    
+
     // invalidate downstream
     m_state.boundary_run = m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
@@ -539,7 +539,7 @@ namespace larlitecv {
       std::cout << "Invalid state to run findBoundaryEnds: " << printState() << std::endl;
       return false;
     }
-    
+
     // invalidate downstream
     m_state.boundary_run = m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
@@ -563,10 +563,10 @@ namespace larlitecv {
       std::cout << "Invalid state to run findThruMuTracks: " << printState() << std::endl;
       return false;
     }
-    
+
     // invalidate downstream
     m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
-    
+
     try {
       m_taggercroialgo->runThruMuTracker( m_input_data, m_thrumu_data );
     }
@@ -574,12 +574,12 @@ namespace larlitecv {
       std::cerr << "Error Running ThruMu Tracker: " << e.what() << std::endl;
       return false;
     }
-    
+
     // set stte
     m_state.thrumu_run = true;
     return true;
   }
-  
+
   bool CosmicTagger::findStopMu() {
 
     if ( !m_state.configured || !m_state.input_ready || !m_state.thrumu_run ) {
@@ -589,7 +589,7 @@ namespace larlitecv {
 
     // reset downstream
     m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
-    
+
     larlitecv::StopMuPayload stopmu_data;
     try {
       stopmu_data = m_taggercroialgo->runStopMu( m_input_data, m_thrumu_data );
@@ -598,7 +598,7 @@ namespace larlitecv {
       std::cerr << "Error finding StopMu: " << e.what() << std::endl;
       return false;
     }
-    
+
     if ( m_save_stopmu_space )
       stopmu_data.saveSpace();
 
@@ -606,7 +606,7 @@ namespace larlitecv {
 
     m_state.stopmu_run = true;
     m_state.untagged_run = true; // no untagged stage yet
-    
+
     return true;
   }
 
@@ -618,7 +618,7 @@ namespace larlitecv {
     }
 
     m_croi_data_v.clear();
-    
+
     try {
       larlitecv::CROIPayload croi_data = m_taggercroialgo->runCROISelection( m_input_data, m_thrumu_data, m_stopmu_data );
       m_croi_data_v.emplace_back( std::move(croi_data) );
@@ -627,13 +627,13 @@ namespace larlitecv {
       std::cerr << "Error finding untagged and CROI: " << e.what() << std::endl;
       return false;
     }
-    
+
     if ( m_save_croi_space )
       m_croi_data_v.front().saveSpace();
 
     m_state.croi_run = true;
-    
+
     return true;
-  }  
+  }
 
 }

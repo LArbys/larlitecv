@@ -66,6 +66,11 @@ namespace larlitecv {
     std::vector< BoundarySpacePoint > cathode_spacepoint_v;
     std::vector< BoundarySpacePoint > imgends_spacepoint_v;
 
+    std::vector< BoundarySpacePoint > side_filtered_v;
+    std::vector< BoundarySpacePoint > anode_filtered_v;
+    std::vector< BoundarySpacePoint > cathode_filtered_v;
+    std::vector< BoundarySpacePoint > imgends_filtered_v;
+    
     std::vector< BMTrackCluster3D >      trackcluster3d_v;
     std::vector< larlite::track >        track_v;
     std::vector< std::vector<larcv::Pixel2DCluster> > pixelcluster_v;
@@ -88,10 +93,17 @@ namespace larlitecv {
       boundarypixel_image_v.clear();
       realspacehit_image_v.clear();
       tagged_v.clear();
+
       side_spacepoint_v.clear();
       anode_spacepoint_v.clear();
       cathode_spacepoint_v.clear();
       imgends_spacepoint_v.clear();
+
+      side_filtered_v.clear();
+      anode_filtered_v.clear();
+      cathode_filtered_v.clear();
+      imgends_filtered_v.clear();
+      
       trackcluster3d_v.clear();
       track_v.clear();
       pixelcluster_v.clear();

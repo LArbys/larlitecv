@@ -2,6 +2,7 @@
 
 #include <sstream>
 #include <ctime>
+#include <stdexcept>
 
 // larlite
 #include "LArUtil/LArProperties.h"
@@ -17,6 +18,8 @@
 #include "ThruMu/BoundaryMuonTaggerAlgo.h"
 #include "ThruMu/FlashMuonTaggerAlgo.h"
 #include "ThruMu/EndPointFilter.h"
+#include "ThruMu/RadialEndpointFilter.h"
+#include "ThruMu/PushBoundarySpacePoint.h"
 #include "ThruMu/ThruMuTracker.h"
 #include "StopMu/StopMuFilterSpacePoints.h"
 #include "StopMu/StopMuCluster.h"
@@ -41,121 +44,9 @@ namespace larlitecv {
 
     ThruMuPayload output;
 
-    // // configure different stages of the Thrumu Tagger
-    // std::clock_t timer;
-
-    // // (1) side tagger
-    // timer = std::clock();
-    // larlitecv::BoundaryMuonTaggerAlgo sidetagger;
-    // sidetagger.configure( m_config.sidetagger_cfg );
-    // sidetagger.printConfiguration();
-
-    // // (2) flash tagger
-    // larlitecv::FlashMuonTaggerAlgo anode_flash_tagger(   larlitecv::FlashMuonTaggerAlgo::kAnode );
-    // larlitecv::FlashMuonTaggerAlgo cathode_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kCathode );
-    // larlitecv::FlashMuonTaggerAlgo imgends_flash_tagger( larlitecv::FlashMuonTaggerAlgo::kOutOfImage );
-
-    // anode_flash_tagger.configure(   m_config.flashtagger_cfg );
-    // cathode_flash_tagger.configure( m_config.flashtagger_cfg );
-    // imgends_flash_tagger.configure( m_config.flashtagger_cfg );
-
-    // // (3) end point filter
-    // larlitecv::EndPointFilter endptfilter;
-
-    // // (4) thrumu tracker
-    // larlitecv::ThruMuTracker thrumu_tracker( m_config.thrumu_tracker_cfg );
-
-    // m_time_tracker[kThruMuConfig] = ( std::clock()-timer )/(double)CLOCKS_PER_SEC;
-
-    // // RUN THE THRUMU ALGOS
-
-    // // run side tagger
-    // timer = std::clock();
-    // sidetagger.searchforboundarypixels3D( input.img_v, input.badch_v, output.side_spacepoint_v, output.boundarypixel_image_v, output.realspacehit_image_v );
-    // int nsides[4] = {0};
-    // for ( auto const& sp : output.side_spacepoint_v ) {
-    //   nsides[ sp.at(0).type ]++;
-    // }
-    // std::cout << " Side Tagger End Points: " << output.side_spacepoint_v.size() << std::endl;
-    // std::cout << "   Top: "        << nsides[0] << std::endl;
-    // std::cout << "   Bottom: "     << nsides[1] << std::endl;
-    // std::cout << "   Upstream: "   << nsides[2] << std::endl;
-    // std::cout << "   Downstream: " << nsides[3] << std::endl;
-    // m_time_tracker[kThruMuBMT] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
-
-    // // run flash tagger
-    // timer = std::clock();
-    // anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v );
-    // cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v );
-    // imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v );
-    // int totalflashes = (int)output.anode_spacepoint_v.size() + (int)output.cathode_spacepoint_v.size() + (int)output.imgends_spacepoint_v.size();
-    // std::cout << " Flash Tagger End Points: " << totalflashes << std::endl;
-    // std::cout << "  Anode: "      << output.anode_spacepoint_v.size() << std::endl;
-    // std::cout << "  Cathode: "    << output.cathode_spacepoint_v.size() << std::endl;
-    // std::cout << "  Image Ends: " << output.imgends_spacepoint_v.size() << std::endl;
-    // m_time_tracker[kThruMuFlash] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
-
-    // // we collect pointers to all the end points
-    // std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
-
-    // // gather endpoints from space points
-    // for (int isp=0; isp<(int)output.side_spacepoint_v.size(); isp++) {
-    //   const larlitecv::BoundarySpacePoint* pts = &(output.side_spacepoint_v.at( isp ));
-    //   all_endpoints.push_back( pts );
-    // }
-    // for (int isp=0; isp<(int)output.anode_spacepoint_v.size(); isp++) {
-    //   const larlitecv::BoundarySpacePoint* pts = &(output.anode_spacepoint_v.at(isp));
-    //   all_endpoints.push_back( pts );
-    // }
-    // for (int isp=0; isp<(int)output.cathode_spacepoint_v.size(); isp++) {
-    //   const larlitecv::BoundarySpacePoint* pts = &(output.cathode_spacepoint_v.at(isp));
-    //   all_endpoints.push_back( pts );
-    // }
-    // for (int isp=0; isp<(int)output.imgends_spacepoint_v.size(); isp++) {
-    //   const larlitecv::BoundarySpacePoint* pts = &(output.imgends_spacepoint_v.at(isp));
-    //   all_endpoints.push_back( pts );
-    // }
-
-    // // filter spacepoints
-    // std::vector<int> endpoint_passes( all_endpoints.size(), 1 );
-    // endptfilter.removeBoundaryAndFlashDuplicates( all_endpoints, input.img_v, input.gapch_v, endpoint_passes );
-
-    // // remove the filtered end points
-    // std::vector< const larlitecv::BoundarySpacePoint* > filtered_endpoints;
-    // for ( size_t idx=0; idx<endpoint_passes.size(); idx++ ) {
-    //   if ( endpoint_passes.at(idx)==1 ) {
-    //     filtered_endpoints.push_back( all_endpoints.at(idx) );
-    //   }
-    // }
-
-    // // make track clusters
-    // std::vector<int> used_filtered_endpoints( filtered_endpoints.size(), 0 );
-    // if ( m_config.run_thrumu_tracker ) {
-    //   timer = std::clock();
-    //   thrumu_tracker.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
-    //   m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
-    // }
-
-    // // collect unused endpoints
-    // for ( size_t isp=0; isp<filtered_endpoints.size(); isp++ ) {
-    //   if ( used_filtered_endpoints.at(isp)==1 )
-    //     output.used_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
-    //   else
-    //     output.unused_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
-    // }
-
-    // // copy track and pixels into separate containers.
-    // for ( auto const& bmtrack : output.trackcluster3d_v ) {
-    //   output.track_v.push_back( bmtrack.makeTrack() );
-    //   std::vector< larcv::Pixel2DCluster > cluster_v;
-    //   for ( auto const& track2d : bmtrack.plane_pixels )
-    //     cluster_v.push_back( track2d );
-    //   output.pixelcluster_v.emplace_back( std::move(cluster_v) );
-    // }
-
     runBoundaryTagger( input, output );
     runThruMuTracker( input, output);
-    
+
     std::cout << "End of ThruMu Algo" << std::endl;
 
     // return stage output
@@ -213,26 +104,11 @@ namespace larlitecv {
     std::cout << "  Image Ends: " << output.imgends_spacepoint_v.size() << std::endl;
     m_time_tracker[kThruMuFlash] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
-    return;
-  }
+    // run end point filters
 
-  void TaggerCROIAlgo::runThruMuTracker( const InputPayload& input, ThruMuPayload& output ) {
-
-    // configure different stages of the Thrumu Tagger
-    std::clock_t timer = std::clock();
-
-    // (1) end point filter
-    larlitecv::EndPointFilter endptfilter;
-
-    // (2) thrumu tracker
-    larlitecv::ThruMuTracker thrumu_tracker( m_config.thrumu_tracker_cfg );
-
-    m_time_tracker[kThruMuConfig] = ( std::clock()-timer )/(double)CLOCKS_PER_SEC;
-
-    // RUN THE THRUMU ALGOS
-
-    // run side tagger
-    timer = std::clock();
+    larlitecv::RadialEndpointFilter radialfilter;  // remove end points that cannot form a 3d segment nearby
+    larlitecv::PushBoundarySpacePoint endptpusher; // remove endpt
+    larlitecv::EndPointFilter endptfilter; // removes duplicates
 
     // we collect pointers to all the end points
     std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
@@ -254,29 +130,162 @@ namespace larlitecv {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_spacepoint_v.at(isp));
       all_endpoints.push_back( pts );
     }
-    std::cout << "number of endpoints to search for thrumu: " << all_endpoints.size() << std::endl;
+    std::cout << "number of endpoints pre-filters: " << all_endpoints.size() << std::endl;
 
-    // filter spacepoints
-    std::vector<int> endpoint_passes( all_endpoints.size(), 1 );
-    endptfilter.removeBoundaryAndFlashDuplicates( all_endpoints, input.img_v, input.gapch_v, endpoint_passes );
+    // first filter: radialfilter
+    std::vector< const larlitecv::BoundarySpacePoint* > pass_radial_filter;
+    for ( auto const& psp : all_endpoints ) {
+      bool forms_segment = radialfilter.canFormSegment( (*psp).pos(), input.img_v, input.badch_v, 5.0, m_config.thrumu_tracker_cfg.pixel_threshold, 1, 2, 0.5, false ); // need parameters here
+      if ( forms_segment )
+        pass_radial_filter.push_back( psp );
+    }
+    std::cout << "number of endpoints post-radial filter: " << pass_radial_filter.size() << std::endl;
+
+    // then we push the end points out
+    std::vector< larlitecv::BoundarySpacePoint > pushed_endpoints;
+    for ( auto const& psp : pass_radial_filter ) {
+      const larlitecv::BoundarySpacePoint& sp = (*psp);
+      if ( psp==NULL || sp.size()!=3 ) {
+        std::stringstream ss;
+        ss << "pass_radial_filter end point not well-formed. size=" << sp.size() << std::endl;
+        throw std::runtime_error(ss.str());
+      }
+      larlitecv::BoundarySpacePoint pushed = endptpusher.pushPoint( sp, input.img_v, input.badch_v );
+      if ( pushed.size()!=3 || pushed.pos().size()!=3 ) {
+        std::stringstream ss;
+        ss << "output of pushPoint not well-formed. size=" << pushed.size() << std::endl;
+        throw std::runtime_error(ss.str());
+      }
+      // we keep if the pushed end point is closer to the boundary in question
+      bool closer2wall = false;
+      if (sp.type()==0 && sp.pos()[1]<pushed.pos()[1])
+        closer2wall=true;
+      else if (sp.type()==1 && sp.pos()[1]>pushed.pos()[1] )
+        closer2wall=true;
+      else if (sp.type()==2 && sp.pos()[2]>pushed.pos()[2] )
+        closer2wall=true;
+      else if (sp.type()==3 && sp.pos()[2]<pushed.pos()[2])
+        closer2wall=true;
+      else if (sp.type()==4 && sp.pos()[0]>pushed.pos()[0])
+        closer2wall=true;
+      else if (sp.type()==5 && sp.pos()[0]<pushed.pos()[0])
+        closer2wall=true;
+      else if (sp.type()==6 && sp.pos()[0]<=0 && sp.pos()[0]>pushed.pos()[0])
+        closer2wall=true;
+      else if (sp.type()==6 && sp.pos()[0]>0 && sp.pos()[0]<pushed.pos()[0])
+        closer2wall=true;
+
+      std::cout << "Pushed type=" << sp.type()
+                << " (" << sp.pos()[0] << "," << sp.pos()[1] << "," << sp.pos()[2] << ") -> "
+                << " (" << pushed.pos()[0] << "," << pushed.pos()[1] << "," << pushed.pos()[2] << ")"
+                << " closer2wall=" << closer2wall << std::endl;
+
+      if ( closer2wall  )
+        pushed_endpoints.push_back( pushed );
+      else
+        pushed_endpoints.push_back( sp );
+    }
+
+    std::vector< const larlitecv::BoundarySpacePoint* > pushed_ptr_endpoints;
+    for ( auto const& sp : pushed_endpoints ) {
+      pushed_ptr_endpoints.push_back( &sp );
+    }
+
+    // debug
+    int itest=0;
+    for ( auto const& psp : pushed_ptr_endpoints ) {
+      if ( pushed_endpoints.at(itest).size()!=3 ) {
+        std::stringstream ss;
+        ss << __FILE__ << ":" << __LINE__
+            << " stored push-point not well-formed. size=" << pushed_endpoints.at(itest).size() << " idx=" << itest << std::endl;
+        throw std::runtime_error(ss.str());
+      }
+      if ( psp==NULL || psp->size()!=3 ) {
+        std::stringstream ss;
+        ss << __FILE__ << ":" << __LINE__
+            << " stored push-point ptr not well-formed. psp=" << psp << " size=" << psp->size() << " idx=" << itest << std::endl;
+        throw std::runtime_error(ss.str());
+      }
+      itest++;
+    }
+
+    // remove
+    std::vector<int> endpoint_passes( pushed_ptr_endpoints.size(), 1 );
+    endptfilter.removeBoundaryAndFlashDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
+    endptfilter.removeSameBoundaryDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
 
     // remove the filtered end points
-    std::vector< const larlitecv::BoundarySpacePoint* > filtered_endpoints;
     for ( size_t idx=0; idx<endpoint_passes.size(); idx++ ) {
+      larlitecv::BoundarySpacePoint& sp = pushed_endpoints[idx];
+
       if ( endpoint_passes.at(idx)==1 ) {
-        filtered_endpoints.push_back( all_endpoints.at(idx) );
+        if (sp.type()<=larlitecv::kDownstream ) {
+          output.side_filtered_v.emplace_back( std::move(sp) );
+        }
+        else if (sp.type()==larlitecv::kAnode) {
+          output.anode_filtered_v.emplace_back( std::move(sp) );
+        }
+        else if (sp.type()==larlitecv::kCathode) {
+          output.cathode_filtered_v.emplace_back( std::move(sp) );
+        }
+        else if (sp.type()==larlitecv::kImageEnd) {
+          output.imgends_filtered_v.emplace_back( std::move(sp) );
+        }
+        else {
+          throw std::runtime_error("TaggerCROIAlgo::RunThruMu : unrecognize type number");
+        }
       }
     }
 
+    return;
+  }
+
+  void TaggerCROIAlgo::runThruMuTracker( const InputPayload& input, ThruMuPayload& output ) {
+
+    // configure different stages of the Thrumu Tagger
+    std::clock_t timer = std::clock();
+
+    // thrumu tracker
+    larlitecv::ThruMuTracker thrumu_tracker( m_config.thrumu_tracker_cfg );
+
+    m_time_tracker[kThruMuConfig] = ( std::clock()-timer )/(double)CLOCKS_PER_SEC;
+
+    // RUN THE THRUMU ALGOS
+
+    // run side tagger
+    timer = std::clock();
+
+    // we collect pointers to all the end points
+    std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
+
+    // gather endpoints from space points
+    for (int isp=0; isp<(int)output.side_filtered_v.size(); isp++) {
+      const larlitecv::BoundarySpacePoint* pts = &(output.side_filtered_v.at( isp ));
+      all_endpoints.push_back( pts );
+    }
+    for (int isp=0; isp<(int)output.anode_filtered_v.size(); isp++) {
+      const larlitecv::BoundarySpacePoint* pts = &(output.anode_filtered_v.at(isp));
+      all_endpoints.push_back( pts );
+    }
+    for (int isp=0; isp<(int)output.cathode_filtered_v.size(); isp++) {
+      const larlitecv::BoundarySpacePoint* pts = &(output.cathode_filtered_v.at(isp));
+      all_endpoints.push_back( pts );
+    }
+    for (int isp=0; isp<(int)output.imgends_filtered_v.size(); isp++) {
+      const larlitecv::BoundarySpacePoint* pts = &(output.imgends_filtered_v.at(isp));
+      all_endpoints.push_back( pts );
+    }
+    std::cout << "number of endpoints to search for thrumu: " << all_endpoints.size() << std::endl;
+
     // make track clusters
-    std::vector<int> used_filtered_endpoints( filtered_endpoints.size(), 0 );
+    std::vector<int> used_endpoints( all_endpoints.size(), 0 );
     if ( m_config.run_thrumu_tracker ) {
       timer = std::clock();
       output.trackcluster3d_v.clear();
       output.tagged_v.clear();
-      thrumu_tracker.makeTrackClusters3D( input.img_v, input.gapch_v, filtered_endpoints, output.trackcluster3d_v, output.tagged_v, used_filtered_endpoints );
+      thrumu_tracker.makeTrackClusters3D( input.img_v, input.gapch_v, all_endpoints, output.trackcluster3d_v, output.tagged_v, used_endpoints );
       m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
-      std::cout << "thrumu tracker search " << filtered_endpoints.size() << " end points in " << m_time_tracker[kThruMuTracker] << " sec" << std::endl;
+      std::cout << "thrumu tracker search " << all_endpoints.size() << " end points in " << m_time_tracker[kThruMuTracker] << " sec" << std::endl;
     }
     else {
       std::cout << "config tells us to skip thrumu track." << std::endl;
@@ -284,12 +293,12 @@ namespace larlitecv {
 
     // collect unused endpoints
     output.used_spacepoint_v.clear();
-    output.unused_spacepoint_v.clear();    
-    for ( size_t isp=0; isp<filtered_endpoints.size(); isp++ ) {
-      if ( used_filtered_endpoints.at(isp)==1 )
-        output.used_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
+    output.unused_spacepoint_v.clear();
+    for ( size_t isp=0; isp<all_endpoints.size(); isp++ ) {
+      if ( used_endpoints.at(isp)==1 )
+        output.used_spacepoint_v.push_back( *(all_endpoints.at(isp)) );
       else
-        output.unused_spacepoint_v.push_back( *(filtered_endpoints.at(isp)) );
+        output.unused_spacepoint_v.push_back( *(all_endpoints.at(isp)) );
     }
 
     // copy track and pixels into separate containers.
@@ -302,7 +311,7 @@ namespace larlitecv {
         cluster_v.push_back( track2d );
       output.pixelcluster_v.emplace_back( std::move(cluster_v) );
     }
-    
+
   }
 
   StopMuPayload TaggerCROIAlgo::runStopMu( const InputPayload& input, const ThruMuPayload& thrumu ) {
@@ -314,7 +323,7 @@ namespace larlitecv {
     larlitecv::StopMuFilterSpacePoints stopmu_filterpts( m_config.stopmu_filterpts_cfg );
     larlitecv::StopMuCluster           stopmu_cluster( m_config.stopmu_cluster_cfg );
     larlitecv::StopMuFoxTrot           stopmu_foxtrot( m_config.stopmu_foxtrot_cfg );
-    
+
     if ( m_config.stopmu_cluster_cfg.save_pass_images || m_config.stopmu_cluster_cfg.dump_tagged_images  ) {
       std::stringstream ss;
       ss << "smc_r" << input.run << "_s" << input.subrun << "_e" << input.event << "_i" << input.entry;
@@ -355,7 +364,7 @@ namespace larlitecv {
     std::cout << "  Number of candidate stop-mu start points: " << output.stopmu_candidate_endpt_v.size() << std::endl;
 
     std::clock_t timer = std::clock();
-    //output.stopmu_trackcluster_v = stopmu_cluster.findStopMuTracks( input.img_v, input.gapch_v, thrumu.tagged_v, output.stopmu_candidate_endpt_v );    
+    //output.stopmu_trackcluster_v = stopmu_cluster.findStopMuTracks( input.img_v, input.gapch_v, thrumu.tagged_v, output.stopmu_candidate_endpt_v );
     output.stopmu_trackcluster_v = stopmu_foxtrot.findStopMuTracks( input.img_v, input.gapch_v, thrumu.tagged_v, thrumu.unused_spacepoint_v );
     m_time_tracker[kStopMuTracker] = ( std::clock()-timer )/(double)CLOCKS_PER_SEC;
     std::cout << "  Number of candidate StopMu tracks: " << output.stopmu_trackcluster_v.size() << std::endl;
@@ -405,7 +414,12 @@ namespace larlitecv {
     Track3DRecluster         reclusteralgo;
     T3DPCMerge               pcamergealgo;
 
+    std::clock_t timer;
+
     if ( m_config.recluster_stop_and_thru ) {
+
+      timer = std::clock();
+
       // we recluster tracks
       for ( auto const& llthrumu : thrumu.track_v ) {
 	int npts = llthrumu.NumberTrajectoryPoints();
@@ -443,16 +457,16 @@ namespace larlitecv {
       }
 
       for ( auto& t3dtrack : output.stopthru_reclustered_v ) {
-	
+
 	std::vector< larcv::Pixel2DCluster > pixel_v = t3dtrack.getPixelsFromImages( input.img_v, input.gapch_v,
 										     m_config.thrumu_tracker_cfg.pixel_threshold,
 										     m_config.thrumu_tracker_cfg.tag_neighborhood, 0.3 );
 	for (size_t p=0; p<pixel_v.size(); p++) {
 	  larcv::Image2D& tagged = output.tagged_v[p];
-	  larcv::Image2D& sub    = output.subimg_v[p];	  
+	  larcv::Image2D& sub    = output.subimg_v[p];
 	  for ( auto const& pix : pixel_v[p] ) {
 	    tagged.set_pixel(pix.Y(),pix.X(),255);
-	    
+
 	    // subtraction image: below threshold and tagged pixels get zeroed (for clustering)
 	    if ( sub.pixel(pix.Y(),pix.X())<m_config.thrumu_tracker_cfg.pixel_threshold[p] )
 	      sub.set_pixel(pix.Y(),pix.X(),0.0);
@@ -461,9 +475,13 @@ namespace larlitecv {
 
 	output.stopthru_reclustered_pixels_v.emplace_back( std::move(pixel_v) );
       }// loop over treclustered tracks
+
+      m_time_tracker[kRecluster] = (std::clock()-timer)/(double)CLOCKS_PER_SEC;
     }
     else {
-      
+
+      m_time_tracker[kRecluster] = 0.0; // not run
+
       // Make Thrumu/StopMu tagged and subtracted images
       //std::vector< larcv::Image2D > tagged_v;
       //std::vector< larcv::Image2D > subimg_v;
@@ -471,13 +489,13 @@ namespace larlitecv {
 	larcv::Image2D tagged( input.img_v.at(p).meta() );
 	tagged.paint(0.0);
 	larcv::Image2D sub( input.img_v.at(p) );
-	
+
 	for ( size_t r=0; r<tagged.meta().rows(); r++ ) {
 	  for ( size_t c=0; c<tagged.meta().cols(); c++ ) {
 	    // tagged image
 	    if ( thrumu.tagged_v.at(p).pixel(r,c)>0 || stopmu.stopmu_v.at(p).pixel(r,c)>0 )
 	      tagged.set_pixel(r,c,255);
-	    
+
 	    // subtraction image: below threshold and tagged pixels get zeroed (for clustering)
 	    if ( sub.pixel(r,c)<10.0 || thrumu.tagged_v.at(p).pixel(r,c)>0 || stopmu.stopmu_v.at(p).pixel(r,c)>0 )
 	      sub.set_pixel(r,c,0.0);
@@ -487,14 +505,18 @@ namespace larlitecv {
 	output.subimg_v.emplace_back( std::move(sub) );
       }
     }//end of prep when NOT reclustering stop/mu
-    
+
     // ----------------------
     //  RUN ALGOS
-    
+
+    timer = std::clock();
+
     output.plane_groups_v = clusteralgo.MakeClusterGroups( input.img_v, input.gapch_v, output.tagged_v );
-    //output.plane_groups_v = clusteralgo.MakeClusterGroups( output.subimg_v, input.gapch_v, output.tagged_v );    
-    
+    //output.plane_groups_v = clusteralgo.MakeClusterGroups( output.subimg_v, input.gapch_v, output.tagged_v );
+
     output.vols_v = matchingalgo.MatchClusterGroups( output.subimg_v, output.plane_groups_v );
+
+    m_time_tracker[kUntagged] = (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // ------------------------------------------------------------------
     // WE COLLECT OUR CLUSTER DATA, forming TaggerFlashMatchData objects
@@ -530,7 +552,8 @@ namespace larlitecv {
 
     // ------------------------------------------------------------------
     // FIND CONTAINED CLUSTERS
-    
+    timer = std::clock();
+
     // Find Contained Clusters
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
     std::vector<larlitecv::TaggerFlashMatchData> contained_tracks_v;
@@ -620,10 +643,13 @@ namespace larlitecv {
       contained_tracks_v.emplace_back( std::move(contained_cluster) );
     }// end of vol loop
 
+    m_time_tracker[kUntagged] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // --------------------------------------------------------------------//
     // RECLUSTER CONTAINED TRACKS
-    
+
+    timer = std::clock();
+
     reclusteralgo.clear();
     for ( auto const& contained : contained_tracks_v ) {
       // convert larlite into T3DCluster (avoiding this copy can come later)
@@ -639,10 +665,12 @@ namespace larlitecv {
     std::vector< T3DCluster > reclustered_contained = reclusteralgo.recluster();
     std::cout << "Reclustered Contained Tracks from " << contained_tracks_v.size() << " to " << reclustered_contained.size();
 
+    m_time_tracker[kRecluster] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
+
     // --------------------------------------------------------------------//
     // RECLUSTER CONTAINED + STOP/THRUMU
     reclusteralgo.clear();
-    
+
     for ( auto& t3d : output.stopthru_reclustered_v ) {
       reclusteralgo.addTrack( t3d );
     }
@@ -654,11 +682,15 @@ namespace larlitecv {
     // --------------------------------------------------------------------//
     // PCAMERGE
 
+    timer = std::clock();
+
     std::vector< T3DCluster > pcmerged_v = pcamergealgo.merge( reclustered_alltracks_v );
+
+    m_time_tracker[kPCAmerge] = (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // --------------------------------------------------------------------//
     // CONVERT TRACKS TO TAGGERFLASHMATCH DATA AND REASSOCIATE THEM TO FLASHES
-    
+
     for (int itrack=0; itrack<(int)pcmerged_v.size(); itrack++) {
       T3DCluster& t3d = pcmerged_v[itrack];
       if ( t3d.getPath().size()==0 )
@@ -681,17 +713,19 @@ namespace larlitecv {
 	pcmerged_track.m_type = larlitecv::TaggerFlashMatchData::kStopMu;
       }
       else {
-	pcmerged_track.m_type = larlitecv::TaggerFlashMatchData::kUntagged;	
+	pcmerged_track.m_type = larlitecv::TaggerFlashMatchData::kUntagged;
       }
-      
+
       output.flashdata_v.emplace_back( std::move(pcmerged_track) );
     }
 
     // reassociate flashes
-    larlitecv::MatchTaggerData2Flash( output.flashdata_v, input.opflashes_v, thrumu.anode_spacepoint_v, thrumu.cathode_spacepoint_v, 10.0 );    
-    
+    larlitecv::MatchTaggerData2Flash( output.flashdata_v, input.opflashes_v, thrumu.anode_spacepoint_v, thrumu.cathode_spacepoint_v, 10.0 );
+
     // --------------------------------------------------------------------//
     // SELECT ROIs
+
+    timer = std::clock();
 
     output.flashdata_selected_v.resize( output.flashdata_v.size(), 0 );
     std::vector<larcv::ROI> selected_rois = selectionalgo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, output.flashdata_selected_v );
@@ -712,6 +746,8 @@ namespace larlitecv {
       output.croi_v.emplace_back( std::move(croi) );
     }
 
+    m_time_tracker[kCROI] = (std::clock()-timer)/(double)CLOCKS_PER_SEC;
+
     // -----------------------------------------------------------------------
     // Copy cut results
     if ( m_config.croi_write_cfg.get<bool>("WriteCutResults") ) {
@@ -720,13 +756,13 @@ namespace larlitecv {
       output.min_chi2_v          = selectionalgo.getInTimeChi2Values();
       output.totpe_peratio_v     = selectionalgo.getTotPEratioValues();
       output.cosmicflash_ratio_dchi_v = selectionalgo.getCosmicDeltaChi2Values();
-      
+
       output.flashdata_passes_containment_v = selectionalgo.getContainmentCutResults();
       output.flashdata_passes_cosmicflash_ratio_v = selectionalgo.getCosmicRatioCutResults();
       output.flashdata_passes_flashmatch_v = selectionalgo.getFlashMatchCutResults();
       output.flashdata_passes_totpe_v      = selectionalgo.getTotalPECutResults();
     }
-    
+
 
     // ------------------------------------------------------------------------//
     // Make Combined Tagged Image
@@ -774,7 +810,7 @@ namespace larlitecv {
   }
 
   void TaggerCROIAlgo::printTimeTracker( int num_events ) {
-    const std::string stage_names[] = { "ThruMuConfig", "ThruMuBMT", "ThruMuFlash", "ThruMuTracker", "StopMuTracker", "Untagged", "CROI" };
+    const std::string stage_names[] = { "ThruMuConfig", "ThruMuBMT", "ThruMuFlash", "ThruMuTracker", "StopMuTracker", "Recluster", "Untagged", "PCAmerge", "CROI" };
     float tot_time = 0.;
     std::cout << "---------------------------------------------------------------" << std::endl;
     std::cout << "TaggerCROIAlgoConfig::printTimeTracker" << std::endl;

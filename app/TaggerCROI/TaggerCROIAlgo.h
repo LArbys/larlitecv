@@ -30,7 +30,7 @@ namespace larlitecv {
 
     TaggerCROIAlgoConfig m_config;
     std::vector<float> m_time_tracker;
-    enum Stages_t { kThruMuConfig = 0, kThruMuBMT, kThruMuFlash, kThruMuTracker, kStopMuTracker, kUntagged, kCROI, kNumStages };
+    enum Stages_t { kThruMuConfig = 0, kThruMuBMT, kThruMuFlash, kThruMuTracker, kStopMuTracker, kRecluster, kUntagged, kPCAmerge, kCROI, kNumStages };
 
   };
   

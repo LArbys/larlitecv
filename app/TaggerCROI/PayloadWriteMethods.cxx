@@ -53,21 +53,43 @@ namespace larlitecv {
 
   void WriteThruMuPayload( const ThruMuPayload& data, const InputPayload& input, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
 
-    // side tagger -- real space hits
+    // side tagger -- real space hits (mostly for debugging)
     if ( config.sidetagger_cfg.save_endpt_images ) {
       if ( config.thrumu_write_cfg.get<bool>("WriteRealSpaceHitsImage") ) {
-	larcv::EventImage2D* realspace_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "realspacehits" );
-	for ( auto const& img : data.realspacehit_image_v ) realspace_imgs->Append( img );
+        larcv::EventImage2D* realspace_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "realspacehits" );
+        for ( auto const& img : data.realspacehit_image_v ) realspace_imgs->Append( img );
       }
-      
-      // boundary pixels
+
+      // boundary pixels (mostly for debugging)
       if ( config.thrumu_write_cfg.get<bool>("WriteBoundaryPixelsImage") ) {
-	larcv::EventImage2D* boundarypixels_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "boundarypixels" );
-	for ( auto const& img : data.boundarypixel_image_v ) boundarypixels_imgs->Append( img );
+        larcv::EventImage2D* boundarypixels_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "boundarypixels" );
+        for ( auto const& img : data.boundarypixel_image_v ) boundarypixels_imgs->Append( img );
       }
     }
 
-    // Save All End-Points
+    // Save All pre-filter end points (mostly for debugging)
+    if ( config.thrumu_write_cfg.get<bool>("WritePrefilterBoundaryPoints") ) {
+      larcv::EventPixel2D* ev_prefilter_endpts = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "prefilterpts" );
+      std::vector< const std::vector<BoundarySpacePoint>* > prefiltered_v;
+      prefiltered_v.push_back( &(data.side_spacepoint_v) );
+      prefiltered_v.push_back( &(data.anode_spacepoint_v) );
+      prefiltered_v.push_back( &(data.cathode_spacepoint_v) );
+      prefiltered_v.push_back( &(data.imgends_spacepoint_v) );
+      for ( auto const& plist : prefiltered_v ) {
+        for ( auto const& sp_v : *plist ) {
+          int sptype = (int)sp_v.type();
+          if ( sptype<0 ) continue; // bad endpoint type
+          for (size_t p=0; p<sp_v.size(); p++) {
+            const larlitecv::BoundaryEndPt& sp = sp_v.at(p);
+            larcv::Pixel2D pixel( sp.col, sp.row );
+            pixel.Intensity( sptype ); // using intensity to label pixel
+            ev_prefilter_endpts->Emplace( (larcv::PlaneID_t)p, std::move(pixel) );
+          }
+        }
+      }
+    }
+
+    // Save All (post-filter) End-Points
     if ( config.thrumu_write_cfg.get<bool>("WriteAllBoundaryPoints") ) {
       larcv::EventPixel2D* realspace_endpts[larlitecv::kNumEndTypes];
       realspace_endpts[larlitecv::kTop]        = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "topspacepts" );
@@ -270,13 +292,13 @@ namespace larlitecv {
       larlite::event_track* evout_tracks_mergedstopmu3d = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "mergedstopmu3d" );
       larlite::event_track* evout_tracks_mergedthrumu3d = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "mergedthrumu3d" );
       larlite::event_track* evout_tracks_mergeduntagged = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "mergeduntagged3d" );
-      
+
       for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
         auto const& flashdata = data.flashdata_v.at(itrack);
         if ( flashdata.m_track3d.NumberTrajectoryPoints()==0 )
           continue;
 	evout_tracks_alltracks->push_back( flashdata.m_track3d );
-	
+
 	if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kStopMu )
 	  evout_tracks_mergedstopmu3d->push_back( flashdata.m_track3d );
 	else if ( flashdata.m_type==larlitecv::TaggerFlashMatchData::kThruMu )
@@ -297,18 +319,18 @@ namespace larlitecv {
 	// all
 	for (size_t p=0; p<pixel_v.size(); p++) {
 	  out_pixels_alltracks->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );
-	  
+
 	  if ( flashtrack.m_type==larlitecv::TaggerFlashMatchData::kStopMu )
 	    out_pixels_mergedstopmu3d->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );
 	  else if ( flashtrack.m_type==larlitecv::TaggerFlashMatchData::kThruMu )
 	    out_pixels_mergedthrumu3d->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );
 	  else if ( flashtrack.m_type==larlitecv::TaggerFlashMatchData::kUntagged )
-	    out_pixels_mergeduntagged->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );	    
+	    out_pixels_mergeduntagged->Append( (larcv::PlaneID_t)p, pixel_v[p], inputdata.img_v[p].meta() );
 	}
       }
-      
+
     }
-    
+
     // selected tracks
     if ( config.croi_write_cfg.get<bool>("WriteSelectedTracks")) {
       larlite::event_track* evout_tracks_selected = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "croi3d" );
@@ -344,29 +366,29 @@ namespace larlitecv {
     if ( config.croi_write_cfg.get<bool>("WriteCutResults") ) {
       larlite::event_user* ev_user_info = (larlite::event_user*)dataco.get_larlite_data( larlite::data::kUserInfo, "croicutresults" );
       larlite::user_info cutinfo;
-      
+
       for ( auto const& result : data.flashdata_passes_containment_v )
 	cutinfo.append( "containment", result );
       for ( auto const& fdwall : data.containment_dwall_v )
 	cutinfo.append( "containment_dwall", fdwall );
-      
+
       for ( auto const& result : data.flashdata_passes_flashmatch_v )
 	cutinfo.append( "flashmatch", result );
       for ( auto const& intimechi2 : data.min_chi2_v )
 	cutinfo.append( "flashmatch_intimechi2", intimechi2 );
-	      
+
       for ( auto const& result : data.flashdata_passes_cosmicflash_ratio_v )
 	cutinfo.append( "cosmicratio", result );
       for ( auto const& dchi2 : data.cosmicflash_ratio_dchi_v ) {
 	cutinfo.append( "cosmicratio_dchi2", dchi2 );
       }
-      
+
       for ( auto const& result : data.flashdata_passes_totpe_v )
 	cutinfo.append( "totalpe", result );
       for ( auto const& totpe_ratio : data.totpe_peratio_v ) {
 	cutinfo.append( "totalpe_peratio",totpe_ratio );
       }
-      
+
       ev_user_info->emplace_back( std::move(cutinfo) );
     }
   }
