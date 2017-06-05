@@ -38,6 +38,9 @@ namespace larlitecv {
       m_dir.resize(3,0);
       m_empty=true;
     }; // default with type
+  BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const std::vector<float>& dir, const larcv::ImageMeta& );
+  BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const larcv::ImageMeta& );
+
 
 #ifndef __CINT__
 #ifndef __CLING__

@@ -14,6 +14,28 @@
 
 namespace larlitecv {
 
+  BoundarySpacePoint::BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const std::vector<float>& dir, const larcv::ImageMeta& meta  )
+  {
+    std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( pos, meta, 3 );
+    for (int p=0; p<3; p++)
+      (*this).push_back( BoundaryEndPt(imgcoords[0],imgcoords[p+1],type) );
+    m_pos = pos;
+    m_dir = dir;
+    m_empty = false;
+    boundary_type = type;
+  }
+
+  BoundarySpacePoint::BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const larcv::ImageMeta& meta  )
+  {
+    std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( pos, meta, 3 );
+    for (int p=0; p<3; p++)
+      (*this).push_back( BoundaryEndPt(imgcoords[0],imgcoords[p+1],type) );
+    m_pos = pos;
+    m_dir.resize(3,0);
+    m_empty = false;
+    boundary_type = type;
+  }
+
   float BoundarySpacePoint::dwall() const {
     float dwall = 0.0;
     float dy,dz;
@@ -50,7 +72,7 @@ namespace larlitecv {
       m_dir.resize(3,0);
 
       // warning: unprotected use of meta
-      
+
       float x = (meta.pos_y( front().row )-3200.0)*larutil::LArProperties::GetME()->DriftVelocity()*0.5;
       int crosses;
       std::vector<float> intersection;
