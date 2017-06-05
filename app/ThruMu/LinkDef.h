@@ -37,8 +37,11 @@
 #pragma link C++ class larlitecv::ThruMuFoxTrotLead+;
 #pragma link C++ class larlitecv::ThruMuFoxTrot+;
 
+#pragma link C++ class larlitecv::PushBoundarySpacePoint+;
+#pragma link C++ class larlitecv::ThruMuFoxExtender+;
 //#pragma link C++ class larlitecv::BezierCurve+;
-
+//#pragma link C++ class larlitecv::ThruMuSCEFitter+;
+//#pragma link C++ class larlitecv::FCNThruMuSCE+;
 
 //ADD_NEW_CLASS ... do not change this line
 #endif

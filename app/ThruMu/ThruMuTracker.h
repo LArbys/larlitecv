@@ -1,6 +1,15 @@
 #ifndef __THRUMU_TRACKER__
 #define __THRUMU_TRACKER__
 
+/* ====================================================
+ *  ThruMuTracker
+ *
+ *  We use a number of different tracking
+ *  algorithms to solve the thrumu-problem.
+ *
+ *
+ * ==================================================== */
+
 // stdlib
 #include <vector>
 
@@ -54,10 +63,17 @@ namespace larlitecv {
       float frac_bad;
       AStarTaggerInfo() {
         isgood = false;
-	goal_reached = false;
-	nbad_nodes = -1;
-	total_nodes = -1;
-	frac_bad = 0.;
+        goal_reached = false;
+        nbad_nodes = -1;
+        total_nodes = -1;
+        frac_bad = 0.;
+      };
+    };
+
+    struct FoxTrotExtenderInfo {
+      bool isgood;
+      FoxTrotExtenderInfo() {
+        isgood = false;  //< extended back
       };
     };
 
@@ -76,12 +92,16 @@ namespace larlitecv {
                    const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
                    AStarTaggerInfo& result_info );
 
+    void runFoxTrotExtender( const ThruMuTrackerConfig::ThruMuPassConfig& pass_cfg, std::vector<std::vector<double> >& track,
+                  const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+                  ThruMuTracker::FoxTrotExtenderInfo& result_info );
+
 
     // for astar, compressed image containers
     std::vector< larcv::Image2D > m_img_compressed_v;
     std::vector< larcv::Image2D > m_badch_compressed_v;
-    
-    
+
+
   };
 
 }

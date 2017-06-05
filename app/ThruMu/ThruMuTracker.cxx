@@ -3,6 +3,7 @@
 #include "RadialEndpointFilter.h"
 #include "AStar3DAlgo.h"
 #include "AStarNodes2BMTrackCluster3D.h"
+#include "ThruMuFoxExtender.h"
 
 namespace larlitecv {
 
@@ -33,12 +34,16 @@ namespace larlitecv {
     // compress image for astar. store in member class. we'll use these again in runAStarTagger
     m_img_compressed_v.clear();
     m_badch_compressed_v.clear();
-    int downsampling_factor = 4;
+    int downsampling_factor = m_config.downsampling_factor;
     for (size_t p=0; p<img_v.size(); p++) {
       larcv::Image2D img_compressed( img_v[p] );
       larcv::Image2D badch_compressed( badchimg_v[p] );
-      img_compressed.compress( img_v[p].meta().rows()/downsampling_factor, img_v[p].meta().cols()/downsampling_factor );
-      badch_compressed.compress( img_v[p].meta().rows()/downsampling_factor, img_v[p].meta().cols()/downsampling_factor );
+      img_compressed.compress( img_v[p].meta().rows()/downsampling_factor,
+                                img_v[p].meta().cols()/downsampling_factor,
+                                (larcv::Image2D::CompressionModes_t)m_config.compression_mode );
+      badch_compressed.compress( img_v[p].meta().rows()/downsampling_factor,
+                                img_v[p].meta().cols()/downsampling_factor,
+                                (larcv::Image2D::CompressionModes_t)m_config.compression_mode );
       m_img_compressed_v.emplace_back( std::move(img_compressed) );
       m_badch_compressed_v.emplace_back( std::move(badch_compressed) );
     }
@@ -99,10 +104,10 @@ namespace larlitecv {
 
     if ( m_config.verbosity>0 ) {
       std::cout << "Run Pass #" << passid << ": "
-		<< " radialfilter=" << passcfg.run_radial_filter
-		<< " linear=" << passcfg.run_linear_tagger
-		<< " astar=" << passcfg.run_astar_tagger
-		<< std::endl;
+		            << " radialfilter=" << passcfg.run_radial_filter
+		            << " linear=" << passcfg.run_linear_tagger
+		            << " astar=" << passcfg.run_astar_tagger
+		            << std::endl;
     }
 
     const int nendpts = (int)spacepts.size();
@@ -124,10 +129,10 @@ namespace larlitecv {
         bool pass_num_segs =  passcfg.radial_cfg.min_segments<=num_segs_a && passcfg.radial_cfg.max_segments>=num_segs_a;
         if ( m_config.verbosity> 1 ) {
           std::cout << "Endpoint #" << i << ": "
-        	    << " " << pts_a.printImageCoords( img_v.front().meta() ) << " "
-        	    << " within_line=" << within_line_a << " num_segs=" << num_segs_a << " pass_num_segs=" << pass_num_segs
-        	    << " run=" << (!within_line_a && pass_num_segs)
-        	    << std::endl;
+                                    << " " << pts_a.printImageCoords( img_v.front().meta() ) << " "
+                                    << " within_line=" << within_line_a << " num_segs=" << num_segs_a << " pass_num_segs=" << pass_num_segs
+                                    << " run=" << (!within_line_a && pass_num_segs)
+                                    << std::endl;
         }
 
         if ( !within_line_a &&  pass_num_segs )
@@ -136,25 +141,36 @@ namespace larlitecv {
           use_a = false;
       }
 
-      if ( !use_a )
+      if ( !use_a ) {
+        if ( m_config.verbosity>1 ) {
+          std::cout << "[ Pass " << passid << " (" << i << ", X). Skip #" << i << " ]" << std::endl;
+        }
         continue;
+      }
 
       for (int j=i+1; j<nendpts; j++) {
         if ( used_endpoints_indices.at(j)==1) continue;
         const BoundarySpacePoint& pts_b = *(spacepts[j]);
 
-        if ( pts_a.type()==pts_b.type() ) continue; // don't connect same type
+        if ( pts_a.type()==pts_b.type() ) {
+          if ( m_config.verbosity>1 )
+            std::cout << "[ Pass " << passid << ":  endpoints (" << i << "," << j << ") skip same type ]" << std::endl;
+          continue; // don't connect same type
+        }
 
 
-	float a2b = 0.;
-	for (int v=0; v<3; v++) {
-	  a2b += (pts_a.pos()[v]-pts_b.pos()[v])*(pts_a.pos()[v]-pts_b.pos()[v]);
-	}
-	a2b = sqrt(a2b);
+        float a2b = 0.;
+        for (int v=0; v<3; v++) {
+          a2b += (pts_a.pos()[v]-pts_b.pos()[v])*(pts_a.pos()[v]-pts_b.pos()[v]);
+        }
+        a2b = sqrt(a2b);
 
-	if ( a2b<passcfg.min_point_separation )
-	  continue;
-	
+        if ( a2b<passcfg.min_point_separation ) {
+          if ( m_config.verbosity>1 )
+            std::cout << "[ Pass " << passid << ":  endpoints (" << i << "," << j << ") below min separation. ]" << std::endl;
+          continue;
+        }
+
         bool use_b = true;
         if ( passcfg.run_radial_filter ) {
           int num_segs_b = 0;
@@ -165,8 +181,12 @@ namespace larlitecv {
           else
             use_b = false;
         }
-        if (!use_b)
+        if (!use_b) {
+          if ( m_config.verbosity>1 ) {
+            std::cout << "[ Pass " << passid << " (" << i << "," << j << "). Skip #" << j << " ]" << std::endl;
+          }
           continue;
+        }
 
         if ( m_config.verbosity>1 ) {
           std::cout << "[ Pass " << passid << ": path-finding for endpoints (" << i << "," << j << ") "
@@ -180,6 +200,7 @@ namespace larlitecv {
         BMTrackCluster3D track3d;
         LinearTaggerInfo linear_result;
         AStarTaggerInfo astar_result;
+        FoxTrotExtenderInfo extender_result;
         bool tracked = false;
 
         // first run the linear charge tagger, if so chosen
@@ -193,7 +214,7 @@ namespace larlitecv {
             std::cout << "  majority planes w/ charge fraction: " << linear_result.majfrac << std::endl;
           }
           if ( linear_result.isgood ) {
-            if ( m_config.verbosity>1 ) std::cout << "  Result is good. length=" << linear_track.path3d.size() << std::endl;
+            if ( m_config.verbosity>1 ) std::cout << "####  Result is good. length=" << linear_track.path3d.size() << " ####" << std::endl;
             std::swap(track3d,linear_track);
           }
           else {
@@ -225,8 +246,12 @@ namespace larlitecv {
 
         // could add criteria to filter here
 
-        if ( (linear_result.isgood || astar_result.isgood) && m_config.verbosity>1 )
-          std::cout << "  track found. length: " << track3d.path3d.size() << " empty=" << track3d.isempty() << std::endl;
+        if ( (linear_result.isgood || astar_result.isgood) ) {
+          if ( m_config.verbosity>1 )
+            std::cout << "  track found. length: " << track3d.path3d.size() << " empty=" << track3d.isempty() << std::endl;
+          // extend the good track
+          runFoxTrotExtender( passcfg, track3d.path3d, img_v, badchimg_v, tagged_v, extender_result);
+        }
 
         if ( !track3d.isempty() ) {
           std::vector<int> indices(2);
@@ -241,10 +266,10 @@ namespace larlitecv {
 
     if ( m_config.verbosity>0 ) {
       std::cout << "Pass #" << passid << ": "
-		<< " number of pairs tracked: " << num_tracked
-		<< " number of tracks passed: " << pass_track_candidates.size()
-		<< " number of indice pairs: " << pass_end_indices.size()
-		<< std::endl;
+                << " number of pairs tracked: " << num_tracked
+                << " number of tracks passed: " << pass_track_candidates.size()
+                << " number of indice pairs: " << pass_end_indices.size()
+                << std::endl;
     }
 
 
@@ -256,6 +281,8 @@ namespace larlitecv {
       used_endpoints_indices.at(indices[0]) = 1;
       used_endpoints_indices.at(indices[1]) = 1;
     }
+
+    return;
   }
 
 
@@ -280,7 +307,7 @@ namespace larlitecv {
     result_info.goodfrac = straight_track.fractionGood();
     result_info.majfrac  = straight_track.fractionHasChargeOnMajorityOfPlanes();
     if ( result_info.numpts   > pass_cfg.linear3d_min_tracksize
-	 && (result_info.goodfrac > pass_cfg.linear3d_min_goodfraction
+      && (result_info.goodfrac > pass_cfg.linear3d_min_goodfraction
 	     || result_info.majfrac  > pass_cfg.linear3d_min_majoritychargefraction) ) {
       result_info.isgood = true;
     }
@@ -347,6 +374,7 @@ namespace larlitecv {
     try {
       path = algo.findpath( m_img_compressed_v, m_badch_compressed_v, m_badch_compressed_v, // tagged_compressed_v
 			    start_rows.front(), goal_rows.front(), start_cols, goal_cols, goalhit );
+
       if ( goalhit==1 )
         result_info.goal_reached = true;
     }
@@ -358,8 +386,8 @@ namespace larlitecv {
       std::vector< std::vector<double> > empty_path3d;
       BMTrackCluster3D track3d( pts_a, pts_b, empty_path3d );
       for (int p=0; p<3; p++ ) {
-	delete start_pix.at(p);
-	delete goal_pix.at(p);
+        delete start_pix.at(p);
+        delete goal_pix.at(p);
       }
       return track3d; // return empty track
     }
@@ -385,6 +413,25 @@ namespace larlitecv {
     }
 
     return track3d;
+  }
+
+  void ThruMuTracker::runFoxTrotExtender( const ThruMuTrackerConfig::ThruMuPassConfig& pass_cfg, std::vector<std::vector<double> >& track,
+                  const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+                  ThruMuTracker::FoxTrotExtenderInfo& result_info ) {
+    // try to extend the track.
+    // make sure we don't go backwards
+
+    if ( !pass_cfg.run_foxtrot_extender || track.size()<2 ) {
+      result_info.isgood = false;
+      return;
+    }
+
+    ThruMuFoxExtender extender_algo( pass_cfg.foxextend_cfg );
+
+    // need a forward and backward extension
+    result_info.isgood  = extender_algo.extendTrack( track, img_v, badch_v, tagged_v );
+
+    return;
   }
 
 
