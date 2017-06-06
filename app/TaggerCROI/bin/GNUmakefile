@@ -1,6 +1,7 @@
 # Include your header file location
 CXXFLAGS += -I. $(shell root-config --cflags)
 
+CXXFLAGS += -I$(LARLITE_BASEDIR)/../
 CXXFLAGS += $(shell larlite-config --includes)
 CXXFLAGS += $(shell larlite-config --includes)/../UserDev
 CXXFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool
