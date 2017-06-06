@@ -15,6 +15,7 @@ namespace larlitecv {
   {
     run_thrumu_tracker = true;
     recluster_stop_and_thru = true;
+    verbosity = 0;
   }
 
   TaggerCROIAlgoConfig TaggerCROIAlgoConfig::makeConfigFromFile( std::string filepath ) {
@@ -28,7 +29,7 @@ namespace larlitecv {
     larcv::PSet thrumu_tracker_pset = tagger_pset.get<larcv::PSet>("ThruMuTracker");
     larcv::PSet stopmu_filter_pset  = tagger_pset.get<larcv::PSet>("StopMuSpacePointsFilter");
     larcv::PSet stopmu_cluster_pset = tagger_pset.get<larcv::PSet>("StopMuCluster");
-    larcv::PSet stopmu_foxtrot_pset = tagger_pset.get<larcv::PSet>("StopMuFoxTrot");    
+    larcv::PSet stopmu_foxtrot_pset = tagger_pset.get<larcv::PSet>("StopMuFoxTrot");
     larcv::PSet untagged_cluster_ps = tagger_pset.get<larcv::PSet>("ContainedGroupAlgo");
     larcv::PSet untagged_match_pset = tagger_pset.get<larcv::PSet>("TaggerFlashMatchAlgo");
 
@@ -49,6 +50,7 @@ namespace larlitecv {
     // run controls
     cfg.run_thrumu_tracker      = tagger_pset.get<bool>("RunThruMuTracker",true);
     cfg.recluster_stop_and_thru = tagger_pset.get<bool>("ReclusterStopAndThruMu",true);
+    cfg.verbosity               = tagger_pset.get<int>("Verbosity");
 
     return cfg;
   }

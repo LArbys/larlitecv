@@ -35,6 +35,7 @@ namespace larlitecv {
     larcv::PSet stopmu_write_cfg;
     larcv::PSet croi_write_cfg;
 
+    int verbosity;
     bool run_thrumu_tracker;
     bool recluster_stop_and_thru;
 
