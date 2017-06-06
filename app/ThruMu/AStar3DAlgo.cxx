@@ -14,18 +14,19 @@ namespace larlitecv {
 
   std::vector<AStar3DNode> AStar3DAlgo::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
     const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached  ) {
-    
+
     const larcv::ImageMeta& meta = img_v.front().meta();
+    goal_reached = 0;
 
     if ( verbose>0 )
       std::cout << "[[ASTAR 3D ALGO START]]" << std::endl;
 
     // turn image pixel coordinates into a 3D start and goal point
     std::vector<int> start_wids(start_cols.size());
-    std::vector<int> goal_wids(goal_cols.size());    
+    std::vector<int> goal_wids(goal_cols.size());
     for (size_t p=0; p<goal_cols.size(); p++) {
       start_wids[p] = img_v.at(p).meta().pos_x( start_cols[p] );
-      goal_wids[p]  = img_v.at(p).meta().pos_x( goal_cols[p] );      
+      goal_wids[p]  = img_v.at(p).meta().pos_x( goal_cols[p] );
     }
     double start_tri = 0.;
     int start_crosses = 0;
@@ -47,7 +48,7 @@ namespace larlitecv {
     goalpos[1] = poszy_goal[1];
     goalpos[2] = poszy_goal[0];
 
-    //if ( start_tri>5 || goal_tri>5 ) {      
+    //if ( start_tri>5 || goal_tri>5 ) {
     //  std::cout << "start wires provided (" << start_wids[0] << "," << start_wids[1] << "," << start_wids[1] << ") tri=" << start_tri << std::endl;
     //  std::cout << "goal wires provided (" << goal_wids[0] << "," << goal_wids[1] << "," << goal_wids[1] << ") tri=" << goal_tri << std::endl;
     //  throw std::runtime_error("AStar3DAlgo::findpath[error] start or goal point not a good 3D space point.");
@@ -64,7 +65,7 @@ namespace larlitecv {
     cm_per_pixel[2] = cm_per_col;
 
     // we set t0 to be 0 on the lattice
-    float tick0 = ( meta.pos_y(start_row) < meta.pos_y(goal_row) ) ? meta.pos_y(start_row) : meta.pos_y(goal_row); 
+    float tick0 = ( meta.pos_y(start_row) < meta.pos_y(goal_row) ) ? meta.pos_y(start_row) : meta.pos_y(goal_row);
     float y0    = ( startpos[1] < goalpos[1] )  ? startpos[1] : goalpos[1];
     float z0    = ( startpos[2] < goalpos[2] )  ? startpos[2] : goalpos[2];
 
@@ -133,14 +134,14 @@ namespace larlitecv {
     AStar3DNode* start = lattice.getNode( startpos );
     if ( start==nullptr) {
       A3DPixPos_t startnode = lattice.getNodePos( startpos );
-      if ( verbose>0 )      
+      if ( verbose>0 )
         std::cout << "start=(" << startpos[0] << "," << startpos[1] << "," << startpos[2] << ") "
                   << "node->(" << startnode[0] << "," << startnode[1] << "," << startnode[2] << ")" << std::endl;
       throw std::runtime_error("Was not able to produce a valid start node.");
     }
     else {
       if ( verbose>0 )
-        std::cout << "Start Node: " << start->str() << std::endl;      
+        std::cout << "Start Node: " << start->str() << std::endl;
     }
 
     // start fscore gets set to the heuristic
@@ -160,7 +161,7 @@ namespace larlitecv {
 
     // add the start node into the openset
     openset.addnode( start );
-    
+
     if ( verbose>0 ) {
       std::cout << "start astar algo." << std::endl;
       std::cout << "neighborhood sizes: " << _config.astar_neighborhood[0] << "," << _config.astar_neighborhood[1] << "," << _config.astar_neighborhood[2] << std::endl;
@@ -184,12 +185,12 @@ namespace larlitecv {
         if ( verbose>0 ) {
           std::cout << "astar goal reached. finished." << std::endl;
         }
-        break;        
+        break;
       }
 
       // scan through neighors, and ID the candidate successor node
       evaluateNeighborNodes( current, start, goal, img_v, badch_v, tagged_v, openset, closedset, lattice );
-      //evaluateBadChNeighbors( current, start, goal, openset, closedset, 1, 
+      //evaluateBadChNeighbors( current, start, goal, openset, closedset, 1,
       //  min_c, min_r, win_c, win_r, img, meta, use_bad_chs, position_lookup );
 
       // finished with current node, put it on the closed set
@@ -201,11 +202,11 @@ namespace larlitecv {
       if ( verbose>1 ) {
         std::cout << "step=" << nsteps << ": get current node " << current->str() << ". " << std::endl;
         std::cout << " in open openset: " << openset.size() << std::endl;
-        //for ( auto node : openset ) 
+        //for ( auto node : openset )
         //  std::cout << "  " << node->str() << " g=" << node->gscore << std::endl;
         std::cout << " nodes in closedset: " << closedset.size() << std::endl;
       }
-          
+
 
       if ( verbose>3 || (verbose>0 && nsteps%100==0) ) {
         std::cout << "in openset: " << openset.size() << std::endl;
@@ -215,7 +216,7 @@ namespace larlitecv {
         if ( verbose>4 )
           std::cin.get();
       }
-      //std::cin.get();      
+      //std::cin.get();
 
     }//end of while loop
 
@@ -224,29 +225,29 @@ namespace larlitecv {
       std::vector<larcv::Image2D> fscoreimg_v = visualizeScores( "fscore", img_v, lattice );
       std::vector<larcv::Image2D> gscoreimg_v = visualizeScores( "gscore", img_v, lattice );
       for ( size_t p=0; p<img_v.size(); p++ ) {
-	m_visualizedimgs.push_back( img_v[p] );	
-	for (size_t c=0; c<img_v[p].meta().cols(); c++) {
-	  if ( badch_v[p].pixel(0,c)>0 )
-	    m_visualizedimgs[p].paint_col(c,_config.astar_threshold[p]);
-	}
+        m_visualizedimgs.push_back( img_v[p] );
+        for (size_t c=0; c<img_v[p].meta().cols(); c++) {
+          if ( badch_v[p].pixel(0,c)>0 )
+            m_visualizedimgs[p].paint_col(c,_config.astar_threshold[p]);
+        }
       }
       size_t p=0;
       for (auto& fscoreimg : fscoreimg_v ) {
-	m_visualizedimgs.emplace_back( std::move(fscoreimg) );
-	for (size_t c=0; c<img_v[p].meta().cols(); c++) {
-	  if ( badch_v[p].pixel(0,c)>0 )
-	    m_visualizedimgs.back().paint_col(c,_config.astar_threshold[p]);
-	}
-	p++;
+        m_visualizedimgs.emplace_back( std::move(fscoreimg) );
+        for (size_t c=0; c<img_v[p].meta().cols(); c++) {
+          if ( badch_v[p].pixel(0,c)>0 )
+            m_visualizedimgs.back().paint_col(c,_config.astar_threshold[p]);
+        }
+        p++;
       }
       p=0;
       for (auto& gscoreimg : gscoreimg_v ) {
-	m_visualizedimgs.emplace_back( std::move(gscoreimg) );
-	for (size_t c=0; c<img_v[p].meta().cols(); c++) {
-	  if ( badch_v[p].pixel(0,c)>0 )
-	    m_visualizedimgs.back().paint_col(c,_config.astar_threshold[p]);
-	}
-	p++;	
+        m_visualizedimgs.emplace_back( std::move(gscoreimg) );
+        for (size_t c=0; c<img_v[p].meta().cols(); c++) {
+          if ( badch_v[p].pixel(0,c)>0 )
+            m_visualizedimgs.back().paint_col(c,_config.astar_threshold[p]);
+        }
+        p++;
       }
     }
 
@@ -254,9 +255,9 @@ namespace larlitecv {
     std::vector<AStar3DNode> path;
     if ( *current!=*goal ) {
       if (verbose>0)
-	std::cout << "did not make it to the goal. get the lowest h-score" << std::endl;      
+        std::cout << "did not make it to the goal. get the lowest h-score" << std::endl;
       closedset.sort_by_hscore();
-      int nnodes = (int)closedset.size();      
+      int nnodes = (int)closedset.size();
       for ( int inode = nnodes-1; inode>=0; inode-- ) {
         AStar3DNode* closed_node = closedset.at(inode);
         if ( closed_node->fscore==0 ) continue;
@@ -264,10 +265,10 @@ namespace larlitecv {
         break;
       }
       if ( verbose>0)
-	std::cout << "could not reach goal. best node: " 
-		  << " (" << img_v.front().meta().pos_x( current->cols[0] ) << "," << img_v.front().meta().pos_y( current->row ) << ")"
-                   << " fscore=" << current->fscore << " g-score=" << current->gscore 
-		  << " hscore=" << current->fscore-current->gscore << std::endl;
+        std::cout << "could not reach goal. best node: "
+                  << " (" << img_v.front().meta().pos_x( current->cols[0] ) << "," << img_v.front().meta().pos_y( current->row ) << ")"
+                  << " fscore=" << current->fscore << " g-score=" << current->gscore
+                  << " hscore=" << current->fscore-current->gscore << std::endl;
       goal_reached = 0;
     }
     else {
@@ -279,6 +280,7 @@ namespace larlitecv {
     if ( verbose>0 ) {
       std::cout << "nsteps: " << nsteps << std::endl;
       std::cout << "path length: " << path.size() << std::endl;
+      std::cout << "goal_reached: " << goal_reached << std::endl;
       for ( auto& node : path )
         std::cout << " " << node.str() << " pixval=(" << node.pixval[0] << "," << node.pixval[1] << "," << node.pixval[2] << ")" << std::endl;
     }
@@ -338,8 +340,8 @@ namespace larlitecv {
     if ( verbose>3 ) {
       std::cout << " lattice pt (" << latticept[0] << "," << latticept[1] << "," << latticept[2] << ") "
         << "img pos: (r=" << neighbor_node->row << "," << neighbor_node->cols[0] << "," << neighbor_node->cols[1] << "," << neighbor_node->cols[2] << ") "
-        << "within_image=" << neighbor_node->within_image 
-        << " closed=" << neighbor_node->closed 
+        << "within_image=" << neighbor_node->within_image
+        << " closed=" << neighbor_node->closed
         << " badchnode=" << neighbor_node->badchnode;
     }
 
@@ -347,7 +349,7 @@ namespace larlitecv {
       if (verbose>3) std::cout << std::endl;
       return false; // don't reevaluate a closed node
     }
- 
+
     if ( !neighbor_node->within_image )  {
       if (verbose>3) std::cout << std::endl;
       neighbor_node->closed = true;
@@ -414,8 +416,8 @@ namespace larlitecv {
     }
     if ( verbose>3 ) {
       std::cout << " nplanes_abovethreshold_or_bad=" << nplanes_abovethreshold_or_bad;
-    }    
-          
+    }
+
     // the criteria for NOT evaluating this node
     if ( !_config.accept_badch_nodes && !within_pad && !isgoal && ( nplanes_abovethreshold_or_bad<3 || nplanes_bad>1 ) ) {
       // the most basic criteria
@@ -427,22 +429,22 @@ namespace larlitecv {
     if ( _config.accept_badch_nodes && !within_pad && !isgoal && nplanes_abovethreshold_or_bad<_config.min_nplanes_w_hitpixel ) {
       neighbor_node->closed = true; // we close this node as it won't be used
       closedset.addnode( neighbor_node );
-      if ( verbose>3 ) std::cout << " closed by criteria-2" << std::endl;      
+      if ( verbose>3 ) std::cout << " closed by criteria-2" << std::endl;
       return false;
     }
     if ( _config.accept_badch_nodes && !within_pad && !isgoal && nplanes_wcharge<_config.min_nplanes_w_charge ) {
       neighbor_node->closed = true; // we close this node as it won't be used
       closedset.addnode( neighbor_node );
-      if ( verbose>3 ) std::cout << " closed by criteria-3" << std::endl;      
-      return false;
-    }    
-    if ( !isgoal && _config.restrict_path && _config.path_restriction_radius<distanceFromCentralLine( start->tyz, goal->tyz, neighbor_node->tyz ) ) {
-      neighbor_node->closed = true;      
-      closedset.addnode( neighbor_node );
-      if ( verbose>3 ) std::cout << " closed by criteria-4" << std::endl;      
+      if ( verbose>3 ) std::cout << " closed by criteria-3" << std::endl;
       return false;
     }
-    
+    if ( !isgoal && _config.restrict_path && _config.path_restriction_radius<distanceFromCentralLine( start->tyz, goal->tyz, neighbor_node->tyz ) ) {
+      neighbor_node->closed = true;
+      closedset.addnode( neighbor_node );
+      if ( verbose>3 ) std::cout << " closed by criteria-4" << std::endl;
+      return false;
+    }
+
 
     // is the node in a previously thrumu-tagged track
     // int nplanes_wtagged = 0;
@@ -474,9 +476,9 @@ namespace larlitecv {
 
     // define the jump cost for this node
     // first get the diff vector from here to current node
-    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]    
+    float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]
     float norm1 = 0.;
-    float dir1[3];    
+    float dir1[3];
     for (int i=1; i<3; i++) {
       float dx = neighbor_node->tyz[i] - current->tyz[i];
       dir1[i] = dx;
@@ -487,7 +489,7 @@ namespace larlitecv {
     norm1 += dt*dt;
     norm1 = sqrt(norm1);
     for (int i=0; i<3; i++ )
-      dir1[i] /= norm1; 
+      dir1[i] /= norm1;
 
     float jump_cost = norm1;
     if ( neighbor_node->badchnode ) // pay a cost for using a badch node
@@ -502,7 +504,7 @@ namespace larlitecv {
       for (int i=1; i<3; i++ ) {
         dir2[i] = current->tyz[i]-prev->tyz[i];
         norm2 += dir2[i]*dir2[i];
-      } 
+      }
       dir2[0] = (current->tyz[0]-prev->tyz[0])*cm_per_tick;
       norm2 += dir2[0]*dir2[0];
       norm2 = sqrt(norm2);
@@ -516,7 +518,7 @@ namespace larlitecv {
       jump_cost *= curvature_cost;
     }
 
-      
+
     // calculate heuristic score (distance of node to goal node)
     float hscore = 0.;
     for (int i=1; i<3; i++) {
@@ -535,11 +537,11 @@ namespace larlitecv {
       std::cout << "ISGOAL!" << std::endl;
 
     // is this gscore better than the current one (or is it unassigned?) (or is the goal)
-    if ( isgoal || 
+    if ( isgoal ||
          ((neighbor_node->fscore==0 || neighbor_node->fscore>fscore) && npast_badnodes<10) ) {
-      // update the neighbor to follow this path 
+      // update the neighbor to follow this path
       if ( verbose>2 )
-        std::cout << "  updating neighbor to with better path: from f=" << neighbor_node->fscore << " g=" << neighbor_node->gscore 
+        std::cout << "  updating neighbor to with better path: from f=" << neighbor_node->fscore << " g=" << neighbor_node->gscore
                   << " to f=" << fscore << " g=" << gscore << std::endl;
       neighbor_node->prev = current;
       neighbor_node->fscore = fscore;
@@ -554,15 +556,15 @@ namespace larlitecv {
     else {
       if ( verbose>3 )
         std::cout << "  this neighbor already on better path. current-f=" << neighbor_node->fscore << " < proposed-f=" << fscore << std::endl;
-    }    
+    }
 
     return false;
   }
 
   /*
   void AStar3DAlgo::evaluateBadChNeighbors( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
-    AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, 
-    const int neighborhood_size, const int min_c, const int min_r, const int win_c, const int win_r, 
+    AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset,
+    const int neighborhood_size, const int min_c, const int min_r, const int win_c, const int win_r,
     const larcv::Image2D& img, const larcv::ImageMeta& meta, const bool use_bad_chs, std::map< PixPos_t, AStar3DNode* >& position_lookup) {
 
     // here we look at possible bad channels
@@ -596,7 +598,7 @@ namespace larlitecv {
         // check if out of bounds inside the search region
         if ( r_neigh<0 || r_neigh>=win_r || c_neigh<0 || c_neigh>=win_c ) continue;
         // check if out of the image
-        if ( r_neigh+min_r<0 || r_neigh+min_r>=(int)meta.rows() || c_neigh+min_c<0 || c_neigh+min_c>=(int)meta.cols() ) continue; 
+        if ( r_neigh+min_r<0 || r_neigh+min_r>=(int)meta.rows() || c_neigh+min_c<0 || c_neigh+min_c>=(int)meta.cols() ) continue;
 
         if ( m_badchimg->pixel(r_neigh+min_r,c_neigh+min_c)<0.5 ) continue;
 
@@ -629,7 +631,7 @@ namespace larlitecv {
           for ( int rgap=0; rgap<(int)meta.rows(); rgap++ ) {
             if ( rgap-min_r<0 || rgap-min_r>=win_r ) continue;//outside the window
             if ( gapch+ncol*dcol<0 || gapch+ncol*dcol>=(int)meta.cols()) continue;
-            if ( img.pixel( rgap, gapch+ncol*dcol )>_config.astar_threshold.at((int)meta.plane()) 
+            if ( img.pixel( rgap, gapch+ncol*dcol )>_config.astar_threshold.at((int)meta.plane())
               || ( (rgap-min_r)==goal->row && (gapch+ncol*dcol-min_c)==goal->col ) ) {
               // either the pixel is above threshold, or is THE GOAL. if so, evaluate this node.
 
@@ -679,14 +681,14 @@ namespace larlitecv {
                 if ( gap_node->fscore==0 || gap_node->fscore>fscore ) {
                 // we update this node
                 if ( verbose>1 )
-                        std::cout << "updating node (" << meta.pos_x( gapch ) << "," << meta.pos_y( rgap ) << ") from badch crossing: " 
+                        std::cout << "updating node (" << meta.pos_x( gapch ) << "," << meta.pos_y( rgap ) << ") from badch crossing: "
                         << " current-f=" << gap_node->fscore << " f-update=" << fscore << " gap-penalty=" << penalty << " cosine=" << cosine
                         << std::endl;
                 gap_node->fscore = fscore;
                 gap_node->gscore = gscore;
-                gap_node->prev = current;    
+                gap_node->prev = current;
                 gap_node->dir3d = dir2node;
-                number_badch_updates++;            
+                number_badch_updates++;
               }
 
             }
@@ -696,7 +698,7 @@ namespace larlitecv {
     }
     if ( verbose>1 ) {
       std::cout << "number of bad channel updates: " << number_badch_updates << std::endl;
-      std::cout << "number of bad channel nodes created: " << number_badch_nodes_created << std::endl;    
+      std::cout << "number of bad channel nodes created: " << number_badch_nodes_created << std::endl;
       if ( number_badch_nodes_created>0 && verbose>2)
         std::cin.get();
     }
@@ -704,7 +706,7 @@ namespace larlitecv {
   */
 
   std::vector<AStar3DNode> AStar3DAlgo::makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed ) {
-                                                                                                
+
     path_completed = true;
     std::vector<AStar3DNode> path;
     AStar3DNode* current = goal;
@@ -725,7 +727,7 @@ namespace larlitecv {
 
   }
 
-  
+
   std::vector<larcv::Image2D> AStar3DAlgo::visualizeScores( std::string score_name, const std::vector<larcv::Image2D>& orig_img_v, larlitecv::Lattice& lattice ) {
 
     // create the blank image
@@ -751,7 +753,7 @@ namespace larlitecv {
 	else if ( score_name=="gscore" )
 	  score = (*(latticept.second)).gscore;
 	else
-	  throw std::runtime_error("AStar3DAlgo::visualizeScore - did not recognize score name");	
+	  throw std::runtime_error("AStar3DAlgo::visualizeScore - did not recognize score name");
 	double val=score_img_v[p].pixel(row,cols[p]);
 	if ( val<score )
 	  val = score;
@@ -768,7 +770,7 @@ namespace larlitecv {
     // the coordinate system is in (tick, Y, Z)
     // will return a value in cm
     // stole formular from: http://mathworld.wolfram.com/Point-LineDistance3-Dimensional.html
-    float norm12 = 0;    
+    float norm12 = 0;
     std::vector<float> dir10( start_tyz.size(), 0.0 );
     std::vector<float> dir20( start_tyz.size(), 0.0 );
     std::vector<float> dir12( start_tyz.size(), 0.0 );
@@ -777,11 +779,11 @@ namespace larlitecv {
       dir20[i] = end_tyz.at(i)   - testpt_tyz.at(i);
       dir12[i] = end_tyz.at(i)   - start_tyz.at(i);
       if (i==0) {
-        dir10[0] *= ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]        
-        dir20[0] *= ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]        
-        dir12[0] *= ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]                        
+        dir10[0] *= ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]
+        dir20[0] *= ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]
+        dir12[0] *= ::larutil::LArProperties::GetME()->DriftVelocity()*0.5; // [cm/usec]*[usec/tick]
       }
-      norm12 += dir12[i]*dir12[i];      
+      norm12 += dir12[i]*dir12[i];
     }
     norm12 = sqrt(norm12);
     if ( norm12==0 ) {
@@ -816,12 +818,12 @@ namespace larlitecv {
 
     if ( compression_mode<0 )
       compression_mode = _config.compression_mode;
-    
+
     // compress image for astar. store in member class. we'll use these again in runAStarTagger
     std::vector< larcv::Image2D > img_compressed_v;
     std::vector< larcv::Image2D > badch_compressed_v;
     //std::vector< larcv::Image2D > tagged_compressed_v;
-    
+
     for (size_t p=0; p<img_v.size(); p++) {
       larcv::Image2D img_compressed( img_v[p] );
       larcv::Image2D badch_compressed( badch_v[p] );
@@ -830,7 +832,7 @@ namespace larlitecv {
       img_compressed_v.emplace_back( std::move(img_compressed) );
       badch_compressed_v.emplace_back( std::move(badch_compressed) );
     }
-    
+
     // collect meta/translate start/goal tick/wires to row/col in compressed image
     std::vector< const larcv::ImageMeta* > meta_compressed_v;
     std::vector<int> start_cols_comp(img_compressed_v.size(),0);
@@ -850,14 +852,14 @@ namespace larlitecv {
       start_rows_comp[p] =  ptr_meta->row( meta.pos_y( start_row ) );
       start_cols_comp[p] =  ptr_meta->col( meta.pos_x( start_cols[p] ) );
       //start_pix.push_back( new larcv::Pixel2D( start_cols[0], start_endpt.getrow() ) );
-      
+
       goal_rows_comp[p]  =  ptr_meta->row( meta.pos_y( goal_row ) );
       goal_cols_comp[p]  =  ptr_meta->col( meta.pos_x( goal_cols[p] ) );
       //goal_pix.push_back( new larcv::Pixel2D( goal_endpt.getcol(), goal_endpt.getrow() ) );
-      
+
       meta_compressed_v.push_back( ptr_meta );
     }
-    
+
     return findpath( img_compressed_v, badch_compressed_v, badch_compressed_v, // tagged_compressed_v
 		     start_rows_comp.front(), goal_rows_comp.front(), start_cols_comp, goal_cols_comp, goal_reached );
   }
@@ -908,7 +910,7 @@ namespace larlitecv {
     A3DPixPos_t nodeid(0,0,0);
     for (int i=0; i<3; i++) {
       nodeid[i] = (int) ( pos[i]-m_origin[i])/m_cm_per_pixel[i];
-      if ( nodeid[i]<0 || nodeid[i]>=m_widths[i]) 
+      if ( nodeid[i]<0 || nodeid[i]>=m_widths[i])
         return A3DPixPos_t(); // outside lattice, so send and empty one
     }
     return nodeid;
@@ -925,7 +927,7 @@ namespace larlitecv {
   }
 
   std::vector<float> Lattice::getPos( const A3DPixPos_t& nodeid ) {
-    std::vector<float> pos(3,0.0); 
+    std::vector<float> pos(3,0.0);
     for (int i=0; i<3; i++) {
       // check if within lattice?
       pos[i] = m_origin[i] + nodeid[i]*m_cm_per_pixel[i];
@@ -960,7 +962,7 @@ namespace larlitecv {
     row = m_meta_v.front()->row(tyz[0]);
     return;
   }
-  
+
   void Lattice::cleanup () {
 
     //if ( verbose>0 )
