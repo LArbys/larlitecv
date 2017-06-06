@@ -17,7 +17,7 @@ namespace larlitecv {
     bool goodpoint;
     int planeswithcharge;
     PointInfo() {
-      planeswithcharge = 0;			
+      planeswithcharge = 0;
       goodpoint = false;
       tick = 0.0;
       row = 0;
@@ -52,11 +52,11 @@ namespace larlitecv {
 #endif
 #endif
 
-    float fractionHasChargeWith3Planes() { return float(num_pts_w_allcharge)/float(size()); };
-    float fractionHasBadChOn3Planes() { return float(num_pts_w_allbadch)/float(size()); };
-    float fractionHasNoChargeOn3Planes() { return float(num_pts_w_allempty)/float(size()); };
-    float fractionHasChargeOnMajorityOfPlanes() { return float(num_pts_w_majcharge)/float(size()); };
-    float fractionGood() { return float(num_pts_good)/float(size()); };
+    float fractionHasChargeWith3Planes() { return (size()>0) ? float(num_pts_w_allcharge)/float(size()): 0.0; };
+    float fractionHasBadChOn3Planes() { return    (size()>0) ? float(num_pts_w_allbadch)/float(size()) : 0.0; };
+    float fractionHasNoChargeOn3Planes() { return (size()>0) ? float(num_pts_w_allempty)/float(size()) : 0.0; };
+    float fractionHasChargeOnMajorityOfPlanes() { return ( size()>0 ) ? float(num_pts_w_majcharge)/float(size()): 0.0; };
+    float fractionGood() { return ( size()>0 ) ? float(num_pts_good)/float(size()) : 0.0; };
 
     int num_pts_w_allcharge;
     int num_pts_w_majcharge;
