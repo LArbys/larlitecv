@@ -102,11 +102,11 @@ namespace larlitecv {
       if ( passcfg.run_foxtrot_extender ) {
         passcfg.foxextend_cfg = larlitecv::FoxTrotTrackerAlgoConfig::makeFromPSet( pass_pset.get<larcv::PSet>("FoxTrotConfig") );
       }
-      std::cout << ss.str() << ": runradial=" << passcfg.run_radial_filter
-                << " runlinear=" << passcfg.run_linear_tagger
-                << " runastar=" << passcfg.run_astar_tagger
-                << " runfoxextender=" << passcfg.run_foxtrot_extender
-                << std::endl;
+      // std::cout << ss.str() << ": runradial=" << passcfg.run_radial_filter
+                // << " runlinear=" << passcfg.run_linear_tagger
+                // << " runastar=" << passcfg.run_astar_tagger
+                // << " runfoxextender=" << passcfg.run_foxtrot_extender
+                // << std::endl;
       cfg.pass_configs.emplace_back( std::move(passcfg) );
     }
     return cfg;

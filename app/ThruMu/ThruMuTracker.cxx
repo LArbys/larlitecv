@@ -214,7 +214,7 @@ namespace larlitecv {
             std::cout << "  majority planes w/ charge fraction: " << linear_result.majfrac << std::endl;
           }
           if ( linear_result.isgood ) {
-            if ( m_config.verbosity>1 ) std::cout << "####  Result is good. length=" << linear_track.path3d.size() << " ####" << std::endl;
+            if ( m_config.verbosity>1 ) std::cout << "  Linear Result is good. length=" << linear_track.path3d.size() << std::endl;
             std::swap(track3d,linear_track);
           }
           else {
@@ -231,11 +231,19 @@ namespace larlitecv {
           BMTrackCluster3D astar_track = runAStarTagger( passcfg, pts_a, pts_b, img_v, badchimg_v, astar_result );
           tracked = true;
           if ( astar_result.isgood ) {
-            if ( m_config.verbosity>1 ) std::cout << "  Result is good." << std::endl;
+            if ( m_config.verbosity>1 )  {
+              std::vector<double>& astar_end = astar_track.path3d.back();
+              std::cout << "  AStar end point: (" << astar_end[0] << "," << astar_end[1] << "," << astar_end[2] << ")" << std::endl;
+              std::cout << "  AStar Result is good." << std::endl;
+              if ( astar_result.goal_reached )
+                std::cout << "  AStar reached goal." << std::endl;
+              else
+                std::cout << "  AStar did not reach goal." << std::endl;
+            }
             std::swap(track3d,astar_track);
           }
           else {
-            if ( m_config.verbosity>1 ) std::cout << "  Result is bad." << std::endl;
+            if ( m_config.verbosity>1 ) std::cout << "  AStar Result is bad." << std::endl;
           }
         }
 
@@ -245,18 +253,37 @@ namespace larlitecv {
         // run bezier fitter (doesn't exist yet. write this?)
 
         // could add criteria to filter here
+        bool accept_track = false;
+        if ( (passcfg.run_linear_tagger && !passcfg.run_astar_tagger) && linear_result.isgood ) {
+          // if we only run the linear tagger, then we save
+          accept_track = true;
+        }
+        else if ( (passcfg.run_linear_tagger && passcfg.run_astar_tagger) && astar_result.isgood && astar_result.goal_reached ) {
+          // when we run both, we use the linear tagger as a prefilter for astar, which can be expensive
+          accept_track = true;
+        }
 
-        if ( (linear_result.isgood || astar_result.isgood) ) {
-          if ( m_config.verbosity>1 )
-            std::cout << "  track found. length: " << track3d.path3d.size() << " empty=" << track3d.isempty() << std::endl;
+        if ( accept_track ) {
+          if ( m_config.verbosity>1 ) {
+            std::cout << "  track found. "
+                      << " length: " << track3d.path3d.size()
+                      << " empty=" << track3d.isempty()
+                      << " linear-good=" << linear_result.isgood
+                      << " astar-good=" << astar_result.isgood
+                      << " astar-reached=" << astar_result.goal_reached
+                      << std::endl;
+          }
           // extend the good track
           runFoxTrotExtender( passcfg, track3d.path3d, img_v, badchimg_v, tagged_v, extender_result);
         }
 
-        if ( !track3d.isempty() ) {
+        if ( accept_track && !track3d.isempty() ) {
           std::vector<int> indices(2);
           indices[0] = i;
           indices[1] = j;
+          if ( m_config.verbosity>1 ) {
+            std::cout << "#### Storing track. size=" << track3d.path3d.size() << ". indices (" << indices[0] << "," << indices[1] << ") ####" << std::endl;
+          }
           pass_end_indices.emplace_back( std::move(indices) );
           pass_track_candidates.emplace_back( std::move(track3d) );
         }
@@ -307,8 +334,8 @@ namespace larlitecv {
     result_info.goodfrac = straight_track.fractionGood();
     result_info.majfrac  = straight_track.fractionHasChargeOnMajorityOfPlanes();
     if ( result_info.numpts   > pass_cfg.linear3d_min_tracksize
-      && (result_info.goodfrac > pass_cfg.linear3d_min_goodfraction
-	     || result_info.majfrac  > pass_cfg.linear3d_min_majoritychargefraction) ) {
+          && (result_info.goodfrac > pass_cfg.linear3d_min_goodfraction
+	        || result_info.majfrac  > pass_cfg.linear3d_min_majoritychargefraction) ) {
       result_info.isgood = true;
     }
     else {
@@ -375,12 +402,14 @@ namespace larlitecv {
       path = algo.findpath( m_img_compressed_v, m_badch_compressed_v, m_badch_compressed_v, // tagged_compressed_v
 			    start_rows.front(), goal_rows.front(), start_cols, goal_cols, goalhit );
 
-      if ( goalhit==1 )
+      if ( goalhit==1 ) {
         result_info.goal_reached = true;
+      }
     }
     catch (const std::exception& e) {
       std::cout << "*** [ Exception running astar3dalgo::findpath: " << e.what() << "] ***" << std::endl;
       result_info.isgood = false;
+      result_info.goal_reached = false;
       result_info.nbad_nodes = -1;
       result_info.total_nodes = -1;
       std::vector< std::vector<double> > empty_path3d;
