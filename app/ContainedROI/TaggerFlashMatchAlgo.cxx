@@ -24,7 +24,7 @@ namespace larlitecv {
     }
   }
 
-  
+
   std::vector<larcv::ROI> TaggerFlashMatchAlgo::FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata,
 									       const std::vector<larlite::event_opflash*>& opflashes_v, std::vector<int>& flashdata_selected ) {
 
@@ -48,7 +48,7 @@ namespace larlitecv {
     // choose contained candidates
     m_passes_containment.resize( inputdata.size(), 0 );
     m_passes_flashmatch.resize( inputdata.size(), 0 );
-    m_passes_totpe.resize( inputdata.size(), 0 );    
+    m_passes_totpe.resize( inputdata.size(), 0 );
     m_passes_cosmicflash_ratio.resize( inputdata.size(), 0 );
 
     m_min_chi2.clear();
@@ -122,8 +122,8 @@ namespace larlitecv {
 	  std::cout << " {passes cosmic-flash match: dchi2=" << dchi2 << "}";
 	else
 	  std::cout << " { no flash end }";
-	  
-	
+
+
 	if ( m_passes_flashmatch[i] && m_passes_containment[i] && m_passes_cosmicflash_ratio[i] && m_passes_totpe[i] )
           std::cout << " **PASSES**";
         std::cout << std::endl;
@@ -151,7 +151,7 @@ namespace larlitecv {
       return false;
     return m_passes_flashmatch[itrack];
   }
-  
+
   bool TaggerFlashMatchAlgo::didTrackPassCosmicFlashCut( int itrack ) {
     if ( itrack<0 || itrack>=(int)m_passes_cosmicflash_ratio.size() )
       return false;
@@ -162,7 +162,7 @@ namespace larlitecv {
     const larlite::track& track = data.m_track3d;
     return GenerateQCluster(track);
   }
-  
+
   flashana::QCluster_t TaggerFlashMatchAlgo::GenerateQCluster( const larlite::track& track ) {
 
     flashana::QCluster_t qcluster;
@@ -424,10 +424,10 @@ namespace larlitecv {
 
     if ( m_verbosity>=2 ) {
       std::cout << "bounds: x=[" << bb[0][0] << "," << bb[0][1] << "] "
-		<< " y=[" << bb[1][0] << "," << bb[1][1] << "] "
-		<< " z=[" << bb[2][0] << "," << bb[2][1] << "] "
-		<< " dy=[" << delta_ymin[1] << "," << delta_ymax[1] << "] "
-		<< " dz=[" << delta_zmin[2] << "," << delta_zmax[2] << "] ";
+                << " y=[" << bb[1][0] << "," << bb[1][1] << "] "
+                << " z=[" << bb[2][0] << "," << bb[2][1] << "] "
+                << " dy=[" << delta_ymin[1] << "," << delta_ymax[1] << "] "
+                << " dz=[" << delta_zmin[2] << "," << delta_zmax[2] << "] ";
     }
 
     // x extrema, not a function of the other dimensions
@@ -492,13 +492,13 @@ namespace larlitecv {
         tot_pe += observed;
         tot_pe_hypo += expected;
         if ( observed>0 && expected==0 ) {
-	  if ( !m_config.use_gaus2d )
-	    expected = 1.0e-3;
-	  else
-	    expected = gaus2d_hypo.PE( geo->OpDetFromOpChannel(i) )*m_config.fudge_factor;
-	}
-	expectation[i] = expected;
-	
+          if ( !m_config.use_gaus2d )
+            expected = 1.0e-3;
+          else
+            expected = gaus2d_hypo.PE( geo->OpDetFromOpChannel(i) )*m_config.fudge_factor;
+        }
+        expectation[i] = expected;
+
         float dpe = (expected-observed);
         if ( observed>0 )
           dpe += observed*( log( observed ) - log( expected ) );
@@ -507,7 +507,7 @@ namespace larlitecv {
       ll /= 32.0;
       if ( smallest_chi2<0 || ll<smallest_chi2 ) {
         smallest_chi2 = ll;
-	best_totpe_data = tot_pe;
+        best_totpe_data = tot_pe;
       }
       std::cout << "  [observed] ";
       for (int ich=0; ich<32; ich++ ) {
@@ -516,7 +516,7 @@ namespace larlitecv {
       std::cout << " TOT=" << tot_pe << " LL=" << ll << std::endl;
     }
     tot_pe_hypo /= float( intime_flashes_v.size() );
-    
+
     std::cout << "  [expected] ";
     for ( int ich=0; ich<32; ich++ ) {
       //std::cout << std::setw(5) << (int)(flash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
@@ -524,7 +524,7 @@ namespace larlitecv {
       std::cout << std::setw(5) << (int)expectation[ich];
     }
     std::cout << " TOT=" << tot_pe_hypo << " BestLL=" << smallest_chi2 << std::endl;
-    
+
     // store flash info and chi2 for diagnostic info
     // we sneakily use this info again. also store it to study cut performance
     m_opflash_hypos.emplace_back(std::move(opflash_hypo));
@@ -532,7 +532,7 @@ namespace larlitecv {
 
     return smallest_chi2;
   }
-  
+
   bool TaggerFlashMatchAlgo::DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster, float& totpe_data, float& totpe_hypo ) {
 
     float chi2 = InTimeFlashComparison( intime_flashes_v, qcluster, totpe_data, totpe_hypo );
@@ -564,7 +564,7 @@ namespace larlitecv {
       return true;
     else
       return false;
-    
+
   }
 
   bool TaggerFlashMatchAlgo::DoesTotalPEMatch( float totpe_data, float totpe_hypo )  {
@@ -574,7 +574,7 @@ namespace larlitecv {
       return false;
     return true;
   }
-  
+
   bool TaggerFlashMatchAlgo::DoesQClusterMatchInTimeBetterThanCosmic( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster,
 								      const larlitecv::TaggerFlashMatchData& taggertrack, const int trackidx, float& dchi2 ) {
     if ( !taggertrack.hasStartFlash() && !taggertrack.hasEndFlash() ) {
@@ -583,41 +583,41 @@ namespace larlitecv {
     }
 
     // check that the matching flash is not the intime flash
-    
+
     float intime_min_chi2 = m_min_chi2[trackidx]; // we cheat and use this stored value instead of recalculating
 
     float totpe_cosmicflash = 0.;
     float totpe_hypoflash = 0;
     flashana::Flash_t flash_hypo = GenerateUnfittedFlashHypothesis( qcluster );
     larlite::opflash opflash_hypo = MakeOpFlashFromFlash( flash_hypo );
-    
-    float cosmicflash_start_chi2 = 1.0e6;    
+
+    float cosmicflash_start_chi2 = 1.0e6;
     if ( taggertrack.hasStartFlash() ) {
       std::vector< larlite::opflash > cosmicflash_start_v;
       float start_tick = taggertrack.m_pstart_flash->Time()/m_config.us_per_tick;
       float start_ly = m_config.fudge_factor;
       if ( start_tick<m_config.beam_tick_range[0] || start_tick>m_config.beam_tick_range[1] )
-	start_ly = m_config.fudge_factor_cosmic;
+        start_ly = m_config.fudge_factor_cosmic;
       cosmicflash_start_v.push_back( *(taggertrack.m_pstart_flash ) );
-      cosmicflash_start_chi2 = larlitecv::CalculateFlashMatchChi2( cosmicflash_start_v, opflash_hypo, totpe_cosmicflash, totpe_hypoflash, start_ly, m_config.use_gaus2d, false );      
+      cosmicflash_start_chi2 = larlitecv::CalculateFlashMatchChi2( cosmicflash_start_v, opflash_hypo, totpe_cosmicflash, totpe_hypoflash, start_ly, m_config.use_gaus2d, false );
     }
-    
-    float cosmicflash_end_chi2 = 1.0e6;        
+
+    float cosmicflash_end_chi2 = 1.0e6;
     if ( taggertrack.hasEndFlash() ) {
-      std::vector< larlite::opflash > cosmicflash_end_v;      
-      float end_ly = m_config.fudge_factor;      
+      std::vector< larlite::opflash > cosmicflash_end_v;
+      float end_ly = m_config.fudge_factor;
       float end_tick = taggertrack.m_pend_flash->Time()/m_config.us_per_tick;
       if ( end_tick<m_config.beam_tick_range[0] || end_tick>m_config.beam_tick_range[1] )
-	end_ly = m_config.fudge_factor_cosmic; // use cosmic disc.
+        end_ly = m_config.fudge_factor_cosmic; // use cosmic disc.
       cosmicflash_end_v.push_back( *(taggertrack.m_pend_flash ) );
       cosmicflash_end_chi2 = larlitecv::CalculateFlashMatchChi2( cosmicflash_end_v, opflash_hypo, totpe_cosmicflash, totpe_hypoflash, end_ly, m_config.use_gaus2d, false );
     }
-    
+
     float cosmicflash_chi2 = ( cosmicflash_start_chi2<cosmicflash_end_chi2 ) ? cosmicflash_start_chi2 : cosmicflash_end_chi2;
-    
+
     dchi2 = intime_min_chi2 - cosmicflash_chi2;
     m_cosmicflash_ratio_dchi.push_back( dchi2 );
-    
+
     if ( cosmicflash_chi2 < intime_min_chi2 ) {
       // matches cosmic flash better
       return false;
@@ -625,8 +625,8 @@ namespace larlitecv {
     else {
       return true;
     }
-    
+
     return true; // never gets here
   }
-  
+
 }
