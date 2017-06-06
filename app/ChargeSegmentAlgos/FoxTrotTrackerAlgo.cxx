@@ -23,7 +23,7 @@ namespace larlitecv {
     FoxTrack track;
 
     // need first step dir. define based on end
-    std::vector<float> firstdir(3,0);
+    std::vector<float> firstdir(3,0.0);
 
     if ( start_dir.size()!=3 ) {
       // if user doesn't provide a starting direction, we infer one based on the boundary crossing
@@ -66,7 +66,8 @@ namespace larlitecv {
     track.push_back( firststep );
 
     if ( m_config.verbosity>0 )
-      std::cout << "start of fox track: (" << firststep.pos()[0] << "," << firststep.pos()[1] << "," <<  firststep.pos()[2] << ")" << std::endl;
+      std::cout << __FILE__ << ":" << __LINE__
+                << "start of fox track: (" << firststep.pos()[0] << "," << firststep.pos()[1] << "," <<  firststep.pos()[2] << ")" << std::endl;
 
 
     float min_dcos = -1.0; // first step is harder to choose because we don't have a good initial direction typically
@@ -76,10 +77,12 @@ namespace larlitecv {
         min_dcos = m_config.min_cosine;
       m_default_lead.setMinCos( min_dcos );
       FoxStep next = getNextStep( track.back(), img_v, badch_v, track );
-      if ( m_config.verbosity>0 && next.isgood() )
-        std::cout << "next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") "
+      if ( m_config.verbosity>0 && next.isgood() ) {
+        std::cout << __FILE__ << ":" << __LINE__
+            << "next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") "
         	  << " dir=(" << next.dir()[0] << "," << next.dir()[1] << "," << next.dir()[2] << ") "
         	  << " good=" << next.isgood() << std::endl;
+      }
       else if ( m_config.verbosity>0 && !next.isgood() )
         std::cout << "next fox step is bad." << std::endl;
       track.emplace_back( std::move(next) );
@@ -102,7 +105,7 @@ namespace larlitecv {
     float current_radius = m_config.step_size;
 
     if ( m_config.verbosity>1 ) {
-      std::cout << "fox step ---------------" << std::endl;
+      std::cout << __FILE__ << ":" << __LINE__ << "fox step ---------------" << std::endl;
       std::cout << "  current pos: (" << current.pos()[0] << "," << current.pos()[1] << "," << current.pos()[2] << ")" << std::endl;
     }
     for (int iattempt=0; iattempt<m_config.num_step_attempts; iattempt++) {

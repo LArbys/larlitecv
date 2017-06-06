@@ -358,6 +358,10 @@ namespace larlitecv {
           std::cout << "        seg b=(" << seg_b.row_low << "," << seg_b.col_low << ") -> (" << seg_b.row_high << "," << seg_b.col_high << ")" << std::endl;
         }
 
+        // check if out of the image
+        if ( seg_a.row_low<0 || seg_b.row_low<0 || seg_a.row_high<0 || seg_b.row_high<0 )
+          continue;
+
         // what regime are we dealing with
         bool same_high_row = (seg_a.row_high==seg_b.row_high);
         bool same_low_row  = (seg_a.row_low==seg_b.row_low);
