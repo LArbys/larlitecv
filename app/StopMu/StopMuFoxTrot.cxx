@@ -22,17 +22,31 @@ namespace larlitecv {
     // incorporating tagged information
     // we mask out the charge information, but we also put that information
     // into a badchannel image as well (later if needed)
+    if ( m_config.verbosity>0 ) {
+      std::cout << __FILE__ << ":" << __LINE__ << " searching for StopMu tracks using " << startpts_v.size() << " starting points." << std::endl;
+    }
 
     for ( auto const& startpt : startpts_v ) {
 
+      if ( m_config.verbosity>0 ) {
+        std::vector<int> startcoords = larcv::UBWireTool::getProjectedImagePixel( startpt.pos(), img_v.front().meta(), img_v.size() );
+        std::cout << __FILE__ << ":" << __LINE__ << " starting point"
+                  << " (" << startpt.pos()[0] << "," << startpt.pos()[1] << "," << startpt.pos()[2] << ")"
+                  << " imgcoords=(" << startcoords[0] << "," << startcoords[1] << "," << startcoords[2] << "," << startcoords[3] << ")"
+                  << std::endl;
+      }
       FoxTrack ft = m_algo->followTrack( img_v, badch_v, thrumu_v, startpt );
-      if ( (int)ft.size()<m_config.min_num_steps )
+      if ( (int)ft.size()<m_config.min_num_steps ) {
+        if ( m_config.verbosity>0)
+          std::cout << __FILE__ << ":" << __LINE__ << " track too short " << ft.size() << " < " << m_config.min_num_steps << std::endl;
         continue;
+      }
 
       // if long enough, we continue the end of the track to find the end (not done)
 
       // make a boundary endpt for the end position
       std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( ft.back().pos(), img_v.front().meta(), img_v.size() );
+
       std::vector<BoundaryEndPt> bendpt_v;
       for ( int p=0; p<(int)img_v.size(); p++ ) {
         //const larcv::ImageMeta& meta = img_v[p].meta();
@@ -40,6 +54,10 @@ namespace larlitecv {
         bendpt_v.emplace_back( std::move(bendpt) );
       }
       BoundarySpacePoint endpt( larlitecv::kUndefined, std::move(bendpt_v), ft.back().pos()[0], ft.back().pos()[1], ft.back().pos()[2] );
+      if ( m_config.verbosity>0) {
+          std::cout << __FILE__ << ":" << __LINE__ << " stopmu endpoint "
+                    << " (" << endpt.pos()[0] << "," << endpt.pos()[1] << "," << endpt.pos()[2] << ")" << std::endl;
+      }
 
       // pop the end
       //ft.pop_back();
