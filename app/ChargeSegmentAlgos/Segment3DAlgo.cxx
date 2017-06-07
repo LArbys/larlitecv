@@ -46,6 +46,10 @@ namespace larlitecv {
 
     // simple on-off hit finder with min with
 
+    // if row out of bounds, return empty container
+    if ( row<0 || row>img.meta().rows() )
+      return hits;
+    
     // start off, unless above threshold
     bool onstate = false;
     int hitwidth = 0;
