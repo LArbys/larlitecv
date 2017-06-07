@@ -5,7 +5,7 @@
 
 // LArCV
 #include "DataFormat/Pixel2DCluster.h"
-#include "DataFormat/ROI.h"
+#include "DataFormat/EventROI.h"
 #include "DataFormat/Image2D.h"
 
 // LArLite
