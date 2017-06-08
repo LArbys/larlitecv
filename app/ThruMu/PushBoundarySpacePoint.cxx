@@ -102,7 +102,6 @@ namespace larlitecv {
         std::vector<float> enddir(3,0);
         float max_step_size = 0.3;
         int hit_neighborhood = 2;
-	bool pixel_in_image  = true;
 	
         std::vector<float> thresholds(3,10.0);
         for ( int istep=1; istep<(int)track.size(); istep++ ) {
@@ -125,7 +124,9 @@ namespace larlitecv {
             for (int i=0; i<3; i++)
 	      last_good_point[i] = last_step.pos()[i];
 	      
-		   
+
+	    bool pixel_in_image  = true;
+	    
             for (int isubstep=0; isubstep<=nsubsteps; isubstep++) {
                 std::vector<float> subpos(3,0.0);
                 for (int i=0; i<3; i++)
