@@ -35,6 +35,8 @@ namespace larlitecv {
         //std::cout << "Initial fox trot track ends at: (" << track.back().pos()[0] << "," << track.back().pos()[1]
         //            << "," << track.back().pos()[2] << ")" << std::endl;
 
+	// Print 
+	
         BoundarySpacePoint endpt = scanTrackForEndPoint( sp, track, img_v, badch_v );
         BoundarySpacePoint endpt_out = evalEndPoint( endpt );
         // save data for plotting or debugging
@@ -100,9 +102,12 @@ namespace larlitecv {
         std::vector<float> enddir(3,0);
         float max_step_size = 0.3;
         int hit_neighborhood = 2;
+	bool pixel_in_image  = true;
+	
         std::vector<float> thresholds(3,10.0);
         for ( int istep=1; istep<(int)track.size(); istep++ ) {
-            const FoxStep& last_step = track[istep-1];
+	  // I will make this a constant below after I make sure it is inside the image.
+            const FoxStep& last_step    = track[istep-1];
             const FoxStep& current_step = track[istep];
             float dir[3] = {0.0};
             float dist = 0.0;
@@ -115,14 +120,34 @@ namespace larlitecv {
             int nsubsteps  = dist/max_step_size+1;
             float stepsize = dist/nsubsteps;
             int substeps_w_charge = 0;
+
             std::vector<float> last_good_point(3,0);
             for (int i=0; i<3; i++)
-                last_good_point[i] = last_step.pos()[i];
+	      last_good_point[i] = last_step.pos()[i];
+	      
+		   
             for (int isubstep=0; isubstep<=nsubsteps; isubstep++) {
                 std::vector<float> subpos(3,0.0);
                 for (int i=0; i<3; i++)
                     subpos[i] = last_step.pos()[i] + isubstep*dir[i]*stepsize;
                 std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( subpos, img_v.front().meta(), (int)img_v.size() );
+
+		// Make sure that the central pixel is located in the image.
+		// Row Pixel.
+		if  (imgcoords[0] < 0 || imgcoords[0] >= (int)img_v.front().meta().rows())
+		  pixel_in_image = false;
+
+		// Column Pixel.
+		for (size_t in_img_iter = 0; in_img_iter<3; in_img_iter++){
+		  if (imgcoords[in_img_iter+1] < 0 || imgcoords[in_img_iter+1] >= (int)img_v.front().meta().cols()){
+		    pixel_in_image = false; }
+		}
+
+		// Continue if 'pixel_in_image' is false - this central pixel is out of the image and will create problems.
+		if (pixel_in_image == false) {
+		  continue;
+		}
+
                 bool hascharge = false;
                 bool found_substep_end = false;
                 int ngoodplanes = 0;
