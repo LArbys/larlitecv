@@ -13,8 +13,8 @@
 namespace larlitecv {
 
   DataCoordinator::DataCoordinator() 
-    : larlite_pset("larlite_pset","")
-    , larcv_pset("larcv_pset","")
+    : larlite_pset("StorageManager","Verbosity: 02 IOMode: 0")
+    , larcv_pset("IOManager","Verbosity: 02 IOMode: 0")
   {
     fManagerList.clear();
     fManagers.clear();
@@ -36,7 +36,6 @@ namespace larlitecv {
   }
 
   void DataCoordinator::add_inputfile( std::string file, std::string ftype ) {
-    //if ( user_filepaths.empty() || user_filepaths.find( ftype )==user_filepaths.end() ) {
     if ( user_filepaths.find( ftype )==user_filepaths.end() ) {
       user_filepaths.emplace(ftype, std::vector<std::string>());
     }
@@ -62,7 +61,7 @@ namespace larlitecv {
       std::cout << "Already initialized!" << std::endl;
       return;
     }
-    std::cout << "[Data Coodinator] Initializing" << std::endl;
+    std::cout << "[DataCoodinator] Initializing" << std::endl;
 
     prepfilelists();
 
@@ -88,7 +87,7 @@ namespace larlitecv {
     for (auto &iter : fManagers ) {
       std::cout << "[DataCoordinator] initializing filemanager for " << iter.first << std::endl;
       iter.second->initialize();
-      std::cout << iter.first << " loaded " << iter.second->get_final_filelist().size() << " files." << std::endl;
+      std::cout << "  " << iter.first << " loading " << iter.second->get_final_filelist().size() << " files." << std::endl;      
     }
 
     // now we setup the iomanagers
@@ -98,8 +97,8 @@ namespace larlitecv {
     do_larlite_config( larlite_io, larlite_pset ); // we have to add one for larlite
 
     // get the iomode for larcv/larlite
-    fIOmodes["larcv"] = (int)larcv_pset.get<int>("IOMode");
-    fIOmodes["larlite"] = (int)larlite_pset.get<int>("IOMode");
+    fIOmodes["larcv"] = (int)larcv_pset.get<int>("IOMode",0);
+    fIOmodes["larlite"] = (int)larlite_pset.get<int>("IOMode",0);
 
     // determine if any of the inputs are unused
     larcv_unused = false;
@@ -190,10 +189,14 @@ namespace larlitecv {
     // get the 
     std::cout << "Loading larlite pset=" << larlite_cfgname << std::endl;
     larlite_pset = pset_coord.get<larcv::PSet>( larlite_cfgname );
-    //larlite_pset = pset_coord.get_pset( larlite_cfgname );
     std::cout << "Loading larcv pset=" << larcv_cfgname << std::endl;
     larcv_pset   = pset_coord.get<larcv::PSet>( larcv_cfgname );
     
+  }
+
+  void DataCoordinator::configure( larcv::PSet& larcv_io_pset, larcv::PSet& larlite_io_pset ) {
+    larlite_pset = larlite_io_pset;
+    larcv_pset   = larcv_io_pset;
   }
 
   larlite::data::DataType_t DataCoordinator::get_enum_fromstring( std::string name ) {
@@ -329,6 +332,9 @@ namespace larlitecv {
   void DataCoordinator::set_id( int run, int subrun, int event ) {
     if ( !larcv_unused ) larcv_io.set_id( run, subrun, event );
     if ( !larlite_unused )larlite_io.set_id( run, subrun, event );    
+    _current_run    = run;
+    _current_subrun = subrun;
+    _current_event  = event;
   }
 
   int DataCoordinator::run() {

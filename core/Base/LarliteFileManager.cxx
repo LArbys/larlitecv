@@ -88,8 +88,19 @@ namespace larlitecv {
 
       long bytes = idtree->GetEntry(0);
       long idtree_entry = 0;
+      std::set<RSE> file_entries;
+      std::map<RSE,int> duplicate_counter;      
       while ( bytes>0 ) {
-	RSE entry( run, subrun, event );
+	RSE entry( run, subrun, event, 0 );
+	if ( file_entries.find(entry)!=file_entries.end() ) {
+	  // duplicate RSE!
+	  RSE duplicate((int)run,(int)subrun,(int)event, 0);
+	  if ( duplicate_counter.find(duplicate)==duplicate_counter.end() )
+	    duplicate_counter.insert( std::pair<RSE,int>(duplicate,0) );
+	  // add subevent number
+	  entry.subevent = ++duplicate_counter[duplicate];
+	}
+	file_entries.insert( entry );		
 	fileentry_rse.emplace_back( entry );
 	bytes = idtree->GetEntry( ++idtree_entry );
       }
@@ -122,10 +133,10 @@ namespace larlitecv {
       }
       
       
-//       std::cout << "File flavor: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
-// 		<< fileentry_rse.run() 
-// 		<< " " << fileentry_rse.subrun() 
-// 		<< " "  << fileentry_rse.event() << std::endl;
+      std::cout << "File " << fpath << " flavor-hash: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
+		<< fileentry_rse.run() 
+		<< " " << fileentry_rse.subrun() 
+ 		<< " "  << fileentry_rse.event() << std::endl;
 	
     }//end of file list loop
 
@@ -159,19 +170,20 @@ namespace larlitecv {
     entry2rse.clear();
 
     // make filelist
-    std::set<RSElist> finalrseset;
+    std::vector<RSElist> finalrseset;
     for ( auto &flavorset : maxset ) {
       std::vector<std::string>& files = flavorfiles.find( flavorset )->second;
       for ( auto &file : files ) {
 	RSElist& rselist = file_rselist.find( file )->second;
-	finalrseset.insert( rselist );
+	finalrseset.push_back( rselist );
       }
     }
     std::vector< RSElist > finalrse_v;
     for ( auto &rselist : finalrseset ) {
       finalrse_v.push_back( rselist );
     }
-    sort( finalrse_v.begin(), finalrse_v.end() );
+    if ( isSorted() )
+      sort( finalrse_v.begin(), finalrse_v.end() );
 
     // make rse dictionaries
     int entrynum = 0;
@@ -180,20 +192,21 @@ namespace larlitecv {
       for ( auto &rse: rselist ) {
 	rse2entry.insert( std::pair< RSE, int >( rse, entrynum ) );
 	entry2rse.insert( std::pair< int, RSE >( entrynum, rse ) );
+	//std::cout << entrynum << " " << rse << std::endl;
 	entrynum++;
       }
       
       auto iter_rse2flist = rse_filelist.find( rselist );
       for ( auto &fpath : iter_rse2flist->second ) {
 	finallist.push_back( fpath ); // we end up resorting
-	std::cout << "final list: " << fpath << " (ientry=" << entrynum << ",rse=" << rselist.run() << "," << rselist.subrun() << ")" << std::endl;
+	//std::cout << "final list: " << fpath << " (ientry=" << entrynum << ",rse=" << rselist.run() << "," << rselist.subrun() << ")" << std::endl;
       }
     }
     
 //     std::cout << "Max flavor set has " << numevents_per_flavorset.find(maxset)->second << " entries. "
 // 	      << "Consists of " << maxset.size() << " different tree flavors." << std::endl;
-//     std::cout << "Index sizes: " << rse2entry.size() << " vs. entries: "<< entrynum << std::endl;
-//     std::cout << "Final file list size: " << ffinallist.size() << std::endl;
+    std::cout << "Index sizes: " << rse2entry.size() << " vs. entries: "<< entrynum << std::endl;
+    std::cout << "Final file list size: " << ffinallist.size() << std::endl;
 
     
       

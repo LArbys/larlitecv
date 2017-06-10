@@ -20,9 +20,11 @@ namespace larlitecv {
   void FileManager::initialize() {
 
     if ( fFilelist=="" ) {
-      // no filelist, so verything empty
+      // no filelist, so everything empty
       return;
     }
+
+    sortRSE( false );
 
     fFilelistHash = get_filelisthash();
     std::cout << "Hash: " << fFilelistHash << std::endl;
@@ -37,8 +39,11 @@ namespace larlitecv {
       std::vector<std::string> files;
       parse_filelist(files);   ///< get a vector of string with the filelist
       if ( files.size()>0 ) {
-	user_build_index(files,ffinallist,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
-	cache_index( fFilelistHash );
+	      user_build_index(files,ffinallist,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
+	      cache_index( fFilelistHash );
+      }
+      else {
+        throw std::runtime_error("FileManager::initialize[error]. File list is empty.");
       }
     }
 
@@ -50,10 +55,22 @@ namespace larlitecv {
       return; // no files
 
     std::ifstream infile( fFilelist.c_str() );
+    if ( !infile.good() ) {
+      std::string msg = "FileManager could not open "+fFilelist;
+      throw std::runtime_error(msg);
+    }
+    
     std::string line;
     while (std::getline(infile, line)) {
-      if ( line!="" )
+      if ( line!="" ) {
+	std::ifstream test(line.c_str());
+	if ( !test.good() ) {
+	  std::string msg = "FileManager::parse_filelist. "+line+" might not exist.";
+	  throw std::runtime_error(msg);
+	}
+	test.close();
 	flist.push_back(line);
+      }
     }
   }
 
