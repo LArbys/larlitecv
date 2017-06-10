@@ -40,7 +40,7 @@ namespace larlitecv {
         bool inplane = true;
         for (int p=0; p<nplanes; p++) {
           wires[p] = larutil::Geometry::GetME()->WireCoordinate(xyz,p);
-          if ( wires[p]<imgs.at(p).meta().min_x() || wires[p]>imgs.at(p).meta().max_x() )
+          if ( wires[p]<imgs.at(p).meta().min_x() || wires[p]>=imgs.at(p).meta().max_x() )
             inplane = false;
         }
         float tick = xyz[0]/cm_per_tick + 3200.0;

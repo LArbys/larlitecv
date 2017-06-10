@@ -29,7 +29,7 @@ APP_SUBDIRS := TaggerTypes Combinator GapChs UnipolarHack ChargeSegmentAlgos T3D
 
 .phony: all clean
 
-all: obj lib
+all: obj lib bin
 
 clean: clean_app clean_core
 	@rm -f $(LARLITECV_LIBDIR)/liblarlitecv.so
@@ -55,3 +55,8 @@ lib: obj
 	   echo Nothing to be done for lib...; \
 	fi
 	@echo 
+
+bin: obj lib
+	@echo
+	@echo Building run_tagger bin
+	@cd $(LARLITECV_BASEDIR)/app/TaggerCROI/bin && rm run_tagger && make && mkdir -p $(LARLITECV_BASEDIR)/bin && cp run_tagger $(LARLITECV_BASEDIR)/bin/run_tagger || exit $$?; done
