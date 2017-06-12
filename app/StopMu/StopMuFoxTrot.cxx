@@ -1,5 +1,7 @@
 #include "StopMuFoxTrot.h"
 
+#include "LArUtil/LArProperties.h"
+
 #include "UBWireTool/UBWireTool.h"
 
 #include "TaggerTypes/BoundaryEndPt.h"
@@ -18,6 +20,7 @@ namespace larlitecv {
   std::vector< larlitecv::BMTrackCluster3D> StopMuFoxTrot::findStopMuTracks( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
 									     const std::vector<larcv::Image2D>& thrumu_v, const std::vector<BoundarySpacePoint>& startpts_v ) {
     std::vector< larlitecv::BMTrackCluster3D > track3d_v;
+    const float cm_per_tick = larutil::LArProperties::GetME()->DriftVelocity()*0.5;
 
     // incorporating tagged information
     // we mask out the charge information, but we also put that information
@@ -47,6 +50,23 @@ namespace larlitecv {
       // make a boundary endpt for the end position
       std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( ft.back().pos(), img_v.front().meta(), img_v.size() );
 
+      // correct rounding error for top of image (x=292 or so)
+      if ( imgcoords[0]==-1 ) {
+	if ( fabs(3200.0+ft.back().pos()[0]/cm_per_tick-img_v.front().meta().max_y())<img_v.front().meta().pixel_height() ) {
+	  imgcoords[0] = 0;
+	  std::vector<float> backend = ft.back().pos();
+	  backend[0] = img_v.front().meta().pos_y(0);
+	  std::vector<float> backdir = ft.back().dir();
+	  ft.pop_back();
+	  FoxStep fixedback( backend, backdir );
+	  ft.push_back( fixedback );
+	}
+	else {
+	  std::cout << "row=-1 and dtick=" << fabs(3200.0+ft.back().pos()[0]/cm_per_tick-img_v.front().meta().max_y()) << std::endl;
+	  continue;
+	}
+      }
+      
       std::vector<BoundaryEndPt> bendpt_v;
       for ( int p=0; p<(int)img_v.size(); p++ ) {
         //const larcv::ImageMeta& meta = img_v[p].meta();

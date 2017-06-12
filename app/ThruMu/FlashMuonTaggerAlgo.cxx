@@ -1003,7 +1003,8 @@ namespace larlitecv {
       }
     }
     else {
-      std::cout << "Need to select best " << fConfig.max_nsegments_per_flash << " from " << candidate_endpts.size() << " endpts" << std::endl;
+      if ( fConfig.verbosity>1 )
+	std::cout << "Need to select best " << fConfig.max_nsegments_per_flash << " from " << candidate_endpts.size() << " endpts" << std::endl;
       // Or select the best by position
       class Qindex {
 	// we use this class to sort the indices by distance from the maximum
@@ -1020,7 +1021,8 @@ namespace larlitecv {
       };
 
       std::vector< Qindex > qlist( candidate_endpts.size() );
-      std::cout << "Select best flashes based on zmax=" << z_max << std::endl;      
+      if ( fConfig.verbosity>1 )      
+	std::cout << "Select best flashes based on zmax=" << z_max << std::endl;      
       for ( int idx=0; idx<(int)candidate_endpts.size(); idx++ ) {
 	Qindex& qidx = qlist[idx];
 	qidx.idx=idx;
@@ -1031,17 +1033,21 @@ namespace larlitecv {
 
       if ( point_type==larlitecv::kAnode ) {
 	// if crossing the anode, we should be close to the max
-	std::cout << "Anode select." << std::endl;
+	if ( fConfig.verbosity>1 )	
+	  std::cout << "Anode select." << std::endl;
 	for (int i=0; i<fConfig.max_nsegments_per_flash; i++ ) {
-	  std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;
+	  if ( fConfig.verbosity>1 )	  
+	    std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;
 	  trackendpts.emplace_back( std::move( candidate_endpts[ qlist[i].idx ] ) );
 	}
       }
       else {
 	// if crossing the cathode, we should be away from the max, to some degree
-	std::cout << "Cathode select" << std::endl;
+	if ( fConfig.verbosity>1 )	
+	  std::cout << "Cathode select" << std::endl;
 	for (int i=(int)candidate_endpts.size()-1; i>=(int)candidate_endpts.size()-fConfig.max_nsegments_per_flash; i-- ) {
-	  std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;	  
+	  if ( fConfig.verbosity>1 )
+	    std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;	  
 	  trackendpts.emplace_back( std::move( candidate_endpts[ qlist[i].idx ] ) );
 	}	
       }

@@ -79,7 +79,7 @@ namespace larlitecv {
       FoxStep next = getNextStep( track.back(), img_v, badch_v, track );
       if ( m_config.verbosity>0 && next.isgood() ) {
         std::cout << __FILE__ << ":" << __LINE__
-            << "next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") "
+            << " next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") "
         	  << " dir=(" << next.dir()[0] << "," << next.dir()[1] << "," << next.dir()[2] << ") "
         	  << " good=" << next.isgood() << std::endl;
       }

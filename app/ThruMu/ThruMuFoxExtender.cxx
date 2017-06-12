@@ -29,6 +29,38 @@ namespace larlitecv {
       startdir[i] /= norm_start;
     }
 
+    std::vector<int> start_imgcoords = larcv::UBWireTool::getProjectedImagePixel( startpoint, img_v.front().meta(), img_v.size() );
+    std::vector<int> end_imgcoords   = larcv::UBWireTool::getProjectedImagePixel( endpoint, img_v.front().meta(), img_v.size() );
+    bool start_isvalid = true;
+    bool end_isvalid = true;    
+    if ( start_imgcoords[0]<0 || start_imgcoords[0]>=(int)img_v.front().meta().rows() )
+      start_isvalid = false;
+    if ( end_imgcoords[0]<0 || end_imgcoords[0]>=(int)img_v.front().meta().rows() )
+      end_isvalid = false;
+
+    for (size_t p=0; p<img_v.size(); p++) {
+      if ( start_imgcoords[p+1]<0 || start_imgcoords[p+1]>=(int)img_v[p].meta().cols() )
+	start_isvalid = false;
+      if ( end_imgcoords[p+1]<0 || end_imgcoords[p+1]>=(int)img_v[p].meta().cols() )
+	end_isvalid = false;
+    }
+
+    if ( !start_isvalid ) {
+      std::stringstream msg;
+      msg << __FILE__ << ":" << __LINE__
+	  << " start point is invalid (" << start_imgcoords[0] << "," << start_imgcoords[1] << "," << start_imgcoords[2] << "," << start_imgcoords[3] << ")"
+	  << " pos3d=(" << startpoint[0] << "," << startpoint[1] << "," << startpoint[2] << ")"
+	  << std::endl;
+      throw std::runtime_error( msg.str() );
+    }
+    if ( !end_isvalid ) {
+      std::stringstream msg;
+      msg << __FILE__ << ":" << __LINE__ << " start point is invalid (" << end_imgcoords[0] << "," << end_imgcoords[1] << "," << end_imgcoords[2] << "," << end_imgcoords[3] << ")"
+	  << " pos3d=(" << endpoint[0] << "," << endpoint[1] << "," << endpoint[2] << ")"	
+	  << std::endl;
+      throw std::runtime_error( msg.str() );
+    }
+
     FoxTrack track_back  = extendFromPoint( endpoint, enddir, img_v, badch_v, tagged_v );
     FoxTrack track_front = extendFromPoint( startpoint, startdir, img_v, badch_v, tagged_v );
 

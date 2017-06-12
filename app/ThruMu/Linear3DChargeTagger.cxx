@@ -161,7 +161,7 @@ namespace larlitecv {
         // this position can't be mapped to the image. go to next position.
         continue;
       }
-
+      
       // is this the same point as before? if so, let's move on.
       if ( track.size()>0 && track.back()==pt )
         continue;
@@ -191,8 +191,22 @@ namespace larlitecv {
         }
       }
 
-      track.emplace( std::move(pt) );
+      // final check. we project pack into the image (rounding errors can occur)
+      std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( pt.xyz, img_v.front().meta(), img_v.size() );
 
+      // is the point in the image?
+      bool inimage = true;
+      if ( imgcoords[0]<0 || imgcoords[0]>=(int)img_v.front().meta().rows() )
+	inimage = false;
+      for (int p=0; p<nplanes; p++) {
+	if (imgcoords[p+1]<0 || imgcoords[p+1]>=img_v[p].meta().cols() )
+	  inimage = false;
+      }
+      if ( !inimage )
+	continue;
+      
+      track.emplace( std::move(pt) );
+      
     } // End of the loop over the wires (for some reason I'm getting mismatched parentheses)
 
     return track;
@@ -209,6 +223,12 @@ namespace larlitecv {
   // 'min_ADC_value' - This is the minimum ADC value that a pixel in the vicinity of the central pixel can have so that it is deemed true that there is charge in the vicinity of the central pixel
   bool Linear3DChargeTagger::doesNeighboringPixelHaveCharge(const larcv::Image2D& img, int central_row, int central_col, int neighborhood_size, float min_ADC_value) {
 
+    // is central pixel still in the image?
+    if ( central_row<0 || central_row>=(int)img.meta().rows() )
+      return false;
+    if ( central_col<0 || central_col>=(int)img.meta().cols() )
+      return false;
+    
     // You can define variables for the initial row and the final row based on where in the TPC they are
     int last_row_index = (int)img.meta().rows() - 1;
     int last_col_index = (int)img.meta().cols() - 1;

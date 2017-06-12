@@ -92,7 +92,8 @@ namespace larlitecv {
 								   const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v ) {
     // we go through small steps along the path, finding the end point
     // we find the end point by taking sub steps between the fox trot steps
-    // we record the last point with good charge
+    // we record the last point with good charge.
+    // we end the search once we've starting to move out of the image
 
     if (track.size()==1) {
       return BoundarySpacePoint(original);
@@ -102,10 +103,16 @@ namespace larlitecv {
     std::vector<float> enddir(3,0);
     float max_step_size = 0.3;
     int hit_neighborhood = 2;
+
+    // default end pos is the original position and dir
+    for (int i=0; i<3; i++) {
+      endpos[i] = original.pos()[i];
+      enddir[i] = original.dir()[i];
+    }
 	
     std::vector<float> thresholds(3,10.0);
     for ( int istep=1; istep<(int)track.size(); istep++ ) {
-      // I will make this a constant below after I make sure it is inside the image.
+
       const FoxStep& last_step    = track[istep-1];
       const FoxStep& current_step = track[istep];
       float dir[3] = {0.0};
@@ -123,11 +130,11 @@ namespace larlitecv {
       std::vector<float> last_good_point(3,0);
       for (int i=0; i<3; i++)
 	last_good_point[i] = last_step.pos()[i];
-	      
 
-      bool pixel_in_image  = true;
-	    
+      bool found_substep_end = false;      
       for (int isubstep=0; isubstep<=nsubsteps; isubstep++) {
+
+	// get subset position in the image
 	std::vector<float> subpos(3,0.0);
 	for (int i=0; i<3; i++)
 	  subpos[i] = last_step.pos()[i] + isubstep*dir[i]*stepsize;
@@ -136,21 +143,16 @@ namespace larlitecv {
 	// Make sure that the central pixel is located in the image.
 	// Row Pixel.
 	if  (imgcoords[0] < 0 || imgcoords[0] >= (int)img_v.front().meta().rows())
-	  pixel_in_image = false;
+	  continue;
 
 	// Column Pixel.
 	for (size_t in_img_iter = 0; in_img_iter<3; in_img_iter++){
-	  if (imgcoords[in_img_iter+1] < 0 || imgcoords[in_img_iter+1] >= (int)img_v.front().meta().cols()){
-	    pixel_in_image = false; }
+	  if (imgcoords[in_img_iter+1] < 0 || imgcoords[in_img_iter+1] >= (int)img_v.front().meta().cols())
+	    continue;
 	}
 
-	// Continue if 'pixel_in_image' is false - this central pixel is out of the image and will create problems.
-	if (pixel_in_image == false) {
-	  continue;
-	}
-
+	// does image pixel have charge in its neighborhood on all three planes?
 	bool hascharge = false;
-	bool found_substep_end = false;
 	int ngoodplanes = 0;
 	for (size_t p=0; p<img_v.size(); p++) {
 	  bool foundhit_on_plane = false;
@@ -177,25 +179,26 @@ namespace larlitecv {
 	  hascharge = true;
 	}
 
+	// if the substep has charge, we update the last good point
 	if ( hascharge ) {
 	  substeps_w_charge += 1;
-	  if (!found_substep_end) {
-	    for (int i=0; i<3; i++)
-	      last_good_point[i] = subpos[i];
-	    found_substep_end = true;
-	  }
+	  for (int i=0; i<3; i++)
+	    last_good_point[i] = subpos[i];
+	  found_substep_end = true;
 	}
-
+	
 	// std::cout << " checking substep (" << istep << "," << isubstep << "/" << nsubsteps << "): "
 	//             << "hascharge=" << hascharge << " "
 	//             << "found_substep_end=" << found_substep_end
 	//             << std::endl;
       }// end of substep loop
-
+      
       // fill the end point with the last good subpos end
-      for (int i=0; i<3; i++) {
-	endpos[i] = last_good_point[i];
-	enddir[i] = dir[i];
+      if (found_substep_end ) {
+	for (int i=0; i<3; i++) {
+	  endpos[i] = last_good_point[i];
+	  enddir[i] = dir[i];
+	}
       }
       if ( float(substeps_w_charge)/(nsubsteps) < 0.9 ) {
 	// this step is probably the last good step. stop here and fill the end pos
@@ -210,7 +213,7 @@ namespace larlitecv {
       endpt_v.emplace_back( std::move(endpt_t) );
     }
     BoundarySpacePoint pushed( original.type(), std::move(endpt_v), endpos[0], endpos[1], endpos[2] );
-
+    
     return pushed;
   }//end of find end point
 

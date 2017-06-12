@@ -212,6 +212,13 @@ namespace larlitecv {
           if ( m_config.verbosity>1 ) {
             std::cout << "  good fraction: " << linear_result.goodfrac << std::endl;
             std::cout << "  majority planes w/ charge fraction: " << linear_result.majfrac << std::endl;
+	    if ( linear_track.path3d.size()>0 ) {
+	      const std::vector<double>& retstart = linear_track.path3d.front();
+	      const std::vector<double>& retend = linear_track.path3d.back();
+	      std::cout << "  " << retstart.size() << " " << retend.size() << std::endl;
+	      std::cout << "  returned start=(" << retstart[0] << "," << retstart[1] << "," << retstart[2] << ")" << std::endl;
+	      std::cout << "  returned end=(" << retend[0] << "," << retend[1] << "," << retend[2] << ")" << std::endl;
+	    }
           }
           if ( linear_result.isgood ) {
             if ( m_config.verbosity>1 ) std::cout << "  Linear Result is good. length=" << linear_track.path3d.size() << std::endl;

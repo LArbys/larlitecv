@@ -3,6 +3,8 @@
 
 #include "BoundaryMuonTaggerTypes.h"
 #include <vector>
+#include <stdexcept>
+#include <sstream>
 
 namespace larlitecv {
 
@@ -17,6 +19,11 @@ namespace larlitecv {
       col=col_; 
       type=type_; 
       dir.resize(2,0);
+      if ( row_<0 || col_<0 ) {
+	std::stringstream msg;
+	msg << __FILE__ << ":" << __LINE__ << " invalues row (" << row << ") and/or col (" << col << ") values provided" << std::endl;
+	throw std::runtime_error(msg.str());
+      }
     };
 
     virtual ~BoundaryEndPt() {}; 
