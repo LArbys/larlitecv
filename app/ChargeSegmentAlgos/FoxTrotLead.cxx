@@ -5,7 +5,7 @@
 namespace larlitecv {
 
   bool FoxTrotLead::chooseBestSegment( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
-				       const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx ) {
+				       const FoxTrotTrackerAlgoConfig& config, const std::vector<larcv::Image2D>& stepped_v, int& best_seg_idx ) {
     // set initial best seg
     best_seg_idx = -1; // set to sentinal value
 
@@ -53,7 +53,7 @@ namespace larlitecv {
       }
     }
 
-    return _chooseBestSegment_( current, seg3d_v, past, config, best_seg_idx );
+    return _chooseBestSegment_( current, seg3d_v, past, config, stepped_v, best_seg_idx );
   }
 
 

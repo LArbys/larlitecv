@@ -53,7 +53,8 @@ namespace larlitecv {
       
   protected:
 
-    bool _chooseBestSegment_( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past, const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx );
+    bool _chooseBestSegment_( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past, const FoxTrotTrackerAlgoConfig& config,
+			      const std::vector<larcv::Image2D>& stepped_v, int& best_seg_idx );
     
     //float dist2realline( std::vector<double>& image_pt );
     

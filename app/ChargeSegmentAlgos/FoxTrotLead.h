@@ -10,6 +10,9 @@
  * =======================================================*/
 
 #include <vector>
+
+#include "DataFormat/Image2D.h"
+
 #include "Segment3DAlgoTypes.h"
 #include "FoxTrotTrackerAlgoTypes.h"
 #include "FoxTrotTrackerAlgoConfig.h"
@@ -23,12 +26,12 @@ namespace larlitecv {
 
     // function for choosing best segment for next step
     bool chooseBestSegment( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
-			    const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx );
+			    const FoxTrotTrackerAlgoConfig& config, const std::vector<larcv::Image2D>& tagged_v, int& best_seg_idx );
 
   protected:
 
     virtual bool _chooseBestSegment_( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
-				      const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx ) = 0;
+				      const FoxTrotTrackerAlgoConfig& config, const std::vector<larcv::Image2D>& tagged_v, int& best_seg_idx ) = 0;
     
   };
 

@@ -7,7 +7,8 @@ namespace larlitecv {
   // --------------------------------------------------------------------------
   // ThruMu Lead. Choose position most consistent with straight-line after
   // trying to remove space-charge effect.
-  bool ThruMuFoxTrotLead::_chooseBestSegment_( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past, const FoxTrotTrackerAlgoConfig& config, int& best_seg_idx ) {
+  bool ThruMuFoxTrotLead::_chooseBestSegment_( const FoxStep& current, std::vector<Segment3D_t>& seg3d_v, const FoxTrack& past,
+					       const FoxTrotTrackerAlgoConfig& config, const std::vector<larcv::Image2D>& stepped_v, int& best_seg_idx ) {
 
     float closest_dist2realline = 1.0e9;
     best_seg_idx = -1;
