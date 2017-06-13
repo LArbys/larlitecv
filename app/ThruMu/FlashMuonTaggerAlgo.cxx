@@ -80,7 +80,7 @@ namespace larlitecv {
         }
         
         // check if the opflash time occurs within the image
-        if ( tick_target<meta.min_y() || tick_target>=meta.max_y() ) {
+        if ( tick_target<=meta.min_y() || tick_target>=meta.max_y() ) {
 	  if ( fConfig.verbosity>0 ) {
 	    std::cout << "============================================================================================" << std::endl;	    
 	    std::cout << " [opflash search] Op Flash out of time. tick_target=" << tick_target << " flash_tick=" << flash_tick
@@ -143,7 +143,7 @@ namespace larlitecv {
           if ( z_range[0]<55.0 ) z_range[0] = 0; 
           if ( z_range[1]>980.0 ) z_range[1] = 1100;
         }
-        
+	
         int row_target = meta.row( tick_target );
         
         if ( fConfig.verbosity>0 ) {
