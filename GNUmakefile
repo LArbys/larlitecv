@@ -59,4 +59,6 @@ lib: obj
 bin: obj lib
 	@echo
 	@echo Building run_tagger bin
-	@cd $(LARLITECV_BASEDIR)/app/TaggerCROI/bin && make clean && make && mkdir -p $(LARLITECV_BASEDIR)/bin && cp run_tagger $(LARLITECV_BASEDIR)/bin/run_tagger || exit $$?; done
+	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin clean
+	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin
+	@ln -s $(LARLITECV_BASEDIR)/app/TaggerCROI/bin/run_tagger $(LARLITECV_BASEDIR)/bin/run_tagger
