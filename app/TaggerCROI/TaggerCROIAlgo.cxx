@@ -455,6 +455,7 @@ namespace larlitecv {
     TaggerFlashMatchAlgo     selectionalgo( m_config.croi_selection_cfg );
     Track3DRecluster         reclusteralgo;
     T3DPCMerge               pcamergealgo;
+    //pcamergealgo.setVerbosity(0);
 
     std::clock_t timer;
 
