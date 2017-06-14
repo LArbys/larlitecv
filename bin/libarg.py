@@ -9,8 +9,12 @@ libs=[x for x in commands.getoutput('larlitecv-config --libs').split() if not x.
 libs+= commands.getoutput('root-config --libs').split()
 if 'LARLITE_BASEDIR' in os.environ:
     libs+= commands.getoutput('larlite-config --libs').split()
+    libs+= ["-lBasicTool_FhiclLite","-lBasicTool_GeoAlgo","-lSelectionTool_OpT0FinderAna","-lSelectionTool_OpT0FinderApp",
+            "-lSelectionTool_OpT0PhotonLibrary","-lSelectionTool_OpT0FinderAlgorithms","-lSelectionTool_OpT0FinderBase"]
 if 'LARCV_BASEDIR' in os.environ:
     libs+= commands.getoutput('larcv-config --libs').split()
+if 'ANN_LIBDIR' in os.environ:
+    libs+= ["-L%s -lANN" % ( os.environ["ANN_LIBDIR"].strip() )]
     
 objs_list=[]
 dict_list=[]

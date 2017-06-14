@@ -1,3 +1,7 @@
 *~
 *.pyc
 .depend
+*.pylardcache
+*.sublime-workspace
+*.root
+*.txt

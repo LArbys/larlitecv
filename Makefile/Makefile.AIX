@@ -8,6 +8,6 @@ ARFLAGS		= -X${OBJECT_MODE}
 SOMAKER         = g++
 SOFLAGS         = -shared -Wl -g
 
-ifeq ($(LARCV_OPENCV),1)
+ifeq ($(LARLITECV_OPENCV),1)
 CXXFLAGS += -DUSE_OPENCV
 endif

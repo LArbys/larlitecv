@@ -25,11 +25,11 @@ CORE_SUBDIRS := Hashlib2plus Base
 #  CORE_SUBDIRS += CVUtil
 #endif
 
-APP_SUBDIRS := 
+APP_SUBDIRS := TaggerTypes Combinator GapChs UnipolarHack ChargeSegmentAlgos T3DMerge ThruMu StopMu UntaggedClustering SCE ContainedROI TaggerCROI
 
 .phony: all clean
 
-all: obj lib
+all: obj lib bin
 
 clean: clean_app clean_core
 	@rm -f $(LARLITECV_LIBDIR)/liblarlitecv.so
@@ -55,3 +55,10 @@ lib: obj
 	   echo Nothing to be done for lib...; \
 	fi
 	@echo 
+
+bin: obj lib
+	@echo
+	@echo Building run_tagger bin
+	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin clean
+	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin
+	@ln -fs $(LARLITECV_BASEDIR)/app/TaggerCROI/bin/run_tagger $(LARLITECV_BASEDIR)/bin/run_tagger

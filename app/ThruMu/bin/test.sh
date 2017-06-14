@@ -1,0 +1,1 @@
+./thrumu bmt.cfg flist_larcv.txt flist_larlite.txt
