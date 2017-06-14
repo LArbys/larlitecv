@@ -5,6 +5,9 @@
 #include "AStarNodes2BMTrackCluster3D.h"
 #include "ThruMuFoxExtender.h"
 
+// larcv (crb)
+#include "UBWireTool/UBWireTool.h"
+
 namespace larlitecv {
 
   ThruMuTracker::ThruMuTracker( const ThruMuTrackerConfig& config )
@@ -357,9 +360,35 @@ namespace larlitecv {
     std::vector< std::vector<double> > path3d;
     for ( auto const& ptinfo : straight_track ) {
       std::vector<double> xyz(3);
-      for (int i=0; i<3; i++)
+
+      // Declare a float value for the same vector to use that.
+      std::vector<float> xyz_float(3,0.0);
+      
+      for (int i=0; i<3; i++) {
       	xyz[i] = ptinfo.xyz[i];
-      path3d.emplace_back( std::move(xyz) );
+        xyz_float[i] = ptinfo.xyz[i];
+      }
+
+      // Ensure that the 3 coordinates give a value inside the image before appending this value to the track.
+      // Convert the 3D position to a 2D pixel image.
+      std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( xyz_float, img_v.front().meta(), img_v.size() );
+
+      bool point_gives_2D_pixel_out_of_range = false;
+
+      // Continue if the imgcoords are not inside the image.
+      // If any dimension is outside the image, then please continue.
+      if (imgcoords[0] < 0 || imgcoords[0] >= img_v.at(0).meta().rows())
+	point_gives_2D_pixel_out_of_range = true;
+
+      for (size_t p = 0; p < img_v.size(); p++) {
+
+	if (imgcoords[p+1] < 0 || imgcoords[p+1] >= img_v.at(0).meta().cols())
+	  point_gives_2D_pixel_out_of_range = true;
+
+      }
+
+      if (!point_gives_2D_pixel_out_of_range)
+	path3d.emplace_back( std::move(xyz) );
     }
 
     larlitecv::BMTrackCluster3D track3d( pts_a, pts_b, path3d );
