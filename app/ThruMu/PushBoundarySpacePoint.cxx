@@ -131,6 +131,11 @@ namespace larlitecv {
       for (int i=0; i<3; i++)
 	last_good_point[i] = last_step.pos()[i];
 
+      std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( last_good_point, img_v.front().meta(), (int)img_v.size() );
+
+      if ( !isPixelWithinImage(img_v, imgcoords) )
+	  continue;
+
       bool found_substep_end = false;      
       for (int isubstep=0; isubstep<=nsubsteps; isubstep++) {
 
@@ -138,18 +143,13 @@ namespace larlitecv {
 	std::vector<float> subpos(3,0.0);
 	for (int i=0; i<3; i++)
 	  subpos[i] = last_step.pos()[i] + isubstep*dir[i]*stepsize;
-	std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( subpos, img_v.front().meta(), (int)img_v.size() );
 
-	// Make sure that the central pixel is located in the image.
-	// Row Pixel.
-	if  (imgcoords[0] < 0 || imgcoords[0] >= (int)img_v.front().meta().rows())
-	  continue;
+	// Reset the value of 'imgcoords' to the coordinates of this point
+	imgcoords = larcv::UBWireTool::getProjectedImagePixel( subpos, img_v.front().meta(), (int)img_v.size() );
 
-	// Column Pixel.
-	for (size_t in_img_iter = 0; in_img_iter<3; in_img_iter++){
-	  if (imgcoords[in_img_iter+1] < 0 || imgcoords[in_img_iter+1] >= (int)img_v.front().meta().cols())
-	    continue;
-	}
+	// Check to ensure that 'subpos' is located within the Image2D object.
+	if ( !isPixelWithinImage(img_v, imgcoords) )
+          continue;
 
 	// does image pixel have charge in its neighborhood on all three planes?
 	bool hascharge = false;
@@ -208,6 +208,7 @@ namespace larlitecv {
 
     std::vector<BoundaryEndPt> endpt_v;
     std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( endpos, img_v.front().meta(), (int)img_v.size() );
+    
     for (int p=0; p<3; p++) {
       BoundaryEndPt endpt_t( imgcoords[0], imgcoords[p+1], original.type() );
       endpt_v.emplace_back( std::move(endpt_t) );
@@ -229,6 +230,24 @@ namespace larlitecv {
 				 moved_pt.pos()[0], moved_pt.pos()[1], moved_pt.pos()[2] );
     }
     return BoundarySpacePoint( moved_pt );
+  }
+
+  bool PushBoundarySpacePoint::isPixelWithinImage(const std::vector<larcv::Image2D>& img_v,  std::vector<int> imgcoords) {
+
+    // Check to ensure the pixel is located inside the image.
+
+    // Row Pixel.
+    if  (imgcoords[0] < 0 || imgcoords[0] >= (int)img_v.front().meta().rows())
+          return false;
+
+    // Column Pixel.
+    for (size_t p = 0; p<3; p++){
+      if (imgcoords[p+1] < 0 || imgcoords[p+1] >= (int)img_v.front().meta().cols())
+	return false;
+    }
+
+    return true;
+
   }
 
 }
