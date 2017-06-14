@@ -90,13 +90,17 @@ namespace larlitecv {
       FoxStep next = getNextStep( track.back(), img_v, badch_v, stepped_v, track );
       if ( m_config.verbosity>0 && next.isgood() ) {
         std::cout << __FILE__ << ":" << __LINE__
-            << " next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") "
+		  << " good next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") "
         	  << " dir=(" << next.dir()[0] << "," << next.dir()[1] << "," << next.dir()[2] << ") "
         	  << " good=" << next.isgood() << std::endl;
       }
-      else if ( m_config.verbosity>0 && !next.isgood() )
-        std::cout << "next fox step is bad." << std::endl;
-
+      else if ( m_config.verbosity>0 && !next.isgood() ) {
+        std::cout << __FILE__ << ":" << __LINE__
+		  << " bad next fox step: (" << next.pos()[0] << "," << next.pos()[1] << "," << next.pos()[2] << ") "
+	  //<< " dir=(" << next.dir()[0] << "," << next.dir()[1] << "," << next.dir()[2] << ") "
+        	  << " good=" << next.isgood() << std::endl;
+      }
+      
       if ( next.isgood() ) {
 	// we tag the step
 	tagStep( next, track.back(), stepped_v, 0.3 );
@@ -168,6 +172,13 @@ namespace larlitecv {
         for (int v=0; v<3; v++)
           canddir[v] /= dist;
 
+	// edge checking: bad. bad. bad. fix this using larutil::geometry in the future
+	if ( candpos[2]>=1036.74 && fabs(candpos[2]-1036.75)<0.3 ) {
+	  if ( m_config.verbosity>1 )
+	    std::cout << __FILE__ << ":" << __LINE__ << " edge adjustment: candpos[2] = " << candpos[2] << " > max_x " << img_v.front().meta().max_x() << std::endl;
+	  candpos[2] = 1036.75-0.3; // bump
+	}
+	
         return FoxStep( candpos, canddir );
       }
 
