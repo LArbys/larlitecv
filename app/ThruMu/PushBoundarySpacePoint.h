@@ -17,6 +17,8 @@ namespace larlitecv {
     BoundarySpacePoint pushPoint( const larlitecv::BoundarySpacePoint& boundarypoint, const std::vector<larcv::Image2D>& img_v,
                                     const std::vector<larcv::Image2D>& badch_v );
 
+     bool isPixelWithinImage(const std::vector<larcv::Image2D>& img_v,  std::vector<int> imgcoords); // Check to ensure that a pixel is located within the image.
+
 
     void clear();
 

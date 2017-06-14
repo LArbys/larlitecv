@@ -1,11 +1,13 @@
 #include "AStarNodes2BMTrackCluster3D.h"
+#include "PushBoundarySpacePoint.h"
 
 // larlite
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
 
-// larcv (crb)
+// larcv 
 #include "UBWireTool/UBWireTool.h"
+
 
 namespace larlitecv {
 
@@ -68,22 +70,12 @@ namespace larlitecv {
 	// Convert the 3D position to wire coordinates (I have to use xyz to do this).
 	std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( pt_float, img_v.front().meta(), img_v.size() );
 
-	// Continue if the imgcoords are not inside the image.
-	// If any dimension is outside the image, then please continue.
+	// Declare an instance of class 'PushBoundarySpacePoint'.
+	PushBoundarySpacePoint point_push;
 
-	bool point_gives_2D_pixel_out_of_range = false;
-	
-	if (imgcoords[0] < 0 || imgcoords[0] >= img_v.at(0).meta().rows())
-	  point_gives_2D_pixel_out_of_range = true;
+	bool pixel_in_image = point_push.isPixelWithinImage(img_v, imgcoords);
 
-	for (size_t p = 0; p < img_v.size(); p++) {
-
-	  if (imgcoords[p+1] < 0 || imgcoords[p+1] >= img_v.at(0).meta().cols())
-	    point_gives_2D_pixel_out_of_range = true;
-
-	}
-
-	if (!point_gives_2D_pixel_out_of_range)
+	if (pixel_in_image)
 	  output_path.emplace_back( std::move(pt) );
 
       } //end of steps
