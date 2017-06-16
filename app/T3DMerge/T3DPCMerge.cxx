@@ -176,6 +176,7 @@ namespace larlitecv {
     }
 
     // return 'false' and do not merge the endpoints if one of the lines have the same endpoints, meaning that they are just a single point.
+    // use 0.002 cm for endpoints that differ slightly from rounding.
     if ( ( fabs(staa[0] - enda[0]) < .002 && fabs(staa[1] - enda[1]) < 0.002 && fabs(staa[2] - enda[2]) < 0.002 ) || ( fabs(stab[0] - endb[0]) < 0.002 && fabs(stab[1] - endb[1]) < 0.002 && fabs(stab[2] - endb[2]) < 0.002 ) ) {
       return false;
     }
