@@ -62,8 +62,9 @@ namespace larlitecv {
 
     // simple on-off hit finder with min with
 
-    // if row out of bounds, return empty container
-    if ( row<0 || row>(int)img.meta().rows() )
+    // The upper limit has to be greater than or equal to
+    // to properly enforce out-of-bounds pixels.
+    if ( row<0 || row>=(int)img.meta().rows() )
       return hits;
     
     // start off, unless above threshold
