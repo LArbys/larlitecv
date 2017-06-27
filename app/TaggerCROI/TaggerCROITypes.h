@@ -138,6 +138,14 @@ namespace larlitecv {
   CROIPayload() : TaggerCROIVPayload("CROI") {};
     virtual ~CROIPayload() {};
 
+    // Save the information for the Clustered Tracks.
+
+    // Before Reclustering
+    std::vector<larlitecv::TaggerFlashMatchData> contained_tracks_v;
+
+    // After Reclustering.
+    std::vector< T3DCluster > reclustered_contained_v;
+
     std::vector< larlitecv::T3DCluster > stopthru_reclustered_v;
     std::vector< std::vector<larcv::Pixel2DCluster> > stopthru_reclustered_pixels_v;
 
@@ -167,6 +175,8 @@ namespace larlitecv {
     };
 
     void clean() {
+      contained_tracks_v.clear();
+      reclustered_contained_v.clear();
       stopthru_reclustered_v.clear();
       stopthru_reclustered_pixels_v.clear();
       plane_groups_v.clear();

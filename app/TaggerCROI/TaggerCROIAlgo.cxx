@@ -684,6 +684,7 @@ namespace larlitecv {
       contained_tracks_v.emplace_back( std::move(contained_cluster) );
     }// end of vol loop
 
+
     m_time_tracker[kUntagged] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // --------------------------------------------------------------------//
@@ -706,6 +707,17 @@ namespace larlitecv {
     std::vector< T3DCluster > reclustered_contained = reclusteralgo.recluster();
     std::cout << "Reclustered Contained Tracks from " << contained_tracks_v.size() << " to " << reclustered_contained.size();
 
+    // Add the contained tracks to the output.
+    // Append the contained tracks onto the end of the output.
+    output.contained_tracks_v.clear();
+
+    // Place these into the output.
+    for ( auto& contained_track_loop : contained_tracks_v ) {
+
+      output.contained_tracks_v.emplace_back( std::move(contained_track_loop) );
+
+    }
+
     m_time_tracker[kRecluster] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // --------------------------------------------------------------------//
@@ -719,6 +731,17 @@ namespace larlitecv {
       reclusteralgo.addTrack( t3d );
     }
     std::vector< T3DCluster > reclustered_alltracks_v = reclusteralgo.recluster();
+
+    // Add the reclustered contained tracks to the output.
+    // Add the contained reclustered tracks to the output.
+    output.reclustered_contained_v.clear();
+
+    // Place these into the output.
+    for ( auto& reclustered_contained_track : reclustered_contained ) {
+
+      output.reclustered_contained_v.emplace_back( std::move(reclustered_contained_track) );
+
+    }
 
     // --------------------------------------------------------------------//
     // PCAMERGE
