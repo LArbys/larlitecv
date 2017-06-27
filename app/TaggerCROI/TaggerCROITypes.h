@@ -138,7 +138,7 @@ namespace larlitecv {
   CROIPayload() : TaggerCROIVPayload("CROI") {};
     virtual ~CROIPayload() {};
 
-    // Save the information for the Clustered Tracks.
+    // Save the information for the Clustered Tracks (for the notebook).
 
     // Before Reclustering
     std::vector<larlitecv::TaggerFlashMatchData> contained_tracks_v;

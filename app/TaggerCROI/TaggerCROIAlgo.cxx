@@ -711,7 +711,7 @@ namespace larlitecv {
     // Append the contained tracks onto the end of the output.
     output.contained_tracks_v.clear();
 
-    // Place these into the output.
+    // Place these into the output for the CROI stage.
     for ( auto& contained_track_loop : contained_tracks_v ) {
 
       output.contained_tracks_v.emplace_back( std::move(contained_track_loop) );
