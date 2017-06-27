@@ -32,6 +32,22 @@ namespace larlitecv {
 
       // get 2D line segments
       std::vector< Segment2D_t > segments2d = make2DSegments( img_v.at(p), badch_v.at(p), lowrow, hits_low, highrow, hits_high, thresholds[p], hit_neighborhood, 0.9 );
+      if ( verbosity>0 )
+	std::cout << __FILE__ << ":" << __LINE__ << " hits on p" << p
+		  << " lo=" << hits_low.size()
+		  << " hi=" << hits_high.size()
+		  << " segs=" << segments2d.size()
+		  << std::endl;
+      if ( verbosity>1 ) {
+	std::cout << "hit low list: " << std::endl;
+	for (int i=0; i<(int)hits_low.size(); i++)
+	  std::cout << " " << hits_low[i];
+	std::cout << std::endl;
+	std::cout << "hit high list: " << std::endl;
+	for (int i=0; i<(int)hits_high.size(); i++)
+	  std::cout << " " << hits_high[i];
+	std::cout << std::endl;
+      }
       plane_segments2d.emplace_back( std::move(segments2d) );
     }
 
@@ -46,10 +62,9 @@ namespace larlitecv {
 
     // simple on-off hit finder with min with
 
-    // if row out of bounds, return empty container
     // The upper limit has to be greater than or equal to
     // to properly enforce out-of-bounds pixels.
-    if ( row<0 || row>=img.meta().rows() )
+    if ( row<0 || row>=(int)img.meta().rows() )
       return hits;
     
     // start off, unless above threshold

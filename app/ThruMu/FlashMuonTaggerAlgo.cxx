@@ -902,8 +902,10 @@ namespace larlitecv {
     
     // We keep those in the same z-range as the flash seen
     std::vector< BoundarySpacePoint > candidate_endpts;
-    
-    for ( auto const& seg3d : seg3d_v ) {
+    std::vector<int> endpt2segidx;
+
+    for ( size_t iseg=0; iseg<seg3d_v.size(); iseg++ ) {
+      auto const& seg3d = seg3d_v[iseg];
       bool pos_matches = false;
       if ( (z_range[0]<=seg3d.start[2] && seg3d.start[2]<=z_range[1]) || (z_range[0]<=seg3d.end[2] && seg3d.end[2]<=z_range[1]) ) {
 	pos_matches = true;
@@ -911,7 +913,7 @@ namespace larlitecv {
       if ( fConfig.verbosity>0 )
 	std::cout << "  segment start-z=" << seg3d.start[2] << " end-z=" << seg3d.end[2] << " matches=" << pos_matches << std::endl;
 
-      if (!pos_matches)
+      if (!pos_matches) 
 	continue;
 
       // test if extensions also have charge
@@ -993,6 +995,7 @@ namespace larlitecv {
 	}
 	larlitecv::BoundarySpacePoint sp( point_type, std::move(endpt_v), (float)*(xyz+0), (float)*(xyz+1), (float)*(xyz+2) );
 	candidate_endpts.emplace_back( sp );
+	endpt2segidx.push_back( iseg );
       }//end if position matches
     }//end of seg3d loop
 
@@ -1013,9 +1016,17 @@ namespace larlitecv {
 	~Qindex() {};
 	int idx;
 	float z_dist;
+	float frac_q;
 	bool operator<( const Qindex& rhs ) const {
-	  if ( z_dist < rhs.z_dist )
+	  if ( frac_q > rhs.frac_q )
 	    return true;
+	  else if ( frac_q < rhs.frac_q )
+	    return false;
+	  else {
+	    // equal!
+	    if ( z_dist < rhs.z_dist )
+	      return true;
+	  }
 	  return false;
 	};
       };
@@ -1026,6 +1037,9 @@ namespace larlitecv {
       for ( int idx=0; idx<(int)candidate_endpts.size(); idx++ ) {
 	Qindex& qidx = qlist[idx];
 	qidx.idx=idx;
+	qidx.frac_q = 0.;
+	for (int ip=0; ip<(int)seg3d_v[ endpt2segidx[idx] ].plane_frac_w_charge.size(); ip++)
+	  qidx.frac_q += seg3d_v[ endpt2segidx[idx] ].plane_frac_w_charge[ip];
 	qidx.z_dist = fabs( z_max - candidate_endpts[idx].pos()[2] );
       }
 
