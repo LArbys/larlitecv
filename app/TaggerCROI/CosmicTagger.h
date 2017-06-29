@@ -47,7 +47,9 @@ namespace larlitecv {
     bool findStopMu();
     //bool findUntaggedClusters();
     bool findCROI();
-
+	  	
+    void PrintTruthVertexInfo();	 
+	
     larlitecv::TaggerCROIAlgoConfig& getConfig() { return m_tagger_cfg; }; //< can change any parameter here
 
     std::string printState();
