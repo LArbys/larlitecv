@@ -20,6 +20,7 @@
 
 #pragma link C++ function larlitecv::getTrackPixelsFromImages+;
 #pragma link C++ function larlitecv::getTrackPixelsFromImagesNoBadCh+;
+#pragma link C++ function larlitecv::BoundaryEndNames+;
 
 //ADD_NEW_CLASS ... do not change this line
 #endif
