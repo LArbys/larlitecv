@@ -1,3 +1,4 @@
+#include "AStar3DAlgoProton.h"
 #include "AStar3DAlgo.h"
 #include <vector>
 #include <cmath>
@@ -11,7 +12,7 @@
 
 namespace larlitecv {
 
-  AStar3DAlgoConfig AStar3DAlgoConfig::MakeFromPSet( const larcv::PSet& pset ) {
+  /*AStar3DAlgoConfig AStar3DAlgoConfig::MakeFromPSet( const larcv::PSet& pset ) {
     AStar3DAlgoConfig cfg;
 
     cfg.astar_threshold        = pset.get< std::vector<float> >( "PixelThresholds" );
@@ -30,10 +31,10 @@ namespace larlitecv {
       cfg.path_restriction_radius = pset.get<float>("PathRestrictionRadius",0.0);
 
     return cfg;
-  }
+  }*/
 
 
-  std::vector<AStar3DNode> AStar3DAlgo::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
+  std::vector<AStar3DNode> AStar3DAlgoProton::findpath( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
     const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, int& goal_reached  ) {
     
     const larcv::ImageMeta& meta = img_v.front().meta();
@@ -71,7 +72,7 @@ namespace larlitecv {
     //if ( start_tri>5 || goal_tri>5 ) {      
     //  std::cout << "start wires provided (" << start_wids[0] << "," << start_wids[1] << "," << start_wids[1] << ") tri=" << start_tri << std::endl;
     //  std::cout << "goal wires provided (" << goal_wids[0] << "," << goal_wids[1] << "," << goal_wids[1] << ") tri=" << goal_tri << std::endl;
-    //  throw std::runtime_error("AStar3DAlgo::findpath[error] start or goal point not a good 3D space point.");
+    //  throw std::runtime_error("AStar3DAlgoProton::findpath[error] start or goal point not a good 3D space point.");
     //}
 
     // next, define the lattice
@@ -284,7 +285,7 @@ namespace larlitecv {
   }
 
 
-  void AStar3DAlgo::evaluateNeighborNodes( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
+  void AStar3DAlgoProton::evaluateNeighborNodes( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
     AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice ) {
 
@@ -315,7 +316,7 @@ namespace larlitecv {
       std::cout << "number of node updates: " << number_updates << std::endl;
   }
 
-  bool AStar3DAlgo::evaluteLatticePoint( const A3DPixPos_t& latticept, AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
+  bool AStar3DAlgoProton::evaluteLatticePoint( const A3DPixPos_t& latticept, AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
     const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& tagged_v,
     AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, Lattice& lattice ) {
     // returns true if updated, false if not
@@ -480,7 +481,7 @@ namespace larlitecv {
     if ( neighbor_node->badchnode ) // pay a cost for using a badch node
       jump_cost = norm1*10.0;
       float curvature_cost = 0.0;
-
+      
       if(doPxValEstimate){
           curvature_cost = 1;
           double px_value_cost = 0;
@@ -560,7 +561,7 @@ namespace larlitecv {
   }
 
   /*
-  void AStar3DAlgo::evaluateBadChNeighbors( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
+  void AStar3DAlgoProton::evaluateBadChNeighbors( AStar3DNode* current, const AStar3DNode* start, const AStar3DNode* goal,
     AStar3DNodePtrList& openset, AStar3DNodePtrList& closedset, 
     const int neighborhood_size, const int min_c, const int min_r, const int win_c, const int win_r, 
     const larcv::Image2D& img, const larcv::ImageMeta& meta, const bool use_bad_chs, std::map< PixPos_t, AStar3DNode* >& position_lookup) {
@@ -703,7 +704,7 @@ namespace larlitecv {
   }
   */
 
-  std::vector<AStar3DNode> AStar3DAlgo::makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed ) {
+  std::vector<AStar3DNode> AStar3DAlgoProton::makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed ) {
                                                                                                 
     path_completed = true;
     std::vector<AStar3DNode> path;
@@ -726,7 +727,7 @@ namespace larlitecv {
   }
 
   /*
-  larcv::Image2D AStar3DAlgo::visualizeScores( std::string score_name, const larcv::Image2D& orig_img, 
+  larcv::Image2D AStar3DAlgoProton::visualizeScores( std::string score_name, const larcv::Image2D& orig_img, 
     const int min_c, const int min_r, const int win_c, const int win_r, 
     const std::map<PixPos_t,AStar3DNode*>  position_lookup) {
 
@@ -758,7 +759,7 @@ namespace larlitecv {
   }
   */
 
-  float AStar3DAlgo::distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz ) {
+  float AStar3DAlgoProton::distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz ) {
     // returns the shortest distance of the test point from the line segment between the start and end points
     // the coordinate system is in (tick, Y, Z)
     // will return a value in cm
@@ -780,7 +781,7 @@ namespace larlitecv {
     }
     norm12 = sqrt(norm12);
     if ( norm12==0 ) {
-      throw std::runtime_error("AStar3DAlgo::distanceFromCentralLine[error] start and end point are the same. calculation undefined.");
+      throw std::runtime_error("AStar3DAlgoProton::distanceFromCentralLine[error] start and end point are the same. calculation undefined.");
     }
 
 
@@ -803,7 +804,7 @@ namespace larlitecv {
   // =========================================================================================================
   // LATTICE METHODS
 
-  AStar3DNode* Lattice::getNode( const A3DPixPos_t& nodeid ) {
+  /*AStar3DNode* Lattice::getNode( const A3DPixPos_t& nodeid ) {
 
     // check bounds
     for (int i=0; i<3; i++) {
@@ -910,7 +911,7 @@ namespace larlitecv {
     std::cout << "... done." << std::endl;
     clear();
 
-  }
+  }*/
 
 
 }
