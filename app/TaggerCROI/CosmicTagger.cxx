@@ -5,6 +5,9 @@
 #include <sstream>
 
 // larlite
+#include "Base/DataFormatConstants.h"
+#include "DataFormat/mcnu.h"
+#include "DataFormat/mctruth.h"
 
 // larcv
 #include "Base/LArCVBaseUtilFunc.h"
@@ -16,6 +19,7 @@
 #include "UnipolarHack/UnipolarHackAlgo.h"
 #include "TaggerCROIAlgo.h"
 
+#include "LArUtil/Geometry.h"
 
 namespace larlitecv {
 
@@ -634,6 +638,29 @@ namespace larlitecv {
     m_state.croi_run = true;
 
     return true;
+  }
+
+  void CosmicTagger::PrintTruthVertexInfo() {
+
+    auto const* evt_mctruth = (larlite::event_mctruth*)m_dataco_input.get_larlite_data( larlite::data::kMCTruth, "generator" );
+    auto const&neutrino = evt_mctruth->at(0).GetNeutrino();
+    auto const& nuPos = neutrino.Nu().Position();
+    std::cout<<"(x,y,z) MC Truth Vertex Coords : "<<nuPos.X()<<","<<nuPos.Y()<<","<<nuPos.Z()<<std::endl;
+
+    auto geo = larutil::Geometry::GetME();
+    double vert_xyz[3];
+    double vert_wire[3];
+
+    vert_xyz[0] = nuPos.X();
+    vert_xyz[1] = nuPos.Y();
+    vert_xyz[2] = nuPos.Z();
+
+    vert_wire[0] = geo->NearestWire(vert_xyz,0);
+    vert_wire[1] = geo->NearestWire(vert_xyz,1);
+    vert_wire[2] = geo->NearestWire(vert_xyz,2);
+
+    std::cout<<"SCE Corrected Vertex Wire Coords : "<<vert_wire[0]<<","<<vert_wire[1]<<","<<vert_wire[2]<<std::endl;
+
   }
 
 }
