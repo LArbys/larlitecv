@@ -14,9 +14,9 @@ namespace larlitecv {
 					const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
 					const int pixel_radius, const float threshold, const float max_stepsize );
 
-  double getTrackTotalPixelCharge( const std::vector< std::vector<double> >& path,
-				   const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
-				   const int pixel_radius, const float threshold, const float max_stepsize );
+  std::vector<double> getTrackTotalPixelCharge( const std::vector< std::vector<double> >& path,
+						const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+						const int pixel_radius, const float threshold, const float max_stepsize );
   
 }
 

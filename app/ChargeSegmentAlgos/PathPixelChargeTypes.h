@@ -10,11 +10,10 @@ namespace larlitecv {
 
   class PixelQPt {
 
-    // unusable default constructor
-    PixelQPt() {};
 
   public:
-    
+    // unusable default constructor
+    PixelQPt() {};
     PixelQPt( const std::vector<double>& pos3d, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
 	      const int pixel_radius, const float threshold );
     virtual ~PixelQPt() {};

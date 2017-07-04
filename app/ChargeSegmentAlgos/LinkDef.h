@@ -26,6 +26,11 @@
 #pragma link C++ class larlitecv::FoxTrotTrackerAlgoConfig+;
 #pragma link C++ class larlitecv::FoxTrotTrackerAlgo+;
 
+#pragma link C++ class larlitecv::PixelQPt+;
+#pragma link C++ class std::vector<larlitecv::PixelQPt>+;
+#pragma link C++ function larlitecV::getPixelQPts+;
+#pragma link C++ function larlitecV::getTrackTotalPixelCharge+;
+
 //ADD_NEW_CLASS ... do not change this line
 #endif
 
