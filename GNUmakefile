@@ -62,3 +62,7 @@ bin: obj lib
 	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin clean
 	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin
 	@ln -fs $(LARLITECV_BASEDIR)/app/TaggerCROI/bin/run_tagger $(LARLITECV_BASEDIR)/bin/run_tagger
+	@echo Building analysis routines
+	@make --directory=$(LARLITECV_BASEDIR)/app/AnalyzeTagger
+	@ln -fs $(LARLITECV_BASEDIR)/app/AnalyzeTagger/run_pixel_analysis $(LARLITECV_BASEDIR)/bin/run_pixel_analysis
+
