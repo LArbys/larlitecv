@@ -214,7 +214,7 @@ namespace larlitecv {
         }
       }
     }
-	}
+  }
 
   void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
 
