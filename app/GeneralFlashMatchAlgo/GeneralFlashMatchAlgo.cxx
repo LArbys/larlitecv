@@ -4,39 +4,40 @@
 namespace larlitecv {
 
   GeneralFlashMatchAlgo::GeneralFlashMatchAlgo()
-    : m_pmtweights("geoinfo.root") {}
+  {}
 
-  GeneralFlashMatchAlgo::GeneralFlashMatchAlgo( TaggerFlashMatchAlgoConfig& config )
-    : m_config(config), m_pmtweights("geoinfo.root") {
+  GeneralFlashMatchAlgo::GeneralFlashMatchAlgo( GeneralFlashMatchAlgoConfig& config )
+    : m_config(config) {
+    
     setVerbosity( m_config.verbosity );
     m_flash_matcher.Configure( m_config.m_flashmatch_config );
-
+    
     const larutil::Geometry* geo = ::larutil::Geometry::GetME();
     for ( size_t opch=0; opch<32; opch++) {
       m_opch_from_opdet.insert( std::make_pair<int,int>( geo->OpDetFromOpChannel(opch), opch ) );
     }
   }
-
   
+  /*
   // A function that will find the flash indices that correspond to flashes that do not correspond to anode/cathode piercing endpoints.
   // Inputs: opflash_v: all of the opflash objects from the event.
   //         anode_flash_idx_v: the indices of the flashes that correspond to boundary points at the anode.
   //         cathode_flash_idx_v: the indices of the flashes that correspond to boundary points at the cathode.
-  std::vector < int > GeneralFlashMatchAlgo::non_anodecathode_flash_idx( const std::vector < larlite::opflash* >& opflash_v, std::vector < int > anode_flash_idx_v, std::vector < int > cathode_flash_idx_v ) {
-
+  std::vector < int > GeneralFlashMatchAlgo::non_anodecathode_flash_idx( const std::vector < larlite::opflash* >& opflash_v,
+									 std::vector < int > anode_flash_idx_v, std::vector < int > cathode_flash_idx_v ) {
     // Declare a vector for the flashes that are neither anode or cathode crossing.
     std::vector < int > non_ac_flash_idx;
-
+    
     // Loop through the opflash information from the event in order to separate the anode/cathode crossing flashes from the others.
-    for (size_t non_ac_i = 0; non_ac_iter < opflash_v.size(); non_ac_iter++) {
-
+    for (size_t non_ac_iter = 0; non_ac_iter < opflash_v.size(); non_ac_iter++) {
+      
       bool belongs_to_ac_flash = false;
-
+      
       // Loop through the anode flashes.
       for (size_t anode_flsh_i = 0; anode_flsh_i < anode_flash_idx_v.size(); anode_flsh_i++) {
 
 	// Compare the two flash indices.
-	if (non_ac_i == anode_flash_idx_v[anode_flsh_i]) belongs_to_ac_flash = true;
+	if ((int)non_ac_iter == anode_flash_idx_v[anode_flsh_i]) belongs_to_ac_flash = true;
 
       }
 
@@ -44,12 +45,12 @@ namespace larlitecv {
       for (size_t cathode_flsh_i = 0; cathode_flsh_i < cathode_flash_idx_v.size(); cathode_flsh_i++) {
 
         // Compare the two flash indices.
-	if (non_ac_i == cathode_flash_idx_v[cathode_flsh_i]) belongs_to_ac_flash = true;
+	if ((int)non_ac_iter == cathode_flash_idx_v[cathode_flsh_i]) belongs_to_ac_flash = true;
 
       }
 
       // If it was not the same index value as any of the anode/cathode flash indices, then you can append it onto the 'non_ac_flash_idx' vector.
-      if (!belongs_to_ac_flash) non_ac_flash_idx.push_back(non_ac_i);
+      if (!belongs_to_ac_flash) non_ac_flash_idx.push_back(non_ac_iter);
 
     }
 
@@ -60,18 +61,21 @@ namespace larlitecv {
 
   
   // A function that will generate a list of opflashes that correspond to the list of indices that are put in.
-  // Inputs: full_opflash_v: This is the full list of opflashes from which we are trying to filter opflashes of the same denomination, i.e. all anode-piercing flashes, all cathode-piercing flashes, all non-side-piercing flashes, etc.
-  //         idx_v: This is the list of indices of the flashes that you are interested in.  You want to place the flashes located in the 'full_opflash_v' vector at each index in this list in the output list, which contains the opflashes that we are interested in.
-  std::vector <opflash*> GeneralFlashMatchAlgo::generate_single_denomination_flash_list(const std::vector< larlite::opflash > full_opflash_v, std::vector < int > idx_v) {
+  // Inputs: full_opflash_v: This is the full list of opflashes from which we are trying to filter
+  //   opflashes of the same denomination,
+  // i.e. all anode-piercing flashes, all cathode-piercing flashes, all non-side-piercing flashes, etc.
+  //         idx_v: This is the list of indices of the flashes that you are interested in.
+  // You want to place the flashes located in the 'full_opflash_v' vector at each index in this list
+  // in the output list, which contains the opflashes that we are interested in.
+  std::vector <larlite::opflash*> GeneralFlashMatchAlgo::generate_single_denomination_flash_list(const std::vector< larlite::opflash > full_opflash_v, std::vector < int > idx_v) {
 
     // Declare a list of flashes that will be the output, which is the list of the certain denomination of flashes.
-    std::vector < larlite::opflash > single_denomination_flash_list;
+    std::vector < larlite::opflash* > single_denomination_flash_list;
     single_denomination_flash_list.clear();
     
     for (size_t iflash = 0; iflash < idx_v.size(); iflash++) {
-
-      single_denomination_flash_list.push_back(full_opflash_v.at(idx.at(iflash)));
-
+      larlite::opflash* popflash = &(full_opflash_v.at(idx_v.at(iflash)))
+      single_denomination_flash_list.push_back( popflash );
     }
 
     // Return this list of the opflash information of one denomination.
@@ -82,7 +86,7 @@ namespace larlitecv {
   
   // A function that will generate tracks from the 'BMTrackCluster3D' objects that are formed from each pass of the tagger.
   // Inputs: trackcluster3d_v: A vector of 'BMTrackCluster3D' objects that were formed from a pass of the tagger.
-  std::vector < larlite::track >  GeneralFlashMatchAlgo::generate_tracks_between_passes(std::vector< BMTrackCluster3D > trackcluster3d_v) {
+  std::vector < larlite::track >  GeneralFlashMatchAlgo::generate_tracks_between_passes(std::vector< larlitecv::BMTrackCluster3D > trackcluster3d_v) {
 
     // We will use the 'makeTrack()' functionality of these 'BMTrackCluster3D' objects to turn them into a vector of 'larlite::track' objects.
     std::vector < larlite::track > output_tracks;
@@ -98,11 +102,10 @@ namespace larlitecv {
     return output_tracks;
 
   }
-
   
   // A function that will generate a qcluster from a larlite track object.
   // Inputs: track: A larlite track object that needs to be converted to a cluster of charge.
-  flashana::QCluster_t TaggerFlashMatchAlgo::GenerateQCluster( const larlite::track& track ) {
+  flashana::QCluster_t GeneralFlashMatchAlgo::GenerateQCluster( const larlite::track& track ) {
 
     flashana::QCluster_t qcluster;
 
@@ -186,7 +189,7 @@ namespace larlitecv {
   
   // A function that will generate an unfitted flash hypothesis for the track.
   // Inputs: qcluster: This is the qcluster that will be used to generate the flash hypothesis.
-  flashana::Flash_t TaggerFlashMatchAlgo::GenerateUnfittedFlashHypothesis( const flashana::QCluster_t& qcluster ) {
+  flashana::Flash_t GeneralFlashMatchAlgo::GenerateUnfittedFlashHypothesis( const flashana::QCluster_t& qcluster ) {
     const flashana::QLLMatch* matchalgo = (flashana::QLLMatch*)m_flash_matcher.GetAlgo( flashana::kFlashMatch );
     flashana::Flash_t unfitted_hypothesis = matchalgo->GetEstimate( qcluster );
     return unfitted_hypothesis;
@@ -195,7 +198,7 @@ namespace larlitecv {
   
   // A function that will make an opflash from a data flash.
   // Input: Flash: This is an object of type 'Flash_t' (a data flash).
-  larlite::opflash TaggerFlashMatchAlgo::MakeOpFlashFromFlash(const flashana::Flash_t& Flash) {
+  larlite::opflash GeneralFlashMatchAlgo::MakeOpFlashFromFlash(const flashana::Flash_t& Flash) {
 
     const larutil::Geometry* geo = ::larutil::Geometry::GetME();
 
@@ -213,7 +216,7 @@ namespace larlitecv {
 
   // A function that will make a data flash (an object of type 'Flash_t') from an 'opflash'.
   // Inputs: flash: This is an object of type 'opflash' that has to be converted into a data flash.
-  flashana::Flash_t TaggerFlashMatchAlgo::MakeDataFlash( const larlite::opflash& flash ) {
+  flashana::Flash_t GeneralFlashMatchAlgo::MakeDataFlash( const larlite::opflash& flash ) {
 
     // get geometry info                                                                                                                                                                                    
     const larutil::Geometry* geo = ::larutil::Geometry::GetME();
@@ -246,19 +249,19 @@ namespace larlitecv {
   }
 
   
-  // A function that will generate a flash hypothesis for a larlite track.  This will follow the logic at the beginning of the 'TaggerFlashMatchAlgo::InTimeFlashComparison' function.
+  // A function that will generate a flash hypothesis for a larlite track.  This will follow the logic at the beginning of the 'GeneralFlashMatchAlgo::InTimeFlashComparison' function.
   // Inputs: input_track: This is the input larlite track needed to generate the flash hypothesis.  It will be converted to a qcluster, which will be converted a flash_t object, which will be
   // converted into an opflash object.
   // *** We will not be using the gaus2d object here right now. ****
-  //         taggerflashmatch_pset: This is the input parameter set used to instatiate the TaggerFlashMatchAlgo object.
+  //         taggerflashmatch_pset: This is the input parameter set used to instatiate the GeneralFlashMatchAlgo object.
   larlite::opflash GeneralFlashMatchAlgo::make_flash_hypothesis(const larlite::track input_track) {
 
-    // Follow the logic of the 'TaggerFlashMatchAlgo::InTimeFlashComparison' function to generate a flash hypothesis.
+    // Follow the logic of the 'GeneralFlashMatchAlgo::InTimeFlashComparison' function to generate a flash hypothesis.
     flashana::QCluster_t qcluster = GenerateQCluster(input_track);
     flashana::Flash_t flash_hypo  = GenerateUnfittedFlashHypothesis( qcluster );
     larlite::opflash opflash_hypo = MakeOpFlashFromFlash( flash_hypo );
 
-    // I will not generate the gaus2d object within this function, which is done in the 'TaggerFlashMatchAlgo' class of 'ContainedROI'.
+    // I will not generate the gaus2d object within this function, which is done in the 'GeneralFlashMatchAlgo' class of 'ContainedROI'.
     return opflash_hypo;
 
   }
@@ -275,7 +278,7 @@ namespace larlitecv {
   }
 
     
-// A function that will take in reconstructed track and flash info and return a chi2 fit between them, using the 'TaggerFlashMatchAlgo::InTimeFlashComparison' class.
+// A function that will take in reconstructed track and flash info and return a chi2 fit between them, using the 'GeneralFlashMatchAlgo::InTimeFlashComparison' class.
 // Inputs: opflash_hypo: This is the flash hypothesis that is used in compare to the data flash.
 //         data_opflash: This is the 'data_flash' that you are matching to the 'flash_hypothesis' opflash object for the track.
   float GeneralFlashMatchAlgo::generate_chi2_in_track_flash_comparison(const larlite::opflash opflash_hypo, const larlite::opflash data_opflash) {
@@ -331,5 +334,5 @@ namespace larlitecv {
     return chi2;
         
   }
-
+  */
 }

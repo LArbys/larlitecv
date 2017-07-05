@@ -11,10 +11,10 @@
 
 namespace larlitecv {
 
-  class TaggerFlashMatchAlgoConfig {
+  class GeneralFlashMatchAlgoConfig {
   public:
-    TaggerFlashMatchAlgoConfig();
-    virtual ~TaggerFlashMatchAlgoConfig() {};
+    GeneralFlashMatchAlgoConfig();
+    virtual ~GeneralFlashMatchAlgoConfig() {};
     
     int verbosity;
     float qcluster_stepsize;
@@ -23,10 +23,10 @@ namespace larlitecv {
     float pmtflash_thresh;
     bool use_gaus2d;
     fcllite::PSet m_flashmatch_config;
-    vector < float > gain_correction;
+    std::vector < float > gain_correction;
     static const std::string m_flashman_default;
     
-    static TaggerFlashMatchAlgoConfig MakeTaggerFlashMatchAlgoConfigFromPSet( const larcv::PSet& pset );
+    static GeneralFlashMatchAlgoConfig MakeConfigFromPSet( const larcv::PSet& pset );
   };
 
 }
