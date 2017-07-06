@@ -68,8 +68,9 @@
 #include "SCE/SpaceChargeMicroBooNE.h"
 #include "GapChs/EmptyChannelAlgo.h"
 #include "TaggerTypes/dwall.h"
-#include "extractTruthMethods.h"
-#include "crossingPointsAnaMethods.h"
+#include "MCTruthTools/crossingPointsAnaMethods.h"
+#include "MCTruthTools/extractTruthMethods.h"
+
 
 
 // OpenCV
