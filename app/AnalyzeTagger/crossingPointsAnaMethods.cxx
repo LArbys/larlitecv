@@ -66,30 +66,43 @@ namespace larlitecv {
       trackindex++;
       
       if ( std::abs(track.PdgCode())!=13  ) continue; // skip muons for now
-      if ( track.size()==0 ) continue;
+      if ( track.size()==0 ) continue; // skip garbage
+
+      if ( printFlashEnds )
+	std::cout << "[TRACK #" << trackindex << "] " << std::endl;
+      
+
+      // get the first and last steps
       const larlite::mcstep& first_step = track.front();
       const larlite::mcstep& last_step  = track.back();
 
+      // get the position of the track ends in terms of the image tick axis
       float tick_start = getTick( first_step, ev_trigger->TriggerTime(), &sce );
       float tick_end   = getTick( last_step,  ev_trigger->TriggerTime(), &sce );
 
+      // if the track is entirely outside the image, skip it
       if ( tick_start<meta.min_y() && tick_end<meta.min_y() ) {
-	std::cout << "[TRACK #" << trackindex << "] before the image time region." << std::endl;
+	if ( printFlashEnds )
+	  std::cout << "  Entire track before the image time region." << std::endl;
 	continue;
       }
       if ( tick_start>meta.max_y() && tick_end>meta.max_y() ) {
-	std::cout << "[TRACK #" << trackindex << "] after the image time region." << std::endl;
-	continue;
-      }
-	
-      std::vector<float> fstart = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), true, 0.15, 3.0, &sce );
-      std::vector<float> fend   = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), false, 0.15, 3.0, &sce );
-
-      if ( fstart.size()==0 || fend.size()==0 ) {
-	std::cout << "[TRACK #" << trackindex << "] no part of track inside image." << std::endl;
+	if ( printFlashEnds ) 
+	  std::cout << "  Entire track after the image time region." << std::endl;
 	continue;
       }
       
+      // follow the track and get the first positions (detector coordinates) where the track shows up in the image
+      std::vector<float> fstart = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), true, 0.15, 3.0, &sce );
+      std::vector<float> fend   = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), false, 0.15, 3.0, &sce );
+      
+      if ( fstart.size()==0 || fend.size()==0 ) {
+	if ( printFlashEnds )
+	  std::cout << "  No part of track inside image." << std::endl;
+	continue;
+      }
+
+      // get the boundary the track ends are close to
       int track_start_boundary = 0;
       float track_start_dwall = larlitecv::dwall( fstart, track_start_boundary );
       std::string start_crossingname = larlitecv::BoundaryEndNames( (larlitecv::BoundaryEnd_t)track_start_boundary );
@@ -98,32 +111,24 @@ namespace larlitecv {
       float track_end_dwall = larlitecv::dwall( fend, track_end_boundary );
       std::string end_crossingname = larlitecv::BoundaryEndNames( (BoundaryEnd_t)track_end_boundary );      
 
-
-      // space charge corrections to true start and stop point
-      // std::vector<double> start_offset = sce.GetPosOffsets( first_step.X(), first_step.Y(), first_step.Z() );
-      // std::vector<double> end_offset   = sce.GetPosOffsets( last_step.X(),  last_step.Y(),  last_step.Z() );
+      // space charge corrections to for fstart and fend (needed to project into the image properly)
       std::vector<double> start_offset = sce.GetPosOffsets( fstart[0], fstart[1], fstart[2] );
       std::vector<double> end_offset   = sce.GetPosOffsets( fend[0], fend[1], fend[2] );
 
+      // get the space-charge corrected start and end points
       std::vector<float> sce_start(3);
-      // sce_start[0] = first_step.X()-start_offset[0]+0.7;
-      // sce_start[1] = first_step.Y()+start_offset[1];
-      // sce_start[2] = first_step.Z()+start_offset[2];
       sce_start[0] = fstart[0]-start_offset[0]+0.7;
       sce_start[1] = fstart[1]+start_offset[1];
       sce_start[2] = fstart[2]+start_offset[2];
-      //std::cout << "x-offset: true-x=" << first_step.X() << " -> offset " << start_offset[0] << std::endl;
       Double_t sce_start_xyz[3] = { sce_start[0], sce_start[1], sce_start[2] };
 
       std::vector<float> sce_end(3);
-      // sce_end[0] = last_step.X()-end_offset[0]+0.7;
-      // sce_end[1] = last_step.Y()+end_offset[1];
-      // sce_end[2] = last_step.Z()+end_offset[2];
       sce_end[0] = fend[0]-end_offset[0]+0.7;
       sce_end[1] = fend[1]+end_offset[1];
       sce_end[2] = fend[2]+end_offset[2];
       Double_t sce_end_xyz[3] = { sce_end[0], sce_end[1], sce_end[2] };
 
+      // get the projected pixel location in the image
       std::vector< int > start_pix(4,0); // (row, u-plane, v-plane, y-plane)
       std::vector< int > end_pix(4,0); // (row, u-plane, v-plane, y-plane)
       start_pix[0] = (first_step.T()*1.0e-3 - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_start[0]/cm_per_tick + 3200; // tick
@@ -133,15 +138,24 @@ namespace larlitecv {
 	end_pix[p+1]   = larutil::Geometry::GetME()->WireCoordinate( sce_end_xyz,   p );
       }
 
+      // does track cross the image boundary?
+      // -1 does not cross
+      // 0 start out -> end in
+      // 1 start in -> end out
+      int crosses_image_boundary = doesTrackCrossImageBoundary( track, meta, ev_trigger->TriggerTime(), &sce );      
+      
+      // get the time of the flash in the image clock (i.e. ticks). do not correct for time to drift to wire planes
       float orig_start_tick = (first_step.T()*1.0e-3 - (ev_trigger->TriggerTime()-4050.0))/0.5 + 3200.0;
       float orig_end_tick   = (last_step.T()*1.0e-3  - (ev_trigger->TriggerTime()-4050.0))/0.5 + 3200.0;
       float drift_ticks      = 258.0/cm_per_tick;
 
-      bool start_intime = false;
-      bool start_crosses = false;
-      bool start_found_flash = false;
-      int flash_index = -1;
-      int start_nplanes_above_thresh = 0;
+      // ----------------------------------------------------------------------
+      // TRACK START 
+      bool start_intime = false;  // start is in the image (true by construction)
+      bool start_crosses = false; // crosses detector boundary
+      bool start_found_flash = false; // does a flash pair with the time of the event?
+      int flash_index = -1; // if a flash is paired, its index in the vector(s) are stored here
+      int start_nplanes_above_thresh = 0; // number of planes where region of projected image pixel has charge above threshold
 
       // flash match start crossing point
       int iflashindex = -1;
@@ -157,194 +171,154 @@ namespace larlitecv {
 	}
       }
 
-      // does track cross the image boundary?
-      // -1 does not cross
-      // 0 start out -> end in
-      // 1 start in -> end out
-      int crosses_image_boundary = doesTrackCrossImageBoundary( track, meta, ev_trigger->TriggerTime(), &sce );      
-      
-      if ( start_pix[0]>meta.min_y() && start_pix[0]<meta.max_y() && crosses_image_boundary!=0 ) {
-	start_intime = true;
-	start_pix[0] = meta.row( start_pix[0] );
+      // change from tick to row coordinate
+      start_pix[0] = meta.row( start_pix[0] );
 	  
-	if ( track_start_dwall < 20.0 ) {
-
-	  // check neighborhood around pixel (has charge around?)
-	  start_nplanes_above_thresh = 0;
-	  for (int p=0; p<3; p++) {
-	    int nabove_thresh = 0;
-	    for (int dr=-endpt_radius; dr<=endpt_radius; dr++) {
-	      int srow = start_pix[0]+dr;
-	      if ( srow<0 || srow>=(int)meta.rows() )
-		continue;
-	      for (int dc=-endpt_radius; dc<=endpt_radius; dc++) {
-		int scol = start_pix[p+1]+dc;
-		if ( scol<0 || scol>=(int)meta.cols() )
-		  continue;
-		if ( img_v[p].pixel( srow, scol )>10.0 ) {
-		  nabove_thresh++;
-		}
-	      }
-	    }//end of row loop
-	    if ( nabove_thresh>0 ) {
-	      start_nplanes_above_thresh++;
-	    }
-	  }//end of plane loop
-	  
-	  data.start_pixels.push_back( start_pix );
-	  data.start_crossingpts.emplace_back( std::move(sce_start) );
-	  data.start_crossing_flashindex.push_back( flash_index );
-	  data.start_type.push_back( track_start_boundary );
-	  data.start_crossing_nplanes_w_charge.push_back( start_nplanes_above_thresh );
-	  start_crosses = true;
-	  data.tot_true_crossingpoints++;
-	  data.true_crossingpoints[track_start_boundary]++;
-	}//if dwall<0
-      }// if start in time
-      
-      bool end_intime = false;
-      bool end_crosses = false;
-      bool end_found_flash = false;
-      int end_nplanes_above_thresh = 0;
-
-      if ( end_pix[0]>meta.min_y() && end_pix[0]<meta.max_y() && crosses_image_boundary!=1 ) {
-	end_intime = true;
-	end_pix[0]   = meta.row( end_pix[0] );
-	if ( track_end_dwall < 20.0 ) {
-
-
-	  // check neighborhood around pixel (has charge around?)
-	  end_nplanes_above_thresh = 0;
-	  for (int p=0; p<3; p++) {
-	    int nabove_thresh = 0;
-	    for (int dr=-endpt_radius; dr<=endpt_radius; dr++) {
-	      int srow = end_pix[0]+dr;
-	      if ( srow<0 || srow>=(int)meta.rows() )
-		continue;
-	      for (int dc=-endpt_radius; dc<=endpt_radius; dc++) {
-		int scol = end_pix[p+1]+dc;
-		if ( scol<0 || scol>=(int)meta.cols() )
-		  continue;
-		if ( img_v[p].pixel( srow, scol )>10.0 ) {
-		  nabove_thresh++;
-		}
-	      }
-	    }//end of row loop
-	    if ( nabove_thresh>0 ) {
-	      end_nplanes_above_thresh++;
-	    }
-	  }//end of plane loop
-
-	  // flash match this crossing point
-	  if ( track_end_boundary==4 || track_end_boundary==5 ) {
-	    for ( auto const& ev_opflash : opflash_v ) {
-	      for ( auto const& opflash : *ev_opflash ) {
-		if ( end_found_flash )
-		  break;		
-		if ( fabs( orig_end_tick - (3200.0+opflash.Time()/0.5) )<5.0 ) {
-		  end_found_flash = true;
-		}
-	      }
-	      if ( end_found_flash )
-		break;
-	    }//end of ev_opflash loop
-	  
-	    if ( end_found_flash ) {
-	      data.tot_flashmatched_true_crossingpoints++;
-	      data.flashmatched_true_crossingpoints[ track_end_boundary ]++;
+      // check neighborhood around pixel (has charge around?)
+      start_nplanes_above_thresh = 0;
+      for (int p=0; p<3; p++) {
+	int nabove_thresh = 0;
+	for (int dr=-endpt_radius; dr<=endpt_radius; dr++) {
+	  int srow = start_pix[0]+dr;
+	  if ( srow<0 || srow>=(int)meta.rows() )
+	    continue;
+	  for (int dc=-endpt_radius; dc<=endpt_radius; dc++) {
+	    int scol = start_pix[p+1]+dc;
+	    if ( scol<0 || scol>=(int)meta.cols() )
+	      continue;
+	    if ( img_v[p].pixel( srow, scol )>10.0 ) {
+	      nabove_thresh++;
 	    }
 	  }
-	  
-	  data.end_pixels.push_back( end_pix );
-	  data.end_crossingpts.emplace_back( std::move(sce_end) );
-	  data.end_crossing_nplanes_w_charge.push_back( end_nplanes_above_thresh );
-	  data.end_type.push_back( track_end_boundary );
-	  end_crosses = true;
-	  data.tot_true_crossingpoints++;
-	  data.true_crossingpoints[track_end_boundary]++;
-	}//if end point dwall < 10.0
-      }// if end point in image
+	}//end of row loop
+	if ( nabove_thresh>0 ) {
+	  start_nplanes_above_thresh++;
+	}
+      }//end of plane loop
 
-      if ( start_intime || end_intime ) {
+      if ( crosses_image_boundary==0 ) {
+	// start outside image crosses into it
+	track_start_boundary = larlitecv::kImageEnd;
+	start_crossingname = "ImageEnd";
+	start_crosses = true;
+      }
+      else if ( track_start_dwall<10.0 ) {
+	// else has to cross a real boundary. does it?
+	start_crosses = true;
+      }
+      
+      // store the track end if it crossed a deetector boundary or the image boundary
+      if ( start_crosses ) {
+	data.start_pixels.push_back( start_pix );
+	data.start_crossingpts.emplace_back( std::move(sce_start) );
+	data.start_crossing_flashindex.push_back( flash_index );
+	data.start_type.push_back( track_start_boundary );
+	data.start_crossing_nplanes_w_charge.push_back( start_nplanes_above_thresh );
+	data.tot_true_crossingpoints++;
+	data.true_crossingpoints[track_start_boundary]++;
+      }
+      else {
+	track_start_boundary = larlitecv::kUndefined;
+	start_crossingname = " [doesnotcross] ";
+      }
+	
+
+      // ----------------------------------------------------------------------
+      // TRACK END
+      
+      bool end_crosses = false;
+      int end_nplanes_above_thresh = 0;
+      
+      // change end_pix[0] from tick to row
+      end_pix[0]   = meta.row( end_pix[0] );
+
+      // check neighborhood around pixel (has charge around?)
+      for (int p=0; p<3; p++) {
+	int nabove_thresh = 0;
+	for (int dr=-endpt_radius; dr<=endpt_radius; dr++) {
+	  int srow = end_pix[0]+dr;
+	  if ( srow<0 || srow>=(int)meta.rows() )
+	    continue;
+	  for (int dc=-endpt_radius; dc<=endpt_radius; dc++) {
+	    int scol = end_pix[p+1]+dc;
+	    if ( scol<0 || scol>=(int)meta.cols() )
+	      continue;
+	    if ( img_v[p].pixel( srow, scol )>10.0 ) {
+	      nabove_thresh++;
+	    }
+	  }
+	}//end of row loop
+	if ( nabove_thresh>0 ) {
+	  end_nplanes_above_thresh++;
+	}
+      }//end of plane loop
+
+
+      if ( crosses_image_boundary==1 ) {
+	// end is outside after crossing out of image
+	track_end_boundary = larlitecv::kImageEnd;
+	end_crossingname = "ImageEnd";
+	end_crosses = true;
+      }
+      else if ( track_end_dwall<10.0 ) {
+	// crosses (or gets close enough) to real boundary
+	end_crosses = true;
+      }
+
+      if ( end_crosses ) {
+	data.end_pixels.push_back( end_pix );
+	data.end_crossingpts.emplace_back( std::move(sce_end) );
+	data.end_crossing_nplanes_w_charge.push_back( end_nplanes_above_thresh );
+	data.end_type.push_back( track_end_boundary );
+	data.tot_true_crossingpoints++;
+	data.true_crossingpoints[track_end_boundary]++;
+      }
+      else {
+	track_end_boundary = larlitecv::kUndefined;
+	end_crossingname = " [doesnotcross] ";
+      }
+
+      // If we made crossing points, we want to associate the indices of the crossing point info to the mc track
+      if ( start_crosses || end_crosses ) {
 	data.mctrack_imgendpoint_indices[trackindex].resize(2,-1);
-	if ( start_intime && start_crosses )
+	if ( start_crosses )
 	  data.mctrack_imgendpoint_indices[trackindex][0] = data.start_pixels.size()-1;
-	if ( end_intime && end_crosses )
+	if ( end_crosses )
 	  data.mctrack_imgendpoint_indices[trackindex][1] = data.end_pixels.size()-1;	  
       }
       
-      // we can find the location where muons cross the image boundary
-      if ( crosses_image_boundary>=0 ) {
-	std::vector< float > crossingpt(3,0);
-	//std::vector<int> crossing_imgcoords = getImageBoundaryCrossingPoint( track, crossingpt, meta, 20.0, ev_trigger->TriggerTime(), &sce );
-	if ( crosses_image_boundary==1 ) {
-	  // start in -> end out
-	  // so end crosses
-	  end_pix[0] = meta.row( end_pix[0] );	  	  
-	  track_end_boundary = larlitecv::kImageEnd;
-	  end_crossingname = "ImageEnd";
-	  //data.end_pixels.push_back( crossing_imgcoords );
-	  data.end_pixels.push_back( end_pix );
-	  //data.end_crossingpts.emplace_back( std::move(crossingpt) );
-	  data.end_crossingpts.push_back( sce_end );
-	  data.end_crossing_nplanes_w_charge.push_back( end_nplanes_above_thresh );
-	  data.end_type.push_back( track_end_boundary );
-	  end_crosses = true;
-	  data.tot_true_crossingpoints++;
-	  data.true_crossingpoints[track_end_boundary]++;
-	  data.mctrack_imgendpoint_indices[trackindex][1] = data.end_pixels.size()-1;	  
-	}
-	else if ( crosses_image_boundary==0 ) {
-	  // so start crosses
-	  // start out -> end in
-	  start_pix[0] = meta.row( start_pix[0] );	  
-	  track_start_boundary = larlitecv::kImageEnd;
-	  start_crossingname = "ImageEnd";	  
-	  //data.start_pixels.push_back( crossing_imgcoords );
-	  //data.start_crossingpts.emplace_back( std::move(crossingpt) );
-	  data.start_pixels.push_back( start_pix );
-	  data.start_crossingpts.push_back( sce_start );
-	  data.start_crossing_flashindex.push_back( flash_index );
-	  data.start_crossing_nplanes_w_charge.push_back( start_nplanes_above_thresh );
-	  data.start_type.push_back( track_start_boundary );
-	  start_crosses = true;
-	  data.tot_true_crossingpoints++;
-	  data.true_crossingpoints[track_start_boundary]++;
-	  data.mctrack_imgendpoint_indices[trackindex][0] = data.start_pixels.size()-1;	  	  
-	}
-	else {
-	  std::stringstream msg;
-	  msg << __FILE__ << ":" << __LINE__ << " boundary crossing logic error." << std::endl;
-	  msg << "  start_intime=" << start_intime << " end_intime=" << end_intime << " crosses_boundary=" << crosses_image_boundary << std::endl;
-	  throw std::runtime_error( msg.str() );
-	}
-	
-      }//end of image end crossings
+      
+      // ----------------------------------------------------------------------------
+      // Print summary
       
       if ( printFlashEnds ) {
-	std::cout << "[TRACK #" << trackindex << "] nstart=" << data.start_pixels.size() << " nend=" << data.end_pixels.size() << std::endl;
 	std::cout << "  crosses_image_boundary=" << crosses_image_boundary << std::endl;
-	std::cout << "  Start Boundary Crossing: boundary=" << start_crossingname
-		  << " row=" << start_pix[0] << " tick=" << meta.pos_y(start_pix[0]) << " (orig=" << orig_start_tick << ")"
+	std::cout  << "  Found flash: " << start_found_flash << " index=" << flash_index << std::endl;
+	
+	if ( start_crosses )
+	  std::cout << "  Start Boundary Crossing: boundary=" << start_crossingname << " dwall=" << track_start_dwall << " ";
+	else
+	  std::cout << "  Start did not cross boundary. dwall=" << track_start_dwall << " ";
+
+	std::cout << " row=" << start_pix[0] << " tick=" << meta.pos_y(start_pix[0]) << " (orig=" << orig_start_tick << ")"
 		  << " pos=(" << first_step.X() << "," << first_step.Y() << "," << first_step.Z() << ")";
 	if ( track_start_boundary==larlitecv::kImageEnd )
 	  std::cout << " imgx row=" << data.start_pixels.back()[0]
 		    << " imgx pos=(" << data.start_crossingpts.back()[0] << "," << data.start_crossingpts.back()[1] << "," << data.start_crossingpts.back()[2] << ")";
-	std::cout << " dwall=" << track_start_dwall << " intime=" << start_intime
-		  << " nplaneswq=" << data.start_crossing_nplanes_w_charge.back()
+	std::cout << " nplaneswq=" << data.start_crossing_nplanes_w_charge.back()
 		  << std::endl;
-
-	std::cout << "  End Boundary Crossing: boundary=" << end_crossingname
-		  << " row=" << end_pix[0] << " tick=" << meta.pos_y(end_pix[0]) << " (orig=" << orig_end_tick << ")"
+	
+	if ( end_crosses )
+	  std::cout << "  End Boundary Crossing: boundary=" << end_crossingname  << " dwall=" << track_end_dwall;
+	else
+	  std::cout << "  Track End did not cross boundary: dwall=" << track_end_dwall;
+	    
+	std::cout << " row=" << end_pix[0] << " tick=" << meta.pos_y(end_pix[0]) << " (orig=" << orig_end_tick << ")"
 		  << " pos=(" << last_step.X() << "," << last_step.Y() << "," << last_step.Z() << ")";
 	if ( track_end_boundary==larlitecv::kImageEnd )
 	  std::cout << " imgx row=" << data.end_pixels.back()[0]
 		    << " imgx pos=(" << data.end_crossingpts.back()[0] << "," << data.end_crossingpts.back()[1] << "," << data.end_crossingpts.back()[2] << ")";
-	
-	std::cout << " dwall=" << track_end_dwall << " intime=" << end_intime
-		  << " nplaneswq=" << data.end_crossing_nplanes_w_charge.back()	  
-		  << std::endl;
-	std::cout  << "  Found flash: " << start_found_flash << " index=" << flash_index << std::endl;
+	std::cout << " nplaneswq=" << data.end_crossing_nplanes_w_charge.back()	<< std::endl;
       }
 	
       //if ( start_intime || end_intime ) {
@@ -377,8 +351,6 @@ namespace larlitecv {
     for (int i=0; i<7; i++) {
       if ( ev_spacepoints[i]==NULL)
 	throw std::runtime_error("wtf");
-      //std::cout << " endtype " << spacepoint_producers[i] << ": ";
-      std::cout << ev_spacepoints[i]->Pixel2DArray(0).size() << std::endl;
       data.proposed_crossingpoints[i]  += ev_spacepoints[i]->Pixel2DArray(0).size();
       data.tot_proposed_crossingpoints += ev_spacepoints[i]->Pixel2DArray(0).size();
     }
@@ -488,9 +460,9 @@ namespace larlitecv {
     else if ( tick_start > meta.min_y() && tick_end < meta.min_y())
       return 1; // start in -> end out
     else if ( tick_start < meta.max_y() && tick_end > meta.max_y())
-      return 0; // start out -> end in;
+      return 1; // start in -> end out;
     else if ( tick_start > meta.max_y() && tick_end < meta.max_y() )
-      return 1; // start in -> end out
+      return 0; // start out -> end in
 
     return -1;
   }
@@ -631,9 +603,14 @@ namespace larlitecv {
 	dirnorm += dir[i]*dir[i];
       }
       dirnorm = sqrt(dirnorm);
+      if ( dirnorm<1.0e-3 )
+	continue;
+	
       for (int i=0; i<3; i++)
 	dir[i] /= dirnorm;
       int nsteps=dirnorm/max_step_size+1;
+      if ( nsteps<= 0 )
+	nsteps = 1;
       float stepsize = dirnorm/float(nsteps);
       for (int istep=0; istep<nsteps; istep++) {
 	std::vector<float> pos(4,0);
@@ -657,12 +634,11 @@ namespace larlitecv {
 	if ( tick<meta.min_y()+20.0 || tick>meta.max_y()-20.0 )
 	  continue;
 
-	float true_x = pos[0];
-	std::cout << " [" << thispt << ":" << istep << "/" << nsteps << "] tick=" << tick;
+	std::cout << " [" << thispt << "/" << npts << ":" << istep << "/" << nsteps << "] tick=" << tick;
 	if ( startAtstart )
-	  std::cout << " orig pos=(" << track.front().X() << "," << track.front().Y() << "," << track.front().Z() << ")";
+	  std::cout << " trackstart=(" << track.front().X() << "," << track.front().Y() << "," << track.front().Z() << ")";
 	else
-	  std::cout << " orig pos=(" << track.back().X() << "," << track.back().Y() << "," << track.back().Z() << ")";	  
+	  std::cout << " trackend=(" << track.back().X() << "," << track.back().Y() << "," << track.back().Z() << ")";	  
 	std::cout << " truepos=(" << pos[0] << "," << pos[1] << "," << pos[2] << ") ";
 	std::cout << " intime pos_sce=(" << pos_sce[0] << "," << pos_sce[1] << "," << pos_sce[2] << ") tick=" << tick << " ";
 	pos_sce[0] = (tick-3200.0)*cm_per_tick; // we have to give the apparent-x (relative to the trigger) because we need to test the position in the image	
@@ -676,8 +652,6 @@ namespace larlitecv {
 	  continue;
 	}
 	
-	// valid step. return
-	pos[0] = true_x;
 	return pos;
       }
       
