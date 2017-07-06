@@ -452,7 +452,7 @@ int main( int nargs, char** argv ) {
       }
 
       // loop over MC tracks, get end points of muons
-      larlitecv::analyzeCrossingMCTracks( xingptdata, imgs_v.front().meta(),  ev_trigger, ev_mctrack, opflash_v, printFlashEnds );
+      larlitecv::analyzeCrossingMCTracks( xingptdata, imgs_v.front().meta(), imgs_v, ev_trigger, ev_mctrack, opflash_v, printFlashEnds );
       // int intime_cosmics = xingptdata.true_intime_thrumu + xingptdata.true_intime_stopmu;
       // std::cout << "number of intime cosmics: "       << intime_cosmics << std::endl;
       // std::cout << "number of intime thrumu: "        << xingptdata.true_intime_thrumu << std::endl;
