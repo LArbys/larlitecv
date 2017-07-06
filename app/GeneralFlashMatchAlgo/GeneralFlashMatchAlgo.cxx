@@ -4,10 +4,11 @@
 namespace larlitecv {
 
   GeneralFlashMatchAlgo::GeneralFlashMatchAlgo()
+    : m_pmtweights("geoinfo.root")
   {}
 
   GeneralFlashMatchAlgo::GeneralFlashMatchAlgo( GeneralFlashMatchAlgoConfig& config )
-    : m_config(config) {
+    : m_config(config), m_pmtweights("geoinfo.root") {
     
     setVerbosity( m_config.verbosity );
     m_flash_matcher.Configure( m_config.m_flashmatch_config );
@@ -18,7 +19,6 @@ namespace larlitecv {
     }
   }
   
-  /*
   // A function that will find the flash indices that correspond to flashes that do not correspond to anode/cathode piercing endpoints.
   // Inputs: opflash_v: all of the opflash objects from the event.
   //         anode_flash_idx_v: the indices of the flashes that correspond to boundary points at the anode.
@@ -59,7 +59,7 @@ namespace larlitecv {
 
   }
 
-  
+
   // A function that will generate a list of opflashes that correspond to the list of indices that are put in.
   // Inputs: full_opflash_v: This is the full list of opflashes from which we are trying to filter
   //   opflashes of the same denomination,
@@ -67,15 +67,15 @@ namespace larlitecv {
   //         idx_v: This is the list of indices of the flashes that you are interested in.
   // You want to place the flashes located in the 'full_opflash_v' vector at each index in this list
   // in the output list, which contains the opflashes that we are interested in.
-  std::vector <larlite::opflash*> GeneralFlashMatchAlgo::generate_single_denomination_flash_list(const std::vector< larlite::opflash > full_opflash_v, std::vector < int > idx_v) {
+  std::vector <larlite::opflash*> GeneralFlashMatchAlgo::generate_single_denomination_flash_list( std::vector< larlite::opflash > full_opflash_v, std::vector < int > idx_v) {
 
     // Declare a list of flashes that will be the output, which is the list of the certain denomination of flashes.
     std::vector < larlite::opflash* > single_denomination_flash_list;
     single_denomination_flash_list.clear();
     
     for (size_t iflash = 0; iflash < idx_v.size(); iflash++) {
-      larlite::opflash* popflash = &(full_opflash_v.at(idx_v.at(iflash)))
-      single_denomination_flash_list.push_back( popflash );
+      larlite::opflash* opflash = &(full_opflash_v.at(idx_v.at(iflash)));
+      single_denomination_flash_list.push_back( opflash );
     }
 
     // Return this list of the opflash information of one denomination.
@@ -83,10 +83,9 @@ namespace larlitecv {
 
   }
 
-  
   // A function that will generate tracks from the 'BMTrackCluster3D' objects that are formed from each pass of the tagger.
   // Inputs: trackcluster3d_v: A vector of 'BMTrackCluster3D' objects that were formed from a pass of the tagger.
-  std::vector < larlite::track >  GeneralFlashMatchAlgo::generate_tracks_between_passes(std::vector< larlitecv::BMTrackCluster3D > trackcluster3d_v) {
+  std::vector < larlite::track >  GeneralFlashMatchAlgo::generate_tracks_between_passes(const std::vector< larlitecv::BMTrackCluster3D > trackcluster3d_v) {
 
     // We will use the 'makeTrack()' functionality of these 'BMTrackCluster3D' objects to turn them into a vector of 'larlite::track' objects.
     std::vector < larlite::track > output_tracks;
@@ -102,7 +101,7 @@ namespace larlitecv {
     return output_tracks;
 
   }
-  
+
   // A function that will generate a qcluster from a larlite track object.
   // Inputs: track: A larlite track object that needs to be converted to a cluster of charge.
   flashana::QCluster_t GeneralFlashMatchAlgo::GenerateQCluster( const larlite::track& track ) {
@@ -121,8 +120,8 @@ namespace larlitecv {
       }
       dist = sqrt(dist);
 
-      int nsteps = dist/m_config.stepsize;
-      if ( fabs( nsteps*m_config.stepsize - dist )>0.01 ) {
+      int nsteps = dist/m_config.qcluster_stepsize;
+      if ( fabs( nsteps*m_config.qcluster_stepsize - dist )>0.01 ) {
         nsteps+=1;
       }
 
@@ -139,6 +138,18 @@ namespace larlitecv {
 
     return qcluster;
   }
+
+    // A function that will make flash hypotheses from an entire vector of larlite tracks.
+  std::vector<flashana::QCluster_t> GeneralFlashMatchAlgo::GenerateQCluster_vector( const std::vector<larlite::track>& track_v ) {
+    
+    std::vector<flashana::QCluster_t> qcluster_vector;
+    for ( auto& input_track : track_v ) {
+      flashana::QCluster_t qcluster = GenerateQCluster( input_track );
+      qcluster_vector.emplace_back( std::move(qcluster) );
+    }
+    return qcluster_vector;
+  }
+
 
   // A function that will find the center and range of a flash.
   // Inputs: flash: This is hte larlite flash object that is being considered.
@@ -186,7 +197,6 @@ namespace larlitecv {
 
   }
 
-  
   // A function that will generate an unfitted flash hypothesis for the track.
   // Inputs: qcluster: This is the qcluster that will be used to generate the flash hypothesis.
   flashana::Flash_t GeneralFlashMatchAlgo::GenerateUnfittedFlashHypothesis( const flashana::QCluster_t& qcluster ) {
@@ -194,7 +204,6 @@ namespace larlitecv {
     flashana::Flash_t unfitted_hypothesis = matchalgo->GetEstimate( qcluster );
     return unfitted_hypothesis;
   }
-
   
   // A function that will make an opflash from a data flash.
   // Input: Flash: This is an object of type 'Flash_t' (a data flash).
@@ -211,6 +220,74 @@ namespace larlitecv {
     larlite::opflash flash( Flash.time, 0, 0, 0, PEperOpDet, false, false, 1.0, Flash.y, Flash.y_err, Flash.z, Flash.z_err );
 
     return flash;
+  }
+
+  // A function that will calculate the 2D gaussian value for an opflash object.
+  // Inputs: 'flash' - The input 'opflash' object to be fit to a Gaussian 2D value.
+  larlite::opflash GetGaus2DPrediction( const larlite::opflash flash ) {
+    const larutil::Geometry* geo = ::larutil::Geometry::GetME();
+    float tot_weight = 0;
+
+    // Get Charge Weighted Mean
+    float mean[2] = {0.0};
+    std::vector<double> xyz(3,0.0);
+    for (int iopdet=0; iopdet<32; iopdet++ ) {
+      larutil::Geometry::GetME()->GetOpDetPosition( iopdet, xyz );
+      mean[0] += xyz[1]*flash.PE(iopdet);
+      mean[1] += xyz[2]*flash.PE(iopdet);
+      tot_weight += flash.PE(iopdet);
+    }
+    for (int i=0; i<2; i++)
+      mean[i] /= tot_weight;
+
+    /// Get Charge-weighted covariance Matrix
+    float cov[2][2] = {0};
+    for (int iopdet=0; iopdet<32; iopdet++) {
+      larutil::Geometry::GetME()->GetOpDetPosition( iopdet, xyz );
+      float dx[2];
+      dx[0] = xyz[1] - mean[0];
+      dx[1] = xyz[2] - mean[1];
+      for (int i=0; i<2; i++) {
+        for (int j=0; j<2; j++ ) {
+          cov[i][j] += dx[i]*dx[j]*flash.PE(iopdet)/tot_weight;
+        }
+      }
+    }
+
+    // Get Inverse Covariance Matrix
+    float det = cov[0][0]*cov[1][1] - cov[1][0]*cov[0][1];
+    float invcov[2][2] = { { cov[1][1]/det, -cov[0][1]/det},
+                           {-cov[1][0]/det,  cov[0][0]/det } };
+    float normfactor = 1.0/sqrt(2*3.141159*det);
+
+
+    // build guas ll flash hypothesis using cov matrix
+    std::vector< double > PEperOpDet(32,0);
+    float normw = 0.;
+    for ( int iopdet=0; iopdet<32; iopdet++) {
+      larutil::Geometry::GetME()->GetOpDetPosition( iopdet, xyz );
+      float mahadist = 0.;
+      float yz[2] = { (float)(xyz[1]), (float)(xyz[2]) };
+      for (int i=0; i<2; i++ ) {
+        for (int j=0; j<2; j++) {
+          mahadist += (yz[i]-mean[i])*invcov[i][j]*(yz[j]-mean[j]);
+        }
+      }
+      PEperOpDet[iopdet] = normfactor*exp(-0.5*mahadist);
+      normw += PEperOpDet[iopdet];
+    }
+
+    // normalize back to totalweight                                            
+    if ( normw>0 ) {
+      for (int iopdet=0; iopdet<32; iopdet++) {
+        PEperOpDet[iopdet] *= tot_weight/normw;
+      }
+    }
+
+    // make flash                                                               
+    larlite::opflash gaus2d_flash( flash.Time(), flash.TimeWidth(), flash.AbsTi\
+me(), flash.Frame(), PEperOpDet );
+    return gaus2d_flash;
   }
 
 
@@ -247,7 +324,6 @@ namespace larlitecv {
 
     return f;
   }
-
   
   // A function that will generate a flash hypothesis for a larlite track.  This will follow the logic at the beginning of the 'GeneralFlashMatchAlgo::InTimeFlashComparison' function.
   // Inputs: input_track: This is the input larlite track needed to generate the flash hypothesis.  It will be converted to a qcluster, which will be converted a flash_t object, which will be
@@ -260,32 +336,44 @@ namespace larlitecv {
     flashana::QCluster_t qcluster = GenerateQCluster(input_track);
     flashana::Flash_t flash_hypo  = GenerateUnfittedFlashHypothesis( qcluster );
     larlite::opflash opflash_hypo = MakeOpFlashFromFlash( flash_hypo );
+    larlite::opflash gaus2d_hypo  = GetGaus2DPrediction( opflash_hypo );
 
-    // I will not generate the gaus2d object within this function, which is done in the 'GeneralFlashMatchAlgo' class of 'ContainedROI'.
-    return opflash_hypo;
+    // What to return depends on the values set in the 'Config' class.
+    if (!m_config.use_gaus2d)
+      return opflash_hypo;
+
+    else
+      return gaus2d_hypo;
 
   }
 
   
   // A function that will make flash hypotheses from an entire vector of larlite tracks.
-  std::vector<larlite::opflash> GeneralFlashMatchAlgo::make_flash_hypothesis_vector( const std::vector<larlite::opflash>& input_track_v ) {
+  std::vector<larlite::opflash> GeneralFlashMatchAlgo::make_flash_hypothesis_vector( const std::vector<larlite::track>& input_track_v ) {
     std::vector<larlite::opflash> opflash_hypo_v;
-    for ( auto const& input_track : input_track_v ) {
-      flashana::Flash_t opflash_hypo = make_flash_hypothesis( input_track );
+    for ( auto& input_track : input_track_v ) {
+      larlite::opflash opflash_hypo = make_flash_hypothesis( input_track );
       opflash_hypo_v.emplace_back( std::move(opflash_hypo) );
     }
     return opflash_hypo_v;
   }
-
-    
+  
 // A function that will take in reconstructed track and flash info and return a chi2 fit between them, using the 'GeneralFlashMatchAlgo::InTimeFlashComparison' class.
 // Inputs: opflash_hypo: This is the flash hypothesis that is used in compare to the data flash.
+//         qcluster: The qcluster that corresponds to the opflash hypothesis.
 //         data_opflash: This is the 'data_flash' that you are matching to the 'flash_hypothesis' opflash object for the track.
-  float GeneralFlashMatchAlgo::generate_chi2_in_track_flash_comparison(const larlite::opflash opflash_hypo, const larlite::opflash data_opflash) {
+  float GeneralFlashMatchAlgo::generate_chi2_in_track_flash_comparison(const flashana::QCluster_t qcluster, const larlite::opflash data_opflash) {
     
     // Convert 'data_opflash' into type 'Flash_t' (a data flash).
-    flashana::Flash_t data_flasht = MakeDataFlash(data_opflash);
+    flashana::Flash_t data_flasht = MakeDataFlash( data_opflash );
 
+    // Convert 'qcluster' into an unfitted flash hypothesis.
+    flashana::Flash_t flash_hypo = GenerateUnfittedFlashHypothesis( qcluster );
+
+    // Convert the 'flash_hypo' to a data flash and then a Gaussian 2D object to have that below.
+    larlite::opflash opflash_hypo = MakeOpFlashFromFlash( flash_hypo );
+    larlite::opflash gaus2d_hypo  = GetGaus2DPrediction( opflash_hypo );
+    
     // Use the geometry package at this point in the algorithm.
     const larutil::Geometry* geo = ::larutil::Geometry::GetME();
 
@@ -298,7 +386,7 @@ namespace larlitecv {
     // This begins the part of the code that finds the chi2 value.
     for (size_t i=0; i<data_flasht.pe_v.size(); i++) {
       float observed = data_flasht.pe_v.at(i);
-      float expected = opflash_hypo.pe_v.at(i)*m_config.fudge_factor;
+      float expected = flash_hypo.pe_v.at(i)*m_config.fudge_factor;
       tot_pe_data += observed;
       tot_pe_hypo += expected;
       if ( observed>0 && expected==0 ) {
@@ -334,5 +422,5 @@ namespace larlitecv {
     return chi2;
         
   }
-  */
+ 
 }

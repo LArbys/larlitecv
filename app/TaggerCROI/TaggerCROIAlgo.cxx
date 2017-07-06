@@ -101,11 +101,14 @@ namespace larlitecv {
     }
     m_time_tracker[kThruMuBMT] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
+    // Declare a dummy variable for the indices of the flashes on the boundary of the image.
+    std::vector < int > imgends_flash_idx_v;
+
     // run flash tagger
     timer = std::clock();
-    anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v );
-    cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v );
-    imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v );
+    anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v, output.anode_flash_idx_v );
+    cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v, output.cathode_flash_idx_v );
+    imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v, imgends_flash_idx_v );
     int totalflashes = (int)output.anode_spacepoint_v.size() + (int)output.cathode_spacepoint_v.size() + (int)output.imgends_spacepoint_v.size();
     if ( m_config.verbosity>0 ) {
       std::cout << " Flash Tagger End Points: " << totalflashes << std::endl;

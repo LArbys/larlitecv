@@ -15,7 +15,7 @@
 
 // larcv
 #include "Base/PSet.h"
-//#include "PMTWeights/PMTWireWeights.h"
+#include "PMTWeights/PMTWireWeights.h"
 
 // larlitecv
 //#include "TaggerCROI/TaggerCROITypes.h"
@@ -33,35 +33,40 @@ namespace larlitecv {
     GeneralFlashMatchAlgo( GeneralFlashMatchAlgoConfig& config );
     virtual ~GeneralFlashMatchAlgo() {};
 
-    /*
     // This might need more information based on the needs of converting a flash to an opflash.
     std::vector < int > non_anodecathode_flash_idx( const std::vector < larlite::opflash* >& opflash_v, std::vector < int > anode_flash_idx_v, std::vector < int > cathode_flash_idx_v );
 
-    std::vector < larlite::opflash* > generate_single_denomination_flash_list(const std::vector< larlite::opflash > full_opflash_v, std::vector < int > idx_v);
+    std::vector < larlite::opflash* > generate_single_denomination_flash_list( std::vector< larlite::opflash > full_opflash_v, std::vector < int > idx_v);
+
+    std::vector < larlite::track >  generate_tracks_between_passes(const std::vector< larlitecv::BMTrackCluster3D > trackcluster3d_v);
 
     flashana::QCluster_t GenerateQCluster( const larlite::track& track );
+
+    std::vector<flashana::QCluster_t> GenerateQCluster_vector( const std::vector<larlite::track>& track_v );
 
     void GetFlashCenterAndRange( const larlite::opflash& flash, float& zmean, std::vector<float>& zrange );
 
     flashana::Flash_t GenerateUnfittedFlashHypothesis( const flashana::QCluster_t& qcluster );
 
-    larlite::opflash MakeOpFlashFromFlash(const flashana::Flash_t& Flash);
+    larlite::opflash MakeOpFlashFromFlash( const flashana::Flash_t& Flash );
 
+    larlite::opflash GetGaus2DPrediction( const larlite::opflash& flash );
+    
     flashana::Flash_t MakeDataFlash( const larlite::opflash& flash );
 
     larlite::opflash make_flash_hypothesis(const larlite::track input_track);
 
-    std::vector<larlite::opflash> make_flash_hypothesis_vector( const std::vector<larlite::opflash>& input_track_v );
+    std::vector<larlite::opflash> make_flash_hypothesis_vector( const std::vector<larlite::track>& input_track_v );
 
-    float generate_chi2_in_track_flash_comparison(const larlite::opflash opflash_hypo, const larlite::opflash data_opflash);
+    float generate_chi2_in_track_flash_comparison(const flashana::QCluster_t qcluster, const larlite::opflash data_opflash);
     
     const GeneralFlashMatchAlgoConfig& getConfig() { return m_config; };
-    */
+    
     void setVerbosity( int v ) { m_verbosity = v; };
 
   private:
     const GeneralFlashMatchAlgoConfig m_config;   //< configuration class
-    //larcv::pmtweights::PMTWireWeights m_pmtweights;
+    larcv::pmtweights::PMTWireWeights m_pmtweights;
     flashana::FlashMatchManager m_flash_matcher; //< Generates Flash Hypothesis producer
     //SpaceChargeMicroBooNE m_sce;           //< Space Charge Effect Calculator
     int m_verbosity;

@@ -66,6 +66,10 @@ namespace larlitecv {
     std::vector< BoundarySpacePoint > cathode_spacepoint_v;
     std::vector< BoundarySpacePoint > imgends_spacepoint_v;
 
+    // New info for the flash indices of the anode/cathode tracks.
+    std::vector < int >               anode_flash_idx_v;
+    std::vector	< int >		      cathode_flash_idx_v;
+
     std::vector< BoundarySpacePoint > side_filtered_v;
     std::vector< BoundarySpacePoint > anode_filtered_v;
     std::vector< BoundarySpacePoint > cathode_filtered_v;
@@ -98,6 +102,10 @@ namespace larlitecv {
       anode_spacepoint_v.clear();
       cathode_spacepoint_v.clear();
       imgends_spacepoint_v.clear();
+
+      // Also clear the flash indices of anode/cathode crossing tracks.
+      anode_flash_idx_v.clear();
+      cathode_flash_idx_v.clear();
 
       side_filtered_v.clear();
       anode_filtered_v.clear();

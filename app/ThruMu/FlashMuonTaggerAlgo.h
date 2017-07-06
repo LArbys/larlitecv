@@ -59,10 +59,10 @@ namespace larlitecv {
 
     bool flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const std::vector<larcv::Image2D>& tpc_imgs,
 			      const std::vector<larcv::Image2D>& badch_imgs,
-			      std::vector< BoundarySpacePoint >& trackendpts );
+			      std::vector< BoundarySpacePoint >& trackendpts, std::vector< int > endpoint_flash_idx );
 
     bool findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-			     std::vector< BoundarySpacePoint >& trackendpts );
+			     std::vector< BoundarySpacePoint >& trackendpts, std::vector < int > endpoint_flash_idx );
 
     BoundaryEnd_t SearchModeToEndType( SearchMode_t mode );
     
@@ -111,7 +111,7 @@ namespace larlitecv {
 
     void FindFlashesBy3DSegments( const int row_target, const larlitecv::BoundaryEnd_t point_type,
 				  const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-				  const float z_max, const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts );
+				  const float z_max, const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts, std::vector < int > endpoint_flash_idx, int opflash_idx );
     
     
 
