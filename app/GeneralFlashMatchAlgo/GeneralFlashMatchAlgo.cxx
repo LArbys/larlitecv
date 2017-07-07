@@ -224,7 +224,7 @@ namespace larlitecv {
 
   // A function that will calculate the 2D gaussian value for an opflash object.
   // Inputs: 'flash' - The input 'opflash' object to be fit to a Gaussian 2D value.
-  larlite::opflash GetGaus2DPrediction( const larlite::opflash flash ) {
+  larlite::opflash GeneralFlashMatchAlgo::GetGaus2DPrediction( const larlite::opflash& flash ) {
     const larutil::Geometry* geo = ::larutil::Geometry::GetME();
     float tot_weight = 0;
 
