@@ -356,98 +356,6 @@ namespace larlitecv {
     }
   }
 
-  void analyzeCrossingMatches( CrossingPointAnaData_t& data, std::vector<larcv::EventPixel2D*> ev_spacepoints, const larcv::ImageMeta& meta ) {
-    // MC info already stored in data
-
-    std::vector<bool> matched_startpoint( data.start_pixels.size(), false );
-    std::vector<bool> matched_endpoint(   data.end_pixels.size(),   false );
-
-    std::vector< std::vector<int> >* p_crossing_pixel_v[2] = { &data.start_pixels, &data.end_pixels }; // truth pixels for crossing points
-    std::vector< std::vector<float> >* p_crossingpts_v[2]  = { &data.start_crossingpts, &data.end_crossingpts }; // truth 3D positions
-    std::vector<bool>* p_matched_v[2] = { &matched_startpoint, &matched_endpoint };
-    
-    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
-
-    for ( int v=0; v<2; v++ ) {
-      for ( int ipix=0; ipix<(int)p_crossing_pixel_v[v]->size(); ipix++ ) {
-
-	// we need to get the 3D position to compare against
-	const std::vector<int>&  pixinfo     = p_crossing_pixel_v[v]->at(ipix); // position in image
-	const std::vector<float>& crossingpt = p_crossingpts_v[v]->at(ipix);    // position in 3D
-
-	// use TPC position to get X
-	std::vector<float> crossingpt_tpcx(3,0);
-	crossingpt_tpcx[0] = (meta.pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
-	crossingpt_tpcx[1] = crossingpt[1];
-	crossingpt_tpcx[2] = crossingpt[2];
-
-	// scan for pixel, loop over types and pts
-	bool matched = false;
-	for (int i=0; i<6; i++) {
-	  if ( matched )
-	    break;
-
-	  for ( int j=0; j<(int)ev_spacepoints[i]->Pixel2DArray(0).size(); j++ ) {
-
-	    std::vector<float> intersect(2,0.0);
-	    std::vector<int> wids(3,0);
-	    int crossing = 0;
-	    double triangle_area = 0.0;
-	    for (int p=0; p<3; p++) {
-	      wids[p] = ev_spacepoints[i]->Pixel2DArray(p).at(j).X();
-	    }
-	    
-
-	    larcv::UBWireTool::wireIntersection( wids, intersect, triangle_area, crossing );
-
-	    if ( crossing==0 )
-	      continue;
-	    
-	    float x = ( meta.pos_y( ev_spacepoints[i]->Pixel2DArray(0).at(j).Y() ) - 3200.0 )*cm_per_tick;
-
-	    std::vector<float> spacepoints(3);
-	    spacepoints[0] = x;
-	    spacepoints[1] = intersect[1];
-	    spacepoints[2] = intersect[0];
-
-	    float dist = 0;
-	    for (int d=0; d<3; d++) {
-	      dist += (spacepoints[d]-crossingpt_tpcx[d])*(spacepoints[d]-crossingpt_tpcx[d]);
-	    }
-	    dist = sqrt(dist);
-	    //std::cout << "true[" << v << "," << ipix << "] vs. proposed[" << i << "," << j << "] dist=" << dist << std::endl;
-	    if (dist<20.0) {
-	      matched = true;
-	    }
-
-	    if ( matched )
-	      break;
-	  }// end of loop over tagged points of type i
-	}//end of boundary point types
-
-	p_matched_v[v]->at(ipix) = matched;
-	
-      }
-    }//end of v loop
-
-    for (size_t i=0; i<data.start_type.size(); i++) {
-      if ( matched_startpoint[i] ) {
-	data.matched_crossingpoints[ data.start_type[i] ]++;
-	data.tot_matched_crossingpoints++;
-      }
-    }
-
-    for (size_t i=0; i<data.end_type.size(); i++) {
-      if ( matched_endpoint[i] ) {
-	data.matched_crossingpoints[ data.end_type[i] ]++;
-	data.tot_matched_crossingpoints++;
-      }
-    }
-    std::cout << "Proposed Crossing Points: " << data.tot_proposed_crossingpoints << std::endl;
-    std::cout << "True Crossing Points: "     << data.tot_true_crossingpoints << std::endl;    
-    std::cout << "Matched Crossing Points: "  << data.tot_matched_crossingpoints << std::endl;
-    
-  }
 
   int doesTrackCrossImageBoundary( const larlite::mctrack& track, const larcv::ImageMeta& meta, const float trig_time, const larlitecv::SpaceChargeMicroBooNE* psce ) {
     float tick_start = getTick( track.front(), trig_time, psce );
@@ -662,5 +570,193 @@ namespace larlitecv {
     return empty;
   }
 
+  void analyzeCrossingMatches( CrossingPointAnaData_t& data, std::vector<larcv::EventPixel2D*> ev_spacepoints, const larcv::ImageMeta& meta ) {
+    // MC info already stored in data
+    
+    //std::vector<bool> matched_startpoint( data.start_pixels.size(), false );
+    //std::vector<bool> matched_endpoint(   data.end_pixels.size(),   false );
+    
+    std::vector< std::vector<int> >* p_crossing_pixel_v[2] = { &data.start_pixels, &data.end_pixels }; // truth pixels for crossing points
+    std::vector< std::vector<float> >* p_crossingpts_v[2]  = { &data.start_crossingpts, &data.end_crossingpts }; // truth 3D positions
+    std::vector<bool>* p_matched_v[2] = { &data.matched_startpoint, &data.matched_endpoint };
+    
+    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+
+    for ( int v=0; v<2; v++ ) {
+      for ( int ipix=0; ipix<(int)p_crossing_pixel_v[v]->size(); ipix++ ) {
+
+	// we need to get the 3D position to compare against
+	const std::vector<int>&  pixinfo     = p_crossing_pixel_v[v]->at(ipix); // position in image
+	const std::vector<float>& crossingpt = p_crossingpts_v[v]->at(ipix);    // position in 3D
+
+	// use TPC position to get X
+	std::vector<float> crossingpt_tpcx(3,0);
+	crossingpt_tpcx[0] = (meta.pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
+	crossingpt_tpcx[1] = crossingpt[1];
+	crossingpt_tpcx[2] = crossingpt[2];
+
+	// scan for pixel, loop over types and pts
+	bool matched = false;
+	for (int i=0; i<6; i++) {
+	  if ( matched )
+	    break;
+
+	  for ( int j=0; j<(int)ev_spacepoints[i]->Pixel2DArray(0).size(); j++ ) {
+
+	    std::vector<float> intersect(2,0.0);
+	    std::vector<int> wids(3,0);
+	    int crossing = 0;
+	    double triangle_area = 0.0;
+	    for (int p=0; p<3; p++) {
+	      wids[p] = ev_spacepoints[i]->Pixel2DArray(p).at(j).X();
+	    }
+	    
+
+	    larcv::UBWireTool::wireIntersection( wids, intersect, triangle_area, crossing );
+
+	    if ( crossing==0 )
+	      continue;
+	    
+	    float x = ( meta.pos_y( ev_spacepoints[i]->Pixel2DArray(0).at(j).Y() ) - 3200.0 )*cm_per_tick;
+
+	    std::vector<float> spacepoints(3);
+	    spacepoints[0] = x;
+	    spacepoints[1] = intersect[1];
+	    spacepoints[2] = intersect[0];
+
+	    float dist = 0;
+	    for (int d=0; d<3; d++) {
+	      dist += (spacepoints[d]-crossingpt_tpcx[d])*(spacepoints[d]-crossingpt_tpcx[d]);
+	    }
+	    dist = sqrt(dist);
+	    //std::cout << "true[" << v << "," << ipix << "] vs. proposed[" << i << "," << j << "] dist=" << dist << std::endl;
+	    if (dist<20.0) {
+	      matched = true;
+	    }
+
+	    if ( matched )
+	      break;
+	  }// end of loop over tagged points of type i
+	}//end of boundary point types
+
+	p_matched_v[v]->at(ipix) = matched;
+	
+      }
+    }//end of v loop
+
+    for (size_t i=0; i<data.start_type.size(); i++) {
+      if ( data.matched_startpoint[i] ) {
+	data.matched_crossingpoints[ data.start_type[i] ]++;
+	data.tot_matched_crossingpoints++;
+      }
+    }
+
+    for (size_t i=0; i<data.end_type.size(); i++) {
+      if ( data.matched_endpoint[i] ) {
+	data.matched_crossingpoints[ data.end_type[i] ]++;
+	data.tot_matched_crossingpoints++;
+      }
+    }
+    std::cout << "Proposed Crossing Points: " << data.tot_proposed_crossingpoints << std::endl;
+    std::cout << "True Crossing Points: "     << data.tot_true_crossingpoints << std::endl;    
+    std::cout << "Matched Crossing Points: "  << data.tot_matched_crossingpoints << std::endl;
+    
+  }
+
+  void analyzeCrossingMatches( CrossingPointAnaData_t& data, const std::vector< const std::vector<larlitecv::BoundarySpacePoint>* > ev_spacepoints,
+			       const larcv::ImageMeta& meta, const float fMatchRadius ) {
+    
+    // MC info already stored in data
+
+    // the data we are trying to create
+
+    // did we find a match for a truth crossing point
+    data.matched_startpoint.resize( data.start_pixels.size(), false );
+    data.matched_endpoint.resize(   data.end_pixels.size(),   false );
+
+    // the type of reco crossing point that matched the closest
+    data.matched_startpoint_type.resize( data.start_pixels.size(), -1 );
+    data.matched_endpoint_type.resize( data.end_pixels.size(), -1 );    
+
+    // what was the closest distance
+    data.start_closest_match_dist.resize( data.start_pixels.size(), -1.0 );
+    data.end_closest_match_dist.resize(   data.end_pixels.size(),   -1.0 );
+
+    
+    std::vector< std::vector<int> >* p_crossing_pixel_v[2] = { &data.start_pixels, &data.end_pixels }; // truth pixels for crossing points
+    std::vector< std::vector<float> >* p_crossingpts_v[2]  = { &data.start_crossingpts, &data.end_crossingpts }; // truth 3D positions
+    std::vector<bool>* p_matched_v[2]       = { &data.matched_startpoint, &data.matched_endpoint };
+    std::vector<float>* p_matched_dist_v[2] = { &data.start_closest_match_dist, &data.end_closest_match_dist };
+    std::vector<int>*   p_matched_type_v[2] = { &data.matched_startpoint_type,  &data.matched_endpoint_type };
+    
+    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+
+    for ( int v=0; v<2; v++ ) {
+      for ( int ipix=0; ipix<(int)p_crossing_pixel_v[v]->size(); ipix++ ) {
+
+	// we need to get the 3D position to compare against
+	const std::vector<int>&  pixinfo     = p_crossing_pixel_v[v]->at(ipix); // position in image
+	const std::vector<float>& crossingpt = p_crossingpts_v[v]->at(ipix);    // position in 3D
+
+	// use TPC position to get X
+	std::vector<float> crossingpt_tpcx(3,0);
+	crossingpt_tpcx[0] = (meta.pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
+	crossingpt_tpcx[1] = crossingpt[1];
+	crossingpt_tpcx[2] = crossingpt[2];
+
+	// scan for pixel, loop over types and pts
+	bool matched = false;
+	for (int i=0; i<(int)ev_spacepoints.size(); i++) {
+
+	  for ( int j=0; j<(int)ev_spacepoints[i]->size(); j++ ) {
+
+	    const larlitecv::BoundarySpacePoint& sp=ev_spacepoints[i]->at(j);
+
+	    float dist = 0;
+	    for (int d=0; d<3; d++) {
+	      dist += (sp.pos()[d]-crossingpt_tpcx[d])*(sp.pos()[d]-crossingpt_tpcx[d]);
+	    }
+	    dist = sqrt(dist);
+
+	    if ( p_matched_dist_v[v]->at(ipix)<0 ||  dist<p_matched_dist_v[v]->at(ipix) ) {
+	      p_matched_dist_v[v]->at(ipix) = dist;
+	      p_matched_type_v[v]->at(ipix) = sp.type();
+	      if ( dist<fMatchRadius )
+		matched = true;
+	    }
+	    
+	  }// end of loop over tagged points of type i
+	}//end of boundary point types
+
+	p_matched_v[v]->at(ipix) = matched;
+	
+      }//end of true crossing point loop
+    }//end of v loop over start and end points
+
+    // Totals
+    for (size_t i=0; i<data.start_type.size(); i++) {
+      if ( data.matched_startpoint[i] ) {
+	data.matched_crossingpoints[ data.start_type[i] ]++;
+	data.tot_matched_crossingpoints++;
+      }
+    }
+
+    for (size_t i=0; i<data.end_type.size(); i++) {
+      if ( data.matched_endpoint[i] ) {
+	data.matched_crossingpoints[ data.end_type[i] ]++;
+	data.tot_matched_crossingpoints++;
+      }
+    }
+
+    data.tot_proposed_crossingpoints = 0;
+    for (int i=0; i<(int)ev_spacepoints.size(); i++) {
+      data.tot_proposed_crossingpoints += (int)ev_spacepoints[i]->size();
+    }
+
+    std::cout << "Proposed Crossing Points: " << data.tot_proposed_crossingpoints << std::endl;
+    std::cout << "True Crossing Points: "     << data.tot_true_crossingpoints << std::endl;    
+    std::cout << "Matched Crossing Points: "  << data.tot_matched_crossingpoints << std::endl;
+    
+  }
   
 }

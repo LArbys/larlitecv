@@ -8,6 +8,7 @@
 
 // larlitecv
 #include "TaggerTypes/BoundaryMuonTaggerTypes.h"
+#include "TaggerTypes/BoundarySpacePoint.h"
 
 class TTree;
 
@@ -57,6 +58,14 @@ namespace larlitecv {
     std::vector< int > end_crossing_nplanes_w_charge;    
     bool saved_mc;
 
+    // reco
+    std::vector< bool > matched_startpoint;
+    std::vector< bool > matched_endpoint;
+    std::vector< int >  matched_startpoint_type;
+    std::vector< int >  matched_endpoint_type;
+    std::vector< float > start_closest_match_dist;
+    std::vector< float > end_closest_match_dist;    
+    
     // MC track end points
     std::vector< std::vector<int> > mctrack_imgendpoint_indices; // index is mc track index. -1 or size 0 means there are no image end points
     
@@ -88,6 +97,12 @@ namespace larlitecv {
       end_crossingpts.clear();
       end_crossing_nplanes_w_charge.clear();
       mctrack_imgendpoint_indices.clear();
+      matched_startpoint.clear();
+      matched_endpoint.clear();
+      matched_startpoint_type.clear();
+      matched_endpoint_type.clear();
+      start_closest_match_dist.clear();
+      end_closest_match_dist.clear();
       saved_mc = false;
     };
 
@@ -103,7 +118,11 @@ namespace larlitecv {
 
   void analyzeCrossingDataOnly( CrossingPointAnaData_t& data, std::vector<larcv::EventPixel2D*>& ev_spacepoints );  
 
-  void analyzeCrossingMatches( CrossingPointAnaData_t& data, std::vector<larcv::EventPixel2D*> ev_spacepoints, const larcv::ImageMeta& meta );  
+  void analyzeCrossingMatches( CrossingPointAnaData_t& data, std::vector<larcv::EventPixel2D*> ev_spacepoints, const larcv::ImageMeta& meta );
+
+  void analyzeCrossingMatches( CrossingPointAnaData_t& data,
+			       const std::vector< const std::vector<larlitecv::BoundarySpacePoint>* > ev_spacepoints,
+			       const larcv::ImageMeta& meta, const float fMatchRadius );
 
   float getTick( const std::vector<float>& step, const float trig_time=4050.0, const larlitecv::SpaceChargeMicroBooNE* psce=NULL );
   
