@@ -57,7 +57,7 @@ namespace larlitecv {
 
     larlitecv::SpaceChargeMicroBooNE sce;
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
-    const int endpt_radius = 10;
+    const int endpt_radius = 3;
 
     data.mctrack_imgendpoint_indices.resize( ev_mctrack->size() );
 
