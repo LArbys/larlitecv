@@ -77,6 +77,33 @@ namespace larlitecv {
     // get meta for input image
     const larcv::ImageMeta& meta = imgs.at(0).meta();
 
+    // now we make dilated images
+    std::vector<larcv::Image2D> binblur_v;
+    int p=-1;
+    for (auto const& img : imgs ) {
+      p++;
+      larcv::Image2D bbimg( img );
+      bbimg.paint(0);
+      for (int row=0; row<(int)img.meta().rows(); row++) {
+	for (int col=0; col<(int)img.meta().cols(); col++) {
+	  if ( img.pixel(row,col)>_config.thresholds[p] ) {
+	    for (int dr=-_config.fKernelRadius; dr<=_config.fKernelRadius; dr++) {
+	      int r = row+dr;
+	      if ( r<0 || r>=(int)img.meta().rows() )
+		continue;
+	      for (int dc=-_config.fKernelRadius; dc<=_config.fKernelRadius; dc++) {
+		int c = col+dc;
+		if ( c<0 || c>=(int)img.meta().cols() )
+		  continue;
+		bbimg.set_pixel( r, c, 255 );
+	      }
+	    }
+	  }
+	}
+      }//end of row loop
+      binblur_v.emplace_back( std::move(bbimg) );
+    }//end of img loop
+    
     // create Image2D objects to store the result of boundary matching
     // we use meta to make the same sized image as the input
     if ( _config.save_endpt_images ) {
@@ -97,7 +124,7 @@ namespace larlitecv {
     std::cout << "Begin Boundary Pixel Search..." << std::endl;
     std::vector< dbscan::dbPoints > combo_points(ncrossings); // these points are in detector space
     std::vector< std::vector< std::vector<int> > > combo_cols(ncrossings); // [ncrossings][number of combos][column combination]
-    CollectCandidateBoundaryPixels( imgs, badchs, combo_points, combo_cols, matchedspacepts );
+    CollectCandidateBoundaryPixels( binblur_v, badchs, combo_points, combo_cols, matchedspacepts );
     int total_combos = 0;
     for ( auto& combo_col : combo_cols ) {
       total_combos += combo_col.size();
@@ -109,7 +136,7 @@ namespace larlitecv {
     clock_t begin_clustering = clock();
     std::cout << "Begin Clustering..." << std::endl;
     std::vector< BoundarySpacePoint > candidate_endpts;
-    ClusterBoundaryHitsIntoEndpointCandidates( imgs, badchs, combo_points, combo_cols, candidate_endpts, matchedpixels );
+    ClusterBoundaryHitsIntoEndpointCandidates( binblur_v, badchs, combo_points, combo_cols, candidate_endpts, matchedpixels );
     float elapsed_clustering = float( clock()-begin_clustering )/CLOCKS_PER_SEC;
     std::cout << "... clustering time: " << elapsed_clustering << " secs" << std::endl;
 

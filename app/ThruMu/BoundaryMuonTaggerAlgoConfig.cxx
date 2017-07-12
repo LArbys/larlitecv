@@ -14,6 +14,7 @@ namespace larlitecv {
     thresholds.resize(3,10.0);
     boundary_cluster_minpixels.resize(3,10);
     boundary_cluster_radius.resize(3,10);
+    fKernelRadius = 2;
     verbosity = 0;    
   }
 
@@ -27,6 +28,7 @@ namespace larlitecv {
     std::cout << " Boundary Cluster Min Pixels: "; for ( size_t i=0; i<boundary_cluster_minpixels.size(); i++ ) std::cout << boundary_cluster_minpixels[i] << " "; std::cout << std::endl;
     std::cout << " Boundary Cluster Radius: "; for ( size_t i=0; i<boundary_cluster_radius.size(); i++ ) std::cout << boundary_cluster_radius[i] << " "; std::cout << std::endl;
     std::cout << " Type Modifer: "; for ( size_t i=0; i<type_modifier.size(); i++ ) std::cout << type_modifier[i] << " "; std::cout << std::endl;
+    std::cout << " Kernel Radius: " << fKernelRadius << std::endl;
     std::cout << " Verbosity: " << verbosity << std::endl;
     std::cout << " Save Endpoint Images: " << save_endpt_images << std::endl;
     std::cout << "==================================================" << std::endl;
@@ -41,6 +43,7 @@ namespace larlitecv {
     config.boundary_cluster_radius    = pset.get< std::vector<float> >( "BoundaryClusterRadius" );
     config.save_endpt_images          = pset.get<bool>("SaveMatchImages",false);
     config.hitsearch_uses_badchs      = pset.get<bool>("UseBadChannels",true);
+    config.fKernelRadius              = pset.get<int>("KernelRadius",2);
     config.verbosity                  = pset.get<int>("Verbosity",0);
 
     return config;
