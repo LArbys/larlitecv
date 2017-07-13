@@ -230,6 +230,10 @@ namespace larlitecv {
       int end_nplanes_above_thresh = 0;
       
       // change end_pix[0] from tick to row
+      if ( end_pix[0]<0 )
+	end_pix[0] = 0;
+      else if ( end_pix[0]>=meta.max_y() )
+	end_pix[0] = meta.max_y()-1.0;
       end_pix[0]   = meta.row( end_pix[0] );
 
       // check neighborhood around pixel (has charge around?)
