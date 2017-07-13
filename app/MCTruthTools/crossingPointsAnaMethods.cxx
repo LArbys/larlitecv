@@ -167,6 +167,9 @@ namespace larlitecv {
 	  if ( fabs( orig_start_tick - (3200.0+opflash.Time()/0.5) )<5.0 ) {
 	    start_found_flash = true;
 	    flash_index = iflashindex;
+	    std::cout << "  Flash Match: tick time of start=" << orig_start_tick
+		      << "  flash_tick=" << 3200.0+opflash.Time()/0.5
+		      << "  trackidx=" << trackindex << " flashidx=" << flash_index << std::endl;
 	  }
 	}
       }
@@ -214,6 +217,7 @@ namespace larlitecv {
 	data.start_crossing_flashindex.push_back( flash_index );
 	data.start_type.push_back( track_start_boundary );
 	data.start_crossing_nplanes_w_charge.push_back( start_nplanes_above_thresh );
+	data.startpoint_mctrack_index.push_back( trackindex );
 	data.tot_true_crossingpoints++;
 	data.true_crossingpoints[track_start_boundary]++;
       }

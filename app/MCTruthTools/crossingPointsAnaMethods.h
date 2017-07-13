@@ -64,7 +64,8 @@ namespace larlitecv {
     std::vector< int >  matched_startpoint_type;
     std::vector< int >  matched_endpoint_type;
     std::vector< float > start_closest_match_dist;
-    std::vector< float > end_closest_match_dist;    
+    std::vector< float > end_closest_match_dist;
+    std::vector< int > startpoint_mctrack_index;
     
     // MC track end points
     std::vector< std::vector<int> > mctrack_imgendpoint_indices; // index is mc track index. -1 or size 0 means there are no image end points
@@ -92,7 +93,8 @@ namespace larlitecv {
       start_pixels.clear();
       start_crossingpts.clear();
       start_crossing_flashindex.clear();
-      start_crossing_nplanes_w_charge.clear();      
+      start_crossing_nplanes_w_charge.clear();
+      startpoint_mctrack_index.clear();
       end_pixels.clear();
       end_crossingpts.clear();
       end_crossing_nplanes_w_charge.clear();
