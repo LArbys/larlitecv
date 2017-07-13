@@ -124,7 +124,8 @@ int main( int nargs, char** argv ) {
   std::string inputimgs  = pset.get<std::string>("InputLArCVImages");
   std::string trigname   = pset.get<std::string>("TriggerProducerName");
   bool printFlashEnds    = pset.get<bool>("PrintFlashEnds");
-  bool use_reclustered   = pset.get<bool>("UseReclustered");  
+  bool use_reclustered   = pset.get<bool>("UseReclustered");
+  float fMatchRadius     = pset.get<float>("EndPointMatchRadius", 10.0 );
   std::vector<std::string> flashprod  = pset.get<std::vector<std::string> >("OpFlashProducer");
 
  // =====================================================================
@@ -155,6 +156,8 @@ int main( int nargs, char** argv ) {
   // setup output
   TFile* rfile = new TFile(outfname.c_str(), "recreate");
   TTree* tree = new TTree("pixana", "Pixel-level analysis");
+  TTree* mcxingpt_tree = new TTree("mcxingptana", "Info on MC Crossing Point");
+  TTree* mcxingpt_prefilter_tree  = new TTree("mcxingptana_prefilter", "Info on MC Crossing Point");      
 
   // Event Index
   int run, subrun, event;
@@ -179,6 +182,10 @@ int main( int nargs, char** argv ) {
   std::stringstream s_arr;
   s_arr << "[" << (int)kNumStages << "][4]/I";
 
+
+  // ==================================================================================================
+  // DEFINE OUTPUT VARIABLES AND TREES
+  
   // ROI quantities
   int num_rois;     // number of identified ROis
   int nnu_inroi[4]; // number of nu pixels contained in the CROI
@@ -187,7 +194,8 @@ int main( int nargs, char** argv ) {
   int closest_dist_stage;
 
   // Crossing Point data
-  larlitecv::CrossingPointAnaData_t xingptdata;
+  larlitecv::CrossingPointAnaData_t xingptdata; // after all selections
+  larlitecv::CrossingPointAnaData_t xingptdata_prefilter; // pre-filter
 
   // Event
   tree->Branch("run",&run,"run/I");
@@ -215,8 +223,43 @@ int main( int nargs, char** argv ) {
   tree->Branch("vtx_in_croi", &vertex_in_croi,         "vtx_in_croi/I" );
   tree->Branch("dist_to_vtx", &closest_dist_to_vertex, "dist_to_vtx/F" );
   tree->Branch("stage_at_vtx", &closest_dist_stage, "stage_at_vtx/I" );
-  
+
+  // Crossing point analysis results
   xingptdata.bindToTree( tree );
+
+  // truth end point track reco metrics
+  int ntracks_2planeq = 0;
+  int ntracks_recod_2planeq = 0;
+  int ntracks_all = 0;
+  int ntracks_recod_all = 0;
+  tree->Branch( "ntracks_2planeq", &ntracks_2planeq, "ntracks_2planeq/I" );
+  tree->Branch( "ntracks_recod_2planeq", &ntracks_recod_2planeq, "ntracks_recod_2planeq/I" );
+  tree->Branch( "ntracks_all", &ntracks_all, "ntracks_all/I" );
+  tree->Branch( "ntracks_recod_all", &ntracks_recod_all, "ntracks_recod_all/I" );  
+
+  // Crossing point anaysis tree
+  int mcxingpt_type;
+  int mcxingpt_matched;
+  int mcxingpt_matched_type;
+  int mcxingpt_nplaneswcharge;
+  int mcxingpt_wire[3];
+  float mcxingpt_dist;
+  float mcxingpt_dwall;
+  float mcxingpt_pos[3];
+  TTree* xingpt_trees[2] = { mcxingpt_tree, mcxingpt_prefilter_tree };
+  for ( int i=0; i<2; i++) {
+    xingpt_trees[i]->Branch( "truth_type", &mcxingpt_type, "truth_type/I" );
+    xingpt_trees[i]->Branch( "matched", &mcxingpt_matched, "matched/I" );
+    xingpt_trees[i]->Branch( "matched_type", &mcxingpt_matched_type, "matched_type/I" );  
+    xingpt_trees[i]->Branch( "nplaneswcharge", &mcxingpt_nplaneswcharge, "nplaneswcharge/I" );
+    xingpt_trees[i]->Branch( "wire", mcxingpt_wire, "wire[3]/I" );
+    xingpt_trees[i]->Branch( "dist", &mcxingpt_dist, "dist/F" );
+    xingpt_trees[i]->Branch( "dwall", &mcxingpt_dwall, "dwall/F" );    
+    xingpt_trees[i]->Branch( "pos", mcxingpt_pos, "pos[3]/F" );
+  }
+  
+  // ==================================================================================================
+  // ALGORITHMS
   
   // Space Charge Corrections
   larlitecv::SpaceChargeMicroBooNE sce;
@@ -266,6 +309,7 @@ int main( int nargs, char** argv ) {
     // initialize the output variables
     truthdata.clear();
     xingptdata.clear();
+    xingptdata_prefilter.clear();    
     for (int p=0; p<4; p++) {
       ncosmic_pixels[p] = 0;
       nnu_pixels[0] = 0;
@@ -367,6 +411,7 @@ int main( int nargs, char** argv ) {
       
     // get the boundary end point info (only if have MC info to compare against)
     std::vector<larcv::EventPixel2D*> ev_spacepoints(7,0);
+    std::vector< larlitecv::BoundarySpacePoint > filtered_spacepoints; // container holding reconstitued spacepoints
     std::string spacepoint_producers[7] = { "topspacepts", "botspacepts", "upspacepts", "downspacepts", "anodepts", "cathodepts", "imgendpts" };
     for ( int i=0; i<7; i++ ) {
       try {
@@ -375,9 +420,23 @@ int main( int nargs, char** argv ) {
       catch (...) {
 	ev_spacepoints[i] = NULL;
       }
-      if ( ev_spacepoints[i]!=NULL )
-	std::cout << "number of " << spacepoint_producers[i] << ": " << ev_spacepoints[i]->Pixel2DArray(0).size() << std::endl;	
+      if ( ev_spacepoints[i]!=NULL ) {
+	std::cout << "number of " << spacepoint_producers[i] << ": " << ev_spacepoints[i]->Pixel2DArray(0).size() << std::endl;
+	for (int ipix=0; ipix<(int)( ev_spacepoints[i]->Pixel2DArray(0).size() ); ipix++ ) {
+	  std::vector<larlitecv::BoundaryEndPt> endpt_v;
+	  for (int p=0; p<3; p++) {
+	    const larcv::Pixel2D& pix = ev_spacepoints[i]->Pixel2DArray(p).at(ipix);	    
+	    larlitecv::BoundaryEndPt endpt( pix.Y(), pix.X(), (larlitecv::BoundaryEnd_t)i );
+	    endpt_v.emplace_back( std::move(endpt) );
+	  }
+	  larlitecv::BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)i, std::move(endpt_v), imgs_v.front().meta() );
+	  filtered_spacepoints.emplace_back( std::move(sp) );
+	}
+      }
     }
+    std::vector< const std::vector<larlitecv::BoundarySpacePoint>* > spacepoint_vv;
+    spacepoint_vv.push_back( &filtered_spacepoints );
+    
 
     // get the opflashes
     std::vector< larlite::event_opflash* > opflash_v;
@@ -406,10 +465,6 @@ int main( int nargs, char** argv ) {
 
     // quantities filled if MC present
     std::vector<larcv::Image2D> nupix_imgs_v;
-    // std::vector< std::vector<int> > start_pixels;
-    // std::vector< std::vector<float> > start_crossingpts;
-    // std::vector< std::vector<int> > end_pixels;
-    // std::vector< std::vector<float> > end_crossingpts;
     std::vector<int> vertex_col(3,-1);
     std::vector<double> vtx_sce(3,0);    
     int vertex_row = -1;
@@ -454,16 +509,56 @@ int main( int nargs, char** argv ) {
 
       // loop over MC tracks, get end points of muons
       larlitecv::analyzeCrossingMCTracks( xingptdata, imgs_v.front().meta(), imgs_v, ev_trigger, ev_mctrack, opflash_v, printFlashEnds );
-      // int intime_cosmics = xingptdata.true_intime_thrumu + xingptdata.true_intime_stopmu;
-      // std::cout << "number of intime cosmics: "       << intime_cosmics << std::endl;
-      // std::cout << "number of intime thrumu: "        << xingptdata.true_intime_thrumu << std::endl;
-      // std::cout << "number of intime stopmu: "        << xingptdata.true_intime_stopmu << std::endl;
+      std::cout << "-------------------------------------------" << std::endl;
       std::cout << "number of true crossing points: " << xingptdata.tot_true_crossingpoints << std::endl;
       for (int i=0; i<6; i++) {
 	std::cout << "  " << spacepoint_producers[i] << ": " << xingptdata.true_crossingpoints[i] << std::endl;
       }
+      std::cout << "-------------------------------------------" << std::endl;
 
+      // ----------------------------------------------------------------------------
+      // ananlyze how well the reconstructed endpoints could find the true end points
+      
+      larlitecv::analyzeCrossingMatches( xingptdata, spacepoint_vv, imgs_v.front().meta(), fMatchRadius );
+      
+      // fill the mcxingpt tree
+      // store the data into the tree
+      for (int istartpt=0; istartpt<(int)xingptdata.start_type.size(); istartpt++) {
+	mcxingpt_type           = xingptdata.start_type[istartpt];
+	mcxingpt_matched        = xingptdata.matched_startpoint[istartpt];
+	if ( xingptdata.matched_startpoint[istartpt] )
+	  mcxingpt_matched      = 1;
+	else
+	  mcxingpt_matched      = 0;	
+	mcxingpt_matched_type   = xingptdata.matched_startpoint_type[istartpt];
+	mcxingpt_nplaneswcharge = xingptdata.start_crossing_nplanes_w_charge[istartpt];
+	for (int p=0; p<3; p++) {
+	  mcxingpt_wire[p]      = xingptdata.start_pixels[istartpt][p];
+	  mcxingpt_pos[p]       = xingptdata.start_crossingpts[istartpt][p];
+	}
+	mcxingpt_dist           = xingptdata.start_closest_match_dist[istartpt];
+	mcxingpt_tree->Fill();
+      }
+      
+      for (int iendpt=0; iendpt<(int)xingptdata.end_type.size(); iendpt++) {
+	mcxingpt_type           = xingptdata.end_type[iendpt];
+	if ( xingptdata.matched_endpoint[iendpt] )
+	  mcxingpt_matched      = 1;
+	else
+	  mcxingpt_matched      = 0;
+	mcxingpt_matched_type   = xingptdata.matched_endpoint_type[iendpt];
+	mcxingpt_nplaneswcharge = xingptdata.end_crossing_nplanes_w_charge[iendpt];
+	for (int p=0; p<3; p++) {
+	  mcxingpt_wire[p]      = xingptdata.end_pixels[iendpt][p];
+	  mcxingpt_pos[p]       = xingptdata.end_crossingpts[iendpt][p];
+	}
+	mcxingpt_dist           = xingptdata.end_closest_match_dist[iendpt];
+	mcxingpt_tree->Fill();
+      }
+      
+      // ----------------------------------------------------------------------------
       // make truth pixel counts
+      
       // count the pixels. determine if cosmic and neutrino are tagged. also if neutrino is in rois
       // we loop through the rows and cols
       for (size_t p=0; p<3; p++) {
@@ -584,7 +679,6 @@ int main( int nargs, char** argv ) {
     analyzeCrossingMatches( xingptdata,  ev_spacepoints, imgs_v.front().meta() );
     
     // ==========================================================================================
-
 
     // non-MC Pixel counting
     for (size_t p=0; p<3; p++) {
