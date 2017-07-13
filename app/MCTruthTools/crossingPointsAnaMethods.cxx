@@ -302,11 +302,12 @@ namespace larlitecv {
 
 	std::cout << " row=" << start_pix[0] << " tick=" << meta.pos_y(start_pix[0]) << " (orig=" << orig_start_tick << ")"
 		  << " pos=(" << first_step.X() << "," << first_step.Y() << "," << first_step.Z() << ")";
-	if ( track_start_boundary==larlitecv::kImageEnd )
+	if ( track_start_boundary==larlitecv::kImageEnd && data.start_pixels.size()>0 )
 	  std::cout << " imgx row=" << data.start_pixels.back()[0]
 		    << " imgx pos=(" << data.start_crossingpts.back()[0] << "," << data.start_crossingpts.back()[1] << "," << data.start_crossingpts.back()[2] << ")";
-	std::cout << " nplaneswq=" << data.start_crossing_nplanes_w_charge.back()
-		  << std::endl;
+	if ( data.start_crossing_nplanes_w_charge.size()>0 )
+	  std::cout << " nplaneswq=" << data.start_crossing_nplanes_w_charge.back()
+		    << std::endl;
 	
 	if ( end_crosses )
 	  std::cout << "  End Boundary Crossing: boundary=" << end_crossingname  << " dwall=" << track_end_dwall;
@@ -315,10 +316,11 @@ namespace larlitecv {
 	    
 	std::cout << " row=" << end_pix[0] << " tick=" << meta.pos_y(end_pix[0]) << " (orig=" << orig_end_tick << ")"
 		  << " pos=(" << last_step.X() << "," << last_step.Y() << "," << last_step.Z() << ")";
-	if ( track_end_boundary==larlitecv::kImageEnd )
+	if ( track_end_boundary==larlitecv::kImageEnd && data.end_pixels.size()>0)
 	  std::cout << " imgx row=" << data.end_pixels.back()[0]
 		    << " imgx pos=(" << data.end_crossingpts.back()[0] << "," << data.end_crossingpts.back()[1] << "," << data.end_crossingpts.back()[2] << ")";
-	std::cout << " nplaneswq=" << data.end_crossing_nplanes_w_charge.back()	<< std::endl;
+	if ( data.end_crossing_nplanes_w_charge.size()>0 )
+	  std::cout << " nplaneswq=" << data.end_crossing_nplanes_w_charge.back()	<< std::endl;
       }
 	
       //if ( start_intime || end_intime ) {
