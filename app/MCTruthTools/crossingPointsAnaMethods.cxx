@@ -575,6 +575,8 @@ namespace larlitecv {
     
     //std::vector<bool> matched_startpoint( data.start_pixels.size(), false );
     //std::vector<bool> matched_endpoint(   data.end_pixels.size(),   false );
+    data.matched_startpoint.resize( data.start_pixels.size(), false );
+    data.matched_endpoint.resize( data.end_pixels.size(), false );
     
     std::vector< std::vector<int> >* p_crossing_pixel_v[2] = { &data.start_pixels, &data.end_pixels }; // truth pixels for crossing points
     std::vector< std::vector<float> >* p_crossingpts_v[2]  = { &data.start_crossingpts, &data.end_crossingpts }; // truth 3D positions
