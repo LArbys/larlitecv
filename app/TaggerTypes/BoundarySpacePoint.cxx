@@ -84,7 +84,7 @@ namespace larlitecv {
       larcv::UBWireTool::wireIntersection( wids, intersection, triarea, crosses );
       m_pos[0] = x;
       m_pos[1] = intersection[1];
-      m_pos[2] = intersection[2];
+      m_pos[2] = intersection[0];
     }
   }
 

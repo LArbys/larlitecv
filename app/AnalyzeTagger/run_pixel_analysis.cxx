@@ -125,6 +125,7 @@ int main( int nargs, char** argv ) {
   std::string trigname   = pset.get<std::string>("TriggerProducerName");
   bool printFlashEnds    = pset.get<bool>("PrintFlashEnds");
   bool use_reclustered   = pset.get<bool>("UseReclustered");
+  bool load_prefiltered  = pset.get<bool>("LoadPrefilteredSpacePoints");
   float fMatchRadius     = pset.get<float>("EndPointMatchRadius", 10.0 );
   std::vector<std::string> flashprod  = pset.get<std::vector<std::string> >("OpFlashProducer");
 
@@ -181,7 +182,7 @@ int main( int nargs, char** argv ) {
   int nvertex_incroi[4];                   // number of pixels near neutrino vertex that are in an ROI
   std::stringstream s_arr;
   s_arr << "[" << (int)kNumStages << "][4]/I";
-
+  const float cm_per_tick = larutil::LArProperties::GetME()->DriftVelocity()*0.5;
 
   // ==================================================================================================
   // DEFINE OUTPUT VARIABLES AND TREES
@@ -423,13 +424,35 @@ int main( int nargs, char** argv ) {
       if ( ev_spacepoints[i]!=NULL ) {
 	std::cout << "number of " << spacepoint_producers[i] << ": " << ev_spacepoints[i]->Pixel2DArray(0).size() << std::endl;
 	for (int ipix=0; ipix<(int)( ev_spacepoints[i]->Pixel2DArray(0).size() ); ipix++ ) {
-	  std::vector<larlitecv::BoundaryEndPt> endpt_v;
+	  // std::vector<larlitecv::BoundaryEndPt> endpt_v;
+	  // std::cout << "  #" << ipix << ": ";
+	  // for (int p=0; p<3; p++) {
+	  //   const larcv::Pixel2D& pix = ev_spacepoints[i]->Pixel2DArray(p).at(ipix);
+	  //   std::cout << "(" << pix.Y() << "," << pix.X() << ") ";
+	  //   larlitecv::BoundaryEndPt endpt( pix.Y(), pix.X(), (larlitecv::BoundaryEnd_t)i );
+	  //   endpt_v.emplace_back( std::move(endpt) );
+	  // }
+	  // std::cout << std::endl;
+	  // larlitecv::BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)i, std::move(endpt_v), imgs_v.front().meta() );
+	  // filtered_spacepoints.emplace_back( std::move(sp) );
+
+	  std::vector<float> intersect(2,0.0);
+	  std::vector<int> wids(3,0);
+	  int crossing = 0;
+	  double triangle_area = 0.0;
 	  for (int p=0; p<3; p++) {
-	    const larcv::Pixel2D& pix = ev_spacepoints[i]->Pixel2DArray(p).at(ipix);	    
-	    larlitecv::BoundaryEndPt endpt( pix.Y(), pix.X(), (larlitecv::BoundaryEnd_t)i );
-	    endpt_v.emplace_back( std::move(endpt) );
+	    wids[p] = ev_spacepoints[i]->Pixel2DArray(p).at(ipix).X();
 	  }
-	  larlitecv::BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)i, std::move(endpt_v), imgs_v.front().meta() );
+	  larcv::UBWireTool::wireIntersection( wids, intersect, triangle_area, crossing );
+	  
+	  float x = ( imgs_v.front().meta().pos_y( ev_spacepoints[i]->Pixel2DArray(0).at(ipix).Y() ) - 3200.0 )*cm_per_tick;
+	  
+	  std::vector<float> spacepoints(3);
+	  spacepoints[0] = x;
+	  spacepoints[1] = intersect[1];
+	  spacepoints[2] = intersect[0];
+	  
+	  larlitecv::BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)i, spacepoints, imgs_v.front().meta() );
 	  filtered_spacepoints.emplace_back( std::move(sp) );
 	}
       }
@@ -437,7 +460,49 @@ int main( int nargs, char** argv ) {
     std::vector< const std::vector<larlitecv::BoundarySpacePoint>* > spacepoint_vv;
     spacepoint_vv.push_back( &filtered_spacepoints );
     
+    // pre-filter space points
+    larcv::EventPixel2D* ev_prefiltered_sp = NULL;
+    std::vector< larlitecv::BoundarySpacePoint > prefiltered_spacepoints; // container holding reconstitued spacepoints
+    if ( load_prefiltered ) {
+      std::cout << "Load Prefiltered Space Points ----------------------" << std::endl;
+      auto const& meta = imgs_v.front().meta();
+      ev_prefiltered_sp = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,"prefilterpts");
+      int npts = ev_prefiltered_sp->Pixel2DArray(0).size();
+      for ( int ipix=0; ipix<npts; ipix++ ) {
 
+	std::vector<float> intersect(2,0.0);
+	std::vector<int> wids(3,0);
+	int crossing = 0;
+	double triangle_area = 0.0;
+	for (int p=0; p<3; p++) {
+	  wids[p] = ev_prefiltered_sp->Pixel2DArray(p).at(ipix).X();
+	}
+	larcv::UBWireTool::wireIntersection( wids, intersect, triangle_area, crossing );
+	
+	float x = ( meta.pos_y( ev_prefiltered_sp->Pixel2DArray(0).at(ipix).Y() ) - 3200.0 )*cm_per_tick;
+
+	std::vector<float> spacepoints(3);
+	spacepoints[0] = x;
+	spacepoints[1] = intersect[1];
+	spacepoints[2] = intersect[0];
+	
+	larlitecv::BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)int(ev_prefiltered_sp->Pixel2DArray(0).at(ipix).Intensity()), spacepoints, meta );
+	prefiltered_spacepoints.emplace_back( std::move(sp) );
+					  
+	std::cout << "  #" << ipix << ": ";
+	for (int p=0; p<3; p++) {
+	  const larcv::Pixel2D& pix = ev_prefiltered_sp->Pixel2DArray(p).at(ipix);
+	  std::cout << "(" << pix.Y() << "," << pix.X() << ") ";
+	  //larlitecv::BoundaryEndPt endpt( pix.Y(), pix.X(), (larlitecv::BoundaryEnd_t)i );
+	  //endpt_v.emplace_back( std::move(endpt) );
+	}
+	std::cout << std::endl;
+
+      }
+    }
+    std::vector< const std::vector<larlitecv::BoundarySpacePoint>* > prefilter_spacepoint_vv;
+    prefilter_spacepoint_vv.push_back( &prefiltered_spacepoints );
+    
     // get the opflashes
     std::vector< larlite::event_opflash* > opflash_v;
     for ( auto const& prodname : flashprod ) {
@@ -491,6 +556,7 @@ int main( int nargs, char** argv ) {
 	vertex_row = imgs_v.at(0).meta().row( vertex_tick );
 
       std::cout << "Vertex Pixel Coordinates (SCE corrected): (" << vertex_row << ", " << vertex_col[0] << "," << vertex_col[1] << "," << vertex_col[2] << ")" << std::endl;
+      std::cout << "Vertex 3D Coordinates (uncorrected): (" << dpos[0] << "," << dpos[1] << "," << dpos[2] << ")" << std::endl;
 
       // did any of the ROIs contain the vertex?
       vertex_in_croi = 0;
@@ -509,6 +575,7 @@ int main( int nargs, char** argv ) {
 
       // loop over MC tracks, get end points of muons
       larlitecv::analyzeCrossingMCTracks( xingptdata, imgs_v.front().meta(), imgs_v, ev_trigger, ev_mctrack, opflash_v, printFlashEnds );
+      xingptdata_prefilter = xingptdata;
       std::cout << "-------------------------------------------" << std::endl;
       std::cout << "number of true crossing points: " << xingptdata.tot_true_crossingpoints << std::endl;
       for (int i=0; i<6; i++) {
@@ -518,42 +585,47 @@ int main( int nargs, char** argv ) {
 
       // ----------------------------------------------------------------------------
       // ananlyze how well the reconstructed endpoints could find the true end points
+
+      larlitecv::analyzeCrossingMatches( xingptdata,  spacepoint_vv, imgs_v.front().meta(), fMatchRadius );
+      larlitecv::analyzeCrossingMatches( xingptdata_prefilter,  prefilter_spacepoint_vv, imgs_v.front().meta(), fMatchRadius );
+      //larlitecv::analyzeCrossingMatches( xingptdata, ev_spacepoints, imgs_v.front().meta(), fMatchRadius );      
       
-      larlitecv::analyzeCrossingMatches( xingptdata, spacepoint_vv, imgs_v.front().meta(), fMatchRadius );
-      
-      // fill the mcxingpt tree
-      // store the data into the tree
-      for (int istartpt=0; istartpt<(int)xingptdata.start_type.size(); istartpt++) {
-	mcxingpt_type           = xingptdata.start_type[istartpt];
-	mcxingpt_matched        = xingptdata.matched_startpoint[istartpt];
-	if ( xingptdata.matched_startpoint[istartpt] )
-	  mcxingpt_matched      = 1;
-	else
-	  mcxingpt_matched      = 0;	
-	mcxingpt_matched_type   = xingptdata.matched_startpoint_type[istartpt];
-	mcxingpt_nplaneswcharge = xingptdata.start_crossing_nplanes_w_charge[istartpt];
-	for (int p=0; p<3; p++) {
-	  mcxingpt_wire[p]      = xingptdata.start_pixels[istartpt][p];
-	  mcxingpt_pos[p]       = xingptdata.start_crossingpts[istartpt][p];
+      // fill the mcxingpt trees
+      larlitecv::CrossingPointAnaData_t* pxingptdata[2] = { &xingptdata, &xingptdata_prefilter };
+      for (int i=0; i<2; i++) {
+	// store the data into the tree
+	for (int istartpt=0; istartpt<(int)(*pxingptdata[i]).start_type.size(); istartpt++) {
+	  mcxingpt_type           = (*pxingptdata[i]).start_type[istartpt];
+	  mcxingpt_matched        = (*pxingptdata[i]).matched_startpoint[istartpt];
+	  if ( (*pxingptdata[i]).matched_startpoint[istartpt] )
+	    mcxingpt_matched      = 1;
+	  else
+	    mcxingpt_matched      = 0;	
+	  mcxingpt_matched_type   = (*pxingptdata[i]).matched_startpoint_type[istartpt];
+	  mcxingpt_nplaneswcharge = (*pxingptdata[i]).start_crossing_nplanes_w_charge[istartpt];
+	  for (int p=0; p<3; p++) {
+	    mcxingpt_wire[p]      = (*pxingptdata[i]).start_pixels[istartpt][p];
+	    mcxingpt_pos[p]       = (*pxingptdata[i]).start_crossingpts[istartpt][p];
+	  }
+	  mcxingpt_dist           = (*pxingptdata[i]).start_closest_match_dist[istartpt];
+	  xingpt_trees[i]->Fill();
 	}
-	mcxingpt_dist           = xingptdata.start_closest_match_dist[istartpt];
-	mcxingpt_tree->Fill();
-      }
-      
-      for (int iendpt=0; iendpt<(int)xingptdata.end_type.size(); iendpt++) {
-	mcxingpt_type           = xingptdata.end_type[iendpt];
-	if ( xingptdata.matched_endpoint[iendpt] )
-	  mcxingpt_matched      = 1;
-	else
-	  mcxingpt_matched      = 0;
-	mcxingpt_matched_type   = xingptdata.matched_endpoint_type[iendpt];
-	mcxingpt_nplaneswcharge = xingptdata.end_crossing_nplanes_w_charge[iendpt];
-	for (int p=0; p<3; p++) {
-	  mcxingpt_wire[p]      = xingptdata.end_pixels[iendpt][p];
-	  mcxingpt_pos[p]       = xingptdata.end_crossingpts[iendpt][p];
+	
+	for (int iendpt=0; iendpt<(int)(*pxingptdata[i]).end_type.size(); iendpt++) {
+	  mcxingpt_type           = (*pxingptdata[i]).end_type[iendpt];
+	  if ( (*pxingptdata[i]).matched_endpoint[iendpt] )
+	    mcxingpt_matched      = 1;
+	  else
+	    mcxingpt_matched      = 0;
+	  mcxingpt_matched_type   = (*pxingptdata[i]).matched_endpoint_type[iendpt];
+	  mcxingpt_nplaneswcharge = (*pxingptdata[i]).end_crossing_nplanes_w_charge[iendpt];
+	  for (int p=0; p<3; p++) {
+	    mcxingpt_wire[p]      = (*pxingptdata[i]).end_pixels[iendpt][p];
+	    mcxingpt_pos[p]       = (*pxingptdata[i]).end_crossingpts[iendpt][p];
+	  }
+	  mcxingpt_dist           = (*pxingptdata[i]).end_closest_match_dist[iendpt];
+	  xingpt_trees[i]->Fill();
 	}
-	mcxingpt_dist           = xingptdata.end_closest_match_dist[iendpt];
-	mcxingpt_tree->Fill();
       }
       
       // ----------------------------------------------------------------------------
@@ -673,10 +745,10 @@ int main( int nargs, char** argv ) {
     }//end of vertex row loop
 
     std::cout << "Number of vertex pixels in an ROI: " << nvertex_incroi[3] << " out of " << nvertex_pixels[3] << std::endl;
-    std::cout << "Fraction of vertex pixels are badchannels: " << float(nvertex_badch[3])/float(nvertex_pixels[3]) << std::endl;
+    if ( nvertex_pixels[3]>0 )
+      std::cout << "Fraction of vertex pixels are badchannels: " << float(nvertex_badch[3])/float(nvertex_pixels[3]) << std::endl;
 
     analyzeCrossingDataOnly( xingptdata, ev_spacepoints );
-    analyzeCrossingMatches( xingptdata,  ev_spacepoints, imgs_v.front().meta() );
     
     // ==========================================================================================
 

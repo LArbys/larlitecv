@@ -120,7 +120,8 @@ namespace larlitecv {
 
   void analyzeCrossingDataOnly( CrossingPointAnaData_t& data, std::vector<larcv::EventPixel2D*>& ev_spacepoints );  
 
-  void analyzeCrossingMatches( CrossingPointAnaData_t& data, std::vector<larcv::EventPixel2D*> ev_spacepoints, const larcv::ImageMeta& meta );
+  void analyzeCrossingMatches( CrossingPointAnaData_t& data, std::vector<larcv::EventPixel2D*> ev_spacepoints,
+			       const larcv::ImageMeta& meta, const float fMatchRadius );
 
   void analyzeCrossingMatches( CrossingPointAnaData_t& data,
 			       const std::vector< const std::vector<larlitecv::BoundarySpacePoint>* > ev_spacepoints,
