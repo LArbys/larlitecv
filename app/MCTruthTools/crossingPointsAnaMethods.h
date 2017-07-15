@@ -54,6 +54,7 @@ namespace larlitecv {
     std::vector< int > start_crossing_flashindex;
     std::vector< int > start_crossing_nplanes_w_charge;
     std::vector< std::vector<int> > end_pixels;
+    std::vector< int > end_crossing_flashindex;    
     std::vector< std::vector<float> > end_crossingpts;
     std::vector< int > end_crossing_nplanes_w_charge;    
     bool saved_mc;
@@ -96,6 +97,7 @@ namespace larlitecv {
       start_crossing_nplanes_w_charge.clear();
       startpoint_mctrack_index.clear();
       end_pixels.clear();
+      end_crossing_flashindex.clear();      
       end_crossingpts.clear();
       end_crossing_nplanes_w_charge.clear();
       mctrack_imgendpoint_indices.clear();

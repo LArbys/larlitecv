@@ -242,6 +242,7 @@ int main( int nargs, char** argv ) {
   int mcxingpt_type;
   int mcxingpt_matched;
   int mcxingpt_matched_type;
+  int mcxingpt_flashmatched;
   int mcxingpt_nplaneswcharge;
   int mcxingpt_wire[3];
   float mcxingpt_dist;
@@ -253,6 +254,7 @@ int main( int nargs, char** argv ) {
     xingpt_trees[i]->Branch( "matched", &mcxingpt_matched, "matched/I" );
     xingpt_trees[i]->Branch( "matched_type", &mcxingpt_matched_type, "matched_type/I" );  
     xingpt_trees[i]->Branch( "nplaneswcharge", &mcxingpt_nplaneswcharge, "nplaneswcharge/I" );
+    xingpt_trees[i]->Branch( "trueflashmatched", &mcxingpt_flashmatched, "trueflashmatched/I" );
     xingpt_trees[i]->Branch( "wire", mcxingpt_wire, "wire[3]/I" );
     xingpt_trees[i]->Branch( "dist", &mcxingpt_dist, "dist/F" );
     xingpt_trees[i]->Branch( "dwall", &mcxingpt_dwall, "dwall/F" );    
@@ -600,7 +602,11 @@ int main( int nargs, char** argv ) {
 	  if ( (*pxingptdata[i]).matched_startpoint[istartpt] )
 	    mcxingpt_matched      = 1;
 	  else
-	    mcxingpt_matched      = 0;	
+	    mcxingpt_matched      = 0;
+	  if ( (*pxingptdata[i]).start_crossing_flashindex[istartpt]>=0 )
+	    mcxingpt_flashmatched = 1;
+	  else
+	    mcxingpt_flashmatched = 0;
 	  mcxingpt_matched_type   = (*pxingptdata[i]).matched_startpoint_type[istartpt];
 	  mcxingpt_nplaneswcharge = (*pxingptdata[i]).start_crossing_nplanes_w_charge[istartpt];
 	  for (int p=0; p<3; p++) {
@@ -617,6 +623,10 @@ int main( int nargs, char** argv ) {
 	    mcxingpt_matched      = 1;
 	  else
 	    mcxingpt_matched      = 0;
+	  if ( (*pxingptdata[i]).end_crossing_flashindex[iendpt]>=0 )
+	    mcxingpt_flashmatched = 1;
+	  else
+	    mcxingpt_flashmatched = 0;	  
 	  mcxingpt_matched_type   = (*pxingptdata[i]).matched_endpoint_type[iendpt];
 	  mcxingpt_nplaneswcharge = (*pxingptdata[i]).end_crossing_nplanes_w_charge[iendpt];
 	  for (int p=0; p<3; p++) {

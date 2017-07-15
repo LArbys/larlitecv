@@ -276,6 +276,7 @@ namespace larlitecv {
       if ( end_crosses ) {
 	data.end_pixels.push_back( end_pix );
 	data.end_crossingpts.emplace_back( std::move(sce_end) );
+	data.end_crossing_flashindex.push_back( flash_index );	
 	data.end_crossing_nplanes_w_charge.push_back( end_nplanes_above_thresh );
 	data.end_type.push_back( track_end_boundary );
 	data.tot_true_crossingpoints++;
