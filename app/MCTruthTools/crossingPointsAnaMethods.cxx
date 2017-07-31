@@ -25,6 +25,31 @@
 
 namespace larlitecv {
 
+  void TruthCrossingPointAna_t::clear() {
+    start_or_end = -1;
+    type = -1;
+    imgcoord.resize(4,0);
+    crossingpt_det.resize(3,0);
+    crossingpt_detsce.resize(3,0);
+    crossingpt_detsce_tyz.resize(3,0);
+    nplanes_w_charge = 0;
+    flashindex = -1;
+    mctrack_index = -1;
+    matched = 0;
+    matched_type = 0;
+    matched_dist = -1.0;
+  }
+
+  void RecoCrossingPointAna_t::clear() {
+    type = -1;
+    truthmatch = 0;
+    reco_flashindex = -1;
+    truthmatch_index = -1;
+    truthmatch_type  = -1;
+    truthmatch_flashindex = -1;
+    truthmatch_dist = -1.0;      
+  }
+  
   void CrossingPointAnaData_t::bindToTree( TTree* tree ) {
     tree->Branch( "tot_proposed_crossingpoints", &tot_proposed_crossingpoints, "tot_proposed_crossingpoints/I" );
     tree->Branch( "tot_true_crossingpoints", &tot_true_crossingpoints, "tot_true_crossingpoints/I" );
@@ -131,8 +156,14 @@ namespace larlitecv {
       // get the projected pixel location in the image
       std::vector< int > start_pix(4,0); // (row, u-plane, v-plane, y-plane)
       std::vector< int > end_pix(4,0); // (row, u-plane, v-plane, y-plane)
-      start_pix[0] = (first_step.T()*1.0e-3 - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_start[0]/cm_per_tick + 3200; // tick
-      end_pix[0]   = (last_step.T()*1.0e-3  - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_end[0]/cm_per_tick   + 3200; // tick
+      std::vector< float > start_sce_tyz(3,0);
+      std::vector< float > end_sce_tyz(3,0);
+      for (int i=1; i<3; i++) {
+	start_sce_tyz[i] = sce_start[i];
+	end_sce_tyz[i]   = sce_end[i];
+      }
+      start_pix[0] = start_sce_tyz[0] = (first_step.T()*1.0e-3 - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_start[0]/cm_per_tick + 3200; // tick
+      end_pix[0]   = end_sce_tyz[0]   = (last_step.T()*1.0e-3  - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_end[0]/cm_per_tick   + 3200; // tick
       for ( size_t p=0; p<3; p++ ) {
 	start_pix[p+1] = larutil::Geometry::GetME()->WireCoordinate( sce_start_xyz, p );
 	end_pix[p+1]   = larutil::Geometry::GetME()->WireCoordinate( sce_end_xyz,   p );
@@ -209,15 +240,39 @@ namespace larlitecv {
 	// else has to cross a real boundary. does it?
 	start_crosses = true;
       }
+
+      // -------------------------------
+      // Store data
       
       // store the track end if it crossed a deetector boundary or the image boundary
+      int start_info_index = -1;
       if ( start_crosses ) {
-	data.start_pixels.push_back( start_pix );
-	data.start_crossingpts.emplace_back( std::move(sce_start) );
-	data.start_crossing_flashindex.push_back( flash_index );
-	data.start_type.push_back( track_start_boundary );
-	data.start_crossing_nplanes_w_charge.push_back( start_nplanes_above_thresh );
-	data.startpoint_mctrack_index.push_back( trackindex );
+
+	TruthCrossingPointAna_t truthdata_start;
+	truthdata_start.clear();
+	truthdata_start.start_or_end = 0;
+	truthdata_start.type = track_start_boundary;	
+	truthdata_start.imgcoord = start_pix;
+	truthdata_start.crossingpt_det    = fstart;
+	truthdata_start.crossingpt_detsce = sce_start;
+	truthdata_start.crossingpt_detsce_tyz = start_sce_tyz;
+	truthdata_start.nplanes_w_charge = start_nplanes_above_thresh;
+	truthdata_start.flashindex = flash_index;
+	truthdata_start.mctrack_index = trackindex;
+	truthdata_start.matched = -1;
+	truthdata_start.matched_type = -1;
+	truthdata_start.matched_recoindex = -1;
+	truthdata_start.matched_dist = -1;
+
+	data.truthcrossingptinfo_v.emplace_back( std::move(truthdata_start) );
+	start_info_index = (int)data.truthcrossingptinfo_v.size()-1;
+	
+	// data.start_pixels.push_back( start_pix );
+	// data.start_crossingpts.emplace_back( std::move(sce_start) );
+	// data.start_crossing_flashindex.push_back( flash_index );
+	// data.start_type.push_back( track_start_boundary );
+	// data.start_crossing_nplanes_w_charge.push_back( start_nplanes_above_thresh );
+	// data.startpoint_mctrack_index.push_back( trackindex );
 	data.tot_true_crossingpoints++;
 	data.true_crossingpoints[track_start_boundary]++;
       }
@@ -273,12 +328,33 @@ namespace larlitecv {
 	end_crosses = true;
       }
 
+      int end_info_index = -1;
       if ( end_crosses ) {
-	data.end_pixels.push_back( end_pix );
-	data.end_crossingpts.emplace_back( std::move(sce_end) );
-	data.end_crossing_flashindex.push_back( flash_index );	
-	data.end_crossing_nplanes_w_charge.push_back( end_nplanes_above_thresh );
-	data.end_type.push_back( track_end_boundary );
+
+	TruthCrossingPointAna_t truthdata_end;
+	truthdata_end.clear();
+	truthdata_end.start_or_end = 1;
+	truthdata_end.type = track_end_boundary;
+	truthdata_end.imgcoord = end_pix;
+	truthdata_end.crossingpt_det    = fend;
+	truthdata_end.crossingpt_detsce = sce_end;
+	truthdata_end.crossingpt_detsce_tyz = end_sce_tyz;
+	truthdata_end.nplanes_w_charge = end_nplanes_above_thresh;
+	truthdata_end.flashindex = flash_index;
+	truthdata_end.mctrack_index = trackindex;
+	truthdata_end.matched = -1;
+	truthdata_end.matched_type = -1;
+	truthdata_end.matched_recoindex = -1;
+	truthdata_end.matched_dist = -1;
+
+	data.truthcrossingptinfo_v.emplace_back( std::move(truthdata_end) ); 	
+	end_info_index = (int)data.truthcrossingptinfo_v.size()-1;
+	
+	// data.end_pixels.push_back( end_pix );
+	// data.end_crossingpts.emplace_back( std::move(sce_end) );
+	// data.end_crossing_flashindex.push_back( flash_index );	
+	// data.end_crossing_nplanes_w_charge.push_back( end_nplanes_above_thresh );
+	// data.end_type.push_back( track_end_boundary );
 	data.tot_true_crossingpoints++;
 	data.true_crossingpoints[track_end_boundary]++;
       }
@@ -291,9 +367,9 @@ namespace larlitecv {
       if ( start_crosses || end_crosses ) {
 	data.mctrack_imgendpoint_indices[trackindex].resize(2,-1);
 	if ( start_crosses )
-	  data.mctrack_imgendpoint_indices[trackindex][0] = data.start_pixels.size()-1;
+	  data.mctrack_imgendpoint_indices[trackindex][0] = start_info_index;
 	if ( end_crosses )
-	  data.mctrack_imgendpoint_indices[trackindex][1] = data.end_pixels.size()-1;	  
+	  data.mctrack_imgendpoint_indices[trackindex][1] = end_info_index;
       }
       
       
@@ -311,12 +387,12 @@ namespace larlitecv {
 
 	std::cout << " row=" << start_pix[0] << " tick=" << meta.pos_y(start_pix[0]) << " (orig=" << orig_start_tick << ")"
 		  << " pos=(" << first_step.X() << "," << first_step.Y() << "," << first_step.Z() << ")";
-	if ( track_start_boundary==larlitecv::kImageEnd && data.start_pixels.size()>0 )
-	  std::cout << " imgx row=" << data.start_pixels.back()[0]
-		    << " imgx pos=(" << data.start_crossingpts.back()[0] << "," << data.start_crossingpts.back()[1] << "," << data.start_crossingpts.back()[2] << ")";
-	if ( data.start_crossing_nplanes_w_charge.size()>0 )
-	  std::cout << " nplaneswq=" << data.start_crossing_nplanes_w_charge.back()
-		    << std::endl;
+	// if ( track_start_boundary==larlitecv::kImageEnd && data.start_pixels.size()>0 )
+	//   std::cout << " imgx row=" << data.start_pixels.back()[0]
+	// 	    << " imgx pos=(" << data.start_crossingpts.back()[0] << "," << data.start_crossingpts.back()[1] << "," << data.start_crossingpts.back()[2] << ")";
+	// if ( data.start_crossing_nplanes_w_charge.size()>0 )
+	//   std::cout << " nplaneswq=" << data.start_crossing_nplanes_w_charge.back()
+	// 	    << std::endl;
 	
 	if ( end_crosses )
 	  std::cout << "  End Boundary Crossing: boundary=" << end_crossingname  << " dwall=" << track_end_dwall;
@@ -325,11 +401,11 @@ namespace larlitecv {
 	    
 	std::cout << " row=" << end_pix[0] << " tick=" << meta.pos_y(end_pix[0]) << " (orig=" << orig_end_tick << ")"
 		  << " pos=(" << last_step.X() << "," << last_step.Y() << "," << last_step.Z() << ")";
-	if ( track_end_boundary==larlitecv::kImageEnd && data.end_pixels.size()>0)
-	  std::cout << " imgx row=" << data.end_pixels.back()[0]
-		    << " imgx pos=(" << data.end_crossingpts.back()[0] << "," << data.end_crossingpts.back()[1] << "," << data.end_crossingpts.back()[2] << ")";
-	if ( data.end_crossing_nplanes_w_charge.size()>0 )
-	  std::cout << " nplaneswq=" << data.end_crossing_nplanes_w_charge.back()	<< std::endl;
+	// if ( track_end_boundary==larlitecv::kImageEnd && data.end_pixels.size()>0)
+	//   std::cout << " imgx row=" << data.end_pixels.back()[0]
+	// 	    << " imgx pos=(" << data.end_crossingpts.back()[0] << "," << data.end_crossingpts.back()[1] << "," << data.end_crossingpts.back()[2] << ")";
+	// if ( data.end_crossing_nplanes_w_charge.size()>0 )
+	//   std::cout << " nplaneswq=" << data.end_crossing_nplanes_w_charge.back()	<< std::endl;
       }
 	
       //if ( start_intime || end_intime ) {
@@ -634,91 +710,104 @@ namespace larlitecv {
     // the data we are trying to create
 
     // did we find a match for a truth crossing point
-    data.matched_startpoint.resize( data.start_pixels.size(), false );
-    data.matched_endpoint.resize(   data.end_pixels.size(),   false );
 
-    // the type of reco crossing point that matched the closest
-    data.matched_startpoint_type.resize( data.start_pixels.size(), -1 );
-    data.matched_endpoint_type.resize( data.end_pixels.size(), -1 );    
-
-    // what was the closest distance
-    data.start_closest_match_dist.resize( data.start_pixels.size(), -1.0 );
-    data.end_closest_match_dist.resize(   data.end_pixels.size(),   -1.0 );
-
-    
-    std::vector< std::vector<int> >* p_crossing_pixel_v[2] = { &data.start_pixels, &data.end_pixels }; // truth pixels for crossing points
-    std::vector< std::vector<float> >* p_crossingpts_v[2]  = { &data.start_crossingpts, &data.end_crossingpts }; // truth 3D positions
-    std::vector<bool>* p_matched_v[2]       = { &data.matched_startpoint, &data.matched_endpoint };
-    std::vector<float>* p_matched_dist_v[2] = { &data.start_closest_match_dist, &data.end_closest_match_dist };
-    std::vector<int>*   p_matched_type_v[2] = { &data.matched_startpoint_type,  &data.matched_endpoint_type };
+    int numrecopts = 0;
+    for (int i=0; i<(int)ev_spacepoints.size(); i++) {
+      numrecopts += (int)ev_spacepoints[i]->size();
+    }
+    data.recocrossingptinfo_v.resize( numrecopts );
+    for ( auto& recoinfo : data.recocrossingptinfo_v ) {
+      recoinfo.clear();
+    }
     
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
 
-    for ( int v=0; v<2; v++ ) {
-      for ( int ipix=0; ipix<(int)p_crossing_pixel_v[v]->size(); ipix++ ) {
+    for ( int ipix=0; ipix<(int)data.truthcrossingptinfo_v.size(); ipix++ ) {
 
-	// we need to get the 3D position to compare against
-	const std::vector<int>&  pixinfo     = p_crossing_pixel_v[v]->at(ipix); // position in image
-	const std::vector<float>& crossingpt = p_crossingpts_v[v]->at(ipix);    // position in 3D
+      TruthCrossingPointAna_t& info = data.truthcrossingptinfo_v[ipix];
+      
+      // we need to get the 3D position to compare against
+      const std::vector<int>&  pixinfo     = info.imgcoord;              // position in image
+      const std::vector<float>& crossingpt = info.crossingpt_detsce_tyz; // position in 3D
 
-	// use TPC position to get X
-	std::vector<float> crossingpt_tpcx(3,0);
-	crossingpt_tpcx[0] = (meta.pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
-	crossingpt_tpcx[1] = crossingpt[1];
-	crossingpt_tpcx[2] = crossingpt[2];
 
-	// scan for pixel, loop over types and pts
-	bool matched = false;
-	for (int i=0; i<(int)ev_spacepoints.size(); i++) {
+      // use TPC position to get X
+      std::vector<float> crossingpt_tpcx(3,0);
+      crossingpt_tpcx[0] = (meta.pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
+      crossingpt_tpcx[1] = crossingpt[1];
+      crossingpt_tpcx[2] = crossingpt[2];
 
-	  for ( int j=0; j<(int)ev_spacepoints[i]->size(); j++ ) {
+      // scan for pixel, loop over types and pts
+      bool matched = false;
+      int ireco = -1;
+      for (int i=0; i<(int)ev_spacepoints.size(); i++) {
+	for ( int j=0; j<(int)ev_spacepoints[i]->size(); j++ ) {
+	  ireco++;
+	  const larlitecv::BoundarySpacePoint& sp=ev_spacepoints[i]->at(j);
+	  RecoCrossingPointAna_t& recoinfo = data.recocrossingptinfo_v[ireco];
+	  recoinfo.type = sp.type();
+	  //recoinfo.reco_flashindex = -1;
 
-	    const larlitecv::BoundarySpacePoint& sp=ev_spacepoints[i]->at(j);
+	  float dist = 0;
+	  for (int d=0; d<3; d++) {
+	    dist += (sp.pos()[d]-crossingpt_tpcx[d])*(sp.pos()[d]-crossingpt_tpcx[d]);
+	  }
+	  dist = sqrt(dist);
 
-	    float dist = 0;
-	    for (int d=0; d<3; d++) {
-	      dist += (sp.pos()[d]-crossingpt_tpcx[d])*(sp.pos()[d]-crossingpt_tpcx[d]);
-	    }
-	    dist = sqrt(dist);
+	  // update truth match
+	  if ( info.matched_dist<0 ||  dist<info.matched_dist ) {
+	    info.matched_dist = dist;
+	    info.matched_type = sp.type();
+	    if ( dist<fMatchRadius )
+	      matched = true;
+	  }
 
-	    if ( p_matched_dist_v[v]->at(ipix)<0 ||  dist<p_matched_dist_v[v]->at(ipix) ) {
-	      p_matched_dist_v[v]->at(ipix) = dist;
-	      p_matched_type_v[v]->at(ipix) = sp.type();
-	      if ( dist<fMatchRadius )
-		matched = true;
-	    }
-	    
-	  }// end of loop over tagged points of type i
-	}//end of boundary point types
-
-	p_matched_v[v]->at(ipix) = matched;
+	  // update reco match
+	  if ( recoinfo.truthmatch_dist<0 || dist<recoinfo.truthmatch_dist ) {
+	    recoinfo.truthmatch_dist  = dist;
+	    recoinfo.truthmatch_index = ipix;
+	    recoinfo.truthmatch_type  = info.type;
+	    recoinfo.truthmatch_flashindex = info.flashindex;
+	    if ( dist<fMatchRadius )
+	      recoinfo.truthmatch = 1;
+	  }
+	  
+	}// end of loop over tagged points of type i
+      }//end of boundary point types
+      
+      if ( matched )
+	info.matched = 1;
+      else
+	info.matched = 0;
 	
-      }//end of true crossing point loop
-    }//end of v loop over start and end points
+    }//end of true crossing point loop
+    
 
     // Totals
-    for (size_t i=0; i<data.start_type.size(); i++) {
-      if ( data.matched_startpoint[i] ) {
-	data.matched_crossingpoints[ data.start_type[i] ]++;
+    for ( int ipix=0; ipix<(int)data.truthcrossingptinfo_v.size(); ipix++ ) {
+      TruthCrossingPointAna_t& info = data.truthcrossingptinfo_v[ipix];
+      if ( info.matched && info.type>=0 && info.type<larlitecv::kNumEndTypes ) {
+	data.matched_crossingpoints[ info.type ]++;
 	data.tot_matched_crossingpoints++;
       }
     }
-
-    for (size_t i=0; i<data.end_type.size(); i++) {
-      if ( data.matched_endpoint[i] ) {
-	data.matched_crossingpoints[ data.end_type[i] ]++;
-	data.tot_matched_crossingpoints++;
-      }
-    }
-
+    
     data.tot_proposed_crossingpoints = 0;
     for (int i=0; i<(int)ev_spacepoints.size(); i++) {
       data.tot_proposed_crossingpoints += (int)ev_spacepoints[i]->size();
     }
 
-    std::cout << "Proposed Crossing Points: " << data.tot_proposed_crossingpoints << std::endl;
-    std::cout << "True Crossing Points: "     << data.tot_true_crossingpoints << std::endl;    
-    std::cout << "Matched Crossing Points: "  << data.tot_matched_crossingpoints << std::endl;
+    int nreco_matched = 0;
+    for (int ireco=0; ireco<numrecopts; ireco++) {
+      if ( data.recocrossingptinfo_v[ireco].truthmatch==1 )
+	nreco_matched++;
+    }
+
+    std::cout << __FILE__ << ":" << __PRETTY_FUNCTION__ << " ------------------------------" << std::endl;
+    std::cout << "  Proposed Crossing Points: " << data.tot_proposed_crossingpoints << std::endl;
+    std::cout << "  True Crossing Points: "     << data.tot_true_crossingpoints << std::endl;    
+    std::cout << "  Matched Crossing Points: "  << data.tot_matched_crossingpoints << std::endl;
+    std::cout << "  Reco Crossing Point Matched: " << nreco_matched << std::endl;
     
   }
   
