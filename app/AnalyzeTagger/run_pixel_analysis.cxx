@@ -354,8 +354,12 @@ int main( int nargs, char** argv ) {
     }
 
     // get the output of the tagger
-    larcv::EventPixel2D* ev_pix[kNumStages] = {0};
-    larlite::event_track* ev_track[kNumStages] = {0};
+    larcv::EventPixel2D* ev_pix[kNumStages];
+    larlite::event_track* ev_track[kNumStages];
+    for (int i=0; i<kNumStages; i++) {
+      ev_pix[i] = NULL;
+      ev_track[i] = NULL;
+    }
     try {
       ev_pix[kThruMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,stages_pixel_producers[kThruMu]);
       ev_track[kThruMu]  = (larlite::event_track*)dataco[kCROIfile].get_larlite_data(larlite::data::kTrack,stages_track_producers[kThruMu]);      
