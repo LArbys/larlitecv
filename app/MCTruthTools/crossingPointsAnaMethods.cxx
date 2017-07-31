@@ -786,12 +786,38 @@ namespace larlitecv {
     
 
     // Totals
+    int matched_sidepts = 0;
+    int matched_anodepts = 0;
+    int matched_cathodepts = 0;
+    int matched_imgends = 0;
+    int nsidepts = 0;
+    int nanodepts = 0;
+    int ncathodepts = 0;
+    int nimgends = 0;
     for ( int ipix=0; ipix<(int)data.truthcrossingptinfo_v.size(); ipix++ ) {
       TruthCrossingPointAna_t& info = data.truthcrossingptinfo_v[ipix];
       if ( info.matched && info.type>=0 && info.type<larlitecv::kNumEndTypes ) {
 	data.matched_crossingpoints[ info.type ]++;
 	data.tot_matched_crossingpoints++;
+	if ( info.type<=larlitecv::kDownstream )
+	  matched_sidepts++;
+	else if ( info.type==larlitecv::kAnode )
+	  matched_anodepts++;
+	else if ( info.type==larlitecv::kCathode )
+	  matched_cathodepts++;
+	else if ( info.type==larlitecv::kImageEnd )
+	  matched_imgends++;
       }
+
+      if ( info.type<=larlitecv::kDownstream )
+	nsidepts++;
+      else if ( info.type==larlitecv::kAnode )
+	nanodepts++;
+      else if ( info.type==larlitecv::kCathode )
+	ncathodepts++;
+      else if ( info.type==larlitecv::kImageEnd )
+	nimgends++;
+      
     }
     
     data.tot_proposed_crossingpoints = 0;
@@ -800,15 +826,30 @@ namespace larlitecv {
     }
 
     int nreco_matched = 0;
-    for (int ireco=0; ireco<numrecopts; ireco++) {
-      if ( data.recocrossingptinfo_v[ireco].truthmatch==1 )
-	nreco_matched++;
+    int ireco = -1;
+    for (int i=0; i<(int)ev_spacepoints.size(); i++) {
+      for ( int j=0; j<(int)ev_spacepoints[i]->size(); j++ ) {
+	ireco++;
+	const larlitecv::BoundarySpacePoint& sp=ev_spacepoints[i]->at(j);
+
+	std::cout << "[Reco #" << ireco << "] "
+		  << " (" << sp.pos()[0] << "," << sp.pos()[1] << "," << sp.pos()[2] << ") "
+		  << " Matched=" << data.recocrossingptinfo_v[ireco].truthmatch
+		  << " Dist="    << data.recocrossingptinfo_v[ireco].truthmatch_dist
+		  << std::endl;
+	if ( data.recocrossingptinfo_v[ireco].truthmatch==1 )
+	  nreco_matched++;
+      }
     }
 
     std::cout << __FILE__ << ":" << __FUNCTION__ << " ------------------------------" << std::endl;
     std::cout << "  Proposed Crossing Points: " << data.tot_proposed_crossingpoints << std::endl;
-    std::cout << "  True Crossing Points: "     << data.tot_true_crossingpoints << std::endl;    
+    std::cout << "  True Crossing Points: "     << data.tot_true_crossingpoints << std::endl;
     std::cout << "  Matched Crossing Points: "  << data.tot_matched_crossingpoints << std::endl;
+    std::cout << "    Matched Side Points: " << matched_sidepts << " of " << nsidepts << std::endl;
+    std::cout << "    Matched Anode Points: " << matched_anodepts << " of " << nanodepts << std::endl;
+    std::cout << "    Matched Cathode Points: " << matched_cathodepts << " of " << ncathodepts << std::endl;
+    std::cout << "    Matched ImgEnds Points: " << matched_imgends << " of  " << nimgends << std::endl;        
     std::cout << "  Reco Crossing Point Matched: " << nreco_matched << std::endl;
     
   }
