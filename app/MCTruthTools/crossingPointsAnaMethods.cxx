@@ -718,6 +718,8 @@ namespace larlitecv {
     data.recocrossingptinfo_v.resize( numrecopts );
     for ( auto& recoinfo : data.recocrossingptinfo_v ) {
       recoinfo.clear();
+      recoinfo.truthmatch_dist = -1.0;
+      recoinfo.truthmatch = 0;      
     }
     
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
@@ -768,7 +770,7 @@ namespace larlitecv {
 	    recoinfo.truthmatch_index = ipix;
 	    recoinfo.truthmatch_type  = info.type;
 	    recoinfo.truthmatch_flashindex = info.flashindex;
-	    if ( dist<fMatchRadius )
+	    if ( dist>0 && dist<fMatchRadius )
 	      recoinfo.truthmatch = 1;
 	  }
 	  
@@ -803,7 +805,7 @@ namespace larlitecv {
 	nreco_matched++;
     }
 
-    std::cout << __FILE__ << ":" << __PRETTY_FUNCTION__ << " ------------------------------" << std::endl;
+    std::cout << __FILE__ << ":" << __FUNCTION__ << " ------------------------------" << std::endl;
     std::cout << "  Proposed Crossing Points: " << data.tot_proposed_crossingpoints << std::endl;
     std::cout << "  True Crossing Points: "     << data.tot_true_crossingpoints << std::endl;    
     std::cout << "  Matched Crossing Points: "  << data.tot_matched_crossingpoints << std::endl;

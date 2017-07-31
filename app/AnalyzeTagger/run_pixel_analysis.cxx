@@ -596,48 +596,26 @@ int main( int nargs, char** argv ) {
       larlitecv::analyzeCrossingMatches( xingptdata_prefilter,  prefilter_spacepoint_vv, imgs_v.front().meta(), fMatchRadius );
       //larlitecv::analyzeCrossingMatches( xingptdata, ev_spacepoints, imgs_v.front().meta(), fMatchRadius );      
       
-      // fill the mcxingpt trees
       larlitecv::CrossingPointAnaData_t* pxingptdata[2] = { &xingptdata, &xingptdata_prefilter };
       for (int i=0; i<2; i++) {
 	// store the data into the tree
-	for (int istartpt=0; istartpt<(int)(*pxingptdata[i]).start_type.size(); istartpt++) {
-	  mcxingpt_type           = (*pxingptdata[i]).start_type[istartpt];
-	  mcxingpt_matched        = (*pxingptdata[i]).matched_startpoint[istartpt];
-	  if ( (*pxingptdata[i]).matched_startpoint[istartpt] )
-	    mcxingpt_matched      = 1;
-	  else
-	    mcxingpt_matched      = 0;
-	  if ( (*pxingptdata[i]).start_crossing_flashindex[istartpt]>=0 )
+	int numpts = pxingptdata[i]->truthcrossingptinfo_v.size();
+	for (int ipt=0; ipt<numpts; ipt++) {
+	  larlitecv::TruthCrossingPointAna_t& info = pxingptdata[i]->truthcrossingptinfo_v[ipt];
+	  
+	  mcxingpt_type           = info.type;
+	  mcxingpt_matched        = info.matched;
+	  if ( info.flashindex>=0 )
 	    mcxingpt_flashmatched = 1;
 	  else
 	    mcxingpt_flashmatched = 0;
-	  mcxingpt_matched_type   = (*pxingptdata[i]).matched_startpoint_type[istartpt];
-	  mcxingpt_nplaneswcharge = (*pxingptdata[i]).start_crossing_nplanes_w_charge[istartpt];
+	  mcxingpt_matched_type   = info.matched_type;
+	  mcxingpt_nplaneswcharge = info.nplanes_w_charge;
 	  for (int p=0; p<3; p++) {
-	    mcxingpt_wire[p]      = (*pxingptdata[i]).start_pixels[istartpt][p];
-	    mcxingpt_pos[p]       = (*pxingptdata[i]).start_crossingpts[istartpt][p];
+	    mcxingpt_wire[p]      = info.imgcoord[p+1];
+	    mcxingpt_pos[p]       = info.crossingpt_det[p];
 	  }
-	  mcxingpt_dist           = (*pxingptdata[i]).start_closest_match_dist[istartpt];
-	  xingpt_trees[i]->Fill();
-	}
-	
-	for (int iendpt=0; iendpt<(int)(*pxingptdata[i]).end_type.size(); iendpt++) {
-	  mcxingpt_type           = (*pxingptdata[i]).end_type[iendpt];
-	  if ( (*pxingptdata[i]).matched_endpoint[iendpt] )
-	    mcxingpt_matched      = 1;
-	  else
-	    mcxingpt_matched      = 0;
-	  if ( (*pxingptdata[i]).end_crossing_flashindex[iendpt]>=0 )
-	    mcxingpt_flashmatched = 1;
-	  else
-	    mcxingpt_flashmatched = 0;	  
-	  mcxingpt_matched_type   = (*pxingptdata[i]).matched_endpoint_type[iendpt];
-	  mcxingpt_nplaneswcharge = (*pxingptdata[i]).end_crossing_nplanes_w_charge[iendpt];
-	  for (int p=0; p<3; p++) {
-	    mcxingpt_wire[p]      = (*pxingptdata[i]).end_pixels[iendpt][p];
-	    mcxingpt_pos[p]       = (*pxingptdata[i]).end_crossingpts[iendpt][p];
-	  }
-	  mcxingpt_dist           = (*pxingptdata[i]).end_closest_match_dist[iendpt];
+	  mcxingpt_dist           = info.matched_dist;
 	  xingpt_trees[i]->Fill();
 	}
       }
@@ -971,27 +949,16 @@ int main( int nargs, char** argv ) {
 
 	if ( ismc ) {
 	  // draw truth end points!
-	  std::cout << "startpixels=" << xingptdata.start_pixels.size() << " " << xingptdata.start_type.size() << std::endl;
-	  for ( size_t istart=0; istart<xingptdata.start_type.size(); istart++) {
-	    auto const& start_pix = xingptdata.start_pixels[istart];
-	    int i = xingptdata.start_type[istart];
-	    if ( xingptdata.start_type[istart]<4 )
-	      cv::circle( leftover, cv::Point(start_pix[p+1],start_pix[0]), 4, cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 2, -1 );
+	  int numpts = xingptdata.truthcrossingptinfo_v.size();
+	  for (int ipt=0; ipt<numpts; ipt++) {
+	    larlitecv::TruthCrossingPointAna_t& info = xingptdata.truthcrossingptinfo_v[ipt];
+	    if ( info.type<4 )
+	      cv::circle( leftover, cv::Point(info.imgcoord[p+1],info.imgcoord[0]), 4, cv::Scalar( color_codes[info.type][0], color_codes[info.type][1], color_codes[info.type][2]), 2, -1 );
 	    else
-	      cv::rectangle( leftover, cv::Point(start_pix[p+1]-4,start_pix[0]-4), cv::Point(start_pix[p+1]+4,start_pix[0]+4),
-			     cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 1 );
+	      cv::rectangle( leftover, cv::Point(info.imgcoord[p+1]-4,info.imgcoord[0]-4), cv::Point(info.imgcoord[p+1]+4,info.imgcoord[0]+4),
+			     cv::Scalar( color_codes[info.type][0], color_codes[info.type][1], color_codes[info.type][2]), 1 );
 	  }
-	  std::cout << "endpixels=" << xingptdata.end_pixels.size() << " " << xingptdata.end_type.size() << std::endl;	
-	  for ( size_t iend=0; iend<xingptdata.end_type.size(); iend++) {	
-	    auto const& end_pix = xingptdata.end_pixels[iend];
-	    int i = xingptdata.end_type[iend];	  
-	    if ( xingptdata.end_type[iend]<4 )
-	      cv::circle( leftover, cv::Point(end_pix[p+1],end_pix[0]), 4, cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 2, -1 );
-	    else
-	      cv::rectangle( leftover, cv::Point(end_pix[p+1]-4,end_pix[0]-4), cv::Point(end_pix[p+1]+4,end_pix[0]+4),
-			     cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), 1 );
-	  }
-	
+	  
 	  // draw proposed end points
 	  for ( int i=0; i<7; i++) {
 	    if ( ev_spacepoints[i]==NULL )
@@ -1000,18 +967,18 @@ int main( int nargs, char** argv ) {
 	      cv::drawMarker( leftover, cv::Point(endpt.X(), endpt.Y()),  cv::Scalar( color_codes[i][0], color_codes[i][1], color_codes[i][2]), cv::MARKER_CROSS, 6, 2);
 	    }
 	  }
-
+	  
 	  // sce vertex
 	  cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), 4, cv::Scalar(0,0,255),   2, -1 );
 	  cv::circle( leftover, cv::Point(vertex_col[p],vertex_row), 3, cv::Scalar(0,255,255), 1, -1 );      
-
+	  
 	}
-
+	
 	// draw roi
 	for ( auto const& roi : containedrois_v ) {
 	  larcv::draw_bb( leftover, imgs_v.front().meta(), roi.BB(p), 255, 0, 255, 2 );
 	}
-
+	
       
 	std::stringstream ss;
 	ss << "leftover_clust_i" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
@@ -1020,9 +987,9 @@ int main( int nargs, char** argv ) {
       }
     }
 #endif
-
+    
     tree->Fill();
-
+    
   }//end of entry loop
 
   rfile->Write();
