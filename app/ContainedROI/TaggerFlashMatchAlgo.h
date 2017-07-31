@@ -5,7 +5,7 @@
 
 // LArCV
 #include "Base/PSet.h"
-#include "DataFormat/ROI.h"
+#include "LArCV/build/include/DataFormat/ROI.h"
 #include "PMTWeights/PMTWireWeights.h"
 
 // larlite

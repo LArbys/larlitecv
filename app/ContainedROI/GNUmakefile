@@ -12,8 +12,10 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 
 # include options for this package
 INCFLAGS  = -g -I.                       #Include itself
+INCFLAGS += -I$(LARCV_BASEDIR)/../
 INCFLAGS += $(shell larcv-config --includes) 
 INCFLAGS += $(shell larcv-config --includes)/../app
+INCFLAGS += -I$(LARLITE_BASEDIR)
 INCFLAGS += $(shell larlite-config --includes)
 INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool
 INCFLAGS += $(shell larlite-config --includes)/../UserDev/SelectionTool
