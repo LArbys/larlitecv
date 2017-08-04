@@ -10,8 +10,8 @@ if len(sys.argv)>=2:
 labels = ["top","bottom","upstream","downstrm","anode","cathode","image ends"]
     
 rfile = rt.TFile(anafile, "OPEN")
-tree = rfile.Get("mcxingptana_prefilter")
-#tree = rfile.Get("mcxingptana")
+#tree = rfile.Get("mcxingptana_prefilter")
+tree = rfile.Get("mcxingptana")
 
 # POS
 cpos = rt.TCanvas("cpos","Truth End point position", 1400, 900)

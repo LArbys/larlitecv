@@ -24,7 +24,7 @@
   pixel2dclusters for untagged clusters "untaggedpixels"
   pixel2dclusters for contained ROI "croipixels"
   ROIs for contained ROIs "croi"
-  boundary space points (only relevant if MC info available, IsMC:true)
+  boundary space points (only relevant if MC info available, IsMC:true)1
 
   larlite tagger/CROI file
   -------------------------

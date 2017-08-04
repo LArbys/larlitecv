@@ -95,17 +95,17 @@ hendtagged = rt.TH1D("hendtagged",";fraction of true end points tagged per event
 hendtagged_v_totpix = rt.TH2D("hendtagged",";total pixels;fraction of end points tagged",50,0,1e5,50,0,1.0)
 
 # =======================================================================
-# EFFICIENCY
-# ----------
+# EFFICIENCY: 1D
+# ---------------
 
 # efficiency versus position. no cuts
 hpos = {}
 hpos_vxt_incroi = {}
 hratio = {}
 axes = {0:"x",1:"y",2:"z"}
-hpos[0] = rt.TH1D("hpos_x_all","; x vertex pos (cm)",15,-25,275)
-hpos[1] = rt.TH1D("hpos_y_all","; x vertex pos (cm)",20,-120,120)
-hpos[2] = rt.TH1D("hpos_z_all","; x vertex pos (cm)",20,-50,1050)
+hpos[0] = rt.TH1D("hpos_x_all","; X vertex pos (cm)",15,-25,275)
+hpos[1] = rt.TH1D("hpos_y_all","; Y vertex pos (cm)",20,-120,120)
+hpos[2] = rt.TH1D("hpos_z_all","; Z vertex pos (cm)",20,-50,1050)
 for i in range(0,3):
     hpos_vxt_incroi[i] = hpos[i].Clone( str(hpos[i].GetName()).replace("all","incroi") )
     hratio[i] = hpos[i].Clone( str(hpos[i].GetName()).replace("all","ratio") )
@@ -120,9 +120,9 @@ hpos_wcuts = {}
 hpos_vxt_incroi_wcuts = {}
 hratio_wcuts = {}
 axes = {0:"x",1:"y",2:"z"}
-hpos_wcuts[0] = rt.TH1D("hpos_x_all_wcuts","; x vertex pos (cm)",15,-25,275)
-hpos_wcuts[1] = rt.TH1D("hpos_y_all_wcuts","; x vertex pos (cm)",20,-120,120)
-hpos_wcuts[2] = rt.TH1D("hpos_z_all_wcuts","; x vertex pos (cm)",20,-50,1050)
+hpos_wcuts[0] = rt.TH1D("hpos_x_all_wcuts","; X vertex pos (cm)",15,-25,275)
+hpos_wcuts[1] = rt.TH1D("hpos_y_all_wcuts","; Y vertex pos (cm)",20,-120,120)
+hpos_wcuts[2] = rt.TH1D("hpos_z_all_wcuts","; Z vertex pos (cm)",20,-50,1050)
 for i in range(0,3):
     hpos_vxt_incroi_wcuts[i] = hpos_wcuts[i].Clone( str(hpos_wcuts[i].GetName()).replace("all","incroi") )
     hratio_wcuts[i] = hpos_wcuts[i].Clone( str(hpos_wcuts[i].GetName()).replace("all","ratio") )
@@ -137,15 +137,25 @@ hefftot_all_wcuts    = rt.TH1D("hefftot_all_wcuts",";total pixels; efficiency",1
 hefftot_incroi_wcuts = hefftot_all_wcuts.Clone( str(hefftot_all_wcuts.GetName()).replace("all","incroi") )
 hefftot_ratio_wcuts  = hefftot_all_wcuts.Clone( str(hefftot_all_wcuts.GetName()).replace("all","ratio") )
 
+
+# =======================================================================
+# POS+EFFICIENCY: 2D
+# -------------------
+hpos2d = {}
+hpos2d_histnames = ["total","notinroi","taggedroi","goodroi"]
+for h in hpos2d_histnames:
+    hpos2d[h] = rt.TH2D("hpos2d_zy_"+h,"",20,0,1036,20,-117,117)
+
 fmissed = open("missed_events.txt",'w')
 
 while bytesread>0:
     print "entry ",ientry
 
-    if tree.num_protons_over60mev!=1:
-        ientry += 1
-        bytesread = tree.GetEntry(ientry)
-        continue
+    # Concentrate on signal: 1l1p events
+    #if tree.num_protons_over60mev!=1:
+    #    ientry += 1
+    #    bytesread = tree.GetEntry(ientry)
+    #    continue
     
     # cosmic tagging
     tottagged = 0
@@ -193,6 +203,7 @@ while bytesread>0:
             hpos_vxt_incroi[i].Fill( tree.pos[i] )
             hratio[i].Fill( tree.pos[i] )            
         hpos[i].Fill(tree.pos[i])
+    hpos2d["total"].Fill( tree.pos[2], tree.pos[1] )
 
     if tree.num_protons_over60mev==1:
         # 1e1p
@@ -205,10 +216,16 @@ while bytesread>0:
     if tree.vtx_in_croi==1:
         hefftot_incroi.Fill( totpixels )
         hefftot_ratio.Fill( totpixels )
+        hpos2d["goodroi"].Fill( tree.pos[2], tree.pos[1] )
+        if frac_vertex>0.5:
+            hpos2d["taggedroi"].Fill( tree.pos[2], tree.pos[1] )
         if tree.num_protons_over60mev==1:
             # 1e1p
             hefftot_incroi_wcuts.Fill( totpixels )
             hefftot_ratio_wcuts.Fill( totpixels )
+    else:
+        hpos2d["notinroi"].Fill( tree.pos[2], tree.pos[1] )
+
     hefftot_all.Fill( totpixels )
     if tree.num_protons_over60mev==1:
         hefftot_all_wcuts.Fill( totpixels )
@@ -374,6 +391,20 @@ hendtagged.SetLineWidth(2)
 hendtagged.Draw()
 cendpoints.cd(2)
 hendtagged_v_totpix.Draw("COLZ")
+
+# POS 2D
+cpos2d = rt.TCanvas("cpos2d", "Position 2D", 1600,400)
+cpos2d.Divide(4,1)
+cpos2d.cd(1)
+hpos2d["total"].Draw("colz")
+cpos2d.cd(2)
+hpos2d["goodroi"].Draw("colz")
+cpos2d.cd(3)
+hpos2d["notinroi"].Draw("colz")
+cpos2d.cd(4)
+hpos2d["taggedroi"].Draw("colz")
+cpos2d.Draw()
+cpos2d.Update()
 
 # fraction bad channels
 cfracbad = rt.TCanvas("cbadch","Fraction of vertex pixels bad",1400,600)
