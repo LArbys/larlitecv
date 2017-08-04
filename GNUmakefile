@@ -27,6 +27,10 @@ CORE_SUBDIRS := Hashlib2plus Base
 
 APP_SUBDIRS := TaggerTypes Combinator GeneralFlashMatchAlgo GapChs UnipolarHack ChargeSegmentAlgos T3DMerge ThruMu StopMu UntaggedClustering SCE ContainedROI TaggerCROI
 APP_SUBDIRS += MCTruthTools
+ifeq ($(LARLITECV_OPENCV),1)
+  APP_SUBDIRS += TaggerContourTools
+endif
+
 
 .phony: all clean
 

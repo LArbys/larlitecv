@@ -1,7 +1,7 @@
 #
 # This is an example GNUmakefile for my packages
 #
-PACKAGE_NAME = ThruMu
+PACKAGE_NAME = TaggerContourTools
 
 # specific names for this package
 SOURCES = $(wildcard *.cxx)
@@ -12,16 +12,15 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 
 # include options for this package
 INCFLAGS  = -g -I.                       #Include itself
-INCFLAGS += $(shell larlite-config --includes)
 INCFLAGS += $(shell larcv-config --includes) 
+INCFLAGS += $(shell larcv-config --includes)
+INCFLAGS += $(shell larlite-config --includes)
 INCFLAGS += -I$(LARLITE_BASEDIR)/UserDev
-INCFLAGS += -I$(LARLITE_BASEDIR)/UserDev/BasicTool
-INCFLAGS += -I$(LARLITECV_BASEDIR)/app
+INCFLAGS += $(shell geo2d-config --includes)
 INCFLAGS += $(shell larlitecv-config --includes)
-INCFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
-ifeq ($(LARLITECV_OPENCV),1)
-  INCFLAGS += -DUSE_OPENCV=1
-endif
+# needs opencv
+INCFLAGS += -DUSE_OPENCV=1
+INCFLAGS += -I$(LAROPENCV_BASEDIR)
 
 # platform-specific options
 OSNAME          = $(shell uname -s)
@@ -31,7 +30,6 @@ OSNAMEMODE      = $(OSNAME)
 include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 LDFLAGS += $(shell larcv-config --libs)
-LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
 # call the common GNUmakefile
 include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE
 

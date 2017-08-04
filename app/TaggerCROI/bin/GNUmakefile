@@ -12,7 +12,7 @@ CXXFLAGS += $(shell larlitecv-config --includes)
 CXXFLAGS += $(shell larlitecv-config --includes)/../app
 #CXXFLAGS += -I$(KALMAN_INCDIR)
 CXXFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
-ifeq ($(LARCV_OPENCV),1)
+ifeq ($(LARLITECV_OPENCV),1)
 CXXFLAGS += -I$(OPENCV_INCDIR) -DUSE_OPENCV
 endif
 
@@ -26,6 +26,9 @@ LDFLAGS += $(shell larlite-config --libs) -lSelectionTool_OpT0FinderAna -lSelect
 LDFLAGS += $(shell root-config --libs) -lPhysics -lMatrix -g
 #LDFLAGS += -L$(ANN_LIBDIR) -lANN
 #LDFLAGS += -lprofiler
+ifeq ($(LARLITECV_OPENCV),1)
+endif
+
 
 # platform-specific options
 OSNAME = $(shell uname -s)
