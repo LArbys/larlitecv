@@ -58,7 +58,7 @@ else
     return 1;
 fi
 
-if [[ $LARCV_BASEDIR ]]; then
+if [[ $LARLITECV_BASEDIR ]]; then
     printf "\033[93mLArLite\033[00m\n"
     echo "    Found larlite set up @ \$LARLITE_BASEDIR=${LARLITE_BASEDIR}"
 else
@@ -68,12 +68,12 @@ else
 fi
 
 # Check OpenCV
-export LARCV_OPENCV=1
+export LARLITECV_OPENCV=1
 if [[ -z $OPENCV_INCDIR ]]; then
-    export LARCV_OPENCV=0
+    export LARLITECV_OPENCV=0
 fi
 if [[ -z $OPENCV_LIBDIR ]]; then
-    export LARCV_OPENCV=0
+    export LARLITECV_OPENCV=0
 fi
 
 

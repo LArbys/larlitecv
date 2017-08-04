@@ -30,6 +30,36 @@ namespace larlitecv {
 
   class SpaceChargeMicroBooNE;
 
+  struct TruthCrossingPointAna_t {
+    // data for truth crossing points
+    int start_or_end;
+    int type;
+    std::vector< int > imgcoord; // (row, plane cols)
+    std::vector< float > crossingpt_det;    // (x,y,z) detector coordinates
+    std::vector< float > crossingpt_detsce; // (x,y,z) detector coordinates w/ space charge correction
+    std::vector< float > crossingpt_detsce_tyz; // (tick, y, z) detector coordinates w/ space charge correction
+    int nplanes_w_charge;
+    int flashindex;
+    int mctrack_index;    
+    int matched;
+    int matched_type;
+    int matched_recoindex;
+    float matched_dist;
+    void clear();
+  };
+
+  struct RecoCrossingPointAna_t {
+    // data about truth matching for reco boundary points
+    int type;
+    int reco_flashindex; // points to position in truthcrossingptinfo_v
+    int truthmatch;    
+    int truthmatch_index;
+    int truthmatch_type;
+    int truthmatch_flashindex;
+    float truthmatch_dist;
+    void clear();
+  };
+  
   
   struct CrossingPointAnaData_t {
     int tot_proposed_crossingpoints; //< total crossing points
@@ -47,29 +77,13 @@ namespace larlitecv {
     int true_intime_stopmu;
     int true_intime_thrumu;
 
-    std::vector< int > start_type;
-    std::vector< int > end_type;
-    std::vector< std::vector<int> > start_pixels;
-    std::vector< std::vector<float> > start_crossingpts;
-    std::vector< int > start_crossing_flashindex;
-    std::vector< int > start_crossing_nplanes_w_charge;
-    std::vector< std::vector<int> > end_pixels;
-    std::vector< int > end_crossing_flashindex;    
-    std::vector< std::vector<float> > end_crossingpts;
-    std::vector< int > end_crossing_nplanes_w_charge;    
-    bool saved_mc;
+    std::vector< TruthCrossingPointAna_t > truthcrossingptinfo_v; // info stored for each true crossing point
+    std::vector< RecoCrossingPointAna_t >  recocrossingptinfo_v;
 
-    // reco
-    std::vector< bool > matched_startpoint;
-    std::vector< bool > matched_endpoint;
-    std::vector< int >  matched_startpoint_type;
-    std::vector< int >  matched_endpoint_type;
-    std::vector< float > start_closest_match_dist;
-    std::vector< float > end_closest_match_dist;
-    std::vector< int > startpoint_mctrack_index;
-    
     // MC track end points
     std::vector< std::vector<int> > mctrack_imgendpoint_indices; // index is mc track index. -1 or size 0 means there are no image end points
+    
+    bool saved_mc;
     
     CrossingPointAnaData_t() {
       clear();
@@ -89,24 +103,25 @@ namespace larlitecv {
       proposed_crossingpoints[6] = 0;
       true_intime_stopmu = 0;
       true_intime_thrumu = 0;
-      start_type.clear();
-      end_type.clear();
-      start_pixels.clear();
-      start_crossingpts.clear();
-      start_crossing_flashindex.clear();
-      start_crossing_nplanes_w_charge.clear();
-      startpoint_mctrack_index.clear();
-      end_pixels.clear();
-      end_crossing_flashindex.clear();      
-      end_crossingpts.clear();
-      end_crossing_nplanes_w_charge.clear();
-      mctrack_imgendpoint_indices.clear();
-      matched_startpoint.clear();
-      matched_endpoint.clear();
-      matched_startpoint_type.clear();
-      matched_endpoint_type.clear();
-      start_closest_match_dist.clear();
-      end_closest_match_dist.clear();
+      /* start_type.clear(); */
+      /* end_type.clear(); */
+      /* start_pixels.clear(); */
+      /* start_crossingpts.clear(); */
+      /* start_crossing_flashindex.clear(); */
+      /* start_crossing_nplanes_w_charge.clear(); */
+      /* startpoint_mctrack_index.clear(); */
+      /* end_pixels.clear(); */
+      /* end_crossing_flashindex.clear();       */
+      /* end_crossingpts.clear(); */
+      /* end_crossing_nplanes_w_charge.clear(); */
+
+      /* mctrack_imgendpoint_indices.clear(); */
+      /* matched_startpoint.clear(); */
+      /* matched_endpoint.clear(); */
+      /* matched_startpoint_type.clear(); */
+      /* matched_endpoint_type.clear(); */
+      /* start_closest_match_dist.clear(); */
+      /* end_closest_match_dist.clear(); */
       saved_mc = false;
     };
 
