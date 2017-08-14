@@ -118,8 +118,8 @@ namespace larlitecv {
       }
       
       // follow the track and get the first positions (detector coordinates) where the track shows up in the image
-      std::vector<float> fstart = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), true, 0.15, 3.0, &sce );
-      std::vector<float> fend   = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), false, 0.15, 3.0, &sce );
+      std::vector<float> fstart = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), true,  0.15, 8.0, &sce );
+      std::vector<float> fend   = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), false, 0.15, 8.0, &sce );
       
       if ( fstart.size()==0 || fend.size()==0 ) {
 	if ( printFlashEnds )

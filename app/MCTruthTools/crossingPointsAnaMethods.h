@@ -103,25 +103,8 @@ namespace larlitecv {
       proposed_crossingpoints[6] = 0;
       true_intime_stopmu = 0;
       true_intime_thrumu = 0;
-      /* start_type.clear(); */
-      /* end_type.clear(); */
-      /* start_pixels.clear(); */
-      /* start_crossingpts.clear(); */
-      /* start_crossing_flashindex.clear(); */
-      /* start_crossing_nplanes_w_charge.clear(); */
-      /* startpoint_mctrack_index.clear(); */
-      /* end_pixels.clear(); */
-      /* end_crossing_flashindex.clear();       */
-      /* end_crossingpts.clear(); */
-      /* end_crossing_nplanes_w_charge.clear(); */
-
-      /* mctrack_imgendpoint_indices.clear(); */
-      /* matched_startpoint.clear(); */
-      /* matched_endpoint.clear(); */
-      /* matched_startpoint_type.clear(); */
-      /* matched_endpoint_type.clear(); */
-      /* start_closest_match_dist.clear(); */
-      /* end_closest_match_dist.clear(); */
+      truthcrossingptinfo_v.clear();
+      recocrossingptinfo_v.clear();
       saved_mc = false;
     };
 

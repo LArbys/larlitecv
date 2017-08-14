@@ -21,7 +21,7 @@ namespace larlitecv {
     return sp_v;
   }
 
-  void BMTCV::analyzeImages( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const float threshold ) { 
+  void BMTCV::analyzeImages( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const float threshold, const int iterations ) { 
     TRandom3 rand(1983);
     
     // ------------------------------------------------------------------------
@@ -52,7 +52,7 @@ namespace larlitecv {
     for (int p=0; p<3; p++) {
       // dilate image first
       cv::Mat& cvimg = cvimg_stage1_v[p];
-      cv::dilate( cvimg, cvimg, cv::Mat(), cv::Point(-1,-1), 1, 1, 1 );
+      cv::dilate( cvimg, cvimg, cv::Mat(), cv::Point(-1,-1), iterations, 1, 1 );
       
       // find contours
       ContourList_t contour_v;
