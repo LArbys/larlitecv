@@ -466,7 +466,7 @@ namespace larlitecv {
   bool GeneralFlashMatchAlgo::isInActiveVolume( ::geoalgo::Vector pt ) {
 
     // Use the coordinates for the detector to tell if the point is located in the active volume.
-    if ( pt[0] < 0.0 || pt[0] > 256.35 || pt[1] < -116.5 || pt[1] > 116.5 || pt[2] < 0.0 || pt[2] > 1036.8 ) {
+    if ( pt[0] <= 0.0 || pt[0] >= 256.35 || pt[1] <= -116.5 || pt[1] >= 116.5 || pt[2] <= 0.0 || pt[2] >= 1036.8 ) {
       return false;
     }
 
