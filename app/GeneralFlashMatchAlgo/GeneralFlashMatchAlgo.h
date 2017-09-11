@@ -46,20 +46,10 @@ namespace larlitecv {
 
     std::vector < larlite::track >  generate_tracks_between_passes( const std::vector< larlitecv::BMTrackCluster3D > trackcluster3d_v);
 
-    larlite::track generate_larlite_track_from_mctrack( const larlite::mctrack mctrack );
+    void ExpandQClusterStartingWithLarliteTrack( flashana::QCluster_t qcluster, const larlite::track& larlite_track, double extension, bool extend_start, bool extend_end ); 
 
-    std::vector < larlite::track > generate_larlite_track_vector_from_mctrack_vector(  const larlite::event_mctrack event_mctrack );
+    bool isNearActiveVolumeEdge( ::geoalgo::Vector pt, double d );
     
-    flashana::QCluster_t GenerateQCluster( const larlite::track& track );
-
-    std::vector<flashana::QCluster_t> GenerateQCluster_vector( const std::vector<larlite::track>& track_v );
-
-    void ExtendQClusterStartingWithLarliteTrack( flashana::QCluster_t& qcluster, const larlite::track& larlite_track, double extension );
-
-    void ExtendQCluster( flashana::QCluster_t& qcluster, double extension);
-
-    bool isInActiveVolume( ::geoalgo::Vector pt );
-
     void GetFlashCenterAndRange( const larlite::opflash& flash, float& zmean, std::vector<float>& zrange );
 
     flashana::Flash_t GenerateUnfittedFlashHypothesis( const flashana::QCluster_t& qcluster );

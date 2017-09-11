@@ -102,99 +102,13 @@ namespace larlitecv {
 
   }
 
-  // Define a function that will append points to an MCTrack in order to improve the granularity.
-  // Inputs: 'mctrack' - This is of type 'larlite::mctrack' and contains the information for the trajectory points.
-  // This function will be used in a loop to create a vector of larlite tracks.
-  larlite::track GeneralFlashMatchAlgo::generate_larlite_track_from_mctrack( const larlite::mctrack mctrack ) {
-
-    larlite::track lltrack;
-
-    // Loop through each of the entries and make a larlite track (this is following the template set forth in 'BMTrackCluster3D'.
-    int istep = 0;
-
-    for ( size_t mctrack_i = 0; mctrack_i < mctrack.size(); mctrack_i++ ) {
-      
-      TVector3 vec( mctrack.at(mctrack_i).X(), mctrack.at(mctrack_i).Y(), mctrack.at(mctrack_i).Z() );
-      lltrack.add_vertex( vec );
-      if ( istep+1<(int)mctrack.size() ) {
-        TVector3 dir( mctrack.at(istep+1).X()-mctrack.at(mctrack_i).X(), mctrack.at(istep+1).Y()-mctrack.at(mctrack_i).Y(), mctrack.at(istep+1).Z()-mctrack.at(mctrack_i).Z() );
-        lltrack.add_direction( dir );
-      }
-      else {
-        TVector3 dir( mctrack.at(mctrack_i).X()-mctrack.at(istep-1).X(), mctrack.at(mctrack_i).Y()-mctrack.at(istep-1).Y(), mctrack.at(mctrack_i).Z()-mctrack.at(istep-1).Z() );
-        lltrack.add_direction( dir );
-      }
-    }
-    return lltrack;
-  }
-
-  // Generate a vector of these tracks.
-  std::vector < larlite::track > GeneralFlashMatchAlgo::generate_larlite_track_vector_from_mctrack_vector( const larlite::event_mctrack event_mctrack ) {
-
-    std::vector < larlite::track > lltrack_vector;
-
-    for ( size_t mctrack_iter = 0; mctrack_iter < event_mctrack.size(); mctrack_iter++ ) {
-      
-      const larlite::mctrack input_mctrack   = event_mctrack.at( mctrack_iter );
-
-      const larlite::track output_track = generate_larlite_track_from_mctrack( input_mctrack );
-
-      lltrack_vector.emplace_back( std::move(output_track) );
-
-    }
-
-  }
-
-  // Generate QCluster original
-  flashana::QCluster_t GeneralFlashMatchAlgo::GenerateQCluster( const larlite::track& track ) {
-
-    flashana::QCluster_t qcluster;
-
-    for ( int i=0; i<(int)track.NumberTrajectoryPoints()-1; i++ ) {
-      
-      const TVector3& pt     = track.LocationAtPoint(i);
-      const TVector3& nextpt = track.LocationAtPoint(i+1);
-      const TVector3& ptdir  = track.DirectionAtPoint(i);
-      float dist = 0.;
-      for ( int v=0; v<3; v++ ) {
-	float dx = nextpt[v]-pt[v];
-	dist += dx*dx;
-      }
-      dist = sqrt(dist);
-      
-      int nsteps = dist/m_config.qcluster_stepsize;
-      if ( fabs( nsteps*m_config.qcluster_stepsize - dist )>0.01 ) {
-	nsteps+=1;
-      }
-
-      float step = dist/float(nsteps);
-
-      for (int istep=0; istep<nsteps; istep++) {
-	float pos[3] = {0};
-	for (int v=0; v<3; v++)
-	  pos[v] = pt[v] + (istep*step)*ptdir[v];
-	flashana::QPoint_t qpt( pos[0], pos[1], pos[2], step*m_config.MeV_per_cm );
-	qcluster.emplace_back( std::move(qpt) );
-      }
-    }
-
-    return qcluster;
-  }
-
-
-    // A function that will make a qcluster from an entire vector of larlite tracks.
-  std::vector<flashana::QCluster_t> GeneralFlashMatchAlgo::GenerateQCluster_vector( const std::vector<larlite::track>& track_v ) {
-    
-    std::vector<flashana::QCluster_t> qcluster_vector;
-    for ( auto& input_track : track_v ) {
-      flashana::QCluster_t qcluster = GenerateQCluster( input_track );
-      qcluster_vector.emplace_back( std::move(qcluster) );
-    }
-    return qcluster_vector;
-  }      
-
   // Final function to extend the qcluster, analogous to the function of 'ExpandQCluster' found in 'MCQCluster'.  This function will take the entire larlite track.
-  void GeneralFlashMatchAlgo::ExtendQClusterStartingWithLarliteTrack( flashana::QCluster_t& qcluster, const larlite::track& larlite_track, double extension ) {
+  // Inputs: 'qcluster'      - an empty qcluster that is formed from a larlite track.
+  //         'larlite_track' - the input track from which the qcluster is formed.
+  //         'extension'     - the amount by which the cluster is extended outside the TPC (in cm).  This number is arbitrarily set to 10 m so that the track is extended to the edge of the cryostat and eyond.            
+  //         'extend_start'  - a boolean to allow the user to refrain from extending the start of track if that is desired.
+  //         'extend_end'    - a boolean to allow the user to refrain from extending the end of the track if that is desired.
+  void GeneralFlashMatchAlgo::ExpandQClusterStartingWithLarliteTrack( flashana::QCluster_t qcluster, const larlite::track& larlite_track, double extension, bool extend_start, bool extend_end ) {
 
     // Continue over the track if it has less than 2 trajectory points in its length.
     if ( larlite_track.NumberTrajectoryPoints() < 2 ) return;
@@ -203,14 +117,8 @@ namespace larlitecv {
     ::geoalgo::Vector pt0(0.,0.,0.);
     ::geoalgo::Vector pt1(0.,0.,0.);
 
-    // Declare an object for the algorithm for the TPC.
-    ::geoalgo::GeoAlgo alg;
-
     // Declare an object for 'lightpath', which will extend the qcluster.
     flashana::LightPath lightpath;
-
-    // Declare an object of type 'AABox' using the 'alg' tool.
-    ::geoalgo::AABox_t tpc_vol(0.0, -116.5, 0.0, 256.35, 116.5, 1036.8);
 
     //
     // Add body.
@@ -228,254 +136,69 @@ namespace larlitecv {
       lightpath.QCluster( pt0, pt1, qcluster );
 
     }
-
+    
     // Initialize the first point on the track's trajectory.
     pt0[0] = larlite_track.LocationAtPoint(0)[0]; pt0[1] = larlite_track.LocationAtPoint(0)[1]; pt0[2] = larlite_track.LocationAtPoint(0)[2];
-    
-    // Check to see if the TPC volume contains this point.
-    if( !isInActiveVolume(pt0) ) {
 
-      // start point outside TPC! Make sure to include enough distance 
-    
-      // 0) find first contained point
-      // Declare an object for the algorithm for the TPC.
-      // 1) find crossing point.
-      // 2) calculate cumulative distance from 1st point to crossing point
-      // 3) if needed, add an extra point to cover distance to be 'extension'.
-
-      // 0) find first contained point.
-      int idx=1; // This is of type 'int' for consistency with the iterator below.
-      for(idx=1; idx < larlite_track.NumberTrajectoryPoints(); ++idx) {
-	auto const& step = larlite_track.LocationAtPoint(idx);
-	// Declare point 1 as the next point on the track and break if it is within the TPC.
-	pt1[0] = step[0]; pt1[1] = step[1]; pt1[2] = step[2];
-	if( isInActiveVolume(pt1) ) break;
-      }
-
-      // Return an empty qcluster if the entire track is outside the TPC.
-      if ( idx == larlite_track.NumberTrajectoryPoints() ) return;
+    // Starting Point Analysis.
+    // Check to see if this point is at the edge of the TPC volume.  I will here use a resolution value of 10.0 cm.
+    if ( isNearActiveVolumeEdge(pt0, 10.0) && extend_start ) {
+    // Print statement to make sure everything is working.                                                                                                                                                
+    std::cout << "Point on track's start is within resolution of the TPC edge!! Extending!" << std::endl;
+    std::cout << "Length of the larlite track = " << larlite_track.NumberTrajectoryPoints() << "." << std::endl;
       
-      // 1) find crossing point.
-      pt0[0] = larlite_track.LocationAtPoint( idx - 1 )[0]; pt0[1] = larlite_track.LocationAtPoint( idx - 1 )[1]; pt0[2] = larlite_track.LocationAtPoint( idx - 1 )[2];
-      auto xs_pt_v = alg.Intersection(tpc_vol, ::geoalgo::LineSegment(pt0, pt1));
-      
-      auto const& xs_pt = xs_pt_v[0];
+    pt1[0] = larlite_track.LocationAtPoint( 1 )[0]; pt1[1] = larlite_track.LocationAtPoint( 1 )[1]; pt1[2] = larlite_track.LocationAtPoint( 1 )[2];
 
-      // 2) calculate cumulative distance.
-      double dist_sum = 0.;
-      pt1[0] = larlite_track.LocationAtPoint(0)[0]; pt1[1] = larlite_track.LocationAtPoint(0)[1]; pt1[2] = larlite_track.LocationAtPoint(0)[2];
-      for ( size_t i = 0; i < (idx-1); ++i) {
-        pt0[0] = larlite_track.LocationAtPoint(i)[0]; pt0[1] = larlite_track.LocationAtPoint(i)[1]; pt0[2] = larlite_track.LocationAtPoint(i)[2];
-        pt1[0] = larlite_track.LocationAtPoint(i+1)[0]; pt1[1] = larlite_track.LocationAtPoint(i+1)[1]; pt1[2] = larlite_track.LocationAtPoint(i+1)[2];
-        dist_sum += pt0.Dist(pt1);
-      }
-      dist_sum += pt1.Dist(xs_pt);
+    // Turn 'pt1' into a direction vector (not normalized).
+    pt1 = pt0 - pt1;
+    pt0    = pt0 + pt1.Dir()*extension;
+    pt1[0] = larlite_track.LocationAtPoint(0)[0]; pt1[1] = larlite_track.LocationAtPoint(0)[1]; pt1[2] = larlite_track.LocationAtPoint(0)[2];
 
-      // 3) See if we need to extend.
-      if ( dist_sum < extension ) {
-        // Extend in first two points' direction.
-	pt0[0] = larlite_track.LocationAtPoint(0)[0]; pt0[1] = larlite_track.LocationAtPoint(0)[1]; pt0[2] = larlite_track.LocationAtPoint(0)[2];
-        pt1[0] = larlite_track.LocationAtPoint(1)[0]; pt1[1] = larlite_track.LocationAtPoint(1)[1]; pt1[2] = larlite_track.LocationAtPoint(1)[2];
-        pt1    = pt0 - pt1; // now pt1 is a direction vector (not normalized).
-	pt0    = pt0 + pt1.Dir()*extension;
-        pt1[0] = larlite_track.LocationAtPoint(0)[0]; pt1[1] = larlite_track.LocationAtPoint(0)[1]; pt1[2] = larlite_track.LocationAtPoint(0)[2];
+    std::cout << "Extending the start of the qcluster!" << std::endl;
+    // Extend the qcluster with the 'lightpath' functionality.
+    lightpath.QCluster( pt0, pt1, qcluster );
 
-	lightpath.QCluster(pt0, pt1, qcluster);
-      }
-
-      //
-      // Inspect 'end edge"
-      //
-      const size_t end_idx = larlite_track.NumberTrajectoryPoints() - 1;
-      pt0[0] = larlite_track.LocationAtPoint( end_idx)[0]; pt0[1] = larlite_track.LocationAtPoint( end_idx )[1]; pt0[2] = larlite_track.LocationAtPoint( end_idx )[2];
-      if( !isInActiveVolume( pt0 ) ) {
-        // start point outside TPC! Make sure to include enough distance     
-      // 0) find first contained point
-      // 1) find crossing point
-      // 2) calculate cumulative distance from 1st point to crossing point
-      // 3) if needed, add an extra point to cover distance to be 'extension'.
-
-      // 0) find first contained point
-	int idx = larlite_track.NumberTrajectoryPoints() - 2; // This is of type 'int' so it can necessarily then be less than 0.
-      for(idx=larlite_track.NumberTrajectoryPoints() - 2; idx>=0; --idx) {
-	auto const& step = larlite_track.LocationAtPoint(idx);
-	pt1[0] = step[0]; pt1[1] = step[1]; pt1[2] = step[2];
-	if( isInActiveVolume( pt1 ) ) break;
-	if(!idx) break;
-      }
-
-      // If the entire track is outside the TPC, then return.  This will happen when 'idx' is equal to -1.
-      if ( idx == -1 ) return;
-
-      // 1) find crossing point.
-      pt0[0] = larlite_track.LocationAtPoint(idx+1)[0]; pt0[1] = larlite_track.LocationAtPoint(idx+1)[1]; pt0[2] = larlite_track.LocationAtPoint(idx+1)[2];
-      auto xs_pt_v = alg.Intersection(tpc_vol, ::geoalgo::LineSegment(pt0, pt1));
-      auto const& xs_pt = xs_pt_v[0];
-
-      // 2) calculate cumulative distances.                                                                                                                                                               
-      double dist_sum=0.;
-      pt1[0] = larlite_track.LocationAtPoint(end_idx)[0]; pt1[1] = larlite_track.LocationAtPoint(end_idx)[1]; pt1[2] = larlite_track.LocationAtPoint(end_idx)[2];
-      for( size_t i = end_idx; i>idx; --i) {
-	pt0[0] = larlite_track.LocationAtPoint(i)[0]; pt0[1] = larlite_track.LocationAtPoint(i)[1]; pt0[2] = larlite_track.LocationAtPoint(i)[2];
-	pt1[0] = larlite_track.LocationAtPoint(i-1)[0]; pt1[1] = larlite_track.LocationAtPoint(i-1)[1]; pt1[2] = larlite_track.LocationAtPoint(i-1)[2];
-	dist_sum += pt0.Dist(pt1);
-      }
-      dist_sum += pt1.Dist(xs_pt);
-
-      // 3) see if we need to extend.                                                                                                                                                                     
-      if ( dist_sum < extension ) {
-	pt0[0] = larlite_track.LocationAtPoint(end_idx)[0]; pt0[1] = larlite_track.LocationAtPoint(end_idx)[1]; pt0[2] = larlite_track.LocationAtPoint(end_idx)[2];
-	pt1[0] = larlite_track.LocationAtPoint(end_idx - 1)[0]; pt1[1] = larlite_track.LocationAtPoint(end_idx - 1)[1]; pt1[2] = larlite_track.LocationAtPoint(end_idx - 1)[2];
-	pt1    = pt0 - pt1; // now pt1 is a direction vector (not normalized).
-	pt0    = pt0 + pt1.Dir() * (extension - dist_sum);
-	pt1[0] = larlite_track.LocationAtPoint(end_idx)[0]; pt1[1] = larlite_track.LocationAtPoint(end_idx)[1]; pt1[2] = larlite_track.LocationAtPoint(end_idx)[2];
-	lightpath.QCluster(pt0, pt1, qcluster);
-      }
-      }
-    }
   }
 
+  // Initialize the last point on the track's trajectory.
+  pt0[0] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[0]; pt0[1] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[1]; pt0[2] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[2];
+
+  // Ending Point Analysis.                                                                                                                                                                               
+  // Check to see if this point is on the edge of the TPC volume.  I will here use a resolution value of 10.0 cm.                                                                                         
+  if ( isNearActiveVolumeEdge(pt0, 10.0) && extend_end ) {
+
+    // Print statement to make sure that everything is working.                                                                                                                                           
+    std::cout << "Point on track's end is within resolution of the TPC edge!! Extending!" << std::endl;
+    std::cout << "Length of the larlite track = " << larlite_track.NumberTrajectoryPoints() << "." << std::endl;
+ 
+    pt1[0] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 2 )[0]; pt1[1] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 2 )[1]; pt1[2] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 2 )[2];
+    // Turn 'pt1' into a direction vector (not normalized).
+    pt1 = pt0 - pt1;
+    pt0 = pt0 + pt1.Dir()*extension;
+    pt1[0] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[0]; pt1[1] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[1]; pt1[2] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[2];
+
+    std::cout << "Extending the end of the qcluster!" << std::endl;
+    // Extend the qcluster with the 'lightpath' functionality.                                                                                                                                            
+    lightpath.QCluster( pt0, pt1, qcluster );
+
+  }
+
+  }
+
+  // A function that will tell if a track is located a distance 'd' from the edge of the active volume of the TPC.
+  // Inputs: pt - the object of type '::geoalgo::Vector' that is being checked for being within a distance 'd' of a detector boundary.
+  //         d  - the distance from the detector boundary for which the input point is being checked.
+  bool GeneralFlashMatchAlgo::isNearActiveVolumeEdge( ::geoalgo::Vector pt, double d ) {
+
+    // Return 'true' if the input point is near one of the edges of the detector.
+    if ( pt[0] <= (0.0 + d ) || pt[0] >= (256.35 - d ) || pt[1] <= (-116.5 + d) || pt[1] >= (116.5 - d) || pt[2] <= (0.0 + d) || pt[2] >= (1036.8 - d) ) {
+      return true;
+    }
+
+    // Return false otherwise.
+    return false;
+  }
   
-  // Final function to extend the qcluster, analogous to the function of 'ExpandQCluster' found in 'MCQCluster'.
-  // Input: qcluster: The object of type 'flashana::QCluster_t' that has to be extended from its current location to a region outside the TPC.
-  void GeneralFlashMatchAlgo::ExtendQCluster( flashana::QCluster_t& qcluster, double extension) {
-
-    // Skip the qcluster if its length is less than 2.
-    if (qcluster.size() < 2 ) return;
-
-    // Two variables to be used in this function.
-    ::geoalgo::Vector pt0(0., 0., 0.);
-    ::geoalgo::Vector pt1(0., 0., 0.);
-
-    // Declare an object for the algorithm for the TPC.
-    ::geoalgo::GeoAlgo alg;
-
-    // Declare an object for 'lightpath', which will extend the qcluster.
-    flashana::LightPath lightpath;
-
-    // Declare an object of type 'AABox' using the 'alg' tool.
-    ::geoalgo::AABox_t tpc_vol(0.0, -116.5, 0.0, 256.35, 116.5, 1036.8);
-
-    // Initialize the first point on the track's trajectory.
-    pt0[0] = qcluster.at(0).x; pt0[1] = qcluster.at(0).y; pt0[2] = qcluster.at(0).z;
-
-    // Check to see if the TPC volume contains this point.
-    if( !isInActiveVolume(pt0) ) {
-
-      // start point outside TPC! Make sure to include enough distance
-      // 0) find first contained point
-      // Declare an object for the algorithm for the TPC.
-      // 1) find crossing point.
-      // 2) calculate cumulative distance from 1st point to crossing point                         
-      // 3) if needed, add an extra point to cover distance to be 'extension'.                  
-
-      // 0) find first contained point.
-      int idx=1; // This is of type 'int' for consistency with the iterator below.
-      for(idx=1; idx < qcluster.size(); ++idx) {
-	auto const& step = qcluster.at( idx );
-	// Declare point 1 as the next point on the track and break if it is within the TPC.
-	pt1[0] = step.x; pt1[1] = step.y; pt1[2] = step.z;
-	if( isInActiveVolume(pt1) ) break;
-      }
-
-      // If the entire track is outside the active volume, then return the qcluster as it is.
-      if ( idx == qcluster.size() ) return;
-
-      // 1) find crossing point.
-      pt0[0] = qcluster.at( idx - 1 ).x; pt0[1] = qcluster.at( idx - 1 ).y; pt0[2] = qcluster.at( idx - 1 ).z;
-      auto xs_pt_v = alg.Intersection(tpc_vol, ::geoalgo::LineSegment(pt0, pt1));
-
-      auto const& xs_pt = xs_pt_v[0];
-
-      // 2) calculate cumulative distance.
-      double dist_sum = 0.;
-      pt1[0] = qcluster.at(0).x; pt1[1] = qcluster.at(0).y; pt1[2] = qcluster.at(0).z;
-      for ( size_t i = 0; i < (idx-1); ++i) {
-	pt0[0] = qcluster.at(i).x; pt0[1] = qcluster.at(i).y; pt0[2] = qcluster.at(i).z;
-	pt1[0] = qcluster.at(i+1).x; pt1[1] = qcluster.at(i+1).y; pt1[2] = qcluster.at(i+1).z;
-	dist_sum += pt0.Dist(pt1);
-      }
-      dist_sum += pt1.Dist(xs_pt);
-
-      // 3) See if we need to extend.
-      if ( dist_sum < extension ) {
-	// Extend in first two points' direction.
-	pt0[0] = qcluster.at(0).x; pt0[1] = qcluster.at(0).y; pt0[2] = qcluster.at(0).z;
-	pt1[0] = qcluster.at(1).x; pt1[1] = qcluster.at(1).y; pt1[2] = qcluster.at(1).z;
-	pt1    = pt0 - pt1; // now pt1 is a direction vector (not normalized).
-	pt0    = pt0 + pt1.Dir()*extension;
-	pt1[0] = qcluster.at(0).x; pt1[1] = qcluster.at(0).y; pt1[2] = qcluster.at(0).z;
-
-	// Make a qcluster from these points.
-	lightpath.QCluster(pt0, pt1, qcluster);
-      }
-
-      //
-      // Inspect 'end edge"
-      //
-      const size_t end_idx = qcluster.size() - 1;
-      pt0[0] = qcluster.at( end_idx).x; pt0[1] = qcluster.at( end_idx ).y; pt0[2] = qcluster.at( end_idx ).z;
-      if( !isInActiveVolume( pt0 ) ) {
-	// start point outside TPC! Make sure to include enough distance
-	// 0) find first contained point
-	// 1) find crossing point
-	// 2) calculate cumulative distance from 1st point to crossing point
-	// 3) if needed, add an extra point to cover distance to be 'extension'.
-
-	int idx = qcluster.size() - 2; // This has to be of type 'int' so it can necessarily be less than 0.
-	for(idx=qcluster.size() - 2; idx>=0; --idx) {
-	  auto const& step = qcluster.at(idx);
-	  pt1[0] = step.x; pt1[1] = step.y; pt1[2] = step.z;
-	  if( isInActiveVolume( pt1 ) ) break;
-	  if(!idx) break;
-	}
-
-	// If the entire track is outside the active volume, then return the qcluster as it is.
-	if ( idx == -1 ) return;
-
-	// 1) find crossing point.
-	pt0[0] = qcluster.at(idx+1).x; pt0[1] = qcluster.at(idx+1).y; pt0[2] = qcluster.at(idx+1).z;
-	auto xs_pt_v = alg.Intersection(tpc_vol, ::geoalgo::LineSegment(pt0, pt1));
-	auto const& xs_pt = xs_pt_v[0];
-
-	// 2) calculate cumulative distances.
-	double dist_sum=0.;
-	pt1[0] = qcluster.at(end_idx).x; pt1[1] = qcluster.at(end_idx).y; pt1[2] = qcluster.at(end_idx).z;
-	for( size_t i = end_idx; i>idx; --i) {
-	  pt0[0] = qcluster.at(i).x; pt0[1] = qcluster.at(i).y; pt0[2] = qcluster.at(i).z;
-	  pt1[0] = qcluster.at(i-1).x; pt1[1] = qcluster.at(i-1).y; pt1[2] = qcluster.at(i-1).z;
-	  dist_sum += pt0.Dist(pt1);
-	}
-	dist_sum += pt1.Dist(xs_pt);
-
-	// 3) see if we need to extend.
-	if ( dist_sum < extension ) {
-	  pt0[0] = qcluster.at(end_idx).x; pt0[1] = qcluster.at(end_idx).y; pt0[2] = qcluster.at(end_idx).z;
-	  pt1[0] = qcluster.at(end_idx - 1).x; pt1[1] = qcluster.at(end_idx - 1).y; pt1[2] = qcluster.at(end_idx - 1).z;
-	  pt1    = pt0 - pt1;
-	  pt0    = pt0 + pt1.Dir() * (extension - dist_sum);
-	  pt1[0] = qcluster.at(end_idx).x; pt1[1] = qcluster.at(end_idx).y; pt1[2] = qcluster.at(end_idx).z;
-	  lightpath.QCluster(pt0, pt1, qcluster);
-	}
-      }
-    }
-  }
-
-  // A function that will tell if a track is located in the active volume of the TPC.
-  // Used as a .fcl parameter for other tracks but necessary here to tell if the track is located in the active TPC volume.
-  bool GeneralFlashMatchAlgo::isInActiveVolume( ::geoalgo::Vector pt ) {
-
-    // Use the coordinates for the detector to tell if the point is located in the active volume.
-    if ( pt[0] <= 0.0 || pt[0] >= 256.35 || pt[1] <= -116.5 || pt[1] >= 116.5 || pt[2] <= 0.0 || pt[2] >= 1036.8 ) {
-      return false;
-    }
-
-    // Return true otherwise.
-    return true;
-  }
-	  
-
-    
   // A function that will find the center and range of a flash.
   // Inputs: flash: This is hte larlite flash object that is being considered.
   //         zmean: This is the mean z position of the flash.
@@ -657,8 +380,11 @@ me(), flash.Frame(), PEperOpDet );
   //         taggerflashmatch_pset: This is the input parameter set used to instatiate the GeneralFlashMatchAlgo object.
   larlite::opflash GeneralFlashMatchAlgo::make_flash_hypothesis(const larlite::track input_track) {
 
+    // Declare a qcluster for use in the 'ExpandQClusterStartingWithLarliteTrack' function.
+    flashana::QCluster_t qcluster;
+
     // Follow the logic of the 'GeneralFlashMatchAlgo::InTimeFlashComparison' function to generate a flash hypothesis.
-    flashana::QCluster_t qcluster = GenerateQCluster(input_track);
+    ExpandQClusterStartingWithLarliteTrack(qcluster, input_track, 10000., true, true); 
     flashana::Flash_t flash_hypo  = GenerateUnfittedFlashHypothesis( qcluster );
     larlite::opflash opflash_hypo = MakeOpFlashFromFlash( flash_hypo );
     larlite::opflash gaus2d_hypo  = GetGaus2DPrediction( opflash_hypo );
