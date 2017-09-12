@@ -31,12 +31,14 @@ namespace larlitecv {
       m_pos.resize(3,0);
       m_dir.resize(3,0);
       m_empty=true;
+      m_flashidx = -1;
     }; // default
   BoundarySpacePoint( BoundaryEnd_t type )
     : boundary_type(type) {
       m_pos.resize(3,0);
       m_dir.resize(3,0);
       m_empty=true;
+      m_flashidx = -1;      
     }; // default with type
   BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const std::vector<float>& dir, const larcv::ImageMeta& );
   BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const larcv::ImageMeta& );
@@ -49,6 +51,7 @@ namespace larlitecv {
     : std::vector<BoundaryEndPt>(std::move(endpts)) {
       boundary_type = type;
       m_empty = false;
+      m_flashidx = -1;
       setup(meta);
     };
 
@@ -62,6 +65,7 @@ namespace larlitecv {
     m_pos[1] = y;
     m_pos[2] = z;
     m_empty = false;
+    m_flashidx = -1;      
   };
 #endif
 #endif
@@ -106,6 +110,8 @@ namespace larlitecv {
     int tick( const larcv::ImageMeta& meta ) const;
     std::vector<int> wires( const larcv::ImageMeta& meta ) const;
     std::string printImageCoords( const larcv::ImageMeta& meta ) const;
+    void setFlashIndex( int idx ) { m_flashidx = idx; };
+    int getFlashIndex() const { return m_flashidx; };
 
 protected:
     BoundaryEnd_t boundary_type;
@@ -113,7 +119,7 @@ protected:
     std::vector<float> m_dir;
     void setup( const larcv::ImageMeta& meta );
     bool m_empty; ///< flag that marks that the position has not been filled. used to indicate error states sometimes.
-
+    int m_flashidx;
   };
 
 
