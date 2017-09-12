@@ -32,6 +32,7 @@ namespace larlitecv {
     crossingpt_det.resize(3,0);
     crossingpt_detsce.resize(3,0);
     crossingpt_detsce_tyz.resize(3,0);
+    crossingpt_detsce_tyz2.resize(3,0);    
     nplanes_w_charge = 0;
     flashindex = -1;
     mctrack_index = -1;
@@ -47,7 +48,8 @@ namespace larlitecv {
     truthmatch_index = -1;
     truthmatch_type  = -1;
     truthmatch_flashindex = -1;
-    truthmatch_dist = -1.0;      
+    truthmatch_dist = -1.0;
+    truthmatch_detsce_tyz.clear();
   }
   
   void CrossingPointAnaData_t::bindToTree( TTree* tree ) {
@@ -118,14 +120,21 @@ namespace larlitecv {
       }
       
       // follow the track and get the first positions (detector coordinates) where the track shows up in the image
-      std::vector<float> fstart = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), true,  0.15, 8.0, &sce );
-      std::vector<float> fend   = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), false, 0.15, 8.0, &sce );
+      std::vector<float> fstart  = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), true,  0.15, 2.0, &sce );
+      std::vector<float> fstart2 = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), true,  0.15, 13.0, &sce );      
+      std::vector<float> fend    = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), false, 0.15, 2.0, &sce );
+      std::vector<float> fend2   = getFirstStepPosInsideImage( track, meta, ev_trigger->TriggerTime(), false, 0.15, 13.0, &sce );      
       
       if ( fstart.size()==0 || fend.size()==0 ) {
 	if ( printFlashEnds )
 	  std::cout << "  No part of track inside image." << std::endl;
 	continue;
       }
+
+      if ( fstart2.size()==0 )
+	fstart2 = fstart;
+      if ( fend2.size()==0 )
+	fend2   = fend;
 
       // get the boundary the track ends are close to
       int track_start_boundary = 0;
@@ -139,18 +148,28 @@ namespace larlitecv {
       // space charge corrections to for fstart and fend (needed to project into the image properly)
       std::vector<double> start_offset = sce.GetPosOffsets( fstart[0], fstart[1], fstart[2] );
       std::vector<double> end_offset   = sce.GetPosOffsets( fend[0], fend[1], fend[2] );
-
+      std::vector<double> start_offset2 = sce.GetPosOffsets( fstart2[0], fstart2[1], fstart2[2] );
+      std::vector<double> end_offset2   = sce.GetPosOffsets( fend2[0],   fend2[1],   fend2[2] );
+      
       // get the space-charge corrected start and end points
       std::vector<float> sce_start(3);
       sce_start[0] = fstart[0]-start_offset[0]+0.7;
       sce_start[1] = fstart[1]+start_offset[1];
       sce_start[2] = fstart[2]+start_offset[2];
+      std::vector<float> sce_start2(3);
+      sce_start2[0] = fstart2[0]-start_offset2[0]+0.7;
+      sce_start2[1] = fstart2[1]+start_offset2[1];
+      sce_start2[2] = fstart2[2]+start_offset2[2];
       Double_t sce_start_xyz[3] = { sce_start[0], sce_start[1], sce_start[2] };
 
       std::vector<float> sce_end(3);
       sce_end[0] = fend[0]-end_offset[0]+0.7;
       sce_end[1] = fend[1]+end_offset[1];
       sce_end[2] = fend[2]+end_offset[2];
+      std::vector<float> sce_end2(3);
+      sce_end2[0] = fend2[0]-end_offset2[0]+0.7;
+      sce_end2[1] = fend2[1]+end_offset2[1];
+      sce_end2[2] = fend2[2]+end_offset2[2];
       Double_t sce_end_xyz[3] = { sce_end[0], sce_end[1], sce_end[2] };
 
       // get the projected pixel location in the image
@@ -158,12 +177,19 @@ namespace larlitecv {
       std::vector< int > end_pix(4,0); // (row, u-plane, v-plane, y-plane)
       std::vector< float > start_sce_tyz(3,0);
       std::vector< float > end_sce_tyz(3,0);
+      std::vector< float > start_sce_tyz2(3,0);
+      std::vector< float > end_sce_tyz2(3,0);
       for (int i=1; i<3; i++) {
 	start_sce_tyz[i] = sce_start[i];
 	end_sce_tyz[i]   = sce_end[i];
+	start_sce_tyz2[i] = sce_start2[i];
+	end_sce_tyz2[i]   = sce_end2[i];
       }
+      std::cout << "trigger time: " << ev_trigger->TriggerTime() << std::endl;
       start_pix[0] = start_sce_tyz[0] = (first_step.T()*1.0e-3 - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_start[0]/cm_per_tick + 3200; // tick
       end_pix[0]   = end_sce_tyz[0]   = (last_step.T()*1.0e-3  - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_end[0]/cm_per_tick   + 3200; // tick
+      start_sce_tyz2[0] = (first_step.T()*1.0e-3 - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_start2[0]/cm_per_tick + 3200; // tick
+      end_sce_tyz2[0]   = (last_step.T()*1.0e-3  - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_end2[0]/cm_per_tick   + 3200; // tick
       for ( size_t p=0; p<3; p++ ) {
 	start_pix[p+1] = larutil::Geometry::GetME()->WireCoordinate( sce_start_xyz, p );
 	end_pix[p+1]   = larutil::Geometry::GetME()->WireCoordinate( sce_end_xyz,   p );
@@ -255,7 +281,8 @@ namespace larlitecv {
 	truthdata_start.imgcoord = start_pix;
 	truthdata_start.crossingpt_det    = fstart;
 	truthdata_start.crossingpt_detsce = sce_start;
-	truthdata_start.crossingpt_detsce_tyz = start_sce_tyz;
+	truthdata_start.crossingpt_detsce_tyz  = start_sce_tyz;
+	truthdata_start.crossingpt_detsce_tyz2 = start_sce_tyz2;
 	truthdata_start.nplanes_w_charge = start_nplanes_above_thresh;
 	truthdata_start.flashindex = flash_index;
 	truthdata_start.mctrack_index = trackindex;
@@ -338,7 +365,8 @@ namespace larlitecv {
 	truthdata_end.imgcoord = end_pix;
 	truthdata_end.crossingpt_det    = fend;
 	truthdata_end.crossingpt_detsce = sce_end;
-	truthdata_end.crossingpt_detsce_tyz = end_sce_tyz;
+	truthdata_end.crossingpt_detsce_tyz  = end_sce_tyz;
+	truthdata_end.crossingpt_detsce_tyz2 = end_sce_tyz2;	
 	truthdata_end.nplanes_w_charge = end_nplanes_above_thresh;
 	truthdata_end.flashindex = flash_index;
 	truthdata_end.mctrack_index = trackindex;
@@ -621,7 +649,8 @@ namespace larlitecv {
 	pos_sce[1] = pos[1]+(float)offset[1];
 	pos_sce[2] = pos[2]+(float)offset[2];
 	int boundary_type = -1;
-	float fdwall = larlitecv::dwall( pos, boundary_type );
+	//float fdwall = larlitecv::dwall( pos, boundary_type );
+	float fdwall = larlitecv::dwall( pos_sce, boundary_type ); // use apparent distance...
 	if ( fdwall<fv_border )
 	  continue;
 
@@ -724,20 +753,28 @@ namespace larlitecv {
     
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
 
+    // loop over truth crossing points
     for ( int ipix=0; ipix<(int)data.truthcrossingptinfo_v.size(); ipix++ ) {
 
       TruthCrossingPointAna_t& info = data.truthcrossingptinfo_v[ipix];
       
       // we need to get the 3D position to compare against
-      const std::vector<int>&  pixinfo     = info.imgcoord;              // position in image
-      const std::vector<float>& crossingpt = info.crossingpt_detsce_tyz; // position in 3D
+      const std::vector<int>&  pixinfo          = info.imgcoord;               // position in image
+      const std::vector<float>& crossingpt      = info.crossingpt_detsce_tyz;  // position in 3D (3 cm from boundary)
+      const std::vector<float>& crossingpt_deep = info.crossingpt_detsce_tyz2; // position in 3D (13 cm from boundary)
 
 
       // use TPC position to get X
       std::vector<float> crossingpt_tpcx(3,0);
-      crossingpt_tpcx[0] = (meta.pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
+      //crossingpt_tpcx[0] = (meta.pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
+      crossingpt_tpcx[0] = (crossingpt[0]-3200.0)*cm_per_tick;
       crossingpt_tpcx[1] = crossingpt[1];
       crossingpt_tpcx[2] = crossingpt[2];
+      std::vector<float> crossingpt_tpcx_deep(3,0);
+      //crossingpt_tpcx_deep[0] = (meta.pos_y( pixinfo[0] )-3200.0)*cm_per_tick;
+      crossingpt_tpcx_deep[0] = (crossingpt_deep[0]-3200.0)*cm_per_tick; 
+      crossingpt_tpcx_deep[1] = crossingpt_deep[1];
+      crossingpt_tpcx_deep[2] = crossingpt_deep[2];
 
       // scan for pixel, loop over types and pts
       bool matched = false;
@@ -750,11 +787,19 @@ namespace larlitecv {
 	  recoinfo.type = sp.type();
 	  //recoinfo.reco_flashindex = -1;
 
+	  bool use_deep = false;
 	  float dist = 0;
+	  float dist_deep = 0;	  
 	  for (int d=0; d<3; d++) {
-	    dist += (sp.pos()[d]-crossingpt_tpcx[d])*(sp.pos()[d]-crossingpt_tpcx[d]);
+	    dist      += (sp.pos()[d]-crossingpt_tpcx[d])*(sp.pos()[d]-crossingpt_tpcx[d]);
+	    dist_deep += (sp.pos()[d]-crossingpt_tpcx_deep[d])*(sp.pos()[d]-crossingpt_tpcx_deep[d]);	    
 	  }
 	  dist = sqrt(dist);
+	  dist_deep = sqrt(dist_deep);
+	  if ( dist_deep<dist ) {
+	    dist = dist_deep;
+	    use_deep = true;
+	  }
 
 	  // update truth match
 	  if ( info.matched_dist<0 ||  dist<info.matched_dist ) {
@@ -769,6 +814,10 @@ namespace larlitecv {
 	    recoinfo.truthmatch_dist  = dist;
 	    recoinfo.truthmatch_index = ipix;
 	    recoinfo.truthmatch_type  = info.type;
+	    if ( use_deep )
+	      recoinfo.truthmatch_detsce_tyz = crossingpt_tpcx_deep;
+	    else
+	      recoinfo.truthmatch_detsce_tyz = crossingpt_tpcx;
 	    recoinfo.truthmatch_flashindex = info.flashindex;
 	    if ( dist>0 && dist<fMatchRadius )
 	      recoinfo.truthmatch = 1;
