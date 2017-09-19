@@ -185,7 +185,7 @@ namespace larlitecv {
 	start_sce_tyz2[i] = sce_start2[i];
 	end_sce_tyz2[i]   = sce_end2[i];
       }
-      std::cout << "trigger time: " << ev_trigger->TriggerTime() << std::endl;
+      //std::cout << "trigger time: " << ev_trigger->TriggerTime() << std::endl;
       start_pix[0] = start_sce_tyz[0] = (first_step.T()*1.0e-3 - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_start[0]/cm_per_tick + 3200; // tick
       end_pix[0]   = end_sce_tyz[0]   = (last_step.T()*1.0e-3  - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_end[0]/cm_per_tick   + 3200; // tick
       start_sce_tyz2[0] = (first_step.T()*1.0e-3 - (ev_trigger->TriggerTime()-4050.0))/0.5 + sce_start2[0]/cm_per_tick + 3200; // tick
@@ -414,7 +414,8 @@ namespace larlitecv {
 	  std::cout << "  Start did not cross boundary. dwall=" << track_start_dwall << " ";
 
 	std::cout << " row=" << start_pix[0] << " tick=" << meta.pos_y(start_pix[0]) << " (orig=" << orig_start_tick << ")"
-		  << " pos=(" << first_step.X() << "," << first_step.Y() << "," << first_step.Z() << ")";
+		  << " pos=(" << first_step.X() << "," << first_step.Y() << "," << first_step.Z() << ")"
+		  << std::endl;
 	// if ( track_start_boundary==larlitecv::kImageEnd && data.start_pixels.size()>0 )
 	//   std::cout << " imgx row=" << data.start_pixels.back()[0]
 	// 	    << " imgx pos=(" << data.start_crossingpts.back()[0] << "," << data.start_crossingpts.back()[1] << "," << data.start_crossingpts.back()[2] << ")";
@@ -428,7 +429,8 @@ namespace larlitecv {
 	  std::cout << "  Track End did not cross boundary: dwall=" << track_end_dwall;
 	    
 	std::cout << " row=" << end_pix[0] << " tick=" << meta.pos_y(end_pix[0]) << " (orig=" << orig_end_tick << ")"
-		  << " pos=(" << last_step.X() << "," << last_step.Y() << "," << last_step.Z() << ")";
+		  << " pos=(" << last_step.X() << "," << last_step.Y() << "," << last_step.Z() << ")"
+		  << std::endl;	  
 	// if ( track_end_boundary==larlitecv::kImageEnd && data.end_pixels.size()>0)
 	//   std::cout << " imgx row=" << data.end_pixels.back()[0]
 	// 	    << " imgx pos=(" << data.end_crossingpts.back()[0] << "," << data.end_crossingpts.back()[1] << "," << data.end_crossingpts.back()[2] << ")";
@@ -452,7 +454,8 @@ namespace larlitecv {
 	data.true_intime_thrumu++;
       else if ( start_crosses && !end_crosses )
 	data.true_intime_stopmu++;
-      
+
+      std::cout << std::endl;
     }//end of loop over mctracks
     std::cout << "number of intime thrumu: "        << data.true_intime_thrumu << std::endl;
     std::cout << "number of intime stopmu: "        << data.true_intime_stopmu << std::endl;
@@ -658,21 +661,21 @@ namespace larlitecv {
 	if ( tick<meta.min_y()+20.0 || tick>meta.max_y()-20.0 )
 	  continue;
 
-	std::cout << " [" << thispt << "/" << npts << ":" << istep << "/" << nsteps << "] tick=" << tick;
-	if ( startAtstart )
-	  std::cout << " trackstart=(" << track.front().X() << "," << track.front().Y() << "," << track.front().Z() << ")";
-	else
-	  std::cout << " trackend=(" << track.back().X() << "," << track.back().Y() << "," << track.back().Z() << ")";	  
-	std::cout << " truepos=(" << pos[0] << "," << pos[1] << "," << pos[2] << ") ";
-	std::cout << " intime pos_sce=(" << pos_sce[0] << "," << pos_sce[1] << "," << pos_sce[2] << ") tick=" << tick << " ";
+	// std::cout << " [" << thispt << "/" << npts << ":" << istep << "/" << nsteps << "] tick=" << tick;
+	// if ( startAtstart )
+	//   std::cout << " trackstart=(" << track.front().X() << "," << track.front().Y() << "," << track.front().Z() << ")";
+	// else
+	//   std::cout << " trackend=(" << track.back().X() << "," << track.back().Y() << "," << track.back().Z() << ")";	  
+	// std::cout << " truepos=(" << pos[0] << "," << pos[1] << "," << pos[2] << ") ";
+	// std::cout << " intime pos_sce=(" << pos_sce[0] << "," << pos_sce[1] << "," << pos_sce[2] << ") tick=" << tick << " ";
 	pos_sce[0] = (tick-3200.0)*cm_per_tick; // we have to give the apparent-x (relative to the trigger) because we need to test the position in the image	
 	std::vector<int> imgcoords;
 	try {
 	  imgcoords = larcv::UBWireTool::getProjectedImagePixel( pos_sce, meta, 3 );
-	  std::cout << " imgcoords=(row=" << imgcoords[0] << "," << imgcoords[1] << "," << imgcoords[2] << "," << imgcoords[3] << ")" << std::endl;
+	  //std::cout << " imgcoords=(row=" << imgcoords[0] << "," << imgcoords[1] << "," << imgcoords[2] << "," << imgcoords[3] << ")" << std::endl;
 	}
 	catch (...) {
-	  std::cout << std::endl;
+	  //std::cout << std::endl;
 	  continue;
 	}
 	
