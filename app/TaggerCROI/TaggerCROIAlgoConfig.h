@@ -13,6 +13,7 @@
 #include "StopMu/StopMuFoxTrotConfig.h"
 #include "UntaggedClustering/ClusterGroupAlgo.h"
 #include "ContainedROI/TaggerFlashMatchAlgoConfig.h"
+#include "GeneralFlashMatchAlgo/GeneralFlashMatchAlgoConfig.h"
 
 namespace larlitecv {
 
@@ -29,6 +30,7 @@ namespace larlitecv {
     StopMuFoxTrotConfig           stopmu_foxtrot_cfg;
     ClusterGroupAlgoConfig        untagged_cluster_cfg;
     TaggerFlashMatchAlgoConfig    croi_selection_cfg;
+    GeneralFlashMatchAlgoConfig   general_flash_match_cfg;
 
     larcv::PSet input_write_cfg;
     larcv::PSet thrumu_write_cfg;

@@ -83,6 +83,33 @@ namespace larlitecv {
 
   }
 
+  // Declare a function that will store all of the flashes for an event in a running list rather than separating them according to their flash producer.
+  // This list assumes that there are two groups of flashes, one produced using 'simpleFlashBeam' and the second produced using 'simpleFlashCosmic', in that order.
+  // Input list: 'opflashes_v', which contains the sets of opflash products in different vectors within the entire vector, with each corresponding to a different flash producer.
+  std::vector< larlite::opflash* > GeneralFlashMatchAlgo::generate_single_opflash_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v ) {
+
+    // Declare an output list of opflash products that will be filled with the information in the input vector, 'opflashes_v'.
+    std::vector< larlite::opflash* > single_opflash_vector;
+    single_opflash_vector.clear();
+
+    // Loop through the input vector and each vector within to generate 'single_opflash_vector' from its contents.
+    for ( size_t opflash_producer = 0; opflash_producer < opflashes_v.size(); ++opflash_producer ) {
+
+      // Loop through the inner vector of each 'event_opflash*> producer contained within 'opflashes_v' to fill the output 'single_opflash_vector'.
+      for ( size_t inner_opflash_iter = 0; inner_opflash_iter < opflashes_v.at( opflash_producer).size(); ++inner_opflash_iter ) {
+
+	// Append the opflash pointer located at this iteration in the inner loop over the 'opflashes_v' vector to the 'single_opflash_vector' output.
+	single_opflash_vector.push_back( opflashes_v.at( opflash_producer ).at( inner_opflash_iter ) );
+
+      }
+
+    }
+
+    // Return this single denomination flash list.
+    return single_opflash_vector;
+
+  }
+
   // A function that will generate tracks from the 'BMTrackCluster3D' objects that are formed from each pass of the tagger.
   // Inputs: trackcluster3d_v: A vector of 'BMTrackCluster3D' objects that were formed from a pass of the tagger.
   std::vector < larlite::track >  GeneralFlashMatchAlgo::generate_tracks_between_passes(const std::vector< larlitecv::BMTrackCluster3D > trackcluster3d_v) {

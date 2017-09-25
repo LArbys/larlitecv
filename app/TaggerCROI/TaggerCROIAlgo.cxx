@@ -101,11 +101,17 @@ namespace larlitecv {
     }
     m_time_tracker[kThruMuBMT] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
+    // Because 'findImageTrackEnds' depends on 'flashMatchTrackEnds', use dummy vectors to use that function even though that part of the input is not necessary.
+    std::vector< int > necessary_for_compilation;
+    necessary_for_compilation.clear();
+    std::vector< int > idx_necessary_for_compilation;
+    idx_necessary_for_compilation.clear();
+
     // run flash tagger
     timer = std::clock();
-    anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v );
-    cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v );
-    imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v );
+    anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v, output.anode_flash_idx_v, output.anode_flash_producer_idx_v );
+    cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v, output.cathode_flash_idx_v, output.cathode_flash_producer_idx_v );
+    imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v, necessary_for_compilation, idx_necessary_for_compilation );
     int totalflashes = (int)output.anode_spacepoint_v.size() + (int)output.cathode_spacepoint_v.size() + (int)output.imgends_spacepoint_v.size();
     if ( m_config.verbosity>0 ) {
       std::cout << " Flash Tagger End Points: " << totalflashes << std::endl;
@@ -124,38 +130,95 @@ namespace larlitecv {
     // we collect pointers to all the end points
     std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
 
+    // For the rest of this function, I will declare the flash index vector with the same name as the current vector of the boundary spacepoints.
+
+    // Declare a vector of flash indices, corresponding to the flash index that this flash was matched to in 'FlashMuonTaggerAlgo' if it is anode-piercing or cathode-piercing.
+    // This will be the same dimension as 'all_endpoints'.  Endpoints that are not anode-piercing/cathode-piercing will have a value of -1 in this array.
+    std::vector< int > all_endpoints_flash_idx_v;
+    all_endpoints_flash_idx_v.clear();
+
+    // Declare a vector of flash producer indices, corresponding to the producer that the flash was generated with.
+    // The scoring sceme is as follows:
+    // '0': simpleFlashBeam.                                                                                                                                                                            
+    // '1': simpleFlashCosmic                                                                                                                                                                            
+    // '-1': endpoint was not determined from a flash.                                                                                                                                                  
+    // All flash producer indices corresponding to a side-piercing endpoint will be filled with -1.
+    std::vector< int > all_endpoints_flash_producer_idx_v;
+    all_endpoints_flash_producer_idx_v.clear();
+    
     // gather endpoints from space points
     for (int isp=0; isp<(int)output.side_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.side_spacepoint_v.at( isp ));
       all_endpoints.push_back( pts );
+      all_endpoints_flash_idx_v.push_back( -1 );
+      all_endpoints_flash_producer_idx_v.push_back( -1 );
     }
     for (int isp=0; isp<(int)output.anode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.anode_spacepoint_v.at(isp));
       all_endpoints.push_back( pts );
+      all_endpoints_flash_idx_v.push_back( output.anode_flash_idx_v.at( isp ) );
+      all_endpoints_flash_producer_idx_v.push_back( output.anode_flash_producer_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.cathode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.cathode_spacepoint_v.at(isp));
       all_endpoints.push_back( pts );
+      all_endpoints_flash_idx_v.push_back( output.cathode_flash_idx_v.at( isp ) );
+      all_endpoints_flash_producer_idx_v.push_back( output.cathode_flash_producer_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.imgends_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_spacepoint_v.at(isp));
       all_endpoints.push_back( pts );
+      all_endpoints_flash_idx_v.push_back( -1 );
+      all_endpoints_flash_producer_idx_v.push_back( -1 );
     }
     if ( m_config.verbosity>0 )
       std::cout << "number of endpoints pre-filters: " << all_endpoints.size() << std::endl;
 
     // first filter: radialfilter
     std::vector< const larlitecv::BoundarySpacePoint* > pass_radial_filter;
+
+    // Declare a vector of the indices of the flash endpoints that pass the radial filter here.
+    std::vector< int > pass_radial_filter_flash_idx_v;
+    pass_radial_filter_flash_idx_v.clear();
+
+    // Declare a corresponding vector of the flash producer indices of the flash endpoints that pass the radial filter here.
+    std::vector< int > pass_radial_filter_flash_producer_idx_v;
+    pass_radial_filter_flash_producer_idx_v.clear();
+
+    // Declare an iterator to keep track of which endpoint we are iterating over.
+    int all_endpoint_iter = 0;
+    
     for ( auto const& psp : all_endpoints ) {
       bool forms_segment = radialfilter.canFormSegment( (*psp).pos(), input.img_v, input.badch_v, 5.0, m_config.thrumu_tracker_cfg.pixel_threshold, 1, 2, 0.5, false ); // need parameters here
-      if ( forms_segment )
+      if ( forms_segment ) {
         pass_radial_filter.push_back( psp );
+	pass_radial_filter_flash_idx_v.push_back( all_endpoints_flash_idx_v.at( all_endpoint_iter ) );
+	pass_radial_filter_flash_producer_idx_v.push_back( all_endpoints_flash_producer_idx_v.at( all_endpoint_iter ) );
+      }
+
+      // Increment 'all_endpoint_iter'.
+      ++all_endpoint_iter;
     }
+					       
     if ( m_config.verbosity>0 )
       std::cout << "number of endpoints post-radial filter: " << pass_radial_filter.size() << std::endl;
 
     // then we push the end points out
     std::vector< larlitecv::BoundarySpacePoint > pushed_endpoints;
+    
+    // Declare a vector of the indices of the flash endpoints that are pushed.
+    // This should not eliminate any endpoints, but this is a measure of caution.
+    std::vector< int > pushed_endpoints_flash_idx_v;
+    pushed_endpoints_flash_idx_v.clear();
+
+    // Declare a vector of the flash producer indices of the flash endpoints that are pushed.
+    // This should not eliminate any endpoints, but this is a measure of caution.
+    std::vector< int > pushed_endpoints_flash_producer_idx_v;
+    pushed_endpoints_flash_producer_idx_v.clear();
+
+    // Declare an iterator to keep track of which iterator we are looping over.
+    int pass_radial_filter_iter = 0;
+  
     for ( auto const& psp : pass_radial_filter ) {
       const larlitecv::BoundarySpacePoint& sp = (*psp);
       if ( psp==NULL || sp.size()!=3 ) {
@@ -195,10 +258,18 @@ namespace larlitecv {
                   << " closer2wall=" << closer2wall << std::endl;
       }
 
-      if ( closer2wall  )
+      if ( closer2wall  ) {
         pushed_endpoints.push_back( pushed );
-      else
+	pushed_endpoints_flash_idx_v.push_back( pass_radial_filter_flash_idx_v.at( pass_radial_filter_iter ) );
+	pushed_endpoints_flash_producer_idx_v.push_back( pass_radial_filter_flash_producer_idx_v.at( pass_radial_filter_iter ) );
+      }
+      else {
         pushed_endpoints.push_back( sp );
+	pushed_endpoints_flash_idx_v.push_back( pass_radial_filter_flash_idx_v.at( pass_radial_filter_iter ) );
+	pushed_endpoints_flash_producer_idx_v.push_back( pass_radial_filter_flash_producer_idx_v.at( pass_radial_filter_iter ) );
+      }
+      // Increment 'pass_radial_filter_iter'.
+      ++pass_radial_filter_iter;
     }
 
     std::vector< const larlitecv::BoundarySpacePoint* > pushed_ptr_endpoints;
@@ -229,6 +300,9 @@ namespace larlitecv {
     endptfilter.removeBoundaryAndFlashDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
     endptfilter.removeSameBoundaryDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
 
+   // Within this loop, append entries to all of the 'anode_filtered_flash_idx_v', 'cathode_filtered_flash_idx_v', 'all_filtered_flash_idx_v', 'anode_filtered_flash_producer_idx_v', 'cathode_filtered_flash_producer_idx_v', and 'all_filtered_flash_producer_idx_v' from
+    // 'pushed_endpoints_flash_idx_v'.  
+    
     // remove the filtered end points
     for ( size_t idx=0; idx<endpoint_passes.size(); idx++ ) {
       larlitecv::BoundarySpacePoint& sp = pushed_endpoints[idx];
@@ -236,12 +310,28 @@ namespace larlitecv {
       if ( endpoint_passes.at(idx)==1 ) {
         if (sp.type()<=larlitecv::kDownstream ) {
           output.side_filtered_v.emplace_back( std::move(sp) );
+
+	  // These additions to 'output.all_filtered_flash_idx_v' and 'output.all_filtered_flash_producer_idx_v' will consist entirely of -1s.
+	  output.all_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
+	  output.all_filtered_flash_producer_idx_v.push_back( pushed_endpoints_flash_producer_idx_v.at( idx ) );
         }
         else if (sp.type()==larlitecv::kAnode) {
           output.anode_filtered_v.emplace_back( std::move(sp) );
+
+	  // These additions will consist of actual flashes.
+	  output.anode_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
+	  output.all_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
+	  output.anode_filtered_flash_producer_idx_v.push_back( pushed_endpoints_flash_producer_idx_v.at( idx ) );
+          output.all_filtered_flash_producer_idx_v.push_back( pushed_endpoints_flash_producer_idx_v.at( idx ) );
         }
         else if (sp.type()==larlitecv::kCathode) {
           output.cathode_filtered_v.emplace_back( std::move(sp) );
+
+	  // These additions will consist of actual flashes matched to cathode-piercing tracks.                                                                                                      
+          output.cathode_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
+          output.all_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
+	  output.cathode_filtered_flash_producer_idx_v.push_back( pushed_endpoints_flash_producer_idx_v.at( idx ) );
+          output.all_filtered_flash_producer_idx_v.push_back( pushed_endpoints_flash_producer_idx_v.at( idx ) );
         }
         else if (sp.type()==larlitecv::kImageEnd) {
           output.imgends_filtered_v.emplace_back( std::move(sp) );
@@ -282,22 +372,44 @@ namespace larlitecv {
     // we collect pointers to all the end points
     std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
 
+    // Collect the indices for the flash that determines each of the endpoints and the index for the producer that makes each of the endpoints as well.
+    // This is a precaution to ensure that we are collecting this information properly.
+    std::vector< int > all_endpoints_flash_idx_v;
+    all_endpoints_flash_idx_v.clear();
+
+    std::vector< int > all_endpoints_flash_producer_idx_v;
+    all_endpoints_flash_producer_idx_v.clear();
+
+    // When filling the 'all_endpoints_flash_idx_v' and 'all_endpoints_flash_producer_idx_v', the correct flash indices have already been matched to the correct endpoint.  The important thing is that these two vectors are filled at the same point as their corresponding endpoint in 'all_endpoints'.
+
     // gather endpoints from space points
     for (int isp=0; isp<(int)output.side_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.side_filtered_v.at( isp ));
       all_endpoints.push_back( pts );
+      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_flash_producer_idx_v' with a -1 at the index corresponding to this endpoint. None of these tracks correspond to a flash.
+      all_endpoints_flash_idx_v.push_back( -1 );
+      all_endpoints_flash_producer_idx_v.push_back( -1 );
     }
     for (int isp=0; isp<(int)output.anode_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.anode_filtered_v.at(isp));
       all_endpoints.push_back( pts );
+      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_flash_producer_idx_v' with the corresponding values in the 'anode_filtered_flash_idx_v' and 'anode_filtered_flash_producer_idx_v'.
+      all_endpoints_flash_idx_v.push_back( output.anode_filtered_flash_idx_v.at( isp ) );
+      all_endpoints_flash_producer_idx_v.push_back( output.anode_filtered_flash_producer_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.cathode_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.cathode_filtered_v.at(isp));
       all_endpoints.push_back( pts );
+      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_flash_producer_idx_v' with the corresponding values in the 'cathode_filtered_flash_idx_v' and 'cathode_filtered_flash_producer_idx_v'.
+      all_endpoints_flash_idx_v.push_back( output.cathode_filtered_flash_idx_v.at( isp ) );
+      all_endpoints_flash_producer_idx_v.push_back( output.cathode_filtered_flash_producer_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.imgends_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_filtered_v.at(isp));
       all_endpoints.push_back( pts );
+      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_flash_producer_idx_v' with a -1 at the index corresponding to this endpoint.
+      all_endpoints_flash_idx_v.push_back( -1 );
+      all_endpoints_flash_producer_idx_v.push_back( -1 );
     }
     if ( m_config.verbosity>0 )
       std::cout << "number of endpoints to search for thrumu: " << all_endpoints.size() << std::endl;
@@ -308,7 +420,8 @@ namespace larlitecv {
       timer = std::clock();
       output.trackcluster3d_v.clear();
       output.tagged_v.clear();
-      thrumu_tracker.makeTrackClusters3D( input.img_v, input.gapch_v, all_endpoints, output.trackcluster3d_v, output.tagged_v, used_endpoints );
+      // Use the 'makeTrackClusters3D' function; the crucial point here is that the flash information stored in the last two arguments of this function, 'all_endpoints_flash_idx_v' and 'all_endpoints_flash_producer_idx_v', correspond to the endpoints in the 'all_endpoints' vector (the third argument).
+      thrumu_tracker.makeTrackClusters3D( m_config.general_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints, output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v, all_endpoints_flash_idx_v, all_endpoints_flash_producer_idx_v);
       m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
       if ( m_config.verbosity>0 )
         std::cout << "thrumu tracker search " << all_endpoints.size() << " end points in " << m_time_tracker[kThruMuTracker] << " sec" << std::endl;

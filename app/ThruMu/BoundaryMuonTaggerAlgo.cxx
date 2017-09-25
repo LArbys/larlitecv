@@ -177,7 +177,7 @@ namespace larlitecv {
 //   int BoundaryMuonTaggerAlgo::makeTrackClusters3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
 //                                                    const std::vector< const BoundarySpacePoint* >& spacepts,
 //                                                    std::vector< larlitecv::BMTrackCluster3D >& trackclusters, 
-//                                                    std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices) {
+//                                                    std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices, const std::vector <larlite::event_opflash>& opflash_v ) {
 //     // This method takes in the list of boundaryspacepoints and pairs them up in order to try to find through-going muons
 //     int nendpts = (int)spacepts.size();
 //     used_endpoints_indices.resize( nendpts, 0 );

@@ -16,10 +16,12 @@ namespace larlitecv {
     : m_config(config)
   {}
 
-  void ThruMuTracker::makeTrackClusters3D( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
-					  const std::vector< const BoundarySpacePoint* >& spacepts,
-					  std::vector< larlitecv::BMTrackCluster3D >& trackclusters,
-					  std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices) {
+  // Add additional arguments: 'flash_producer_idx_v' - a map that  will contain '0' if the flash was produced using 'simpleFlashBeam' and '1' if the flash was produced using 'simpleFlashCosmic'.
+  //                           'flash_config'         - an object that sets the 'GeneralFlashMatchAlgo' object within the 'flashMatchTracks' function.
+  void ThruMuTracker::makeTrackClusters3D( GeneralFlashMatchAlgoConfig& flash_config, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v,
+					   const std::vector< const BoundarySpacePoint* >& spacepts,
+					   std::vector< larlitecv::BMTrackCluster3D >& trackclusters,
+					   std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices, const std::vector< larlite::event_opflash* >& opflashsets, std::vector< int >                                           & flash_idx_v, std::vector< int >& flash_producer_idx_v ) {
     // This method takes in the list of boundaryspacepoints and pairs them up in order to try to find through-going muons
     // input:
     //   img_v: vector images, one for each plane. assumed to be in U,V,Y order
@@ -28,6 +30,21 @@ namespace larlitecv {
     //   trackclusters: thrumu tracks. collection of space points and pixel2dclusters
     //   tagged_v: pixels tagged as thrumu.  the value indicates the pass when the muon was tagged.
     //   used_endpoints_indices: indicates which endpoints in spacepts was used. 0=not used. 1=used.
+
+    // Declare a vector, 'impossible_match_endpoints', meant to save the indices of endpoints that together constituted an impossible match.  This removes from consideration endpoints that were found to fail the flashmatching stage of reconstruction.                                                                                                                                                
+    std::vector< int > impossible_match_endpoint_idx;
+    impossible_match_endpoint_idx.clear();
+
+    // Declare a vector for the indices of track endpoints that are oriented according to which flash that they correspond to.
+    std::vector< int > track_endpoint_flash_idx_v;
+    track_endpoint_flash_idx_v.clear();
+
+    // Declare a vector for the indices of the flash producer that generated the flashes: either 'simpleFlashBeam' or 'simpleFlashCosmic'.
+    std::vector< int > track_endpoint_flash_producer_idx_v;
+    track_endpoint_flash_producer_idx_v.clear();
+
+    std::vector < int > already_matched_flash_idx;
+    already_matched_flash_idx.clear();
 
     const int nendpts = (int)spacepts.size();
     used_endpoints_indices.resize( nendpts, 0 );
@@ -69,11 +86,23 @@ namespace larlitecv {
     std::vector<int> tracks_per_pass;
     for (int ipass=0; ipass<m_config.num_passes; ipass++) {
       const ThruMuTrackerConfig::ThruMuPassConfig& passcfg = m_config.pass_configs.at(ipass);
-      runPass( ipass, passcfg, spacepts, img_v, badchimg_v, tagged_v, used_endpoints_indices, trackclusters );
+      runPass( ipass, passcfg, spacepts, img_v, badchimg_v, tagged_v, used_endpoints_indices, trackclusters, flash_idx_v, flash_producer_idx_v, track_endpoint_flash_idx_v, track_endpoint_flash_producer_idx_v );
+      
       int tracks_in_pass = trackclusters.size();
-      if (ipass>0)
-        tracks_in_pass -= tracks_per_pass.back();
+      // Make this selection into a loop.
+      for ( int i = ( tracks_per_pass.size() - 1 ); i > -1; --i ) {
+        tracks_in_pass -= tracks_per_pass.at( i );
+      }
       tracks_per_pass.push_back( tracks_in_pass );
+
+      // Use the flag from the config file to determine if you want to flashmatch the tracks that survive this pass of the thrumu tracker.
+      if (m_config.thrumu_flashmatch == true ) {
+
+        // Call a function that uses all of the flashmatching infrastructure developed in 'GeneralFlashMatchAlgo'.
+	    flashMatchTracks( flash_config, img_v, tagged_v, spacepts, opflashsets, trackclusters, impossible_match_endpoint_idx, already_matched_flash_idx, tracks_per_pass.back(), track_endpoint_flash_idx_v, track_endpoint_flash_producer_idx_v );
+
+      }
+      
     }
 
     // tag the pixels
@@ -90,9 +119,15 @@ namespace larlitecv {
 
   }
 
+  // Update this function to pass the index of the flash that is matched to the endpoints of the track along with the indices themselves.
+  // New arguments: flash_idx_v: This vector of ints contains the indices of the flash (organized in absolute order using the flash producer) corresponding to the endpoint that is being looped over.
+  //                flash_producer_idx_v: This vector of ints contains the producer of the flash that corresponds to the endpoints at this point in the vector.
+  //                track_endpoint_flash_idx_v: This vector of ints corresponds to the index of the flash that is matched to the track endpoints at this point in the vector.
+  //                track_endpoint_flash_producer_idx_v: This vector of ints contains the producer of the flash that corresponds to the endpoints of the track in the 'trackclusters' vector.
   void ThruMuTracker::runPass( const int passid, const ThruMuTrackerConfig::ThruMuPassConfig& passcfg, const std::vector< const BoundarySpacePoint* >& spacepts,
 			       const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v, std::vector<larcv::Image2D>& tagged_v,
-			       std::vector<int>& used_endpoints_indices, std::vector<larlitecv::BMTrackCluster3D>& trackclusters ) {
+			       std::vector<int>& used_endpoints_indices, std::vector<larlitecv::BMTrackCluster3D>& trackclusters, const std::vector< int >& flash_idx_v,
+			       const std::vector< int >& flash_producer_idx_v, std::vector< int > track_endpoint_flash_idx_v, std::vector< int > track_endpoint_flash_producer_idx_v ) {
 
     // Make a pass to try and connect some end points.
     // A pass consists of running the linear3d tagger and the astar3d tagger.
@@ -118,6 +153,10 @@ namespace larlitecv {
     const int nendpts = (int)spacepts.size();
     std::vector<larlitecv::BMTrackCluster3D> pass_track_candidates;
     std::vector< std::vector<int> > pass_end_indices;
+
+    // Declare the vector for the matched track indices up here.
+    std::vector< int > track_flash_idx_v;
+    std::vector< int > track_flash_producer_idx_v;
 
     RadialEndpointFilter radialfilter;
 
@@ -293,6 +332,17 @@ namespace larlitecv {
           std::vector<int> indices(2);
           indices[0] = i;
           indices[1] = j;
+
+	  // Declare a vector for the flash index and producer index at the ith and jth points in the 'flash_idx_v' and 'flash_producer_idx_v' vectors.
+	  // 'i' necessarily must be less than j because 'j' begins to iterate at 'i+1'.
+	  track_flash_idx_v.resize(2);
+	  track_flash_idx_v[0]          = flash_idx_v.at( i );
+	  track_flash_idx_v[1]          = flash_idx_v.at( j );
+
+	  track_flash_producer_idx_v.resize(2);
+	  track_flash_producer_idx_v[0] = flash_producer_idx_v.at( i );
+	  track_flash_producer_idx_v[1] = flash_producer_idx_v.at( j );
+	  
           if ( m_config.verbosity>1 ) {
             std::cout << "#### Storing track. size=" << track3d.path3d.size() << ". indices (" << indices[0] << "," << indices[1] << ") ####" << std::endl;
           }
@@ -320,6 +370,15 @@ namespace larlitecv {
       used_endpoints_indices.at(indices[0]) = 1;
       used_endpoints_indices.at(indices[1]) = 1;
     }
+
+    // Use the same logic to place the indices of the flash corresponding to the endpoints and the flash producer corresponding to the flash that determined the endpoints.
+    // Flash index values.
+    track_endpoint_flash_idx_v.push_back( track_flash_idx_v[0] );
+    track_endpoint_flash_idx_v.push_back( track_flash_idx_v[1] );
+
+    // Flash producer index values.
+    track_endpoint_flash_producer_idx_v.push_back( track_flash_producer_idx_v[0] );
+    track_endpoint_flash_producer_idx_v.push_back( track_flash_producer_idx_v[1] );
 
     return;
   }
@@ -493,5 +552,114 @@ namespace larlitecv {
     return;
   }
 
+  // Define a function that will use 'GeneralFlashMatchAlgo' to flashmatch a track with a reconstructed flash of light in the event.
+  // Input parameters:
+  // flash_config: This is the configuration file for the 'GeneralFlashMatchAlgo' function that will perform the functionality needed at this point in the program.
+  // img_v: The input wireplane images for the events that we are considering.
+  // tagged_v: The images of the tracks that have already been tagged by the 'ThruMu' tracker.
+  // spacepts: All possible boundary points that can be used to make tracks in ThruMu.
+  // opflash_v: The vector of flashes from the event, both of type 'simpleFlashBeam' and 'simpleFlashCosmic'.
+  // trackclusters: The 'BMTrackCluster3D' objects that have already been generated by ThruMu.
+  // impossible_match_endpoint_idx: A vector of integers for the flashes that have found to not be able to generate a track.
+  // already_matched_flash_idx: This a vector of the flashes that are already determined (in a previous pass) to have a good match to another track and have therefore been removed from consideration for other tracks.
+  // num_of_tracks_added_in_pass: The number of tracks added in the pass for which we are flashmatching information.
+  // track_endpoint_flash_idx_v: This vector contains information for which flash (if any) determined the endpoint for a track.
+  // track_endpoint_flash_producer_idx_v: This vector contains information for the flash producer used to generate the flash that produced the endpoint.  
+  void ThruMuTracker::flashMatchTracks( GeneralFlashMatchAlgoConfig& flash_config, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& tagged_v, const std::vector< const BoundarySpacePoint* >& spacepts, const std::vector< larlite::event_opflash* >& opflash_v, std::vector< BMTrackCluster3D >& trackclusters, std::vector< int >& impossible_match_endpoints, std::vector< int >& already_matched_flash_idx, const int& num_of_tracks_added_in_pass, std::vector< int >& track_endpoint_flash_idx_v, std::vector< int >& track_endpoint_flash_producer_idx_v ) {
+
+    // Declare an object of type 'GeneralFlashMatchAlgo' using the configuration object from 'GeneralFlashMatchAlgoConfig'.
+    larlitecv::GeneralFlashMatchAlgo flash_match_obj( flash_config );
+
+    // Declare three vectors: one for the BMTrackCluster3D objects, one for the flash indices of the track endpoints (two per track), and one for the flash producer of the track endpoints (two per track).
+    std::vector< larlitecv::BMTrackCluster3D > trackclusters_from_pass;
+    std::vector< int > track_endpoint_flash_idx_v_from_pass;
+    std::vector< int > track_endpoint_flash_producer_idx_v_from_pass;
+
+    // Fill these vectors in the following loop over the last 'num_of_tracks_added_in_pass' entries in 'trackclusters'.
+    for ( size_t i = ( trackclusters.size() - 1 ); i > ( trackclusters.size() - 1 - num_of_tracks_added_in_pass ); --i ) {
+
+      // Append the BMTrackCluster3D object from the pass at this entry onto the 'trackclusters_from_pass' vector.
+      trackclusters_from_pass.push_back( trackclusters.at( i ) );
+
+      // The trajectory points corresponding to this track are located at indices '2i' and '2i + 1' within the 'track_endpoint_flash_idx_v' and 'track_endpoint_flash_producer_idx_v'.
+      // Do not invert the order of the two points as they are within the original lists over the flash indices.
+      track_endpoint_flash_idx_v_from_pass.push_back( track_endpoint_flash_idx_v.at( 2*i ) );
+      track_endpoint_flash_idx_v_from_pass.push_back( track_endpoint_flash_idx_v.at( 2*i + 1 ) );
+      track_endpoint_flash_producer_idx_v_from_pass.push_back( track_endpoint_flash_producer_idx_v.at( 2*i ) );
+      track_endpoint_flash_producer_idx_v_from_pass.push_back( track_endpoint_flash_producer_idx_v.at( 2*i + 1 ) ); 
+
+  }
+
+    // Generate a vector of larlite tracks from the current vector of 'BMTrackCluster3D' objects contained in 'trackclusters_from_pass'.
+    std::vector < larlite::track > tracks_from_pass = flash_match_obj.generate_tracks_between_passes( trackclusters_from_pass );
+
+    // Generate a single list of all the flashes recorded in the event.  This is filled in the same configuration as the flashes corresponding to the endpoints are, which directly relates the indices contained in 'track_endpoint_flash_idx_v' and 'flash_endpoint_flash_producer_idx_v' to the indices of the flash in this output vector.
+    // This may be better placed in the 'makeTrackClusters3D' function above to reduce redundancy, but all of the GeneralFlashMatchAlgo infrastructure is located in this function.
+    std::vector< larlite::opflash* > single_opflash_vector = flash_match_obj.generate_single_opflash_vector_for_event( opflash_v );
+
+    // Do a first pass to see if any of the tracks directly matched to an anode-piercing/cathode-piercing endpoint are well-matched to the flash that determined their endpoint.
+    // Loop over the 'trackclusters_from_pass' input vector.
+    for ( size_t track3D_iter = 0; track3D_iter < tracks_from_pass.size(); ++track3D_iter ) {
+
+      	// Set the opflash and the opflash producer index based on which endpoint was determined by a flash.                                                                                        
+	int opflash_idx	         = 0;
+        int opflash_producer_idx = 0;
+
+      // Check the components of the 'track_endpoint_flash_producer_idx_v' vector at the two indices corresponding to this track's endpoints, '2*track3D_iter' and '2*track3D_iter + 1'.
+      // If either of these values are > -0.001 (the value that I'm using to check if either of these indices are greater than -1), then one of these two flashes is matched to an
+      // anode-piercing/cathode-piercing track.
+	if ( track_endpoint_flash_idx_v_from_pass.at( 2*track3D_iter ) > -0.0001 ) {
+
+	  opflash_idx           = track_endpoint_flash_idx_v_from_pass.at( 2*track3D_iter );
+	  opflash_producer_idx  = track_endpoint_flash_producer_idx_v_from_pass.at( 2*track3D_iter );
+
+	}
+
+	if ( track_endpoint_flash_idx_v_from_pass.at( 2*track3D_iter + 1 ) > -0.0001 ) {
+
+	  opflash_idx           = track_endpoint_flash_idx_v_from_pass.at( 2*track3D_iter + 1 );
+          opflash_producer_idx  = track_endpoint_flash_producer_idx_v_from_pass.at( 2*track3D_iter + 1 );
+
+	}
+
+	bool already_matched = false;
+
+	// Loop through 'already_matched_flash_idx' to see if this flash has already been well-matched to a track.  If it has, then continue.
+	for ( size_t already_matched_iter = 0; already_matched_iter < already_matched_flash_idx.size(); ++already_matched_iter ) {
+
+	  if ( opflash_idx == already_matched_flash_idx.at( already_matched_iter ) )
+	    already_matched = true;
+
+	}
+
+	// Continue if 'already_matched' == true.
+	if ( already_matched )
+	  continue;
+
+	// Declare the opflash pointer for this track and then the opflash itself using the 'single_opflash_vector' filled earlier on in this function.
+	larlite::opflash* opflash_pointer = single_opflash_vector.at( opflash_idx );
+	larlite::opflash  opflash         = *opflash_pointer;
+
+	// Generate an extended qcluster for this larlite track.
+	flashana::QCluster_t qcluster;
+	flash_match_obj.ExpandQClusterStartingWithLarliteTrack( qcluster, tracks_from_pass.at( track3D_iter ), 10000., true, true );
+
+	float chi2 = 0.;
+
+	// Find the chi2 of the match between 'opflash' and the 'qcluster'.
+	// This will make use of 'opflash_producer_idx' from earlier in the function, which determines if the flash waveform was biased by the cosmic discriminator or not.
+	chi2 = flash_match_obj.generate_chi2_in_track_flash_comparison( qcluster, opflash, opflash_producer_idx );
+
+	// Print out the chi2 value at this point in the loop.
+	std::cout << "chi2 for a track matched to the flash that determined one if its endpoints = " << chi2 << "." << std::endl;
+
+    }
+
+  }
 
 }
+
+
+	
+	
+    
