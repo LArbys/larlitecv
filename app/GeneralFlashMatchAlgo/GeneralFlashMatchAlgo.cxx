@@ -96,10 +96,10 @@ namespace larlitecv {
     for ( size_t opflash_producer = 0; opflash_producer < opflashes_v.size(); ++opflash_producer ) {
 
       // Loop through the inner vector of each 'event_opflash*> producer contained within 'opflashes_v' to fill the output 'single_opflash_vector'.
-      for ( size_t inner_opflash_iter = 0; inner_opflash_iter < opflashes_v.at( opflash_producer).size(); ++inner_opflash_iter ) {
+      for ( size_t inner_opflash_iter = 0; inner_opflash_iter < opflashes_v.at( opflash_producer)->size(); ++inner_opflash_iter ) {
 
 	// Append the opflash pointer located at this iteration in the inner loop over the 'opflashes_v' vector to the 'single_opflash_vector' output.
-	single_opflash_vector.push_back( opflashes_v.at( opflash_producer ).at( inner_opflash_iter ) );
+	single_opflash_vector.push_back( &(opflashes_v.at( opflash_producer )->at( inner_opflash_iter )) );
 
       }
 
