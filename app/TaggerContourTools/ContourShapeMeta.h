@@ -18,8 +18,7 @@ namespace larlitecv {
    // Stores meta data for contours
    
  public:
-
-   ContourShapeMeta() {};
+   ContourShapeMeta();   
    ContourShapeMeta( const std::vector<cv::Point>& contour, const larcv::ImageMeta& img );
    virtual ~ContourShapeMeta() {};
 

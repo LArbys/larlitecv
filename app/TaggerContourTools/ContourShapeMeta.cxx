@@ -1,7 +1,14 @@
 #include "ContourShapeMeta.h"
+#include <sstream>
 
 namespace larlitecv {
 
+  ContourShapeMeta::ContourShapeMeta() {
+    std::stringstream msg;
+    msg << __FILE__ << ":" << __LINE__ << ": Default construct should not be used. Only defined for dictionary purposes." << std::endl;
+    throw std::runtime_error(msg.str());
+  }
+  
   ContourShapeMeta::ContourShapeMeta( const std::vector<cv::Point>& contour, const larcv::ImageMeta& meta )
     : std::vector<cv::Point>(contour),
       m_meta(meta),
