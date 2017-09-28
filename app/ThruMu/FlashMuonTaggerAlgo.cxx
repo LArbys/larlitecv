@@ -46,15 +46,19 @@ namespace larlitecv {
     
     // get a meta
     const larcv::ImageMeta& meta = tpc_imgs.at(0).meta();
+
+    int unrolled_flash_index = -1;
+    int ntrackendpts = trackendpts.size();
     
     // loop over all the flash containers
     for ( auto& ptr_event_flash : opflashsets ) {
       // loop over flashes
-
+      
       int opflash_idx = 0;
       
       for ( auto& opflash : *ptr_event_flash ) {
-        
+	unrolled_flash_index++;
+	
         // determine time of flash
         float tick_target = 0;
         float flash_tick = 0;
@@ -176,6 +180,13 @@ namespace larlitecv {
 
 	// increment 'opflash_idx'
 	opflash_idx += 1;
+
+	// add the unrolled flash index to the end point
+	for (int iendpt=ntrackendpts; iendpt<(int)trackendpts.size(); iendpt++) {
+	  trackendpts.at(iendpt).setFlashIndex( unrolled_flash_index );
+	  std::cout << __FILE__ << ":" << __LINE__ << " set flash index=" << unrolled_flash_index << " (ntrackendpts=" << ntrackendpts << ")" << std::endl;
+	}
+	ntrackendpts = trackendpts.size();
 
       }//end of opflashes loop
     }//end of opflashsets
