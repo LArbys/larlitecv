@@ -32,6 +32,7 @@
 #include "T3DMerge/Track3DRecluster.h"
 #include "T3DMerge/T3DPCMerge.h"
 #include "T3DMerge/T3D2LarliteTrack.h"
+#include "TaggerContourTools/CACAEndPtFilter.h"
 
 namespace larlitecv {
 
@@ -65,6 +66,11 @@ namespace larlitecv {
     // configure different stages of the Thrumu Tagger
     std::clock_t timer;
 
+    // (0) make contours
+    timer = std::clock();
+    m_bmtcv_algo.analyzeImages( input.img_v, input.badch_v, 10.0, 2 );
+    m_time_tracker[kThruMuContour] += double(std::clock()-timer)/(double)CLOCKS_PER_SEC;
+    
     // (1) side tagger
     timer = std::clock();
     larlitecv::BoundaryMuonTaggerAlgo sidetagger;
@@ -116,144 +122,169 @@ namespace larlitecv {
       std::cout << "  Cathode: "    << output.cathode_spacepoint_v.size() << std::endl;
       std::cout << "  Image Ends: " << output.imgends_spacepoint_v.size() << std::endl;
     }
+    std::cout << "Anode spacepoint flash indices: " << std::endl;
+    for (int i=0; i<(int)output.anode_spacepoint_v.size(); i++) {
+      std::cout << "    [" << i << "] flashidx=" << output.anode_spacepoint_v.at(i).getFlashIndex() << std::endl;
+    }
+    std::cout << "Cathode spacepoint flash indices: " << std::endl;
+    for (int i=0; i<(int)output.cathode_spacepoint_v.size(); i++) {
+      std::cout << "    [" << i << "] flashidx=" << output.cathode_spacepoint_v.at(i).getFlashIndex() << std::endl;
+    }
+    
     m_time_tracker[kThruMuFlash] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
     // run end point filters
 
-    larlitecv::RadialEndpointFilter radialfilter;  // remove end points that cannot form a 3d segment nearby
-    larlitecv::PushBoundarySpacePoint endptpusher; // remove endpt
-    larlitecv::EndPointFilter endptfilter; // removes duplicates
+    //larlitecv::RadialEndpointFilter radialfilter;  // remove end points that cannot form a 3d segment nearby [deprecated]
+    //larlitecv::PushBoundarySpacePoint endptpusher; // remove endpt [deprecated]
+    //larlitecv::EndPointFilter endptfilter; // removes duplicates [deprecated]
+    timer = std::clock();
+    larlitecv::CACAEndPtFilter cacaalgo;
+    cacaalgo.setVerbosity(0);
 
-    // we collect pointers to all the end points
-    std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
+    // we collect pointers to all the end points (make a copy for now)
+    std::vector< larlitecv::BoundarySpacePoint > all_endpoints;
 
     // gather endpoints from space points
     for (int isp=0; isp<(int)output.side_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.side_spacepoint_v.at( isp ));
-      all_endpoints.push_back( pts );
+      all_endpoints.push_back( *pts );
     }
     for (int isp=0; isp<(int)output.anode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.anode_spacepoint_v.at(isp));
-      all_endpoints.push_back( pts );
+      all_endpoints.push_back( *pts );
     }
     for (int isp=0; isp<(int)output.cathode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.cathode_spacepoint_v.at(isp));
-      all_endpoints.push_back( pts );
+      all_endpoints.push_back( *pts );
     }
     for (int isp=0; isp<(int)output.imgends_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_spacepoint_v.at(isp));
-      all_endpoints.push_back( pts );
+      all_endpoints.push_back( *pts );
     }
     if ( m_config.verbosity>0 )
       std::cout << "number of endpoints pre-filters: " << all_endpoints.size() << std::endl;
 
-    // first filter: radialfilter
-    std::vector< const larlitecv::BoundarySpacePoint* > pass_radial_filter;
-    for ( auto const& psp : all_endpoints ) {
-      bool forms_segment = radialfilter.canFormSegment( (*psp).pos(), input.img_v, input.badch_v, 5.0, m_config.thrumu_tracker_cfg.pixel_threshold, 1, 2, 0.5, false ); // need parameters here
-      if ( forms_segment )
-        pass_radial_filter.push_back( psp );
-    }
-    if ( m_config.verbosity>0 )
-      std::cout << "number of endpoints post-radial filter: " << pass_radial_filter.size() << std::endl;
+    std::vector< const std::vector<larlitecv::BoundarySpacePoint>* > sp_v;
+    sp_v.push_back( &all_endpoints );
+    std::vector< std::vector<int> > caca_results;    
+    cacaalgo.evaluateEndPoints( sp_v, input.opflashes_v, input.img_v, input.badch_v, m_bmtcv_algo.m_plane_atomicmeta_v, 150.0, caca_results );
 
-    // then we push the end points out
-    std::vector< larlitecv::BoundarySpacePoint > pushed_endpoints;
-    for ( auto const& psp : pass_radial_filter ) {
-      const larlitecv::BoundarySpacePoint& sp = (*psp);
-      if ( psp==NULL || sp.size()!=3 ) {
-        std::stringstream ss;
-        ss << "pass_radial_filter end point not well-formed. size=" << sp.size() << std::endl;
-        throw std::runtime_error(ss.str());
-      }
-      larlitecv::BoundarySpacePoint pushed = endptpusher.pushPoint( sp, input.img_v, input.badch_v );
-      if ( pushed.size()!=3 || pushed.pos().size()!=3 ) {
-        std::stringstream ss;
-        ss << "output of pushPoint not well-formed. size=" << pushed.size() << std::endl;
-        throw std::runtime_error(ss.str());
-      }
-      // we keep if the pushed end point is closer to the boundary in question
-      bool closer2wall = false;
-      if (sp.type()==0 && sp.pos()[1]<pushed.pos()[1])
-        closer2wall=true;
-      else if (sp.type()==1 && sp.pos()[1]>pushed.pos()[1] )
-        closer2wall=true;
-      else if (sp.type()==2 && sp.pos()[2]>pushed.pos()[2] )
-        closer2wall=true;
-      else if (sp.type()==3 && sp.pos()[2]<pushed.pos()[2])
-        closer2wall=true;
-      else if (sp.type()==4 && sp.pos()[0]>pushed.pos()[0])
-        closer2wall=true;
-      else if (sp.type()==5 && sp.pos()[0]<pushed.pos()[0])
-        closer2wall=true;
-      else if (sp.type()==6 && sp.pos()[0]<=0 && sp.pos()[0]>pushed.pos()[0])
-        closer2wall=true;
-      else if (sp.type()==6 && sp.pos()[0]>0 && sp.pos()[0]<pushed.pos()[0])
-        closer2wall=true;
+    // prepare the boundary points that pass
+    std::vector<larlitecv::BoundarySpacePoint> cacapassing_moved_v = cacaalgo.regenerateFitleredBoundaryPoints( input.img_v );
+    
+    // clean up
+    all_endpoints.clear();
+    sp_v.clear();
+    m_time_tracker[kThruMuFilter] += double(std::clock()-timer)/(double)CLOCKS_PER_SEC;
+    
+    // [OLD FILTERING SEQUENCE]
+    // // first filter: radialfilter
+    // std::vector< const larlitecv::BoundarySpacePoint* > pass_radial_filter;
+    // for ( auto const& psp : all_endpoints ) {
+    //   bool forms_segment = radialfilter.canFormSegment( (*psp).pos(), input.img_v, input.badch_v, 5.0, m_config.thrumu_tracker_cfg.pixel_threshold, 1, 2, 0.5, false ); // need parameters here
+    //   if ( forms_segment )
+    //     pass_radial_filter.push_back( psp );
+    // }
+    // if ( m_config.verbosity>0 )
+    //   std::cout << "number of endpoints post-radial filter: " << pass_radial_filter.size() << std::endl;
 
-      if ( m_config.verbosity>1 ) {
-        std::cout << "Pushed type=" << sp.type()
-                  << " (" << sp.pos()[0] << "," << sp.pos()[1] << "," << sp.pos()[2] << ") -> "
-                  << " (" << pushed.pos()[0] << "," << pushed.pos()[1] << "," << pushed.pos()[2] << ")"
-                  << " closer2wall=" << closer2wall << std::endl;
-      }
+    // // then we push the end points out
+    // std::vector< larlitecv::BoundarySpacePoint > pushed_endpoints;
+    // for ( auto const& psp : pass_radial_filter ) {
+    //   const larlitecv::BoundarySpacePoint& sp = (*psp);
+    //   if ( psp==NULL || sp.size()!=3 ) {
+    //     std::stringstream ss;
+    //     ss << "pass_radial_filter end point not well-formed. size=" << sp.size() << std::endl;
+    //     throw std::runtime_error(ss.str());
+    //   }
+    //   larlitecv::BoundarySpacePoint pushed = endptpusher.pushPoint( sp, input.img_v, input.badch_v );
+    //   if ( pushed.size()!=3 || pushed.pos().size()!=3 ) {
+    //     std::stringstream ss;
+    //     ss << "output of pushPoint not well-formed. size=" << pushed.size() << std::endl;
+    //     throw std::runtime_error(ss.str());
+    //   }
+    //   // we keep if the pushed end point is closer to the boundary in question
+    //   bool closer2wall = false;
+    //   if (sp.type()==0 && sp.pos()[1]<pushed.pos()[1])
+    //     closer2wall=true;
+    //   else if (sp.type()==1 && sp.pos()[1]>pushed.pos()[1] )
+    //     closer2wall=true;
+    //   else if (sp.type()==2 && sp.pos()[2]>pushed.pos()[2] )
+    //     closer2wall=true;
+    //   else if (sp.type()==3 && sp.pos()[2]<pushed.pos()[2])
+    //     closer2wall=true;
+    //   else if (sp.type()==4 && sp.pos()[0]>pushed.pos()[0])
+    //     closer2wall=true;
+    //   else if (sp.type()==5 && sp.pos()[0]<pushed.pos()[0])
+    //     closer2wall=true;
+    //   else if (sp.type()==6 && sp.pos()[0]<=0 && sp.pos()[0]>pushed.pos()[0])
+    //     closer2wall=true;
+    //   else if (sp.type()==6 && sp.pos()[0]>0 && sp.pos()[0]<pushed.pos()[0])
+    //     closer2wall=true;
 
-      if ( closer2wall  )
-        pushed_endpoints.push_back( pushed );
-      else
-        pushed_endpoints.push_back( sp );
-    }
+    //   if ( m_config.verbosity>1 ) {
+    //     std::cout << "Pushed type=" << sp.type()
+    //               << " (" << sp.pos()[0] << "," << sp.pos()[1] << "," << sp.pos()[2] << ") -> "
+    //               << " (" << pushed.pos()[0] << "," << pushed.pos()[1] << "," << pushed.pos()[2] << ")"
+    //               << " closer2wall=" << closer2wall << std::endl;
+    //   }
 
-    std::vector< const larlitecv::BoundarySpacePoint* > pushed_ptr_endpoints;
-    for ( auto const& sp : pushed_endpoints ) {
-      pushed_ptr_endpoints.push_back( &sp );
-    }
+    //   if ( closer2wall  )
+    //     pushed_endpoints.push_back( pushed );
+    //   else
+    //     pushed_endpoints.push_back( sp );
+    // }
 
-    // debug
-    int itest=0;
-    for ( auto const& psp : pushed_ptr_endpoints ) {
-      if ( pushed_endpoints.at(itest).size()!=3 ) {
-        std::stringstream ss;
-        ss << __FILE__ << ":" << __LINE__
-            << " stored push-point not well-formed. size=" << pushed_endpoints.at(itest).size() << " idx=" << itest << std::endl;
-        throw std::runtime_error(ss.str());
-      }
-      if ( psp==NULL || psp->size()!=3 ) {
-        std::stringstream ss;
-        ss << __FILE__ << ":" << __LINE__
-            << " stored push-point ptr not well-formed. psp=" << psp << " size=" << psp->size() << " idx=" << itest << std::endl;
-        throw std::runtime_error(ss.str());
-      }
-      itest++;
-    }
+    // std::vector< const larlitecv::BoundarySpacePoint* > pushed_ptr_endpoints;
+    // for ( auto const& sp : pushed_endpoints ) {
+    //   pushed_ptr_endpoints.push_back( &sp );
+    // }
 
-    // remove
-    std::vector<int> endpoint_passes( pushed_ptr_endpoints.size(), 1 );
-    endptfilter.removeBoundaryAndFlashDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
-    endptfilter.removeSameBoundaryDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
+    // // debug
+    // int itest=0;
+    // for ( auto const& psp : pushed_ptr_endpoints ) {
+    //   if ( pushed_endpoints.at(itest).size()!=3 ) {
+    //     std::stringstream ss;
+    //     ss << __FILE__ << ":" << __LINE__
+    //         << " stored push-point not well-formed. size=" << pushed_endpoints.at(itest).size() << " idx=" << itest << std::endl;
+    //     throw std::runtime_error(ss.str());
+    //   }
+    //   if ( psp==NULL || psp->size()!=3 ) {
+    //     std::stringstream ss;
+    //     ss << __FILE__ << ":" << __LINE__
+    //         << " stored push-point ptr not well-formed. psp=" << psp << " size=" << psp->size() << " idx=" << itest << std::endl;
+    //     throw std::runtime_error(ss.str());
+    //   }
+    //   itest++;
+    // }
 
+    // // filter end points
+    // std::vector<int> endpoint_passes( pushed_ptr_endpoints.size(), 1 );
+    // endptfilter.removeBoundaryAndFlashDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
+    // endptfilter.removeSameBoundaryDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
+
+    // collect output
     // remove the filtered end points
-    for ( size_t idx=0; idx<endpoint_passes.size(); idx++ ) {
-      larlitecv::BoundarySpacePoint& sp = pushed_endpoints[idx];
+    for ( size_t idx=0; idx<cacapassing_moved_v.size(); idx++ ) {
+      larlitecv::BoundarySpacePoint& sp = cacapassing_moved_v[idx];
 
-      if ( endpoint_passes.at(idx)==1 ) {
-        if (sp.type()<=larlitecv::kDownstream ) {
-          output.side_filtered_v.emplace_back( std::move(sp) );
-        }
-        else if (sp.type()==larlitecv::kAnode) {
-          output.anode_filtered_v.emplace_back( std::move(sp) );
-        }
-        else if (sp.type()==larlitecv::kCathode) {
-          output.cathode_filtered_v.emplace_back( std::move(sp) );
-        }
-        else if (sp.type()==larlitecv::kImageEnd) {
-          output.imgends_filtered_v.emplace_back( std::move(sp) );
-        }
-        else {
-          std::stringstream ss;
-          ss << __FILE__ << ":" << __LINE__ << " unrecognized boundary type" << std::endl;
-          throw std::runtime_error(ss.str());
-        }
+      if (sp.type()<=larlitecv::kDownstream ) {
+	output.side_filtered_v.emplace_back( std::move(sp) );
+      }
+      else if (sp.type()==larlitecv::kAnode) {
+	output.anode_filtered_v.emplace_back( std::move(sp) );
+      }
+      else if (sp.type()==larlitecv::kCathode) {
+	output.cathode_filtered_v.emplace_back( std::move(sp) );
+      }
+      else if (sp.type()==larlitecv::kImageEnd) {
+	output.imgends_filtered_v.emplace_back( std::move(sp) );
+      }
+      else {
+	std::stringstream ss;
+	ss << __FILE__ << ":" << __LINE__ << " unrecognized boundary type" << std::endl;
+	throw std::runtime_error(ss.str());
       }
     }
 
@@ -879,7 +910,7 @@ namespace larlitecv {
   }
 
   void TaggerCROIAlgo::printTimeTracker( int num_events ) {
-    const std::string stage_names[] = { "ThruMuConfig", "ThruMuBMT", "ThruMuFlash", "ThruMuTracker", "StopMuTracker", "Recluster", "Untagged", "PCAmerge", "CROI" };
+    const std::string stage_names[] = { "ThruMuConfig", "ThruMuContour", "ThruMuBMT", "ThruMuFlash", "ThruMuFilter", "ThruMuTracker", "StopMuTracker", "Recluster", "Untagged", "PCAmerge", "CROI" };
     float tot_time = 0.;
     std::cout << "---------------------------------------------------------------" << std::endl;
     std::cout << "TaggerCROIAlgoConfig::printTimeTracker" << std::endl;
