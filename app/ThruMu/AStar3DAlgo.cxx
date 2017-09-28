@@ -48,9 +48,11 @@ namespace larlitecv {
     goalpos[1] = poszy_goal[1];
     goalpos[2] = poszy_goal[0];
 
-    //if ( start_tri>5 || goal_tri>5 ) {
-    //  std::cout << "start wires provided (" << start_wids[0] << "," << start_wids[1] << "," << start_wids[1] << ") tri=" << start_tri << std::endl;
-    //  std::cout << "goal wires provided (" << goal_wids[0] << "," << goal_wids[1] << "," << goal_wids[1] << ") tri=" << goal_tri << std::endl;
+    //    if ( verbose>0 && ( start_tri>5 || goal_tri>5 ) ) {
+    std::cout << "start wires provided (" << start_wids[0] << "," << start_wids[1] << "," << start_wids[2] << ") tri=" << start_tri << std::endl;
+    std::cout << "goal wires provided (" << goal_wids[0] << "," << goal_wids[1] << "," << goal_wids[2] << ") tri=" << goal_tri << std::endl;
+    std::cout << "startpos: (" << startpos[0] << "," << startpos[1] << "," << startpos[2] << ")" << std::endl;
+    std::cout << "goalpos:   (" << goalpos[0] << "," << goalpos[1] << "," << goalpos[2] << ")" << std::endl;    
     //  throw std::runtime_error("AStar3DAlgo::findpath[error] start or goal point not a good 3D space point.");
     //}
 
@@ -72,8 +74,8 @@ namespace larlitecv {
     // now we define the lattice the search will go over
     std::vector<int> lattice_widths(3);
     lattice_widths[0] = abs( goal_row - start_row ); // rows
-    lattice_widths[1] = (int)fabs( startpos[1] - goalpos[1] )/cm_per_col;
-    lattice_widths[2] = (int)fabs( startpos[2] - goalpos[2] )/cm_per_col;
+    lattice_widths[1] = (int)(fabs( startpos[1] - goalpos[1] )/cm_per_col);
+    lattice_widths[2] = (int)(fabs( startpos[2] - goalpos[2] )/cm_per_col);
 
     // add padding
     for (int i=0; i<3; i++)
@@ -909,7 +911,7 @@ namespace larlitecv {
   A3DPixPos_t Lattice::getNodePos( const std::vector<float>& pos ) {
     A3DPixPos_t nodeid(0,0,0);
     for (int i=0; i<3; i++) {
-      nodeid[i] = (int) ( pos[i]-m_origin[i])/m_cm_per_pixel[i];
+      nodeid[i] = (int) (( pos[i]-m_origin[i])/m_cm_per_pixel[i]);
       if ( nodeid[i]<0 || nodeid[i]>=m_widths[i])
         return A3DPixPos_t(); // outside lattice, so send and empty one
     }
