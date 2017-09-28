@@ -16,9 +16,10 @@ namespace larlitecv {
  class ContourShapeMeta : public std::vector<cv::Point> {
    // Wrapper around OpenCV contour
    // Stores meta data for contours
+   
  public:
 
-   ContourShapeMeta() {}; // shouldn't use this
+   ContourShapeMeta() {};
    ContourShapeMeta( const std::vector<cv::Point>& contour, const larcv::ImageMeta& img );
    virtual ~ContourShapeMeta() {};
 
@@ -34,6 +35,10 @@ namespace larlitecv {
      return reverse_dir;
    };
    
+   float getMinX() const { return xbounds[0]; };
+   float getMaxX() const { return xbounds[1]; };
+   float getMinY() const { return ybounds[0]; };
+   float getMaxY() const { return ybounds[1]; };
    
  protected:
    
@@ -51,7 +56,10 @@ namespace larlitecv {
    // Bounding Box (for collision detection)
    cv::Rect m_bbox;
    void _build_bbox();
-   
+
+   std::vector<float> ybounds;
+   std::vector<float> xbounds;
+   void _get_tick_range();   
  };
  
 

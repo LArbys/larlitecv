@@ -9,6 +9,7 @@ namespace larlitecv {
       m_end( cv::Point(0,0) )  {
     _fill_linefit_members();
     _build_bbox();
+    _get_tick_range();
   }
 
   void ContourShapeMeta::_fill_linefit_members() {
@@ -66,6 +67,30 @@ namespace larlitecv {
   
   void ContourShapeMeta::_build_bbox() {
     m_bbox = cv::boundingRect( *this );
+  }
+
+  void ContourShapeMeta::_get_tick_range() {
+    float miny = -1;
+    float maxy = -1;
+    float minx = -1;
+    float maxx = -1;
+    for (auto& pt : *this ) {
+      if ( miny<0 || pt.y<miny )
+	miny = pt.y;
+      if (maxy<0 || pt.y>maxy )
+	maxy = pt.y;
+      if ( minx<0 || pt.x<minx )
+	minx = pt.x;
+      if ( maxx<0 || pt.x>maxx )
+	maxx = pt.x;
+    }
+
+    ybounds.resize(2,0);
+    xbounds.resize(2,0);
+    ybounds[0] = miny;
+    ybounds[1] = maxy;
+    xbounds[0] = minx;
+    xbounds[1] = maxx;
   }
   
 }
