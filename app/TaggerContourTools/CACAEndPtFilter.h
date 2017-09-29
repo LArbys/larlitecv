@@ -16,6 +16,7 @@
 
 // stdlib
 #include <vector>
+#include <set>
 
 // larlite
 #include "DataFormat/opflash.h"
@@ -78,9 +79,11 @@ namespace larlitecv {
 
     void makeDebugImage( bool makeit=true ) { fMakeDebugImage = makeit; }; //< while evaluateEndPoints(...) runs, generate two images showing the location of end points that pass/fail
     int numDebugImages() { return m_cvimg_rgbdebug.size(); }; //< info on debug image vector
-    const cv::Mat& getDebugImage( int index=0 ) { return m_cvimg_rgbdebug[index]; }; //< 0=good end points (or if no truth given, all end points); 1=bad end points
+    cv::Mat& getDebugImage( int index=0 ) { return m_cvimg_rgbdebug[index]; }; //< 0=good end points (or if no truth given, all end points); 1=bad end points
     
     void printStageTimes(); //< print to screen timing of certain stages in the analysis
+
+    void setDebugSet( const std::vector<int>& ptindex );
     
   protected:
     
@@ -95,6 +98,7 @@ namespace larlitecv {
 
     std::vector<cv::Mat> m_cvimg_rgbdebug; //< debug image made using opencv, plotting candidate endpoints and indicating if pass (magenta) or failed (yellow)
     bool fMakeDebugImage; //< if flag set by user (using method above), then make this image
+    std::set<int> m_debug_set;
 
     // Duplicate handling
     bool isDuplicateEndPoint( const larlitecv::ContourAStarCluster& seedcluster, const larlitecv::BoundarySpacePoint& sp ); ///< function scans existing clusters to determine if duplicate

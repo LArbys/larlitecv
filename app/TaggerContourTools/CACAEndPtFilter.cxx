@@ -22,6 +22,7 @@ namespace larlitecv {
     m_verbosity = 0;
     m_last_was_duplicate = false;
     m_stage_times.resize( kNumStages, 0 );
+    m_debug_set.clear();
   };
     
   
@@ -454,6 +455,9 @@ namespace larlitecv {
     passes_filter.clear();
     m_past_info.clear();
 
+    bool use_debug_set = false;
+    if ( !m_debug_set.empty() ) use_debug_set = true;
+    
     int ireco = -1; // overall counter    
     for ( auto const& p_sp_v : sp_v ) {
       std::vector<int> passes_v(p_sp_v->size(),0);
@@ -464,8 +468,10 @@ namespace larlitecv {
 	isp++;   // counter for sp index of this vector
 
 	// debug: select event
-	// if (ireco!=13)
-	//  continue;
+	if ( use_debug_set ) {
+	  if ( m_debug_set.find( ireco )==m_debug_set.end() )
+	    continue;
+	}
 	
 	if ( sp.type()==larlitecv::kTop
 	     || sp.type()==larlitecv::kBottom
@@ -628,7 +634,10 @@ namespace larlitecv {
 		img_index = 1;
 	    }
 	    else {
-	      img_index = 0;
+	      if (passes)
+		img_index = 0;
+	      else
+		img_index = 1;
 	    }
 	    
 	    for ( size_t p=0; p<astar_cluster.m_current_contours.size(); p++) {
@@ -769,6 +778,12 @@ namespace larlitecv {
     m_caca.printStageTimes();
     std::cout << "==============================================" << std::endl;
     
+  }
+
+  void CACAEndPtFilter::setDebugSet( const std::vector<int>& ptindex ) {
+    m_debug_set.clear();
+    for ( auto const& idx : ptindex )
+      m_debug_set.insert(idx);
   }
 
 }
