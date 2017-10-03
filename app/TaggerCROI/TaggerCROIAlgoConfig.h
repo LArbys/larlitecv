@@ -15,6 +15,9 @@
 #include "ContainedROI/TaggerFlashMatchAlgoConfig.h"
 #include "GeneralFlashMatchAlgo/GeneralFlashMatchAlgoConfig.h"
 
+// larlite
+#include "FhiclLite/FhiclLiteUtilFunc.h"
+
 namespace larlitecv {
 
   class TaggerCROIAlgoConfig {

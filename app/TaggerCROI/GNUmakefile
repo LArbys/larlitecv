@@ -32,7 +32,7 @@ OSNAMEMODE      = $(OSNAME)
 include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 LDFLAGS += $(shell larcv-config --libs)
-LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
+LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo -lBasicTool_FhiclLite
 LDFLAGS += $(shell larlitecv-config --libs) # Add this to include the analog of everything for larlitecv that is here for larlite/LArCV.
 # call the common GNUmakefile
 include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE

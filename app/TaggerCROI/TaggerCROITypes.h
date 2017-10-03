@@ -75,8 +75,8 @@ namespace larlitecv {
     // '1': simpleFlashCosmic
     // '-1': endpoint was not determined from a flash.
     // All flash producer indices corresponding to a side-piercing endpoint will be filled with -1. 
-    std::vector < int >               anode_flash_producer_idx_v;
-    std::vector < int >               cathode_flash_producer_idx_v;
+    std::vector < int >               anode_boundary_type_idx_v;
+    std::vector < int >               cathode_boundary_type_idx_v;
     
     std::vector< BoundarySpacePoint > side_filtered_v;
     std::vector< BoundarySpacePoint > anode_filtered_v;
@@ -94,9 +94,9 @@ namespace larlitecv {
     // '1': simpleFlashCosmic
     // '-1': endpoint was not determined from a flash.
     // All flash producer indices corresponding to a side-piercing endpoint will be filled with -1.
-    std::vector< int > anode_filtered_flash_producer_idx_v;
-    std::vector< int > cathode_filtered_flash_producer_idx_v;
-    std::vector< int > all_filtered_flash_producer_idx_v;
+    std::vector< int > anode_filtered_boundary_type_idx_v;
+    std::vector< int > cathode_filtered_boundary_type_idx_v;
+    std::vector< int > all_filtered_boundary_type_idx_v;
     
     std::vector< BMTrackCluster3D >      trackcluster3d_v;
     std::vector< larlite::track >        track_v;
@@ -131,8 +131,8 @@ namespace larlitecv {
       cathode_flash_idx_v.clear();
 
       // Also clear the flash indices of the producers of anode/cathode piercing tracks.
-      anode_flash_producer_idx_v.clear();
-      cathode_flash_producer_idx_v.clear();
+      anode_boundary_type_idx_v.clear();
+      cathode_boundary_type_idx_v.clear();
 
       side_filtered_v.clear();
       anode_filtered_v.clear();
@@ -145,9 +145,9 @@ namespace larlitecv {
       all_filtered_flash_idx_v.clear();
 
       // Also clear the indices of the flash producers of the filtered anode/cathode-piercing tracks.
-      anode_filtered_flash_producer_idx_v.clear();
-      cathode_filtered_flash_producer_idx_v.clear();
-      all_filtered_flash_producer_idx_v.clear();
+      anode_filtered_boundary_type_idx_v.clear();
+      cathode_filtered_boundary_type_idx_v.clear();
+      all_filtered_boundary_type_idx_v.clear();
       
       trackcluster3d_v.clear();
       track_v.clear();

@@ -5,6 +5,9 @@
 #include "Base/LArCVBaseUtilFunc.h"
 #include "Base/DataCoordinator.h"
 
+// larlite
+#include "FhiclLite/FhiclLiteUtilFunc.h"
+
 namespace larlitecv {
 
   TaggerCROIAlgoConfig::TaggerCROIAlgoConfig()

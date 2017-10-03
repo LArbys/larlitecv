@@ -46,9 +46,11 @@ namespace larlitecv {
 
     std::vector < larlite::track >  generate_tracks_between_passes( const std::vector< larlitecv::BMTrackCluster3D > trackcluster3d_v);
 
-    std::vector< larlite::opflash* > generate_single_opflash_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v );
+    std::vector< larlite::opflash > generate_single_opflash_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v );
 
-    void ExpandQClusterStartingWithLarliteTrack( flashana::QCluster_t qcluster, const larlite::track& larlite_track, double extension, bool extend_start, bool extend_end ); 
+    std::vector< int > generate_single_opflash_idx_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v );
+
+    void ExpandQClusterStartingWithLarliteTrack( flashana::QCluster_t& qcluster, const larlite::track& larlite_track, double extension, bool extend_start, bool extend_end ); 
 
     bool isNearActiveVolumeEdge( ::geoalgo::Vector pt, double d );
     

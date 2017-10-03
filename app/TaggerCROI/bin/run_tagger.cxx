@@ -102,6 +102,8 @@ int main(int nargs, char** argv ) {
 
   for (int ientry=startentry; ientry<endentry; ientry++) {
 
+    std::cout << "Now looping over event #" << ientry << "." << std::endl;
+
     dataco.goto_entry(ientry,"larcv");
     int run,subrun,event;
     dataco.get_id(run,subrun,event);
