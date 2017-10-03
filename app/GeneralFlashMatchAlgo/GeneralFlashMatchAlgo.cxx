@@ -86,20 +86,31 @@ namespace larlitecv {
   // Declare a function that will store all of the flashes for an event in a running list rather than separating them according to their flash producer.
   // This list assumes that there are two groups of flashes, one produced using 'simpleFlashBeam' and the second produced using 'simpleFlashCosmic', in that order.
   // Input list: 'opflashes_v', which contains the sets of opflash products in different vectors within the entire vector, with each corresponding to a different flash producer.
-  std::vector< larlite::opflash* > GeneralFlashMatchAlgo::generate_single_opflash_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v ) {
+  std::vector< larlite::opflash > GeneralFlashMatchAlgo::generate_single_opflash_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v ) {
 
     // Declare an output list of opflash products that will be filled with the information in the input vector, 'opflashes_v'.
-    std::vector< larlite::opflash* > single_opflash_vector;
+    std::vector< larlite::opflash > single_opflash_vector;
     single_opflash_vector.clear();
 
+    // Use an iterator to resize the output vector.
+    int total_opflash_list_iter = 1;
+
     // Loop through the input vector and each vector within to generate 'single_opflash_vector' from its contents.
-    for ( size_t opflash_producer = 0; opflash_producer < opflashes_v.size(); ++opflash_producer ) {
+    for ( auto& ptr_event_flash : opflashes_v ) {
+
+      // Generate an object for the opflash producer that we are currently looking at.
+      auto& current_event_opflash_object = *ptr_event_flash;
 
       // Loop through the inner vector of each 'event_opflash*> producer contained within 'opflashes_v' to fill the output 'single_opflash_vector'.
-      for ( size_t inner_opflash_iter = 0; inner_opflash_iter < opflashes_v.at( opflash_producer).size(); ++inner_opflash_iter ) {
+      for ( size_t inner_opflash_iter = 0; inner_opflash_iter < current_event_opflash_object.size(); ++inner_opflash_iter ) {
+
+	single_opflash_vector.resize( total_opflash_list_iter );
 
 	// Append the opflash pointer located at this iteration in the inner loop over the 'opflashes_v' vector to the 'single_opflash_vector' output.
-	single_opflash_vector.push_back( opflashes_v.at( opflash_producer ).at( inner_opflash_iter ) );
+	larlite::opflash single_opflash                    = current_event_opflash_object.at( inner_opflash_iter );
+	single_opflash_vector[total_opflash_list_iter - 1] = single_opflash;
+
+	++total_opflash_list_iter;
 
       }
 
@@ -107,6 +118,42 @@ namespace larlitecv {
 
     // Return this single denomination flash list.
     return single_opflash_vector;
+
+  }
+
+  // Declare a function that will return a list with our numbering scheme for the producer that made the flashes in the event.
+  // This list assumes that there are two groups of flashes, one produced using 'simpleFlashBeam' and the second produced using 'simpleFlashCosmic', in that order.
+  // This function will return a '0' for 'simpleFlashBeam' and a '1' for 'simpleFlashCosmic'.
+  // Input list: 'opflashes_v', which contains the sets of opflash products in different vectors within the entire vector, with each corresponding to a different flash producer.
+  std::vector< int > GeneralFlashMatchAlgo::generate_single_opflash_idx_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v ) {
+
+    // Declare an output list of opflash products that will be filled with the information for opflash producer, which takes the form of a vector of integer values.
+    std::vector< int > single_opflash_idx_vector;
+    single_opflash_idx_vector.clear();
+
+    // Use an iterator to fill 'single_opflash_idx_vector' with.
+    int single_opflash_idx = 0;
+
+    // Start the outer loop.
+    for ( auto& opflash_set: opflashes_v ) {
+
+      // Reformat the function like this so that it compiles.
+      auto& current_opflash_object = *opflash_set;
+
+      // Start the inner loop.
+      for ( auto& opflash: current_opflash_object ) {
+
+	single_opflash_idx_vector.push_back( single_opflash_idx );
+
+      }
+
+      // Increment 'single_opflash_idx'.
+      ++single_opflash_idx;
+
+    }
+
+    // Return 'single_opflash_idx_vector'.
+    return single_opflash_idx_vector;
 
   }
 
@@ -135,7 +182,7 @@ namespace larlitecv {
   //         'extension'     - the amount by which the cluster is extended outside the TPC (in cm).  This number is arbitrarily set to 10 m so that the track is extended to the edge of the cryostat and eyond.            
   //         'extend_start'  - a boolean to allow the user to refrain from extending the start of track if that is desired.
   //         'extend_end'    - a boolean to allow the user to refrain from extending the end of the track if that is desired.
-  void GeneralFlashMatchAlgo::ExpandQClusterStartingWithLarliteTrack( flashana::QCluster_t qcluster, const larlite::track& larlite_track, double extension, bool extend_start, bool extend_end ) {
+  void GeneralFlashMatchAlgo::ExpandQClusterStartingWithLarliteTrack( flashana::QCluster_t& qcluster, const larlite::track& larlite_track, double extension, bool extend_start, bool extend_end ) {
 
     // Continue over the track if it has less than 2 trajectory points in its length.
     if ( larlite_track.NumberTrajectoryPoints() < 2 ) return;
@@ -163,52 +210,63 @@ namespace larlitecv {
       lightpath.QCluster( pt0, pt1, qcluster );
 
     }
-    
+
     // Initialize the first point on the track's trajectory.
     pt0[0] = larlite_track.LocationAtPoint(0)[0]; pt0[1] = larlite_track.LocationAtPoint(0)[1]; pt0[2] = larlite_track.LocationAtPoint(0)[2];
 
     // Starting Point Analysis.
     // Check to see if this point is at the edge of the TPC volume.  I will here use a resolution value of 10.0 cm.
     if ( isNearActiveVolumeEdge(pt0, 10.0) && extend_start ) {
-    // Print statement to make sure everything is working.                                                                                                                                                
-    std::cout << "Point on track's start is within resolution of the TPC edge!! Extending!" << std::endl;
-    std::cout << "Length of the larlite track = " << larlite_track.NumberTrajectoryPoints() << "." << std::endl;
-      
-    pt1[0] = larlite_track.LocationAtPoint( 1 )[0]; pt1[1] = larlite_track.LocationAtPoint( 1 )[1]; pt1[2] = larlite_track.LocationAtPoint( 1 )[2];
+    
+      int next_point_idx = 1;
 
-    // Turn 'pt1' into a direction vector (not normalized).
-    pt1 = pt0 - pt1;
-    pt0    = pt0 + pt1.Dir()*extension;
-    pt1[0] = larlite_track.LocationAtPoint(0)[0]; pt1[1] = larlite_track.LocationAtPoint(0)[1]; pt1[2] = larlite_track.LocationAtPoint(0)[2];
+      do {
+	pt1[0] = larlite_track.LocationAtPoint( next_point_idx )[0]; pt1[1] = larlite_track.LocationAtPoint( next_point_idx )[1]; pt1[2] = larlite_track.LocationAtPoint( next_point_idx )[2];
+	++next_point_idx;
+      } while ( fabs( pt0[0] - pt1[0] ) < 0.001 && fabs( pt0[1] - pt1[1] ) < 0.001 && fabs( pt0[2] - pt1[2] ) < 0.001 && next_point_idx < int( larlite_track.NumberTrajectoryPoints() ) );
 
-    std::cout << "Extending the start of the qcluster!" << std::endl;
-    // Extend the qcluster with the 'lightpath' functionality.
-    lightpath.QCluster( pt0, pt1, qcluster );
+      // Continue on only if 'next_point_idx' is less than the number of trajectory points on the track.
+      if ( next_point_idx < larlite_track.NumberTrajectoryPoints() ) {
+	// Turn 'pt1' into a direction vector (not normalized).
+	pt1 = pt0 - pt1;
+	pt0    = pt0 + pt1.Dir()*extension;
+	pt1[0] = larlite_track.LocationAtPoint(0)[0]; pt1[1] = larlite_track.LocationAtPoint(0)[1]; pt1[2] = larlite_track.LocationAtPoint(0)[2];
+
+	// Extend the qcluster with 'lightpath' functionality.
+	lightpath.QCluster( pt0, pt1, qcluster );
+
+      }
 
   }
-
+    
   // Initialize the last point on the track's trajectory.
   pt0[0] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[0]; pt0[1] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[1]; pt0[2] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[2];
 
   // Ending Point Analysis.                                                                                                                                                                               
   // Check to see if this point is on the edge of the TPC volume.  I will here use a resolution value of 10.0 cm.                                                                                         
   if ( isNearActiveVolumeEdge(pt0, 10.0) && extend_end ) {
-
-    // Print statement to make sure that everything is working.                                                                                                                                           
-    std::cout << "Point on track's end is within resolution of the TPC edge!! Extending!" << std::endl;
-    std::cout << "Length of the larlite track = " << larlite_track.NumberTrajectoryPoints() << "." << std::endl;
+    
+    int next_point_idx = int(larlite_track.NumberTrajectoryPoints() - 2);
  
-    pt1[0] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 2 )[0]; pt1[1] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 2 )[1]; pt1[2] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 2 )[2];
-    // Turn 'pt1' into a direction vector (not normalized).
-    pt1 = pt0 - pt1;
-    pt0 = pt0 + pt1.Dir()*extension;
-    pt1[0] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[0]; pt1[1] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[1]; pt1[2] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[2];
+    do { 
+      pt1[0] = larlite_track.LocationAtPoint( next_point_idx )[0]; pt1[1] = larlite_track.LocationAtPoint( next_point_idx )[1]; pt1[2] = larlite_track.LocationAtPoint( next_point_idx )[2];
+    --next_point_idx;
+    } while ( fabs( pt0[0] - pt1[0] ) < 0.001 && fabs( pt0[1] - pt1[1] ) < 0.001 && fabs( pt0[2] - pt1[2] ) < 0.001 && next_point_idx > -1 );
 
-    std::cout << "Extending the end of the qcluster!" << std::endl;
-    // Extend the qcluster with the 'lightpath' functionality.                                                                                                                                            
-    lightpath.QCluster( pt0, pt1, qcluster );
+    // Only perform the next part of the loop if 'next_point_idx' is greater than -1.
+    if ( next_point_idx > -1 ) {
+      // Turn 'pt1' into a direction vector (not normalized).
+      pt1 = pt0 - pt1;
+      pt0 = pt0 + pt1.Dir()*extension;
+      pt1[0] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[0]; pt1[1] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[1]; pt1[2] = larlite_track.LocationAtPoint( larlite_track.NumberTrajectoryPoints() - 1 )[2];
+
+      // Extend the qcluster with the 'lightpath' functionality.                                                                                                                                      
+      lightpath.QCluster( pt0, pt1, qcluster );
+    }
 
   }
+
+  return;
 
   }
 
@@ -462,21 +520,27 @@ me(), flash.Frame(), PEperOpDet );
     float tot_pe_data = 0.;
     std::vector< float > expectation(32,0);
 
+    // Declare a vector for the number of valid PMTs.
+    int nvalid_pmts = 0;
+
     // This begins the part of the code that finds the chi2 value.
     for (size_t i=0; i<data_flasht.pe_v.size(); i++) {
       float observed = data_flasht.pe_v.at(i);
-      float expected = flash_hypo.pe_v.at(i); //m_config.fudge_factor; (applied already when generating the qcluster if using the larlite machinery.)
+      float expected = flash_hypo.pe_v.at(i); 
       
       // Apply these changes IF the flash is outside of the unbiased PMT (the beam) window.
       if ( flash_prod_idx == 1 ) {
 
-	// Use the 'correction function' with 'expected'.
-	expected = 0.378*expected;
+	if ( flash_hypo.pe_v.at( i ) < 60.0 ) 
+	  flash_hypo.pe_v.at( i ) *= 0.424;
+
+	else if ( flash_hypo.pe_v.at( i ) > 60.0 )
+	  flash_hypo.pe_v.at( i) *= 0.354;
 
       }
-     
       tot_pe_data += observed;
       tot_pe_hypo += expected;
+
       if ( observed>0 && expected==0 ) {
 	if ( !m_config.use_gaus2d )
 	  expected = 1.0e-3;
@@ -485,12 +549,14 @@ me(), flash.Frame(), PEperOpDet );
       }
       expectation[i] = expected;
 
-      float dpe = (expected-observed);
-      if ( observed>0 )
-	dpe += observed*( log( observed ) - log( expected ) );
-      chi2 += 2.0*dpe;
+      float dpe = 0.;
+      if ( observed>0 ) {
+	dpe   = (expected-observed) + observed*( log( observed ) - log( expected ) );
+	chi2 += 2.0*dpe;
+	++nvalid_pmts;
+      }
     }
-    chi2 /= 32.0;
+    chi2 /= nvalid_pmts;
 
     std::cout << "  [observed] ";
     for (int ich=0; ich<32; ich++ ) {
