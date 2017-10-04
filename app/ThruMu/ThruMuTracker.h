@@ -153,7 +153,7 @@ namespace larlitecv {
     void rankTrackFlashMatches( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< flashana::QCluster_t >& qclusters_being_checked, const std::vector< int >& well_matched_tracks_idx_v, larlite::opflash opflash, 
 					       int opflash_producer, std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list );
     
-    void orderInDescendingChi2Order( const std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list, 
+    void orderInAscendingChi2Order( const std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list, 
 						    std::vector< ThruMuTracker::FlashMatchCandidate >& ordered_opflash_track_match_list );
 
     void findUniqueTrackFlashMatch( const std::vector< std::vector< ThruMuTracker::FlashMatchCandidate > >& all_opflash_candidate_list, std::vector< float >& best_chi2_v, 

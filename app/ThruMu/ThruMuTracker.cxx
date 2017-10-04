@@ -646,7 +646,7 @@ namespace larlitecv {
       trackclusters_from_pass.push_back( trackclusters.at( track_last_pass_iter ) );
       track_endpoint_indices_from_pass.push_back( track_endpoint_indices.at( track_last_pass_iter ) );
       
-      // The trajectory points corresponding to this track are located at indices '2i' and '2i + 1' within the 'track_endpoint_flash_idx_v' and 'track_endpoint_boundary_type_idx_v'.               
+      // The track trajectory points are in a 2 by 1 vector of integers within the 'track_endpoint_flash_idx_v' vector.
       // Do not invert the order of the two points as they are within the original lists over the flash indices.                                                                                      
       track_endpoint_flash_idx_v_from_pass.push_back( track_endpoint_flash_idx_v.at( track_last_pass_iter ) );                                                                                    
       track_endpoint_boundary_type_idx_v_from_pass.push_back( track_endpoint_boundary_type_idx_v.at( track_last_pass_iter ) );                                                                 
@@ -737,6 +737,7 @@ namespace larlitecv {
 	endpoint_boundary_type_idx           = track_endpoint_boundary_type_idx_v_from_pass.at( qcluster_iter )[1];
       } 
 
+      // Make a boolean to see if the track endpoints used within the loop have been marked 'impossible' to be matched.
       bool impossible_match_endpoints = false;
 
       // Make sure that the endpoints corresponding to this track do not belong to the endpoints already found to not constitute a real track.
@@ -986,9 +987,9 @@ namespace larlitecv {
     std::vector< ThruMuTracker::FlashMatchCandidate > ordered_opflash_track_match_list;
     ordered_opflash_track_match_list.clear();
 
-    // Use the 'orderInDescendingChi2Order' function to put this list so that its chi2 matches are in descending order.
+    // Use the 'orderInAscendingChi2Order' function to put this list so that its chi2 matches are in descending order.
     // The indices will come along for the ride.
-    orderInDescendingChi2Order( opflash_track_match_list, ordered_opflash_track_match_list );
+    orderInAscendingChi2Order( opflash_track_match_list, ordered_opflash_track_match_list );
 
   }
 
@@ -996,7 +997,7 @@ namespace larlitecv {
   // Input: 'opflash_track_match_list' - This is a vector of the 'FlashMatchCandidate' objects that contains both the chi2 and the index of the qclusters that are being matched.
   //        'ordered_opflash_track_match_list' - This is a bector of the 'FlashMatchCandidate' objects that contains the chi2 and the index of the qclusters that are being matched in the correct order.
   // The general idea behind this function is to reorganize all of the members into increasing chi2 order, while being careful to keep the same qcluster index with the flash that it started with.
-  void ThruMuTracker::orderInDescendingChi2Order( const std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list, std::vector< ThruMuTracker::FlashMatchCandidate >& ordered_opflash_track_match_list ) {
+  void ThruMuTracker::orderInAscendingChi2Order( const std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list, std::vector< ThruMuTracker::FlashMatchCandidate >& ordered_opflash_track_match_list ) {
 
     // This function will take the following form: 
     // 1. Make a vector of all chi2 values in the event.
@@ -1076,7 +1077,7 @@ namespace larlitecv {
     // Clear 'ordered_opflash_track_match_list' with the intention of filling it with the same information as in 'opflash_track_match_list', but with the chi2 matches ordered from least to greatest.
     ordered_opflash_track_match_list.clear();
 
-    // Loop through 'ordered_chi2' to match the ordered chi2 with its index in 'opflash_track_match_list', filling the information in 'ordered_opflash_track_match_liat' as we go.
+    // Loop through 'ordered_chi2' to match the ordered chi2 with its index in 'opflash_track_match_list', filling the information in 'ordered_opflash_track_match_list' as we go.
     // We will have to compare the two to a deal of precision (~10e-7) because some of the chi2 matches will be very close to one another.
     for ( size_t chi2_iter = 0; chi2_iter < ordered_chi2.size(); ++chi2_iter ) {
 
@@ -1143,7 +1144,7 @@ namespace larlitecv {
     // Play the 'juggling' game where we find a unique track match for each flash.
     while ( isSameQClusterMatchedToDifferentFlashes( unique_track_flash_match_v ) ) {
 
-      // Find the displaced flash, and continue onto the next spot in its ranked list for one of them.
+      // Find the first pair of flashes matched to the same qcluster, displace the flash with the greater (less optimal) chi2 value when matched to 
       int                                unique_track_flash_match_idx; // index of the flash within 'unique_track_flash_match'.  This index is the same as the one within 'all_opflash_candidate_list'.
       ThruMuTracker::UniqueTrackFlashMatch   duplicate_flash_match_with_worse_chi2;
 
@@ -1161,7 +1162,7 @@ namespace larlitecv {
 
       }
 
-      // Otherwise, there is no qcluster left for the flash to be matched to.
+      // Otherwise, there is no qcluster left for the flash to be matched to.  There could have been matches removed by the 'MatchCompatible' function, as well as every other qcluster having a better match with another flash.
       else {
 
 	// Set the 'unique_track_flash_match' entry equal to the default values, and set the 'spot_in_ranking' variable equal to the size of the all_opflash_candidate_list.at( unique_track_flash_match_idx) 'TrackFlashMatch' vector.
@@ -1176,7 +1177,7 @@ namespace larlitecv {
     for ( size_t unique_track_flash_match_iter = 0; unique_track_flash_match_iter < unique_track_flash_match_v.size(); ++unique_track_flash_match_iter ) {
 
       best_chi2_v.push_back( unique_track_flash_match_v.at( unique_track_flash_match_iter ).chi2 );
-      corresponding_qcluster_idx_v.push_back( unique_track_flash_match_v.at( unique_track_flash_match_iter ).idx );
+      corresponding_qcluster_idx_v.push_back( unique_track_flash_match_v.at( unique_track_flash_match_iter ).idx ); // This corresponds to the index of the qcluster in the original list.
 
     }
 
@@ -1224,7 +1225,7 @@ namespace larlitecv {
       int   outer_qcluster_idx = unique_track_flash_match_v.at( outer_idx ).idx;
       float outer_chi2         = unique_track_flash_match_v.at( outer_idx ).chi2;
 
-      for (size_t inner_idx = 0; inner_idx < unique_track_flash_match_v.size(); ++inner_idx ) {
+      for (size_t inner_idx = outer_idx+1; inner_idx < unique_track_flash_match_v.size(); ++inner_idx ) {
 
 	int   inner_qcluster_idx = unique_track_flash_match_v.at( inner_idx ).idx;
 	float inner_chi2         = unique_track_flash_match_v.at( inner_idx ).chi2;
@@ -1278,7 +1279,8 @@ namespace larlitecv {
 	  
 	  // Remove that item from 'trackclusters'.
 	  // Convert the 'int' that iterates in this loop to the correct type.
-	  trackclusters.erase( trackclusters.begin() + (well_matched_tracks_index + 1) ); // This corresponds to the number element that 'well_matched_tracks_index' is located at.
+	  // Take these tracks off the END of 'trackclusters', NOT from the beginning; some of these tracks have already been included in the previous loop.
+	  trackclusters.erase( trackclusters.end() - (tracks_under_consideration) + (well_matched_tracks_index + 1) ); // This corresponds to the number element that 'well_matched_tracks_index' is located at.
 
 	  if ( single_pass ) {
 	    // Subtract '1' from the number of tracks reconstructed per event.

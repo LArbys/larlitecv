@@ -21,6 +21,9 @@ namespace larlitecv {
   }
 
   GeneralFlashMatchAlgoConfig GeneralFlashMatchAlgoConfig::MakeConfigFromPSet( const larcv::PSet& pset ) {
+
+    std::cout << "Making the 'GeneralFlashMatchAlgoConfig' file into a PSet." << std::endl;
+
     GeneralFlashMatchAlgoConfig cfg;
     cfg.chi2_anode_cathode_cut = pset.get<float>("Chi2_Anode_Cathode_Cut");
     cfg.chi2_yz_flash_cut      = pset.get<float>("Chi2_YZ_Flash_Cut");
@@ -35,3 +38,4 @@ namespace larlitecv {
     return cfg;
   }
 }
+
