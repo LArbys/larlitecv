@@ -1,13 +1,13 @@
 #include "ThruMuTracker.h"
 
 #include "RadialEndpointFilter.h"
-#include "AStar3DAlgo.h"
 #include "AStarNodes2BMTrackCluster3D.h"
 #include "ThruMuFoxExtender.h"
 #include "PushBoundarySpacePoint.h"
 
 // larcv 
 #include "UBWireTool/UBWireTool.h"
+#include "Reco3D/AStar3DAlgo.h"
 
 
 namespace larlitecv {
@@ -423,8 +423,8 @@ namespace larlitecv {
       meta_compressed_v.push_back( ptr_meta );
     }
 
-    larlitecv::AStar3DAlgo algo( pass_cfg.astar3d_cfg );
-    std::vector<larlitecv::AStar3DNode> path;
+    larcv::AStar3DAlgo algo( pass_cfg.astar3d_cfg );
+    std::vector<larcv::AStar3DNode> path;
     result_info.goal_reached = false;
     result_info.isgood = true;
     int goalhit = 0;

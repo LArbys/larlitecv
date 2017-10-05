@@ -13,7 +13,7 @@
 #include "Base/PSet.h"
 
 // larlitecv
-#include "ThruMu/AStar3DAlgo.h"
+#include "Reco3D/AStar3DAlgo.h"
 
 namespace larlitecv {
 
@@ -44,7 +44,7 @@ namespace larlitecv {
         float max_extrema_row_diff; 
         float alldir_max_link_dist; //< if link is shorter than this dist, accept at all directions
         float max_extrema_triarea;
-        AStar3DAlgoConfig astarcfg;
+	larcv::AStar3DAlgoConfig astarcfg;
         PassConfig_t() {};
         virtual ~PassConfig_t() {};
     };

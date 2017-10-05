@@ -40,10 +40,10 @@
 
 // larcv/app
 #include "dbscan/DBSCANAlgo.h"
+#include "Reco3D/AStar3DAlgo.h"
 
 #include "TaggerTypes/BoundarySpacePoint.h"
 #include "TaggerTypes/BMTrackCluster3D.h"
-#include "ThruMu/AStar3DAlgo.h"
 #include "ThruMu/Linear3DChargeTagger.h"
 #include "StopMuClusterConfig.h"
 #include "SMClusterTypes.h"
@@ -75,7 +75,7 @@ namespace larlitecv {
       std::vector<untagged_cluster_info_t> m_untagged_clusters_v; // clusters from dbscan over m_masked_v
       std::vector<ClusterGroup_t> m_clustergroups;  //  secondary clustering of untagged_clusters_v clusters
       std::vector<BoundarySpacePoint> m_spacepoints; // space points found by finding 3D-consistent points in the cluster groups
-      PathList_t m_paths; // list of astar paths
+      larcv::PathList_t m_paths; // list of astar paths
       std::vector<int> m_path_goalreached; // marks those that reach their goal
       std::vector<int> m_endpt_index; // index of endpt used to start the path
     };
@@ -107,7 +107,7 @@ namespace larlitecv {
     PointInfoList runLinearFitter( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
       const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath );
 
-    std::vector<AStar3DNode> runAStar( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
+    std::vector<larcv::AStar3DNode> runAStar( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v,
       const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v,
       const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath );
 

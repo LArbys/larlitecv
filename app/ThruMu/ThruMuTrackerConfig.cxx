@@ -96,7 +96,7 @@ namespace larlitecv {
       passcfg.linear3d_min_majoritychargefraction = pass_pset.get<float>("Linear3DMinMajorityChargeFraction");
       passcfg.astar3d_min_goodfrac                = pass_pset.get<float>("AStar3DMinGoodFraction");
       passcfg.astar3d_min_majfrac                 = pass_pset.get<float>("AStar3DMinMajorityChargeFraction");
-      passcfg.astar3d_cfg   = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pass_pset.get<larcv::PSet>( "AStarConfig" ) );
+      passcfg.astar3d_cfg   = larcv::AStar3DAlgoConfig::MakeFromPSet( pass_pset.get<larcv::PSet>( "AStarConfig" ) );
       passcfg.linear3d_cfg  = larlitecv::Linear3DChargeTaggerConfig::makeFromPSet( pass_pset.get<larcv::PSet>("Linear3DConfig" ) );
       passcfg.radial_cfg    = larlitecv::RadialEndpointFilterConfig::makeFromPSet( pass_pset.get<larcv::PSet>("RadialFilterConfig") );
       if ( passcfg.run_foxtrot_extender ) {
