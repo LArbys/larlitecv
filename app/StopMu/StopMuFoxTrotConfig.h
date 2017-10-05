@@ -16,6 +16,7 @@ namespace larlitecv {
     FoxTrotTrackerAlgoConfig foxtrotalgo_cfg;
     int min_num_steps;
     int verbosity;
+    bool SkipAnodeCathodeStartPts;
 
     static StopMuFoxTrotConfig makeFromPSet( const larcv::PSet& ps );
 

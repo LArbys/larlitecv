@@ -48,7 +48,7 @@ namespace larlitecv {
     passcfg.alldir_max_link_dist = pass_pset.get< float >("AllDirMaxLinkDistance");
     passcfg.max_extrema_row_diff = pass_pset.get< float >("MaxExtremaRowDiff");
     passcfg.max_extrema_triarea  = pass_pset.get< float >("MaxExtremaTriArea");
-    passcfg.astarcfg             = AStar3DAlgoConfig::MakeFromPSet( pass_pset.get<larcv::PSet>("AStarConfig") );
+    passcfg.astarcfg             = larcv::AStar3DAlgoConfig::MakeFromPSet( pass_pset.get<larcv::PSet>("AStarConfig") );
     return passcfg;
   }
 

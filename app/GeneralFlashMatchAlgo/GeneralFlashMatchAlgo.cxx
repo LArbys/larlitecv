@@ -385,6 +385,7 @@ me(), flash.Frame(), PEperOpDet );
 
     // Follow the logic of the 'GeneralFlashMatchAlgo::InTimeFlashComparison' function to generate a flash hypothesis.
     ExpandQClusterStartingWithLarliteTrack(qcluster, input_track, 10000., true, true); 
+
     flashana::Flash_t flash_hypo  = GenerateUnfittedFlashHypothesis( qcluster );
     larlite::opflash opflash_hypo = MakeOpFlashFromFlash( flash_hypo );
     larlite::opflash gaus2d_hypo  = GetGaus2DPrediction( opflash_hypo );
@@ -447,7 +448,6 @@ me(), flash.Frame(), PEperOpDet );
 	expected = 0.378*expected;
 
       }
-     
       tot_pe_data += observed;
       tot_pe_hypo += expected;
       if ( observed>0 && expected==0 ) {
@@ -485,4 +485,3 @@ me(), flash.Frame(), PEperOpDet );
   }
  
 }
-

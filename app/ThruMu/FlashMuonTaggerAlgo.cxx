@@ -24,7 +24,8 @@ namespace larlitecv {
   bool FlashMuonTaggerAlgo::flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, 
                                                  const std::vector<larcv::Image2D>& tpc_imgs,
                                                  const std::vector<larcv::Image2D>& badch_imgs,
-                                                 std::vector< BoundarySpacePoint >& trackendpts ) {
+                                                 std::vector< BoundarySpacePoint >& trackendpts,
+						 std::vector< int > endpoint_flash_idx) {
     // output
     // ------
     //  trackendpts: list of vector of end pts. each (inner vector) is point on each plane.
@@ -45,12 +46,19 @@ namespace larlitecv {
     
     // get a meta
     const larcv::ImageMeta& meta = tpc_imgs.at(0).meta();
+
+    int unrolled_flash_index = -1;
+    int ntrackendpts = trackendpts.size();
     
     // loop over all the flash containers
     for ( auto& ptr_event_flash : opflashsets ) {
       // loop over flashes
+      
+      int opflash_idx = 0;
+      
       for ( auto& opflash : *ptr_event_flash ) {
-        
+	unrolled_flash_index++;
+	
         // determine time of flash
         float tick_target = 0;
         float flash_tick = 0;
@@ -166,9 +174,19 @@ namespace larlitecv {
 	if ( fConfig.endpoint_clustering_algo=="cluster" )
 	  FindFlashesByChargeClusters( row_target, point_type, tpc_imgs, badch_imgs, z_range, y_range, trackendpts );
 	else if ( fConfig.endpoint_clustering_algo=="segment" )
-	  FindFlashesBy3DSegments( row_target, point_type, tpc_imgs, badch_imgs, z_max, z_range, trackendpts );
+	  FindFlashesBy3DSegments( row_target, point_type, tpc_imgs, badch_imgs, z_max, z_range, trackendpts, endpoint_flash_idx, opflash_idx );
 	else
 	  throw std::runtime_error("FlashMuonTaggerAlgo:: end point clustering strategy not recognized. options: \"cluster\" or \"segment\"");
+
+	// increment 'opflash_idx'
+	opflash_idx += 1;
+
+	// add the unrolled flash index to the end point
+	for (int iendpt=ntrackendpts; iendpt<(int)trackendpts.size(); iendpt++) {
+	  trackendpts.at(iendpt).setFlashIndex( unrolled_flash_index );
+	  std::cout << __FILE__ << ":" << __LINE__ << " set flash index=" << unrolled_flash_index << " (ntrackendpts=" << ntrackendpts << ")" << std::endl;
+	}
+	ntrackendpts = trackendpts.size();
 
       }//end of opflashes loop
     }//end of opflashsets
@@ -744,7 +762,7 @@ namespace larlitecv {
   }// end of function
 
   bool FlashMuonTaggerAlgo::findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-                                                std::vector<BoundarySpacePoint >& trackendpts ) {
+                                                std::vector<BoundarySpacePoint >& trackendpts, std::vector < int > endpoint_flash_idx ) {
     
     if ( fSearchMode!=kOutOfImage ) {
       std::cout << "[ERROR] Invalid search mode for these type of track endpoints" << std::endl;
@@ -761,7 +779,7 @@ namespace larlitecv {
     std::vector< larlite::event_opflash* > faux_flash_front_v;    
     faux_flash_front_v.push_back( faux_flash_front );
     fOutOfImageMode = kFront;
-    bool results = flashMatchTrackEnds( faux_flash_front_v, tpc_imgs, badch_imgs, trackendpts );
+    bool results = flashMatchTrackEnds( faux_flash_front_v, tpc_imgs, badch_imgs, trackendpts, endpoint_flash_idx );
 
     larlite::event_opflash* faux_flash_back = new larlite::event_opflash;        
     larlite::opflash img_end( 2400.0+6048-60.0, 0, 0, 0, dummy ); // make this config pars
@@ -769,7 +787,7 @@ namespace larlitecv {
     std::vector< larlite::event_opflash* > faux_flash_back_v;    
     faux_flash_back_v.push_back( faux_flash_back );
     fOutOfImageMode = kBack;
-    results = flashMatchTrackEnds( faux_flash_back_v, tpc_imgs, badch_imgs, trackendpts );
+    results = flashMatchTrackEnds( faux_flash_back_v, tpc_imgs, badch_imgs, trackendpts, endpoint_flash_idx );
 
     delete faux_flash_back;
     delete faux_flash_front;
@@ -867,7 +885,7 @@ namespace larlitecv {
 
   void FlashMuonTaggerAlgo::FindFlashesBy3DSegments( const int row_target, const larlitecv::BoundaryEnd_t point_type,
 						     const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-						     const float z_max, const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts ) {
+						     const float z_max, const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts, std::vector < int > endpoint_flash_idx, int opflash_idx ) {
     const int row_gap_size = 6;
     Segment3DAlgo segalgo;
     segalgo.setVerbosity( fConfig.verbosity );
@@ -1053,6 +1071,7 @@ namespace larlitecv {
 	  if ( fConfig.verbosity>1 )	  
 	    std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;
 	  trackendpts.emplace_back( std::move( candidate_endpts[ qlist[i].idx ] ) );
+	  endpoint_flash_idx.push_back(opflash_idx);
 	}
       }
       else {
@@ -1063,6 +1082,7 @@ namespace larlitecv {
 	  if ( fConfig.verbosity>1 )
 	    std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;	  
 	  trackendpts.emplace_back( std::move( candidate_endpts[ qlist[i].idx ] ) );
+	  endpoint_flash_idx.push_back(opflash_idx);
 	}	
       }
     }
@@ -1070,4 +1090,5 @@ namespace larlitecv {
   }
   
 }
+
 

@@ -41,6 +41,13 @@ namespace larlitecv {
                   << " imgcoords=(" << startcoords[0] << "," << startcoords[1] << "," << startcoords[2] << "," << startcoords[3] << ")"
                   << std::endl;
       }
+
+      // by request from janet/jarrett, we skip tracking for anode/cathode boundary pts
+      if ( m_config.SkipAnodeCathodeStartPts && (startpt.type()==larlitecv::kAnode || startpt.type()==larlitecv::kCathode) ) {
+	std::cout << __FILE__ << ":" << __LINE__ << " by request, skipping anode and cathode start points" << std::endl;
+	continue;
+      }
+      
       FoxTrack ft = m_algo->followTrack( img_v, badch_v, thrumu_v, startpt );
       if ( (int)ft.size()<m_config.min_num_steps ) {
         if ( m_config.verbosity>0)

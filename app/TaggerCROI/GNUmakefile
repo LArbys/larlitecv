@@ -22,6 +22,9 @@ INCFLAGS += $(shell seltool-config --includes)
 INCFLAGS += $(shell larlitecv-config --includes)
 INCFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
 INCFLAGS += -I$(LARLITE_BASEDIR)/../
+# needs opencv
+INCFLAGS += -DUSE_OPENCV=1
+INCFLAGS += -I$(LAROPENCV_BASEDIR)
 
 # platform-specific options
 OSNAME          = $(shell uname -s)

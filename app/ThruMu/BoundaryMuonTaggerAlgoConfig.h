@@ -30,6 +30,7 @@ namespace larlitecv {
     bool save_endpt_images;
     bool hitsearch_uses_badchs;
     std::vector<float> type_modifier;
+    int fKernelRadius;
     int verbosity;
 
     void setdefaults();

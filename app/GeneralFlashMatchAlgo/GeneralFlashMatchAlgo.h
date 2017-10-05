@@ -64,6 +64,7 @@ namespace larlitecv {
 
     std::vector<larlite::opflash> make_flash_hypothesis_vector( const std::vector<larlite::track>& input_track_v );
 
+
     float generate_chi2_in_track_flash_comparison(const flashana::QCluster_t qcluster, const larlite::opflash data_opflash, int flash_prod_idx);
     
     const GeneralFlashMatchAlgoConfig& getConfig() { return m_config; };
