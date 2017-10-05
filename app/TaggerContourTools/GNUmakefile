@@ -18,6 +18,7 @@ INCFLAGS += $(shell larlite-config --includes)
 INCFLAGS += -I$(LARLITE_BASEDIR)/UserDev
 INCFLAGS += $(shell geo2d-config --includes)
 INCFLAGS += $(shell larlitecv-config --includes)
+INCFLAGS += -I$(LARLITECV_BASEDIR)/app
 # needs opencv
 INCFLAGS += -DUSE_OPENCV=1
 INCFLAGS += -I$(LAROPENCV_BASEDIR)
