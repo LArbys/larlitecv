@@ -16,12 +16,10 @@ INCFLAGS += $(shell larcv-config --includes)
 INCFLAGS += $(shell larlite-config --includes)
 INCFLAGS += $(shell basictool-config --includes)
 INCFLAGS += $(shell seltool-config --includes)
-#INCFLAGS += $(shell larcv-config --includes)/../app
-#INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool/GeoAlgo
-#INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool/FhiclLite
 INCFLAGS += $(shell larlitecv-config --includes)
 INCFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
 INCFLAGS += -I$(LARLITE_BASEDIR)/../
+INCFLAGS += -I$(LARLITECV_BASEDIR)/app
 # needs opencv
 INCFLAGS += -DUSE_OPENCV=1
 INCFLAGS += -I$(LAROPENCV_BASEDIR)

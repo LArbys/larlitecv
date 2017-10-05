@@ -100,8 +100,13 @@ namespace larlitecv {
       realspace_endpts[larlitecv::kCathode]    = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "cathodepts" );
       realspace_endpts[larlitecv::kImageEnd]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "imgendpts" );
       std::vector< const std::vector<BoundarySpacePoint>* > spacepoint_lists;
-      spacepoint_lists.push_back( &(data.used_spacepoint_v) );
-      spacepoint_lists.push_back( &(data.unused_spacepoint_v) );
+      // spacepoint_lists.push_back( &(data.used_spacepoint_v) );
+      spacepoint_lists.push_back( &(data.side_filtered_v) );
+      spacepoint_lists.push_back( &(data.anode_filtered_v) );
+      spacepoint_lists.push_back( &(data.cathode_filtered_v) );
+      spacepoint_lists.push_back( &(data.imgends_filtered_v) );            
+
+      // spacepoint_lists.push_back( &(data.unused_spacepoint_v) );
       for ( auto const& plist : spacepoint_lists ) {
       	for ( auto const& sp_v : *plist ) {
           int sptype = (int)sp_v.type();
