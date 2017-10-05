@@ -22,7 +22,7 @@
 // larcv
 #include "DataFormat/Image2D.h"
 #include "Base/PSet.h"
-#include "AStar3DAlgo.h"
+#include "Reco3D/AStar3DAlgo.h"
 
 namespace larlitecv {
 
@@ -32,7 +32,7 @@ namespace larlitecv {
         AStar3DAlgoProton() { verbose=2; doPxValEstimate = false; };
     public:
 
-        AStar3DAlgoProton( AStar3DAlgoConfig config ) {
+        AStar3DAlgoProton( larcv::AStar3DAlgoConfig config ) {
             _config = config;
             setVerbose( _config.verbosity );
         };
@@ -41,44 +41,44 @@ namespace larlitecv {
         void setVerbose( int v ) { verbose = v; };
         void setPixelValueEsitmation( bool doIt ) { doPxValEstimate = doIt; };
 
-        std::vector<AStar3DNode> findpath( const std::vector<larcv::Image2D>& img_v,
-                                          const std::vector<larcv::Image2D>& badch_v,
-                                          const std::vector<larcv::Image2D>& tagged_v,
-                                          const int start_row, const int goal_row,
-                                          const std::vector<int>& start_cols,
-                                          const std::vector<int>& goal_cols,
-                                          int& goal_reached );
+        std::vector<larcv::AStar3DNode> findpath( const std::vector<larcv::Image2D>& img_v,
+						  const std::vector<larcv::Image2D>& badch_v,
+						  const std::vector<larcv::Image2D>& tagged_v,
+						  const int start_row, const int goal_row,
+						  const std::vector<int>& start_cols,
+						  const std::vector<int>& goal_cols,
+						  int& goal_reached );
 
-        std::vector<AStar3DNode> makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed );
+        std::vector<larcv::AStar3DNode> makeRecoPath( larcv::AStar3DNode* start, larcv::AStar3DNode* goal, bool& path_completed );
 
-        void evaluateNeighborNodes( AStar3DNode* current,
-                                   const AStar3DNode* start,
-                                   const AStar3DNode* goal,
-                                   const std::vector<larcv::Image2D>& img_v,
-                                   const std::vector<larcv::Image2D>& badch_v,
-                                   const std::vector<larcv::Image2D>& tagged_v,
-                                   AStar3DNodePtrList& openset,
-                                   AStar3DNodePtrList& closedset,
-                                   Lattice& lattice );
+        void evaluateNeighborNodes( larcv::AStar3DNode* current,
+				    const larcv::AStar3DNode* start,
+				    const larcv::AStar3DNode* goal,
+				    const std::vector<larcv::Image2D>& img_v,
+				    const std::vector<larcv::Image2D>& badch_v,
+				    const std::vector<larcv::Image2D>& tagged_v,
+				    larcv::AStar3DNodePtrList& openset,
+				    larcv::AStar3DNodePtrList& closedset,
+				    larcv::Lattice& lattice );
 
-        bool evaluteLatticePoint( const A3DPixPos_t& latticept,
-                                 AStar3DNode* current,
-                                 const AStar3DNode* start,
-                                 const AStar3DNode* goal,
-                                 const std::vector<larcv::Image2D>& img_v,
-                                 const std::vector<larcv::Image2D>& badch_v,
-                                 const std::vector<larcv::Image2D>& tagged_v,
-                                 AStar3DNodePtrList& openset,
-                                 AStar3DNodePtrList& closedset,
-                                 Lattice& lattice );
+        bool evaluteLatticePoint( const larcv::A3DPixPos_t& latticept,
+				  larcv::AStar3DNode* current,
+				  const larcv::AStar3DNode* start,
+				  const larcv::AStar3DNode* goal,
+				  const std::vector<larcv::Image2D>& img_v,
+				  const std::vector<larcv::Image2D>& badch_v,
+				  const std::vector<larcv::Image2D>& tagged_v,
+				  larcv::AStar3DNodePtrList& openset,
+				  larcv::AStar3DNodePtrList& closedset,
+				  larcv::Lattice& lattice );
 
         float distanceFromCentralLine( const std::vector<float>& start_tyz, const std::vector<float>& end_tyz, const std::vector<float>& testpt_tyz );
-
+	
         const std::vector<larcv::Image2D>& getScoreImages() { return m_visualizedimgs; }
-
+	
     protected:
-
-        AStar3DAlgoConfig _config;
+	
+	larcv::AStar3DAlgoConfig _config;
         int verbose;
         bool doPxValEstimate;
         

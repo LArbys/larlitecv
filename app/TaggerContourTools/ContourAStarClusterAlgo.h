@@ -14,10 +14,10 @@
 #include <set>
 #include "DataFormat/Image2D.h"
 
-#include "TaggerContourTools/ContourShapeMeta.h"
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>
+
+#include "ContourShapeMeta.h"
 
 namespace larlitecv {
 

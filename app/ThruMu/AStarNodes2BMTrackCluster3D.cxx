@@ -11,7 +11,7 @@
 
 namespace larlitecv {
 
-  BMTrackCluster3D AStarNodes2BMTrackCluster3D( const std::vector<AStar3DNode>& path, const std::vector<larcv::Image2D>& img_v,
+  BMTrackCluster3D AStarNodes2BMTrackCluster3D( const std::vector<larcv::AStar3DNode>& path, const std::vector<larcv::Image2D>& img_v,
     const BoundarySpacePoint& start_pt, const BoundarySpacePoint& end_pt, const float link_step_size ) {
 
 
@@ -26,8 +26,8 @@ namespace larlitecv {
     int nnodes = (int)path.size();
     for ( int inode=nnodes-1; inode>=1; inode-- ) {
 
-      const AStar3DNode& node      = path.at(inode);
-      const AStar3DNode& next_node = path.at(inode-1);
+      const larcv::AStar3DNode& node      = path.at(inode);
+      const larcv::AStar3DNode& next_node = path.at(inode-1);
       if ( node.badchnode )
         nbad_nodes+=1.0;
       total_nodes+=1.0;

@@ -9,11 +9,11 @@
 
 #include "UBWireTool/UBWireTool.h"
 
+// larcv
 #include "CVUtil/CVUtil.h"
 #include "DataFormat/Pixel2D.h"
-
-#include "ThruMu/AStar3DAlgoConfig.h"
-#include "ThruMu/AStar3DAlgo.h"
+#include "Reco3D/AStar3DAlgoConfig.h"
+#include "Reco3D/AStar3DAlgo.h"
 
 // LArOpenCV
 #include "LArOpenCV/ImageCluster/AlgoClass/DefectBreaker.h"
@@ -419,7 +419,7 @@ namespace larlitecv {
     }
 
     // astar config ---------------------------
-    larlitecv::AStar3DAlgoConfig astar_cfg;
+    larcv::AStar3DAlgoConfig astar_cfg;
     astar_cfg.verbosity = 0;
     astar_cfg.min_nplanes_w_hitpixel = 3;
     astar_cfg.min_nplanes_w_charge = 2;
@@ -455,8 +455,8 @@ namespace larlitecv {
       cluster.resetDebugImage( img_v );
 
       const larcv::ImageMeta& meta = img_v.front().meta();
-      larlitecv::AStar3DAlgo algo( astar_cfg );
-      std::vector<larlitecv::AStar3DNode> path;
+      larcv::AStar3DAlgo algo( astar_cfg );
+      std::vector<larcv::AStar3DNode> path;
       std::vector< int > start_cols;
       std::vector< int > end_cols;
       for (int i=0; i<3; i++) {

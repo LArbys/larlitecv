@@ -406,7 +406,7 @@ namespace larlitecv {
       if ( !cluster_on_all_planes ) {
         // found no compatible cluster on all three planes for this end point, we skip it
         // we fill an empty path for this end point though
-        std::vector<AStar3DNode> empty;
+        std::vector<larcv::AStar3DNode> empty;
         data.m_paths.emplace_back( std::move(empty) );
         data.m_path_goalreached.push_back(0);
         data.m_endpt_index.push_back( iendpt );
@@ -482,7 +482,7 @@ namespace larlitecv {
       std::cout << "cluster space points: " << cluster_spacepoints.size() << std::endl;
       if ( cluster_spacepoints.size()==0 ) {
         // no space points. fill empty path
-        std::vector<AStar3DNode> empty;
+        std::vector<larcv::AStar3DNode> empty;
         data.m_paths.emplace_back( std::move(empty) );
         data.m_path_goalreached.push_back(0);
         data.m_endpt_index.push_back( iendpt );
@@ -548,7 +548,7 @@ namespace larlitecv {
       }
 
       // the spacepoints should be sorted in distance order, furthest to closest
-      std::vector<AStar3DNode> path;
+      std::vector<larcv::AStar3DNode> path;
       bool goodtrack = false;
       int spidx = 0;
       for ( auto const& spdata : spdata_v ) {
@@ -578,9 +578,9 @@ namespace larlitecv {
 
         if ( goodtrack ) {
           // convert to vector<AStarNode> to make the same format as AStar
-          std::vector<AStar3DNode> apath;
+          std::vector<larcv::AStar3DNode> apath;
           for (int istep=(int)linearpath.size()-1; istep>=0; istep--) {
-            AStar3DNode node;
+	    larcv::AStar3DNode node;
             node.tyz = linearpath.at(istep).xyz;
             node.tyz[0] = node.tyz[0]/cm_per_tick+3200.0; // turn x into tick
             apath.emplace_back( std::move(node) );
@@ -591,7 +591,7 @@ namespace larlitecv {
             || ( !goodtrack && (linearpath.fractionGood()>0.5 && linearpath.fractionHasChargeOnMajorityOfPlanes()>0.5) ) ) {
           // if not good, we then try the astar tracker
           bool goodastar = false;
-          std::vector<AStar3DNode> apath = runAStar( passcfg, clust_img_v, badch_v, clust_img_compressed_v, badch_compressed_v,
+          std::vector<larcv::AStar3DNode> apath = runAStar( passcfg, clust_img_v, badch_v, clust_img_compressed_v, badch_compressed_v,
             start_row, goal_row, start_cols, goal_cols, goodastar );
           if ( goodastar ) {
             goodtrack = goodastar;
@@ -886,7 +886,7 @@ namespace larlitecv {
     return path;
   }
 
-  std::vector<AStar3DNode> StopMuCluster::runAStar( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v,
+  std::vector<larcv::AStar3DNode> StopMuCluster::runAStar( const StopMuClusterConfig::PassConfig_t& passcfg, const std::vector<larcv::Image2D>& img_v,
     const std::vector<larcv::Image2D>& badch_v, const std::vector<larcv::Image2D>& img_compressed_v, const std::vector<larcv::Image2D>& badch_compressed_v,
     const int start_row, const int goal_row, const std::vector<int>& start_cols, const std::vector<int>& goal_cols, bool& goodpath ) {
 
@@ -907,10 +907,10 @@ namespace larlitecv {
     if ( goal_row_compressed>=(int)img_compressed_v.front().meta().rows() )  goal_row_compressed  = (int)img_compressed_v.front().meta().rows() - 1;
 
     int goal_reached = 0;
-    larlitecv::AStar3DAlgo algo( passcfg.astarcfg );
+    larcv::AStar3DAlgo algo( passcfg.astarcfg );
     algo.setVerbose(0);
 
-    std::vector<AStar3DNode> path = algo.findpath( img_compressed_v, badch_compressed_v, badch_compressed_v,
+    std::vector<larcv::AStar3DNode> path = algo.findpath( img_compressed_v, badch_compressed_v, badch_compressed_v,
       start_row_compressed, goal_row_compressed, start_cols_compressed, goals_cols_compressed, goal_reached );
 
     std::cout << "astar result: goalreached=" << goal_reached << "path-length=" << path.size() << std::endl;

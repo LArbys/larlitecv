@@ -27,10 +27,10 @@
 
 // larlitecv
 #include "TaggerTypes/BoundarySpacePoint.h"
-#include "TaggerContourTools/ContourShapeMeta.h"
 #include "MCTruthTools/crossingPointsAnaMethods.h"
 
 // dev
+#include "ContourShapeMeta.h"
 #include "ContourAStarClusterAlgo.h"
 
 namespace larlitecv {

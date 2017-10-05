@@ -1,10 +1,10 @@
-#include "AStar3DAlgo.h"
 #include "AStar3DAlgoProton.h"
 #include <vector>
 #include <cmath>
 
 // larcv
 #include "UBWireTool/UBWireTool.h"
+#include "Reco3D/AStar3DAlgo.h"
 
 // larlite
 #include "LArUtil/LArProperties.h"
@@ -12,13 +12,13 @@
 
 namespace larlitecv {
 
-  std::vector<AStar3DNode> AStar3DAlgoProton::findpath( const std::vector<larcv::Image2D>& img_v,
-                                                       const std::vector<larcv::Image2D>& badch_v,
-                                                       const std::vector<larcv::Image2D>& tagged_v,
-                                                       const int start_row, const int goal_row,
-                                                       const std::vector<int>& start_cols,
-                                                       const std::vector<int>& goal_cols,
-                                                       int& goal_reached  ) {
+  std::vector<larcv::AStar3DNode> AStar3DAlgoProton::findpath( const std::vector<larcv::Image2D>& img_v,
+							       const std::vector<larcv::Image2D>& badch_v,
+							       const std::vector<larcv::Image2D>& tagged_v,
+							       const int start_row, const int goal_row,
+							       const std::vector<int>& start_cols,
+							       const std::vector<int>& goal_cols,
+							       int& goal_reached  ) {
     
     const larcv::ImageMeta& meta = img_v.front().meta();
 
@@ -107,7 +107,7 @@ namespace larlitecv {
     size_t max_nelements = (size_t)lattice_widths[0]*lattice_widths[1]*lattice_widths[2];
 
     // finally make the lattice
-    Lattice lattice( origin_lattice, lattice_widths, cm_per_pixel, meta_v );
+    larcv::Lattice lattice( origin_lattice, lattice_widths, cm_per_pixel, meta_v );
     if ( verbose>0 ) {
       std::cout << "Defining Lattice" << std::endl;
       std::cout << "origin: (" << origin_lattice[0] << "," << origin_lattice[1] << "," << origin_lattice[2] << ")" << std::endl;
@@ -118,15 +118,15 @@ namespace larlitecv {
     //lattice.reserve(max_nelements);
 
     // we now make some definitions
-    AStar3DNodePtrList openset;
-    AStar3DNodePtrList closedset;
+    larcv::AStar3DNodePtrList openset;
+    larcv::AStar3DNodePtrList closedset;
     openset.reserve(max_nelements);
     closedset.reserve(max_nelements);
 
     // make the target node (window coorindates)
-    AStar3DNode* goal = lattice.getNode( goalpos );
+    larcv::AStar3DNode* goal = lattice.getNode( goalpos );
     if ( goal==nullptr) {
-      A3DPixPos_t goalnode = lattice.getNodePos( goalpos );
+      larcv::A3DPixPos_t goalnode = lattice.getNodePos( goalpos );
       if ( verbose>0 )
         std::cout << "goal=(" << goalpos[0] << "," << goalpos[1] << "," << goalpos[2] << ") "
                   << "node->(" << goalnode[0] << "," << goalnode[1] << "," << goalnode[2] << ")" << std::endl;
@@ -138,9 +138,9 @@ namespace larlitecv {
     }
 
     // make starting node (window coordinates)
-    AStar3DNode* start = lattice.getNode( startpos );
+    larcv::AStar3DNode* start = lattice.getNode( startpos );
     if ( start==nullptr) {
-      A3DPixPos_t startnode = lattice.getNodePos( startpos );
+      larcv::A3DPixPos_t startnode = lattice.getNodePos( startpos );
       if ( verbose>0 )      
         std::cout << "start=(" << startpos[0] << "," << startpos[1] << "," << startpos[2] << ") "
                   << "node->(" << startnode[0] << "," << startnode[1] << "," << startnode[2] << ")" << std::endl;
@@ -175,7 +175,7 @@ namespace larlitecv {
     }
 
     int nsteps = -1;
-    AStar3DNode* current = NULL;
+    larcv::AStar3DNode* current = NULL;
     while ( openset.size()>0 ) {
       // get current
       do {
@@ -234,13 +234,13 @@ namespace larlitecv {
     //m_visualizedimgs.emplace_back( std::move(gscoreimg) );    
 
     bool path_completed = false;
-    std::vector<AStar3DNode> path;
+    std::vector<larcv::AStar3DNode> path;
     if ( *current!=*goal ) {
       std::cout << "did not make it to the goal. get the lowest h-score" << std::endl;      
       closedset.sort_by_hscore();
       int nnodes = (int)closedset.size();      
       for ( int inode = nnodes-1; inode>=0; inode-- ) {
-        AStar3DNode* closed_node = closedset.at(inode);
+	larcv::AStar3DNode* closed_node = closedset.at(inode);
         if ( closed_node->fscore==0 ) continue;
         current = closed_node;
         break;
@@ -270,17 +270,17 @@ namespace larlitecv {
   }
 
 
-  void AStar3DAlgoProton::evaluateNeighborNodes( AStar3DNode* current,
-                                                const AStar3DNode* start,
-                                                const AStar3DNode* goal,
-                                                const std::vector<larcv::Image2D>& img_v,
-                                                const std::vector<larcv::Image2D>& badch_v,
-                                                const std::vector<larcv::Image2D>& tagged_v,
-                                                AStar3DNodePtrList& openset,
-                                                AStar3DNodePtrList& closedset,
-                                                Lattice& lattice ) {
+  void AStar3DAlgoProton::evaluateNeighborNodes( larcv::AStar3DNode* current,
+						 const larcv::AStar3DNode* start,
+						 const larcv::AStar3DNode* goal,
+						 const std::vector<larcv::Image2D>& img_v,
+						 const std::vector<larcv::Image2D>& badch_v,
+						 const std::vector<larcv::Image2D>& tagged_v,
+						 larcv::AStar3DNodePtrList& openset,
+						 larcv::AStar3DNodePtrList& closedset,
+						 larcv::Lattice& lattice ) {
 
-    const A3DPixPos_t& center = current->nodeid;
+    const larcv::A3DPixPos_t& center = current->nodeid;
 
     int number_updates=0;
 
@@ -295,7 +295,7 @@ namespace larlitecv {
           if (du==0 && dv==0 && dw==0 )
             continue;
 
-          A3DPixPos_t evalme( u, v, w);
+	  larcv::A3DPixPos_t evalme( u, v, w);
           bool updated = evaluteLatticePoint( evalme, current, start, goal, img_v, badch_v, tagged_v, openset, closedset, lattice );
           if ( updated )
             number_updates++;
@@ -307,20 +307,20 @@ namespace larlitecv {
       std::cout << "number of node updates: " << number_updates << std::endl;
   }
 
-  bool AStar3DAlgoProton::evaluteLatticePoint( const A3DPixPos_t& latticept,
-                                              AStar3DNode* current, const AStar3DNode* start,
-                                              const AStar3DNode* goal,
-                                              const std::vector<larcv::Image2D>& img_v,
-                                              const std::vector<larcv::Image2D>& badch_v,
-                                              const std::vector<larcv::Image2D>& tagged_v,
-                                              AStar3DNodePtrList& openset,
-                                              AStar3DNodePtrList& closedset,
-                                              Lattice& lattice ) {
+  bool AStar3DAlgoProton::evaluteLatticePoint( const larcv::A3DPixPos_t& latticept,
+					       larcv::AStar3DNode* current, const larcv::AStar3DNode* start,
+					       const larcv::AStar3DNode* goal,
+					       const std::vector<larcv::Image2D>& img_v,
+					       const std::vector<larcv::Image2D>& badch_v,
+					       const std::vector<larcv::Image2D>& tagged_v,
+					       larcv::AStar3DNodePtrList& openset,
+					       larcv::AStar3DNodePtrList& closedset,
+					       larcv::Lattice& lattice ) {
     // returns true if updated, false if not
 
     const int nplanes = img_v.size();
 
-    AStar3DNode* neighbor_node = lattice.getNode( latticept );
+    larcv::AStar3DNode* neighbor_node = lattice.getNode( latticept );
     if ( neighbor_node==nullptr ) {
       std::stringstream ss;
       ss << " lattice pt (" << latticept[0] << "," << latticept[1] << "," << latticept[2] << ") node is NULL" << std::endl;
@@ -445,7 +445,7 @@ namespace larlitecv {
 
     // how many past nodes in a row are bad?
     int npast_badnodes = 0;
-    AStar3DNode* anode = current;
+    larcv::AStar3DNode* anode = current;
     for (int ipast=0; ipast<5; ipast++) {
       if ( anode->badchnode )
         npast_badnodes++;
@@ -493,7 +493,7 @@ namespace larlitecv {
           curvature_cost = 0.0;
           float dir2[3] = {0};
           if ( current->prev!=NULL ) {
-              AStar3DNode* prev = current->prev;
+	      larcv::AStar3DNode* prev = current->prev;
               float norm2 = 0.;
               for (int i=1; i<3; i++ ) {
                   dir2[i] = current->tyz[i]-prev->tyz[i];
@@ -558,13 +558,13 @@ namespace larlitecv {
     return false;
   }
 
-  std::vector<AStar3DNode> AStar3DAlgoProton::makeRecoPath( AStar3DNode* start, AStar3DNode* goal, bool& path_completed ) {
+  std::vector<larcv::AStar3DNode> AStar3DAlgoProton::makeRecoPath( larcv::AStar3DNode* start, larcv::AStar3DNode* goal, bool& path_completed ) {
                                                                                                 
     path_completed = true;
-    std::vector<AStar3DNode> path;
-    AStar3DNode* current = goal;
+    std::vector<larcv::AStar3DNode> path;
+    larcv::AStar3DNode* current = goal;
     while ( *current!=*start ) {
-      AStar3DNode copy( *current );
+      larcv::AStar3DNode copy( *current );
       path.emplace_back(std::move(copy));
       current = current->prev;
       if ( current==NULL )
@@ -574,7 +574,7 @@ namespace larlitecv {
       path_completed = false;
       return path;
     }
-    AStar3DNode startout( *start );
+    larcv::AStar3DNode startout( *start );
     path.emplace_back( std::move(startout) );
     return path;
 

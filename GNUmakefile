@@ -25,11 +25,13 @@ CORE_SUBDIRS := Hashlib2plus Base
 #  CORE_SUBDIRS += CVUtil
 #endif
 
-APP_SUBDIRS := TaggerTypes Combinator GeneralFlashMatchAlgo GapChs UnipolarHack ChargeSegmentAlgos T3DMerge ThruMu StopMu UntaggedClustering SCE ContainedROI TaggerCROI
+APP_SUBDIRS := TaggerTypes Combinator GeneralFlashMatchAlgo GapChs UnipolarHack ChargeSegmentAlgos T3DMerge SCE 
 APP_SUBDIRS += MCTruthTools
 ifeq ($(LARLITECV_OPENCV),1)
   APP_SUBDIRS += TaggerContourTools
 endif
+# TAGGER CHAIN
+APP_SUBDIRS += ThruMu StopMu UntaggedClustering ContainedROI TaggerCROI
 
 
 .phony: all clean

@@ -14,10 +14,10 @@
 // larcv
 #include "UBWireTool/UBWireTool.h"
 
-#include "AStar3DAlgo.h"
 #include "Linear3DChargeTagger.h"
 #include "Linear3DPostProcessor.h"
-#include "AStarNodes2BMTrackCluster3D.h"
+// #include "AStarNodes2BMTrackCluster3D.h"
+// #include "AStar3DAlgo.h"
 
 #include "TFile.h"
 #include "TTree.h"
