@@ -23,6 +23,7 @@
 #include "TaggerCROI/TaggerCROIAlgo.h"
 #include "TaggerCROI/TaggerCROITypes.h"
 #include "TaggerCROI/PayloadWriteMethods.h"
+#include "GeneralFlashMatchAlgo/GeneralFlashMatchAlgo.h"
 
 int main(int nargs, char** argv ) {
 
@@ -39,6 +40,10 @@ int main(int nargs, char** argv ) {
   // tagger routine configuration
   larcv::PSet cfg  = larcv::CreatePSetFromFile( cfg_file );
   larcv::PSet pset = cfg.get<larcv::PSet>("TaggerCROI");
+  
+  // Print Statement
+  std::cout << "Making the PSet into a Configuration file." << std::endl;
+
   larlitecv::TaggerCROIAlgoConfig tagger_cfg = larlitecv::TaggerCROIAlgoConfig::makeConfigFromFile( cfg_file );
   std::string larcv_image_producer = pset.get<std::string>("LArCVImageProducer");
   std::string larcv_chstatus_producer = pset.get<std::string>("LArCVChStatusProducer");  
@@ -100,6 +105,8 @@ int main(int nargs, char** argv ) {
   larlitecv::TaggerCROIAlgo tagger_algo( tagger_cfg );
 
   for (int ientry=startentry; ientry<endentry; ientry++) {
+
+    std::cout << "Now looping over event #" << ientry << "." << std::endl;
 
     dataco.goto_entry(ientry,"larcv");
     int run,subrun,event;

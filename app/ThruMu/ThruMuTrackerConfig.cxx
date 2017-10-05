@@ -17,6 +17,7 @@ namespace larlitecv {
     pixel_threshold.resize(3,10);
     compression_mode = 2;
     downsampling_factor = 4;
+    thrumu_flashmatch = true;
 
     // setup example pass config
     ThruMuPassConfig passcfg;
@@ -80,6 +81,7 @@ namespace larlitecv {
     cfg.pixel_threshold  = pset.get< std::vector<float> >("PixelThresholds");
     cfg.downsampling_factor = pset.get<int>("DownsampleFactor");
     cfg.compression_mode = pset.get<int>("CompressionMode");
+    cfg.thrumu_flashmatch = pset.get<bool>("ThruMuFlashMatch");
     cfg.pass_configs.clear();
     for ( int ipass=0; ipass<cfg.num_passes; ipass++ ) {
       std::stringstream ss;

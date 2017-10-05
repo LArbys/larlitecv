@@ -15,7 +15,9 @@ namespace larlitecv {
   public:
     GeneralFlashMatchAlgoConfig();
     virtual ~GeneralFlashMatchAlgoConfig() {};
-    
+
+    float chi2_anode_cathode_cut;
+    float chi2_yz_flash_cut;
     int verbosity;
     float qcluster_stepsize;
     float MeV_per_cm;

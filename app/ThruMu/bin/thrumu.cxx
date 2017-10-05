@@ -284,7 +284,7 @@ int main( int nargs, char** argv ) {
     std::vector< larlitecv::BMTrackCluster3D > tracks3d;
     std::vector< int > used_filtered_endpoints( filtered_endpoints.size(), 0 );
     if (runtracker) {
-      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, filtered_endpoints, tracks3d, tagged_v, used_filtered_endpoints );
+      sidetagger.makeTrackClusters3D( imgs, gapchimgs_v, filtered_endpoints, tracks3d, tagged_v, used_filtered_endpoints, opflash_containers );
     }
 
     // ------------------------------------------------------------------------------------------//

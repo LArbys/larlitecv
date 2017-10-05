@@ -9,6 +9,8 @@ namespace larlitecv {
 
   GeneralFlashMatchAlgoConfig::GeneralFlashMatchAlgoConfig():
     m_flashmatch_config(fcllite::PSet("FlashMatchManager",m_flashman_default)) {
+    chi2_anode_cathode_cut = 100.0;
+    chi2_yz_flash_cut      = 20.0; // Arbitrarily chosen for now.
     verbosity = 0;
     qcluster_stepsize = 0.3;
     MeV_per_cm = 2.3;
@@ -19,15 +21,21 @@ namespace larlitecv {
   }
 
   GeneralFlashMatchAlgoConfig GeneralFlashMatchAlgoConfig::MakeConfigFromPSet( const larcv::PSet& pset ) {
+
+    std::cout << "Making the 'GeneralFlashMatchAlgoConfig' file into a PSet." << std::endl;
+
     GeneralFlashMatchAlgoConfig cfg;
-    cfg.verbosity         = pset.get<int>("Verbosity");
-    cfg.qcluster_stepsize = pset.get<float>("QClusterStepSize");
-    cfg.MeV_per_cm        = pset.get<float>("MeV_per_cm");
-    cfg.fudge_factor      = pset.get<float>("FudgeFactor");
-    cfg.pmtflash_thresh   = pset.get<float>("PMTFlashThreshold");
-    cfg.use_gaus2d        = pset.get<bool>("UseGaus2D");
+    cfg.chi2_anode_cathode_cut = pset.get<float>("Chi2_Anode_Cathode_Cut");
+    cfg.chi2_yz_flash_cut      = pset.get<float>("Chi2_YZ_Flash_Cut");
+    cfg.verbosity              = pset.get<int>("Verbosity");
+    cfg.qcluster_stepsize      = pset.get<float>("QClusterStepSize");
+    cfg.MeV_per_cm             = pset.get<float>("MeV_per_cm");
+    cfg.fudge_factor           = pset.get<float>("FudgeFactor");
+    cfg.pmtflash_thresh        = pset.get<float>("PMTFlashThreshold");
+    cfg.use_gaus2d             = pset.get<bool>("UseGaus2D");
     fcllite::PSet vox( "Manager", pset.data_string() );
-    cfg.m_flashmatch_config = vox.get<fcllite::PSet>("GeneralFlashMatchAlgo");
+    cfg.m_flashmatch_config    = vox.get<fcllite::PSet>("GeneralFlashMatchAlgo");
     return cfg;
   }
 }
+

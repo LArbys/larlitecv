@@ -20,12 +20,17 @@
 #include "Linear3DChargeTagger.h"
 
 namespace larlitecv {
-    
+
+  // Added a new vector: endpoint_flash_producer_idx.  This is '0' if it corresponds to 'simpleFlashBeam' and 1 if it corresponds to 'simpleFlashCosmic'.
   bool FlashMuonTaggerAlgo::flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, 
                                                  const std::vector<larcv::Image2D>& tpc_imgs,
                                                  const std::vector<larcv::Image2D>& badch_imgs,
                                                  std::vector< BoundarySpacePoint >& trackendpts,
-						 std::vector< int > endpoint_flash_idx) {
+						 std::vector< int >& endpoint_flash_idx, std::vector< int >& endpoint_boundary_type_idx ) {
+
+    // Print out the size of 'trackendpts', which should be nonzero because the side tagger algo has already operated.
+    std::cout << "Length of 'trackendpts' at the start of the 'flashMatchTrackEnds' function." << std::endl;
+    
     // output
     // ------
     //  trackendpts: list of vector of end pts. each (inner vector) is point on each plane.
@@ -47,17 +52,18 @@ namespace larlitecv {
     // get a meta
     const larcv::ImageMeta& meta = tpc_imgs.at(0).meta();
 
-    int unrolled_flash_index = -1;
-    int ntrackendpts = trackendpts.size();
+    // Declare a variable for the flash producer being used.
+    // BIG DISCLAIMER: This variable assumes that the first flash looped over is 'simpleFlashBeam' and the second is 'simpleFlashCosmic'.
+    // That's the way things have been oriented in every config file that I've seen, but that is the orientation that I am using here.
     
     // loop over all the flash containers
     for ( auto& ptr_event_flash : opflashsets ) {
       // loop over flashes
-      
+
       int opflash_idx = 0;
       
       for ( auto& opflash : *ptr_event_flash ) {
-	unrolled_flash_index++;
+	//unrolled_flash_index++;
 	
         // determine time of flash
         float tick_target = 0;
@@ -173,22 +179,23 @@ namespace larlitecv {
 	// Flash search method: we use the charge clusters at a given time
 	if ( fConfig.endpoint_clustering_algo=="cluster" )
 	  FindFlashesByChargeClusters( row_target, point_type, tpc_imgs, badch_imgs, z_range, y_range, trackendpts );
-	else if ( fConfig.endpoint_clustering_algo=="segment" )
-	  FindFlashesBy3DSegments( row_target, point_type, tpc_imgs, badch_imgs, z_max, z_range, trackendpts, endpoint_flash_idx, opflash_idx );
+	else if ( fConfig.endpoint_clustering_algo=="segment" ) // This is the one that we will be using.
+	  FindFlashesBy3DSegments( row_target, point_type, tpc_imgs, badch_imgs, z_max, z_range, trackendpts, endpoint_flash_idx, opflash_idx, endpoint_boundary_type_idx );
 	else
 	  throw std::runtime_error("FlashMuonTaggerAlgo:: end point clustering strategy not recognized. options: \"cluster\" or \"segment\"");
 
 	// increment 'opflash_idx'
 	opflash_idx += 1;
 
-	// add the unrolled flash index to the end point
-	for (int iendpt=ntrackendpts; iendpt<(int)trackendpts.size(); iendpt++) {
-	  trackendpts.at(iendpt).setFlashIndex( unrolled_flash_index );
-	  std::cout << __FILE__ << ":" << __LINE__ << " set flash index=" << unrolled_flash_index << " (ntrackendpts=" << ntrackendpts << ")" << std::endl;
-	}
-	ntrackendpts = trackendpts.size();
+	// // add the unrolled flash index to the end point
+	// for (int iendpt=ntrackendpts; iendpt<(int)trackendpts.size(); iendpt++) {
+	//   trackendpts.at(iendpt).setFlashIndex( unrolled_flash_index );
+	//   std::cout << __FILE__ << ":" << __LINE__ << " set flash index=" << unrolled_flash_index << " (ntrackendpts=" << ntrackendpts << ")" << std::endl;
+	// }
+	// ntrackendpts = trackendpts.size();
 
       }//end of opflashes loop
+
     }//end of opflashsets
 
     return true;
@@ -761,8 +768,10 @@ namespace larlitecv {
 
   }// end of function
 
+  // Pass all of the parameters with the endpoint information as well: 'endpoint_flash_idx' and 'endpoint_flash_producer_idx'.
   bool FlashMuonTaggerAlgo::findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-                                                std::vector<BoundarySpacePoint >& trackendpts, std::vector < int > endpoint_flash_idx ) {
+                                                std::vector<BoundarySpacePoint >& trackendpts, std::vector < int >& endpoint_flash_idx,
+						std::vector< int >& endpoint_boundary_type_idx ) {
     
     if ( fSearchMode!=kOutOfImage ) {
       std::cout << "[ERROR] Invalid search mode for these type of track endpoints" << std::endl;
@@ -779,7 +788,7 @@ namespace larlitecv {
     std::vector< larlite::event_opflash* > faux_flash_front_v;    
     faux_flash_front_v.push_back( faux_flash_front );
     fOutOfImageMode = kFront;
-    bool results = flashMatchTrackEnds( faux_flash_front_v, tpc_imgs, badch_imgs, trackendpts, endpoint_flash_idx );
+    bool results = flashMatchTrackEnds( faux_flash_front_v, tpc_imgs, badch_imgs, trackendpts, endpoint_flash_idx, endpoint_boundary_type_idx );
 
     larlite::event_opflash* faux_flash_back = new larlite::event_opflash;        
     larlite::opflash img_end( 2400.0+6048-60.0, 0, 0, 0, dummy ); // make this config pars
@@ -787,7 +796,7 @@ namespace larlitecv {
     std::vector< larlite::event_opflash* > faux_flash_back_v;    
     faux_flash_back_v.push_back( faux_flash_back );
     fOutOfImageMode = kBack;
-    results = flashMatchTrackEnds( faux_flash_back_v, tpc_imgs, badch_imgs, trackendpts, endpoint_flash_idx );
+    results = flashMatchTrackEnds( faux_flash_back_v, tpc_imgs, badch_imgs, trackendpts, endpoint_flash_idx, endpoint_boundary_type_idx );
 
     delete faux_flash_back;
     delete faux_flash_front;
@@ -885,7 +894,8 @@ namespace larlitecv {
 
   void FlashMuonTaggerAlgo::FindFlashesBy3DSegments( const int row_target, const larlitecv::BoundaryEnd_t point_type,
 						     const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-						     const float z_max, const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts, std::vector < int > endpoint_flash_idx, int opflash_idx ) {
+						     const float z_max, const std::vector<float>& z_range, std::vector< BoundarySpacePoint >& trackendpts,
+						     std::vector < int >& endpoint_flash_idx, int& opflash_idx, std::vector< int >& endpoint_boundary_type_idx ) {
     const int row_gap_size = 6;
     Segment3DAlgo segalgo;
     segalgo.setVerbosity( fConfig.verbosity );
@@ -999,6 +1009,7 @@ namespace larlitecv {
       
       
       if ( pos_matches && !inmiddle ) {
+	
 	//make the boundary spacepoint object
 	std::vector< larlitecv::BoundaryEndPt > endpt_v;
 	for (size_t p=0; p<tpc_imgs.size(); p++) {
@@ -1020,7 +1031,20 @@ namespace larlitecv {
     if ( (int)candidate_endpts.size()<=fConfig.max_nsegments_per_flash || point_type==larlitecv::kImageEnd ) {
       // If under the max, pass them on
       for ( auto& sp : candidate_endpts ) {
+	std::cout << "Appending candidate endpoints." << std::endl;
 	trackendpts.emplace_back(std::move(sp));
+
+	// Append the track endpoint coordinate information.
+	endpoint_flash_idx.emplace_back( opflash_idx );
+	endpoint_boundary_type_idx.emplace_back( point_type );
+	
+	// Print out what type the endpoint is for my benefit.
+	if ( point_type == larlitecv::kAnode ) {
+	  std::cout << "Found an anode-piercing point with 'point_type' value = " << point_type << "." << std::endl;
+	}
+	if ( point_type == larlitecv::kCathode ) {
+	  std::cout << "Found a cathode-piercing point with 'point_type' value = " << point_type << "." << std::endl;
+	}
       }
     }
     else {
@@ -1063,6 +1087,9 @@ namespace larlitecv {
 
       std::sort( qlist.begin(), qlist.end() );
 
+      // Silly statement to see if this loop gets entered.
+      std::cout << "Sugar plum fairies!! " << std::endl;
+      
       if ( point_type==larlitecv::kAnode ) {
 	// if crossing the anode, we should be close to the max
 	if ( fConfig.verbosity>1 )	
@@ -1071,7 +1098,15 @@ namespace larlitecv {
 	  if ( fConfig.verbosity>1 )	  
 	    std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;
 	  trackendpts.emplace_back( std::move( candidate_endpts[ qlist[i].idx ] ) );
+
+	  // Append the information for the track endpoints.
 	  endpoint_flash_idx.push_back(opflash_idx);
+	  endpoint_boundary_type_idx.emplace_back( point_type );
+	  
+	  // Add the print statement for an anode-piercing point here.
+	  if ( point_type == larlitecv::kAnode ) {
+	    std::cout << "Found an anode-piercing point with 'point_type' value = " << point_type << "." << std::endl;
+	  }
 	}
       }
       else {
@@ -1082,7 +1117,16 @@ namespace larlitecv {
 	  if ( fConfig.verbosity>1 )
 	    std::cout << "  idx=" << qlist[i].idx << " dist=" << qlist[i].z_dist << " zpos=" << candidate_endpts[ qlist[i].idx ].pos()[2] << std::endl;	  
 	  trackendpts.emplace_back( std::move( candidate_endpts[ qlist[i].idx ] ) );
+
+	  // Append the information for the track endpoints.
 	  endpoint_flash_idx.push_back(opflash_idx);
+	  endpoint_boundary_type_idx.emplace_back( point_type );
+
+	  // Add the print statement for a cathode-piercing point here.
+	  if ( point_type == larlitecv::kCathode ) {
+	    std::cout << "Found a cathode-piercing point with 'point_type' value = " << point_type << "." << std::endl;
+	  }
+
 	}	
       }
     }

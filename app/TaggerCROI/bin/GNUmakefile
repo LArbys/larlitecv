@@ -10,6 +10,7 @@ CXXFLAGS += $(shell larcv-config --includes)
 CXXFLAGS += $(shell larcv-config --includes)/../app
 CXXFLAGS += $(shell larlitecv-config --includes)
 CXXFLAGS += $(shell larlitecv-config --includes)/../app
+CXXFLAGS += -I$(LARLITECV_BASEDIR)/app # Add this so that 'GeneralFlashMatchAlgo/GeneralFlashMatchAlgoConfig.h'.                                                                           
 #CXXFLAGS += -I$(KALMAN_INCDIR)
 CXXFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
 ifeq ($(LARLITECV_OPENCV),1)

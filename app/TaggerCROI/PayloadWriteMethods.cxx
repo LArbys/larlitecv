@@ -239,7 +239,7 @@ namespace larlitecv {
     }
 
     // untagged track
-    if ( config.croi_write_cfg.get<bool>("WriteUntaggedTracks")) {
+    if ( config.croi_write_cfg.get<bool>("WriteUntaggedTracks") ) { 
       larlite::event_track* evout_tracks_untagged = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "untagged3d" );
 
       for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
