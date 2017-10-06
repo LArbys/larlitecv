@@ -63,7 +63,9 @@ namespace larlitecv {
          size_t found1 = keyname.find("_");
          std::string dtype    = keyname.substr(0,found1);
          std::string producer = keyname.substr(found1+1,foundlast-found1-1 );
-         if ( (!found_id_tree && dtype=="image2d") or (found_id_tree && dtype=="partroi" ) ) {
+         if ( (!found_id_tree && dtype=="image2d") or 
+	      (!found_id_tree && dtype=="partroi") or
+	      (!found_id_tree && dtype=="pgraph" ) ) {
           found_id_tree = true;
           idtreename = keyname;
           idtreetype = dtype;
@@ -75,8 +77,9 @@ namespace larlitecv {
         trees.insert( keyname );
       }
       
-      if ( !found_id_tree )
+      if ( !found_id_tree ) {
         continue; // skip this file, we won't know how to index it.
+      }
 
       // make a hash out of the name of tree is the file. will be used to define the flavor of this file
       std::string treehashname = ":";
@@ -105,8 +108,8 @@ namespace larlitecv {
         product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductImage2D,idtreeproducer));
       else if ( idtreetype=="partroi" ) 
         product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductROI,idtreeproducer));
-      else if ( idtreetype=="pixel2d" ) 
-        product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductROI,idtreeproducer));
+      else if ( idtreetype=="pgraph" ) 
+        product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductPGraph,idtreeproducer));
       else {
         throw std::runtime_error( "could not find a LArCV tree to build an index with." );
       }

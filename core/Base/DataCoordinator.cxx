@@ -118,6 +118,7 @@ namespace larlitecv {
     if ( !larlite_unused ) {
       for ( auto const &larlitefile : fManagers["larlite"]->get_final_filelist() )
 	larlite_io.add_in_filename( larlitefile );
+      
       larlite_io.open();
       larlite_io.enable_event_alignment(false);
     }
@@ -144,10 +145,7 @@ namespace larlitecv {
   }
   
   void DataCoordinator::finalize() {
-    if ( !larlite_unused ) {
-      //larlite_io.next_event();
-      larlite_io.close();
-    }
+    if ( !larlite_unused ) larlite_io.close();
     if ( !larcv_unused )   larcv_io.finalize();
   }
   
@@ -215,11 +213,14 @@ namespace larlitecv {
 
     std::string outfilename = pset.get<std::string>( "OutFileName", "" );
     if ( iomode==1 || iomode==2 ) {
-      if ( outfilename=="" ) {
-	std::cout << "Larlite file is set to write mode, but does not have an output file name." << std::endl;
-	assert(false);
+      if (ioman.output_filename().empty()) {
+	if ( outfilename.empty()) {
+	  std::cout << "Larlite file is set to write mode, but does not have an output file name." << std::endl;
+	  assert(false);
+	}
+	ioman.set_out_filename( outfilename );
+	assert(!ioman.output_filename().empty());
       }
-      ioman.set_out_filename( outfilename );
     }
 
     // specified read/write datatypes
