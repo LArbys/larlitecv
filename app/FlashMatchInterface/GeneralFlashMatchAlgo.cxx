@@ -224,12 +224,12 @@ namespace larlitecv {
     float totpe_hypo_candidate = 0.0;
 
     int idx=-1;
-    for ( auto&flash: flashana_v ) {
+    for ( auto& flash: flashana_v ) {
       idx++;
-      
-      // Convert 'cosmic_flash' into type 'Flash_t' (a data flash).
-      larlite::opflash dataflash = MakeDataFlash( flash );
 
+      // Convert 'cosmic_flash' into type 'Flash_t' (a data flash).
+      larlite::opflash dataflash = MakeOpFlashFromFlash( flash );
+      
       // we need to adjust qcluster position based on delta-t0
       flashana::Flash_t qcluster_t0start; //< q-cluster if we match flash time to min-x of track
       flashana::Flash_t qcluster_t0end;   //< q-cluster if we match flash time to max-x of track

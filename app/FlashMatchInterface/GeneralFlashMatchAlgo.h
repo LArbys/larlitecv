@@ -62,9 +62,9 @@ namespace larlitecv {
 
     bool DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster, float& totpe_data, float& totpe_hypo, float& min_chi2 );
 
-    void GetOutOfTimeFlashMinChi2( const std::vector<flashana::Flash_t>& cosmic_flashana_v, const flashana::QCluster_t& qcluster,
-				   float& totpe_data, float& totpe_hypo, float& min_chi2, int& opflash_ix );
-    
+
+    void GetFlashMinChi2( const std::vector<flashana::Flash_t>& flashana_v, const flashana::QCluster_t& qcluster, const int in_or_out_of_time,
+			  float& totpe_data, float& totpe_hypo, float& min_chi2, int& flash_idx );
 
     std::vector< larlite::opflash > generate_single_opflash_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v );
 
