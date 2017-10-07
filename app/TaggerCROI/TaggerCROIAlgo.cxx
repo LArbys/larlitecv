@@ -403,34 +403,40 @@ namespace larlitecv {
     std::vector< int > all_endpoints_boundary_type_idx_v;
     all_endpoints_boundary_type_idx_v.clear();
 
-    // When filling the 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v', the correct flash indices have already been matched to the correct endpoint.  The important thing is that these two vectors are filled at the same point as their corresponding endpoint in 'all_endpoints'.
+    // When filling the 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v',
+    // the correct flash indices have already been matched to the correct endpoint.
+    // The important thing is that these two vectors are filled at the same point as their corresponding endpoint in 'all_endpoints'.
 
     // gather endpoints from space points
     for (int isp=0; isp<(int)output.side_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.side_filtered_v.at( isp ));
       all_endpoints.push_back( pts );
-      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v' with a -1 at the index corresponding to this endpoint. None of these tracks correspond to a flash.
+      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
+      // with a -1 at the index corresponding to this endpoint. None of these tracks correspond to a flash.
       all_endpoints_flash_idx_v.push_back( -1 );
       all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
     for (int isp=0; isp<(int)output.anode_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.anode_filtered_v.at(isp));
       all_endpoints.push_back( pts );
-      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v' with the corresponding values in the 'anode_filtered_flash_idx_v' and 'anode_filtered_boundary_type_idx_v'.
+      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
+      // with the corresponding values in the 'anode_filtered_flash_idx_v' and 'anode_filtered_boundary_type_idx_v'.
       all_endpoints_flash_idx_v.push_back( output.anode_filtered_flash_idx_v.at( isp ) );
       all_endpoints_boundary_type_idx_v.push_back( output.anode_filtered_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.cathode_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.cathode_filtered_v.at(isp));
       all_endpoints.push_back( pts );
-      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v' with the corresponding values in the 'cathode_filtered_flash_idx_v' and 'cathode_filtered_boundary_type_idx_v'.
+      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
+      // with the corresponding values in the 'cathode_filtered_flash_idx_v' and 'cathode_filtered_boundary_type_idx_v'.
       all_endpoints_flash_idx_v.push_back( output.cathode_filtered_flash_idx_v.at( isp ) );
       all_endpoints_boundary_type_idx_v.push_back( output.cathode_filtered_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.imgends_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_filtered_v.at(isp));
       all_endpoints.push_back( pts );
-      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v' with a -1 at the index corresponding to this endpoint.
+      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
+      // with a -1 at the index corresponding to this endpoint.
       all_endpoints_flash_idx_v.push_back( -1 );
       all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
@@ -443,8 +449,13 @@ namespace larlitecv {
       timer = std::clock();
       output.trackcluster3d_v.clear();
       output.tagged_v.clear();
-      // Use the 'makeTrackClusters3D' function; the crucial point here is that the flash information stored in the last two arguments of this function, 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v', correspond to the endpoints in the 'all_endpoints' vector (the third argument).
-     thrumu_tracker.makeTrackClusters3D( m_config.general_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints, output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v, all_endpoints_flash_idx_v, all_endpoints_boundary_type_idx_v);
+      // Use the 'makeTrackClusters3D' function; the crucial point here is that the flash
+      // information stored in the last two arguments of this function, 'all_endpoints_flash_idx_v'
+      // and 'all_endpoints_boundary_type_idx_v', correspond to the endpoints in the
+      // 'all_endpoints' vector (the third argument).
+      thrumu_tracker.makeTrackClusters3D( m_config.general_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints,
+					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v,
+					  all_endpoints_flash_idx_v, all_endpoints_boundary_type_idx_v);
       m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
       if ( m_config.verbosity>0 )
         std::cout << "thrumu tracker search " << all_endpoints.size() << " end points in " << m_time_tracker[kThruMuTracker] << " sec" << std::endl;
@@ -453,7 +464,7 @@ namespace larlitecv {
       if ( m_config.verbosity>0 )
         std::cout << "config tells us to skip thrumu track." << std::endl;
     }
-
+    
     // collect unused endpoints
     output.used_spacepoint_v.clear();
     output.unused_spacepoint_v.clear();
@@ -544,7 +555,7 @@ namespace larlitecv {
     m_time_tracker[kStopMuTracker] = ( std::clock()-timer )/(double)CLOCKS_PER_SEC;
     if ( m_config.verbosity>0 )
       std::cout << "  Number of candidate StopMu tracks: " << output.stopmu_trackcluster_v.size() << std::endl;
-
+    
     // make stopmu-tagged image
     for (size_t p=0; p<input.img_v.size(); p++) {
       larcv::Image2D stopmu_img( input.img_v.at(p).meta() );
@@ -563,7 +574,7 @@ namespace larlitecv {
         }
       }
     }
-
+    
     // copy track and pixels into separate containers.
     for ( auto const& bmtrack : output.stopmu_trackcluster_v ) {
       output.track_v.push_back( bmtrack.makeTrack() );
@@ -572,10 +583,10 @@ namespace larlitecv {
         cluster_v.push_back( track2d );
       output.pixelcluster_v.emplace_back( std::move(cluster_v) );
     }
-
+    
     if ( m_config.verbosity>0 )
       std::cout << "== End of StopMu Tracker ===============================" << std::endl;
-
+    
     return output;
   }
 
@@ -588,7 +599,7 @@ namespace larlitecv {
 
     ClusterGroupAlgo         clusteralgo(   m_config.untagged_cluster_cfg );
     ClusterGroupMatchingAlgo matchingalgo;
-    GeneralFlashMatchAlgo     selectionalgo( m_config.general_flash_match_cfg );
+    GeneralFlashMatchAlgo    selectionalgo( m_config.general_flash_match_cfg );
     Track3DRecluster         reclusteralgo;
     T3DPCMerge               pcamergealgo;
     //pcamergealgo.setVerbosity(0);
