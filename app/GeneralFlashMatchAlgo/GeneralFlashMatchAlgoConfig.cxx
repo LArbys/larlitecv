@@ -60,8 +60,10 @@ namespace larlitecv {
     cfg.totpe_sigma_cut   = pset.get<float>("TotalPESigmaCut");
     cfg.use_gaus2d        = pset.get<bool>("UseGaus2D");
     cfg.bbox_pad          = pset.get<float>("BBoxPadcm");
-    fcllite::PSet vox( "Manager", pset.data_string() );
+    //std::cout << "converting pset from larcv::PSet to fcllite::PSet" << std::endl;
+    fcllite::PSet vox( "GenFlashMatchAlgoManager", pset.data_string() );
     cfg.m_flashmatch_config    = vox.get<fcllite::PSet>("GeneralFlashMatchAlgo");
+    //std::cout << cfg.m_flashmatch_config.dump() << std::endl;
     return cfg;
   }
 }
