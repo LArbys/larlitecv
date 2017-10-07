@@ -1,5 +1,7 @@
 #include "TaggerFlashMatchAlgo.h"
 
+#include <sstream>
+
 // larlite
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
@@ -10,20 +12,22 @@
 
 namespace larlitecv {
 
-  TaggerFlashMatchAlgo::TaggerFlashMatchAlgo()
-    : m_pmtweights("geoinfo.root") {}
+  TaggerFlashMatchAlgo::TaggerFlashMatchAlgo() {
+    std::stringstream msg;
+    msg << __FILE__ << ":" << __LINE__ << " Default constructor only declared for ROOT dict. purposes. Should not be used." << std::endl;
+    throw std::runtime_error(msg.str());
+  }
 
   TaggerFlashMatchAlgo::TaggerFlashMatchAlgo( TaggerFlashMatchAlgoConfig& config )
-    : m_config(config), m_pmtweights("geoinfo.root") {
+    : m_config(config),m_genflashmatch(config.genflashmatch_cfg) {
+    // set verbosity
     setVerbosity( m_config.verbosity );
-    m_flash_matcher.Configure( m_config.m_flashmatch_config );
-
+    // opdet-opch map
     const larutil::Geometry* geo = ::larutil::Geometry::GetME();
     for ( size_t opch=0; opch<32; opch++) {
       m_opch_from_opdet.insert( std::make_pair<int,int>( geo->OpDetFromOpChannel(opch), opch ) );
     }
   }
-
 
   std::vector<larcv::ROI> TaggerFlashMatchAlgo::FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata,
 									       const std::vector<larlite::event_opflash*>& opflashes_v, std::vector<int>& flashdata_selected ) {
@@ -37,15 +41,15 @@ namespace larlitecv {
     }
 
     // get the in-beam flashes
-    std::vector<flashana::Flash_t> data_flashana = GetInTimeFlashana( opflashes_v );
+    std::vector<flashana::Flash_t> data_flashana   = m_genflashmatch.GetInTimeFlashana( opflashes_v );
+    std::vector<flashana::Flash_t> cosmicdata_flashana = m_genflashmatch.GetCosmicFlashana( opflashes_v ); 
     if ( data_flashana.size()==0 ) {
       return roi_v;
     }
 
-
     // merge objects [later if needed]
 
-    // choose contained candidates
+    // prepare result containers
     m_passes_containment.resize( inputdata.size(), 0 );
     m_passes_flashmatch.resize( inputdata.size(), 0 );
     m_passes_totpe.resize( inputdata.size(), 0 );
@@ -59,6 +63,7 @@ namespace larlitecv {
     m_totpe_peratio.reserve( inputdata.size() );
     m_cosmicflash_ratio_dchi.reserve( inputdata.size() );
 
+    // choose contained candidates    
     for ( size_t i=0; i<inputdata.size(); i++ ) {
 
       if ( m_verbosity>=2 ) {
@@ -81,20 +86,19 @@ namespace larlitecv {
           std::cout << "{uncontained}" << std::endl;
       }
 
-      // flash-match candidates
-      flashana::QCluster_t qcluster = GenerateQCluster( inputdata.at(i) );
 
       // in-time flash matching
       float totpe_data = 0;
       float totpe_hypo = 0;
-      m_passes_flashmatch[i] = ( DoesQClusterMatchInTimeFlash( data_flashana, qcluster, totpe_data, totpe_hypo )  ) ? 1 : 0;
+      float min_chi2   = -1;
+      m_passes_flashmatch[i] = ( DoesQClusterMatchInTimeFlash( data_flashana, inputdata[i], totpe_data, totpe_hypo, min_chi2 )  ) ? 1 : 0;
 
       // totpe
-      m_passes_totpe[i] = ( DoesTotalPEMatch( totpe_data, totpe_hypo ) ) ? 1 : 0;
+      m_passes_totpe[i] = ( m_genflashmatch.DoesTotalPEMatch( totpe_data, totpe_hypo ) ) ? 1 : 0;
 
       // cosmic versus in-time flash log-likelihood ratio
       float dchi2=0;
-      m_passes_cosmicflash_ratio[i] = ( DoesQClusterMatchInTimeBetterThanCosmic( data_flashana, qcluster, inputdata[i], i, dchi2 ) ) ? 1 : 0;
+      m_passes_cosmicflash_ratio[i] = ( DoesQCluster( cosmic_flashana, qcluster, inputdata[i], i, dchi2 ) ) ? 1 : 0;
 
       if ( m_verbosity>=2 ) {
         std::cout << "  ";
@@ -159,85 +163,13 @@ namespace larlitecv {
   }
 
   flashana::QCluster_t TaggerFlashMatchAlgo::GenerateQCluster( const TaggerFlashMatchData& data ) {
+    // we use the generalflashmatch algo qcluster maker, which will extend the ends if needed.
+    flashana::QCluster_t qclust;
     const larlite::track& track = data.m_track3d;
-    return GenerateQCluster(track);
+    m_genflashmatch.ExpandQClusterNearBoundaryFromLarliteTrack( qclust, track, 1000.0, 10.0 );
+    return qclust;
   }
 
-  flashana::QCluster_t TaggerFlashMatchAlgo::GenerateQCluster( const larlite::track& track ) {
-
-    flashana::QCluster_t qcluster;
-
-    for ( int i=0; i<(int)track.NumberTrajectoryPoints()-1; i++ ) {
-
-      const TVector3& pt     = track.LocationAtPoint(i);
-      const TVector3& nextpt = track.LocationAtPoint(i+1);
-      const TVector3& ptdir  = track.DirectionAtPoint(i);
-      float dist = 0.;
-      for ( int v=0; v<3; v++ ) {
-        float dx = nextpt[v]-pt[v];
-        dist += dx*dx;
-      }
-      dist = sqrt(dist);
-
-      int nsteps = dist/m_config.qcluster_stepsize;
-      if ( fabs( nsteps*m_config.qcluster_stepsize - dist )>0.01 ) {
-        nsteps+=1;
-      }
-
-      float step = dist/float(nsteps);
-
-      for (int istep=0; istep<nsteps; istep++) {
-        float pos[3] = {0};
-        for (int v=0; v<3; v++)
-          pos[v] = pt[v] + step*ptdir[v];
-        flashana::QPoint_t qpt( pos[0], pos[1], pos[2], step*m_config.MeV_per_cm );
-        qcluster.emplace_back( std::move(qpt) );
-      }
-    }
-
-    return qcluster;
-  }
-
-  std::vector< flashana::QCluster_t > TaggerFlashMatchAlgo::GenerateQClusters( const std::vector<TaggerFlashMatchData>& inputdata ) {
-    std::vector< flashana::QCluster_t> qcluster_v;
-    for ( auto const& data : inputdata ) {
-      flashana::QCluster_t qcluster = GenerateQCluster( data );
-      qcluster_v.emplace_back( std::move(qcluster) );
-    }
-    return qcluster_v;
-  }
-
-  flashana::Flash_t TaggerFlashMatchAlgo::GenerateUnfittedFlashHypothesis( const flashana::QCluster_t& qcluster ) {
-    const flashana::QLLMatch* matchalgo = (flashana::QLLMatch*)m_flash_matcher.GetAlgo( flashana::kFlashMatch );
-    flashana::Flash_t unfitted_hypothesis = matchalgo->GetEstimate( qcluster );
-    return unfitted_hypothesis;
-  }
-
-  std::vector<larlite::opflash> TaggerFlashMatchAlgo::SelectInTimeOpFlashes( const std::vector<larlite::event_opflash*>& opflashes_v ) {
-
-    std::vector<larlite::opflash> beam_flashes;
-    for ( auto const& ptr_ev_flash : opflashes_v ) {
-      for ( auto const& opflash : *ptr_ev_flash ) {
-        if ( opflash.TotalPE()<m_config.flashpe_thresh )
-          continue;
-        int tick = opflash.Time()/m_config.us_per_tick;
-        if ( tick>=m_config.beam_tick_range[0] && tick <=m_config.beam_tick_range[1] ) {
-          if ( m_verbosity>0 )
-            std::cout << "In-time flash found: " << opflash.Time() << "us from trigger. Tick=" << tick << std::endl;
-          beam_flashes.push_back( opflash ); // our own copy
-        }
-        else {
-          if ( m_verbosity>0)
-            std::cout << "Rejected flash: " << opflash.Time() << "us from trigger. Tick=" << tick << std::endl;
-        }
-      }
-    }
-
-    if ( m_verbosity>0 )
-      std::cout << "TaggerFlashMatchAlgo::SelectInTimeFlashes. Found " << beam_flashes.size() << " flashes." << std::endl;
-
-    return beam_flashes;
-  }
 
   void TaggerFlashMatchAlgo::GetFlashCenterAndRange( const larlite::opflash& flash, float& zmean, std::vector<float>& zrange ) {
 
@@ -279,71 +211,6 @@ namespace larlitecv {
     if ( zrange[0]<0 ) zrange[0] = 0;
     if ( zrange[1]>=3455 ) zrange[1] = 3455;
 
-  }
-
-  flashana::Flash_t TaggerFlashMatchAlgo::MakeDataFlash( const larlite::opflash& flash ) {
-
-    // get geometry info
-    const larutil::Geometry* geo = ::larutil::Geometry::GetME();
-
-    // provide mean and basic width
-    float wire_mean;
-    std::vector<float> wire_range;
-    GetFlashCenterAndRange( flash, wire_mean, wire_range );
-    if ( m_verbosity>0 )
-      std::cout << "Flash: pe=" << flash.TotalPE() << " wire_mean=" << wire_mean << " wire_range=[" << (int)wire_range[0] << "," << (int)wire_range[1] << "]" << std::endl;
-
-    // also load flash info into flash manager
-    flashana::Flash_t f;
-    f.x = f.x_err = 0;
-    f.y = flash.YCenter();
-    f.z = flash.ZCenter();
-    f.y_err = flash.YWidth();
-    f.z_err = flash.ZWidth();
-    f.pe_v.resize(geo->NOpDets());
-    f.pe_err_v.resize(geo->NOpDets());
-    for (unsigned int i = 0; i < f.pe_v.size(); i++) {
-      unsigned int opdet = geo->OpDetFromOpChannel(i);
-      f.pe_v[opdet] = flash.PE(i) / m_config.gain_correction[i];
-      f.pe_err_v[opdet] = sqrt(flash.PE(i) / m_config.gain_correction[i]);
-    }
-    f.time = flash.Time();
-    f.idx = 0;
-
-    return f;
-  }
-
-  larlite::opflash TaggerFlashMatchAlgo::MakeOpFlashFromFlash(const flashana::Flash_t& inFlash) {
-
-    const larutil::Geometry* geo = ::larutil::Geometry::GetME();
-
-    std::vector<double> PEperOpDet( inFlash.pe_v.size(), 0.0);
-    for (unsigned int femch = 0; femch < inFlash.pe_v.size(); femch++) {
-      unsigned int opdet = geo->OpDetFromOpChannel(femch);
-      PEperOpDet[femch] = inFlash.pe_v[opdet];
-    }
-
-    larlite::opflash flash( inFlash.time, 0, 0, 0, PEperOpDet, false, false, 1.0, inFlash.y, inFlash.y_err, inFlash.z, inFlash.z_err );
-
-    return flash;
-  }
-
-  std::vector<flashana::Flash_t> TaggerFlashMatchAlgo::MakeDataFlashes( const std::vector<larlite::opflash>& opflash_v ) {
-    std::vector<flashana::Flash_t> flashes_v;
-    for ( auto const& opflash : opflash_v ) {
-      flashana::Flash_t flash = MakeDataFlash( opflash );
-      flashes_v.emplace_back( std::move(flash) );
-    }
-    return flashes_v;
-  }
-
-  std::vector<flashana::Flash_t> TaggerFlashMatchAlgo::GetInTimeFlashana( const std::vector<larlite::event_opflash*>& opflashes_v ) {
-
-    std::vector<larlite::opflash> intime_opflashes_v = SelectInTimeOpFlashes( opflashes_v );
-
-    std::vector<flashana::Flash_t> intime_flashana_v = MakeDataFlashes( intime_opflashes_v );
-
-    return intime_flashana_v;
   }
 
   std::vector< std::vector<float> > TaggerFlashMatchAlgo::GetAABoundingBox( const larlite::track& track )  {
@@ -533,64 +400,39 @@ namespace larlitecv {
     return smallest_chi2;
   }
 
-  bool TaggerFlashMatchAlgo::DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster, float& totpe_data, float& totpe_hypo ) {
-
-    float chi2 = InTimeFlashComparison( intime_flashes_v, qcluster, totpe_data, totpe_hypo );
-
-    // our cut needs to be position dependent, so we need a position. we get the q-weighted mean and the intervals.
-    float totw = 0.;
-    float mean[3] = {0};
-    float min_x = 1.0e6;
-    float max_x = -1.0e6;
-    for ( auto const& qpt : qcluster ) {
-      mean[0] += qpt.x*qpt.q;
-      mean[1] += qpt.y*qpt.q;
-      mean[2] += qpt.z*qpt.q;
-      totw += qpt.q;
-      if ( qpt.x < min_x ) min_x = qpt.x;
-      if ( qpt.x > max_x ) max_x = qpt.x;
-    }
-    if ( totw==0 ) {
-      return false;
-    }
-    else {
-      for (int i=0; i<3; i++) mean[i] /= totw;
-    }
-
-    //  still a dumb cut
-    if ( mean[0] < 100.0 && chi2< m_config.flashmatch_chi2_cut*1.5 )
-      return true;
-    else if ( mean[0]>100.0 && chi2<m_config.flashmatch_chi2_cut )
-      return true;
-    else
-      return false;
-
+  bool TaggerFlashMatchAlgo::DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v,
+							   const larlitecv::TaggerFlashMatchData& taggertrack,
+							   float& totpe_data, float& totpe_hypo, float& min_chi2 ) {
+    flashana::QCluster_t qcluster;
+    // generate qcluster using genflash. Do not extend as this is the in-time hypothesis
+    m_genflashmatch.ExpandQClusterNearBoundaryFromLarliteTrack( qcluster, taggertrack.m_track3d, 1000.0, 10.0 );
+    
+    bool matches = m_genflashmatch.DoesQClusterMatchInTimeFlash( intime_flashes_v, qcluster, totpe_data, totpe_hypo, min_chi2 );
+    return matches;
   }
-
-  bool TaggerFlashMatchAlgo::DoesTotalPEMatch( float totpe_data, float totpe_hypo )  {
-    float frac_diff = fabs(totpe_data-totpe_hypo)/totpe_hypo;
-    m_totpe_peratio.push_back(frac_diff);
-    if ( frac_diff > m_config.totpe_sigma_cut )
-      return false;
-    return true;
-  }
-
-  bool TaggerFlashMatchAlgo::DoesQClusterMatchInTimeBetterThanCosmic( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster,
-								      const larlitecv::TaggerFlashMatchData& taggertrack, const int trackidx, float& dchi2 ) {
+  
+  bool TaggerFlashMatchAlgo::DoesQClusterMatchInTimeBetterThanCosmic( const std::vector<flashana::Flash_t>& cosmic_flashes_v, const flashana::QCluster_t& qcluster,
+								      const larlitecv::TaggerFlashMatchData& taggertrack, const float intime_min_chi2, float& dchi2 ) {
     if ( !taggertrack.hasStartFlash() && !taggertrack.hasEndFlash() ) {
       // No flash associated to this track.
       return true;
     }
 
-    // check that the matching flash is not the intime flash
+    flashana::QCluster_t qcluster;
+    // generate qcluster using genflash. Do not extend as this is the in-time hypothesis
+    m_genflashmatch.ExpandQClusterNearBoundaryFromLarliteTrack( qcluster, taggertrack.m_track3d, 1000.0, 10.0 );
 
-    float intime_min_chi2 = m_min_chi2[trackidx]; // we cheat and use this stored value instead of recalculating
+    // check that the matching flash is not the intime flash
 
     float totpe_cosmicflash = 0.;
     float totpe_hypoflash = 0;
-    flashana::Flash_t flash_hypo = GenerateUnfittedFlashHypothesis( qcluster );
-    larlite::opflash opflash_hypo = MakeOpFlashFromFlash( flash_hypo );
+    dchi = 0;
+    int bestflash_idx = 0;
 
+    m_genflashmatch.GetFlashMinChi2( cosmic_flashes_v, qcluster, 1, totpe_cosmicflash, totpe_hypoflash, dchi2, bestflash_idx );
+
+    dchi -= intime_min_chi2;
+    
     float cosmicflash_start_chi2 = 1.0e6;
     if ( taggertrack.hasStartFlash() ) {
       std::vector< larlite::opflash > cosmicflash_start_v;
@@ -625,6 +467,35 @@ namespace larlitecv {
     else {
       return true;
     }
+
+    // our cut needs to be position dependent, so we need a position. we get the q-weighted mean and the intervals.                                                                                   
+    float totw = 0.;
+    float mean[3] = {0};
+    float min_x = 1.0e6;
+    float max_x = -1.0e6;
+    for ( auto const& qpt : qcluster ) {
+      mean[0] += qpt.x*qpt.q;
+      mean[1] += qpt.y*qpt.q;
+      mean[2] += qpt.z*qpt.q;
+      totw += qpt.q;
+      if ( qpt.x < min_x ) min_x = qpt.x;
+      if ( qpt.x > max_x ) max_x = qpt.x;
+    }
+    if ( totw==0 ) {
+      return false;
+    }
+    else {
+      for (int i=0; i<3; i++) mean[i] /= totw;
+    }
+
+    //  still a dumb cut                                                                                                                                                                               
+    if ( mean[0] < 100.0 && min_chi2< m_config.flashmatch_chi2_cut*1.5 )
+      return true;
+    else if ( mean[0]>100.0 && min_chi2<m_config.flashmatch_chi2_cut )
+      return true;
+    else
+      return false;
+    
 
     return true; // never gets here
   }
