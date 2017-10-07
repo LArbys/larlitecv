@@ -61,6 +61,7 @@ namespace larlitecv {
     std::vector< larcv::Image2D >     realspacehit_image_v;
     std::vector< larcv::Image2D >     tagged_v;
 
+    // raw spacepoints from side and flash end point taggers
     std::vector< BoundarySpacePoint > side_spacepoint_v;
     std::vector< BoundarySpacePoint > anode_spacepoint_v;
     std::vector< BoundarySpacePoint > cathode_spacepoint_v;

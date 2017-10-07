@@ -1,5 +1,7 @@
 #include "Pixel2SpacePoint.h"
 
+#include <sstream>
+
 // larlite
 #include "LArUtil/LArProperties.h"
 
@@ -23,8 +25,19 @@ namespace larlitecv {
     int crosses = 0;
     double triarea;
     larcv::UBWireTool::wireIntersection( wire, poszy, triarea, crosses );
-    if ( crosses==0 )
-      throw std::runtime_error( "Pixel2SpacePoint. Pixel combination leads to non-intersecting wires.");
+    if ( crosses==0 ) {
+      std::stringstream msg;
+      msg << __FILE__ << ":" << __LINE__ << ": Pixel combination leads to non-intersecting wires." << "\n";
+      msg << "  Row=" << pixels.front().Y() << " Image Cols=(";
+      for ( auto const& endpt : endpt_v ) {
+	msg << endpt.col << " ";
+      }
+      msg << ")\n";
+      msg << "  intersection (z,y): (" << poszy[0] << "," << poszy[1] << ") triarea=" << triarea << " crosses=" << crosses;
+      msg << std::endl;
+      
+      throw std::runtime_error( msg.str() );
+    }
     float x = ( meta.pos_y( pixels.front().Y() ) - 3200.0 )*(larutil::LArProperties::GetME()->DriftVelocity()*0.5);
     float y = poszy[1];
     float z = poszy[0];

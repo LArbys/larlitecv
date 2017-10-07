@@ -204,9 +204,40 @@ namespace larlitecv {
     if ( ev_realspacehits_v ) {
       ev_realspacehits_v->Move( m_thrumu_data.realspacehit_image_v );
     }
+    
+    // load the saved space point
 
-    // used end points
-    larcv::EventPixel2D* realspace_endpts[larlitecv::kNumEndTypes];
+    // prefiltered space points
+    larcv::EventPixel2D* prefilter_endpts = NULL;
+    try {
+      prefilter_endpts = (larcv::EventPixel2D*)m_dataco_input.get_larcv_data( larcv::kProductPixel2D, "prefilterpts" );
+    }
+    catch (...) {
+      prefilter_endpts = NULL;
+    }
+    if ( prefilter_endpts ) {
+      size_t pixplanes = prefilter_endpts->Pixel2DArray().size();
+      size_t npts = prefilter_endpts->Pixel2DArray(0).size();
+      for (size_t ipt=0; ipt<npts; ipt++) {
+	std::vector<larcv::Pixel2D> pixels;
+	for (size_t p=0; p<pixplanes; p++) {
+	  pixels.push_back(prefilter_endpts->Pixel2DArray(p).at(ipt)); 
+	}
+	larlitecv::BoundaryEnd_t endpt_t = (larlitecv::BoundaryEnd_t) int(pixels.front().Intensity());
+	larlitecv::BoundarySpacePoint sp = larlitecv::Pixel2SpacePoint( pixels, endpt_t, m_input_data.img_v.front().meta() );
+	if ( endpt_t<=larlitecv::kDownstream )
+	  m_thrumu_data.side_spacepoint_v.push_back( sp );
+	else if ( endpt_t==larlitecv::kAnode )
+	  m_thrumu_data.anode_spacepoint_v.push_back( sp );
+	else if ( endpt_t==larlitecv::kCathode )
+	  m_thrumu_data.cathode_spacepoint_v.push_back( sp );
+	else if ( endpt_t==larlitecv::kImageEnd )
+	  m_thrumu_data.imgends_spacepoint_v.push_back( sp );
+      }//end of pt loop
+    }//if prefilter container exists
+
+    
+    larcv::EventPixel2D* postfilter_endpts[larlitecv::kNumEndTypes];
     std::string endpt_prod_names[7] = { "topspacepts",
 					"botspacepts",
 					"upspacepts",
@@ -216,41 +247,47 @@ namespace larlitecv {
 					"imgendpts" };
     
     for (int endpt_t=0; endpt_t<(int)larlitecv::kNumEndTypes; endpt_t++) {
-      realspace_endpts[endpt_t] = NULL;
+      postfilter_endpts[endpt_t] = NULL;
       try {
-	realspace_endpts[endpt_t] = (larcv::EventPixel2D*)m_dataco_input.get_larcv_data( larcv::kProductPixel2D, endpt_prod_names[endpt_t] );
+	postfilter_endpts[endpt_t] = (larcv::EventPixel2D*)m_dataco_input.get_larcv_data( larcv::kProductPixel2D, endpt_prod_names[endpt_t] );
       }
       catch (...) {
-	realspace_endpts[endpt_t] = NULL;
+	postfilter_endpts[endpt_t] = NULL;
       }
-      if ( realspace_endpts[endpt_t]==NULL )
+      if ( postfilter_endpts[endpt_t]==NULL )
 	continue;
-      int nendpts = realspace_endpts[endpt_t]->Pixel2DArray(0).size();
+      int nendpts = postfilter_endpts[endpt_t]->Pixel2DArray(0).size();
       for (int ipt=0; ipt<nendpts; ipt++) {
 	std::vector< larcv::Pixel2D > pixels;
-	for (int p=0; p<(int)realspace_endpts[endpt_t]->Pixel2DArray().size(); p++) {
-	  pixels.push_back( realspace_endpts[endpt_t]->Pixel2DArray(p).at(ipt) );
+	for (int p=0; p<(int)postfilter_endpts[endpt_t]->Pixel2DArray().size(); p++) {
+	  pixels.push_back( postfilter_endpts[endpt_t]->Pixel2DArray(p).at(ipt) );
 	}
 	if ( m_meta.rows()==0 ) {
 	  // set this if the information wasn't available before
 	  try {
-	    m_meta = realspace_endpts[endpt_t]->Meta(0);
+	    m_meta = postfilter_endpts[endpt_t]->Meta(0);
 	  }
 	  catch (...){
 	  }
 	}
+	
+	std::cout << endpt_prod_names[endpt_t] << " #" << ipt << ": "
+		  << " (" << pixels[0].X() << "," << pixels[0].Y() << ")"
+		  << " (" << pixels[1].X() << "," << pixels[1].Y() << ")"
+		  << " (" << pixels[2].X() << "," << pixels[2].Y() << ")"
+		  << std::endl;
+	  
 	larlitecv::BoundarySpacePoint sp = larlitecv::Pixel2SpacePoint( pixels, (larlitecv::BoundaryEnd_t)endpt_t, m_meta );
 	if ( (larlitecv::BoundaryEnd_t)endpt_t<=larlitecv::kDownstream )
-	  m_thrumu_data.side_spacepoint_v.push_back( sp );
+	  m_thrumu_data.side_filtered_v.push_back( sp );
 	else if ( endpt_t==larlitecv::kAnode )
-	  m_thrumu_data.anode_spacepoint_v.push_back( sp );
+	  m_thrumu_data.anode_filtered_v.push_back( sp );
 	else if ( endpt_t==larlitecv::kCathode )
-	  m_thrumu_data.cathode_spacepoint_v.push_back( sp );
+	  m_thrumu_data.cathode_filtered_v.push_back( sp );
 	else if ( endpt_t==larlitecv::kImageEnd )
-	  m_thrumu_data.imgends_spacepoint_v.push_back( sp );
+	  m_thrumu_data.imgends_filtered_v.push_back( sp );
 	else
 	  continue;
-	m_thrumu_data.used_spacepoint_v.push_back( sp );
       }
     }
 
