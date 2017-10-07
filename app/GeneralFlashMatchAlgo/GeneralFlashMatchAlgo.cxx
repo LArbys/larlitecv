@@ -83,6 +83,359 @@ namespace larlitecv {
 
   }
 
+
+  // Define a function that will flashmatch the contained ROIs in the TaggerCROI selection.
+  // Inputs: 'flashdata_v' - This is of type 'larlitecv::TaggerFlashMatchData' and contains the cluster type (ThruMu, StopMu, Contained/Untagged), the 'Pixel2DCluster', and the larlite::track version of each object in the TPC.
+  //         'opflashes_v' - This is a vector of type 'event_opflash', which itself is a vector of type 'opflash'.
+  //         'flashdata_selected_v' - This is a vector of type 'int'.
+
+  std::vector<larcv::ROI> GeneralFlashMatchAlgo::FindFlashMatchedContainedROIs( const std::vector< larlitecv::TaggerFlashMatchData>& flashdata_v, const std::vector< larlite::event_opflash* >& opflashes_v, std::vector< int >& flashdata_selected_v ) {
+
+    // the output                                                                                                                                                                                      
+    std::vector<larcv::ROI> roi_v;
+
+    // clear state                                                                                                                                                                                     
+    if (flashdata_selected_v.size()!=flashdata_v.size()) {
+      flashdata_selected_v.resize( flashdata_v.size(), 0 );
+    }
+
+    // get the in-beam flashes                                                                                                                                                                         
+    std::vector<flashana::Flash_t> data_flashana = GetInTimeFlashana( opflashes_v );
+    if ( data_flashana.size()==0 ) {
+      return roi_v;
+    }
+   
+    // choose contained candidates
+    m_passes_containment.resize( flashdata_v.size(), 0 );
+    m_passes_flashmatch.resize( flashdata_v.size(), 0 );
+    m_passes_totpe.resize( flashdata_v.size(), 0 );
+    m_passes_cosmicflash_ratio.resize( flashdata_v.size(), 0 );
+
+    m_min_chi2.clear();
+    m_opflash_hypos.clear();
+    m_totpe_peratio.clear();
+    m_cosmicflash_ratio_dchi.clear();
+    m_min_chi2.reserve( flashdata_v.size() );
+    m_totpe_peratio.reserve( flashdata_v.size() );
+    m_cosmicflash_ratio_dchi.reserve( flashdata_v.size() );
+
+    for ( size_t i=0; i<flashdata_v.size(); i++ ) {
+
+      if ( m_verbosity>=2 ) {
+	std::cout << " Candidate #" << i << ", ";
+	if ( flashdata_v.at(i).m_type==TaggerFlashMatchData::kThruMu )
+	  std::cout << "ThruMu";
+	else if ( flashdata_v.at(i).m_type==TaggerFlashMatchData::kStopMu )
+	  std::cout << "StopMu";
+	else if ( flashdata_v.at(i).m_type==TaggerFlashMatchData::kUntagged )
+	  std::cout << "Untagged";
+	std::cout << ": ";
+      }
+
+      m_passes_containment[i] = ( IsClusterContained( flashdata_v.at(i) ) ) ? 1 : 0;
+      
+      if ( m_verbosity>=2 ) {
+	if ( m_passes_containment[i] )
+	  std::cout << " {contained}" << std::endl;
+	else
+	  std::cout << "{uncontained}" << std::endl;
+      }
+
+      // flash-match candidates 
+      // Declare a qcluster here that will be filled in the 'ExpandQClusterStartingWithLarliteTrack' function.
+      flashana::QCluster_t qcluster;
+
+      // We do not want to extend this qcluster outside the TPC, both 'extend_start' and 'extend_end' are set to false.
+      // Ask the 'flashdata_v' object for 'm_track3d', which is the 3D larlite track of the 'TaggerFlashMatchData' object.
+      ExpandQClusterStartingWithLarliteTrack(qcluster, flashdata_v.at( i ).m_track3d, 0.0, false, false);
+
+      // in-time flash matching                                                                                                                                                                      
+      float totpe_data = 0;
+      float totpe_hypo = 0;
+      m_passes_flashmatch[i] = ( DoesQClusterMatchInTimeFlash( data_flashana, qcluster, totpe_data, totpe_hypo )  ) ? 1 : 0;
+
+      // totpe                                                                                                                                                                                        
+      m_passes_totpe[i] = ( DoesTotalPEMatch( totpe_data, totpe_hypo ) ) ? 1 : 0;
+
+      // cosmic versus in-time flash log-likelihood ratio                                                                                                                                             
+      float dchi2=0;
+      m_passes_cosmicflash_ratio[i] = ( DoesQClusterMatchInTimeBetterThanCosmic( data_flashana, qcluster, flashdata_v.at( i ), i, dchi2 ) ) ? 1 : 0;
+
+      if ( m_verbosity>=2 ) {
+	std::cout << "  ";
+
+        if ( m_passes_containment[i] )
+	  std::cout << " {contained}";
+        else
+	  std::cout << "{uncontained}";
+
+        if ( m_passes_flashmatch[i]==1 ) {
+	  std::cout << " {in-time flash-matched}";
+        }
+        else {
+	  std::cout << " {not-matched}";
+        }
+
+        if ( m_passes_totpe[i]==1 )
+	  std::cout << " {totpe matched}";
+        else
+	  std::cout << " {totpe fails}";
+
+        if ( !m_passes_cosmicflash_ratio[i] )
+	  std::cout << " {fails cosmic-flash match: dchi2=" << dchi2 << "}";
+        else if ( dchi2!=0 )
+	  std::cout << " {passes cosmic-flash match: dchi2=" << dchi2 << "}";
+        else
+	  std::cout << " { no flash end }";
+
+	if ( m_passes_flashmatch[i] && m_passes_containment[i] && m_passes_cosmicflash_ratio[i] && m_passes_totpe[i] )
+	  std::cout << " **PASSES**";
+	std::cout << std::endl;
+      }
+    }//end of input data loop                                                                                                                                                                               
+
+    for ( size_t i=0; i<flashdata_v.size(); i++) {
+      if ( m_passes_containment[i] && m_passes_flashmatch[i] && m_passes_cosmicflash_ratio[i] && m_passes_totpe[i] ) {
+        // Make ROI                                                                                                                                                                                         
+        flashdata_selected_v[i] = 1;
+      }
+    }
+
+    return roi_v;
+  }
+
+
+
+  std::vector<larlite::opflash> GeneralFlashMatchAlgo::SelectInTimeOpFlashes( const std::vector<larlite::event_opflash*>& opflashes_v ) {
+
+    std::vector<larlite::opflash> beam_flashes;
+    for ( auto const& ptr_ev_flash : opflashes_v ) {
+      for ( auto const& opflash : *ptr_ev_flash ) {
+        if ( opflash.TotalPE()<m_config.flashpe_thresh )
+          continue;
+        int tick = opflash.Time()/m_config.us_per_tick;
+        if ( tick>=m_config.beam_tick_range[0] && tick <=m_config.beam_tick_range[1] ) {
+          if ( m_verbosity>0 )
+	    std::cout << "In-time flash found: " << opflash.Time() << "us from trigger. Tick=" << tick << std::endl;
+          beam_flashes.push_back( opflash ); // our own copy                                                                                                                                           
+	}
+        else {
+          if ( m_verbosity>0)
+	    std::cout << "Rejected flash: " << opflash.Time() << "us from trigger. Tick=" << tick << std::endl;
+        }
+      }
+    }
+
+    if ( m_verbosity>0 )
+      std::cout << "TaggerFlashMatchAlgo::SelectInTimeFlashes. Found " << beam_flashes.size() << " flashes." << std::endl;
+
+    return beam_flashes;
+  }
+
+
+
+  bool GeneralFlashMatchAlgo::DoesTotalPEMatch( float totpe_data, float totpe_hypo )  {
+    float frac_diff = fabs(totpe_data-totpe_hypo)/totpe_hypo;
+    m_totpe_peratio.push_back(frac_diff);
+    if ( frac_diff > m_config.totpe_sigma_cut )
+      return false;
+    return true;
+  }
+
+  bool GeneralFlashMatchAlgo::IsClusterContained( const TaggerFlashMatchData& data ) {
+    // simple selection                                                                                                                                                                               
+    // we make a cut on fiducial volume as a function of x                                                                                                                                             
+    
+    // first we need the bounding box of the points                                                                                                                                                    
+    float bb[3][2] = {0}; // extremes in each dimension                                                                                                                                                
+    float extrema[3][2][3] = {-1.0e6 }; // each extrema point stored here. (dim,min/max,xyz)                                                                                                           
+    for ( int v=0; v<3; v++) {
+      bb[v][0] = 1.0e6;
+      bb[v][1] = -1.0e6;
+    }
+
+    const larlite::track& track = data.m_track3d;
+    for ( size_t i=0; i<track.NumberTrajectoryPoints(); i++ ) {
+      const TVector3& xyz = track.LocationAtPoint(i);
+      for (int v=0; v<3; v++) {
+        // minvalue                                                                                                                                                                                    
+	if ( bb[v][0]>xyz[v] ) {
+          bb[v][0] = xyz[v];
+          for (int j=0; j<3; j++)
+            extrema[v][0][j] = xyz[j];
+        }
+        // maxvalue                                                                                                                                                                                      
+	if ( bb[v][1]<xyz[v] ) {
+          bb[v][1] = xyz[v];
+          for (int j=0; j<3; j++)
+            extrema[v][1][j] = xyz[j];
+        }
+      }
+    }
+
+    // we adjust for space charge effects                                                                                                                                                              
+    //std::vector<double> delta_ymin = m_sce.GetPosOffsets( extrema[1][0][0], -118.0, extrema[1][0][2] );                                                                                               
+    //std::vector<double> delta_ymax = m_sce.GetPosOffsets( extrema[1][1][0],  118.0, extrema[1][1][2] );                                                                                               
+    //std::vector<double> delta_zmin = m_sce.GetPosOffsets( extrema[2][0][0], extrema[2][0][1], 0.0    );                                                                                              
+    //std::vector<double> delta_zmax = m_sce.GetPosOffsets( extrema[2][1][0], extrema[2][1][1], 1037.0 );                                                                                               
+    std::vector<double> delta_ymin(3,0);
+    std::vector<double> delta_ymax(3,0);
+    std::vector<double> delta_zmin(3,0);
+    std::vector<double> delta_zmax(3,0);
+
+
+    if ( m_verbosity>=2 ) {
+      std::cout << "bounds: x=[" << bb[0][0] << "," << bb[0][1] << "] "
+                << " y=[" << bb[1][0] << "," << bb[1][1] << "] "
+                << " z=[" << bb[2][0] << "," << bb[2][1] << "] "
+                << " dy=[" << delta_ymin[1] << "," << delta_ymax[1] << "] "
+                << " dz=[" << delta_zmin[2] << "," << delta_zmax[2] << "] ";
+    }
+
+    // x extrema, not a function of the other dimensions                                                                                                                                               
+    if ( bb[0][0]<m_config.FVCutX[0] || bb[0][1]>m_config.FVCutX[1] )
+      return false;
+    if ( (bb[1][0]-delta_ymin[1]) < m_config.FVCutY[0] || (bb[1][1]-delta_ymax[1]) > m_config.FVCutY[1] )
+      return false;
+    if ( (bb[2][0]-delta_zmin[2]) < m_config.FVCutZ[0] || (bb[2][1]-delta_zmax[2]) > m_config.FVCutZ[1] )
+      return false;
+
+    // we made it!                                                                                                                                                                                     
+    return true;
+  }
+
+
+
+
+  // Define a function that will return the in-time flashes from the event.
+  std::vector<flashana::Flash_t> GeneralFlashMatchAlgo::GetInTimeFlashana( const std::vector<larlite::event_opflash*>& opflashes_v ) {
+
+    std::vector<larlite::opflash> intime_opflashes_v = SelectInTimeOpFlashes( opflashes_v );
+
+    std::vector<flashana::Flash_t> intime_flashana_v = MakeDataFlashes( intime_opflashes_v );
+
+    return intime_flashana_v;
+  }
+
+
+
+  // Defining a function for if the qcluster matches the in-time flash.
+  bool GeneralFlashMatchAlgo::DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster, float& totpe_data, float& totpe_hypo ) {
+
+    // Perform a loop to find the minimum chi2 match between the qcluster and any of the intime flashes.                                                                                              
+    // Minimize this variable in the loop.                                                                                                                                                             
+    // Declare the final values that these variables will hold.                                                                                                                                        
+    float chi2                 = -1.0;
+    totpe_data                 = 0.0;
+    totpe_hypo                 = 0.0;
+
+    // Declare the initial values that these variables will hold while it is being minimized.                                                                                                           
+    float min_chi2_candidate   = 0.0;
+    float totpe_data_candidate = 0.0;
+    float totpe_hypo_candidate = 0.0;
+
+    for ( auto& intime_flash: intime_flashes_v ) {
+
+      // Convert the intime flash to an opflash object.
+      // It will be converted back into a 'flashana::Flash_t' object in the other function, but this is just for compatability.
+      larlite::opflash intime_opflash = MakeOpFlashFromFlash( intime_flash );
+
+      min_chi2_candidate = generate_chi2_in_track_flash_comparison( qcluster, intime_opflash, totpe_data_candidate, totpe_hypo_candidate, 0 );
+
+      if ( min_chi2_candidate < chi2 || chi2 < 0.0) {
+        chi2       = min_chi2_candidate;
+        totpe_data = totpe_data_candidate;
+        totpe_hypo = totpe_hypo_candidate;
+      }
+
+    }
+
+
+    // our cut needs to be position dependent, so we need a position. we get the q-weighted mean and the intervals.                                                                                   
+    float totw = 0.;
+    float mean[3] = {0};
+    float min_x = 1.0e6;
+    float max_x = -1.0e6;
+    for ( auto const& qpt : qcluster ) {
+      mean[0] += qpt.x*qpt.q;
+      mean[1] += qpt.y*qpt.q;
+      mean[2] += qpt.z*qpt.q;
+      totw += qpt.q;
+      if ( qpt.x < min_x ) min_x = qpt.x;
+      if ( qpt.x > max_x ) max_x = qpt.x;
+    }
+    if ( totw==0 ) {
+      return false;
+    }
+    else {
+      for (int i=0; i<3; i++) mean[i] /= totw;
+    }
+
+    //  still a dumb cut                                                                                                                                                                               
+    if ( mean[0] < 100.0 && chi2< m_config.flashmatch_chi2_cut*1.5 )
+      return true;
+    else if ( mean[0]>100.0 && chi2<m_config.flashmatch_chi2_cut )
+      return true;
+    else
+      return false;
+
+  }
+
+  
+  // Add a function that checks if a qcluster matches an in-time flash better than a cosmic.
+
+  bool GeneralFlashMatchAlgo::DoesQClusterMatchInTimeBetterThanCosmic( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster,
+                                                                      const larlitecv::TaggerFlashMatchData& taggertrack, const int trackidx, float& dchi2 ) {
+    if ( !taggertrack.hasStartFlash() && !taggertrack.hasEndFlash() ) {
+      // No flash associated to this track.                                                                                                                                                            
+      return true;
+    }
+
+    // check that the matching flash is not the intime flash                                                                                                                                           
+    float intime_min_chi2 = m_min_chi2[trackidx]; // we cheat and use this stored value instead of recalculating                                                                                      
+
+    float totpe_cosmicflash = 0.;
+    float totpe_hypoflash = 0;
+
+    float cosmicflash_start_chi2 = 1.0e6;
+    if ( taggertrack.hasStartFlash() ) {
+      std::vector< larlite::opflash > cosmicflash_start_v;
+      float start_tick = taggertrack.m_pstart_flash->Time()/m_config.us_per_tick;
+      float start_ly = 0;
+      if ( start_tick<m_config.beam_tick_range[0] || start_tick>m_config.beam_tick_range[1] )
+        start_ly = 1; // Use cosmic disc.  This is used in the context now as a constant multiplied by the same light yield.
+      cosmicflash_start_v.push_back( *(taggertrack.m_pstart_flash ) );
+      cosmicflash_start_chi2 = generate_chi2_in_track_flash_comparison( qcluster, cosmicflash_start_v.at(0), totpe_cosmicflash, totpe_hypoflash, start_ly ); 
+    }
+
+    float cosmicflash_end_chi2 = 1.0e6;
+    if ( taggertrack.hasEndFlash() ) {
+      std::vector< larlite::opflash > cosmicflash_end_v;
+      float end_ly = 0;
+      float end_tick = taggertrack.m_pend_flash->Time()/m_config.us_per_tick;
+      if ( end_tick<m_config.beam_tick_range[0] || end_tick>m_config.beam_tick_range[1] )
+        end_ly = 1; // use cosmic disc.  This is used in the context now as a constant multiplied by the same light yield. 
+      cosmicflash_end_v.push_back( *(taggertrack.m_pend_flash ) );
+      cosmicflash_end_chi2 = generate_chi2_in_track_flash_comparison( qcluster, cosmicflash_end_v.at(0), totpe_cosmicflash, totpe_hypoflash, end_ly );
+    }
+
+    float cosmicflash_chi2 = ( cosmicflash_start_chi2<cosmicflash_end_chi2 ) ? cosmicflash_start_chi2 : cosmicflash_end_chi2;
+
+    dchi2 = intime_min_chi2 - cosmicflash_chi2;
+    m_cosmicflash_ratio_dchi.push_back( dchi2 );
+
+    if ( cosmicflash_chi2 < intime_min_chi2 ) {
+      // matches cosmic flash better                                                                                                                                                                
+      return false;
+    }
+    else {
+      return true;
+    }
+
+    return true; // never gets here                                                                                                                                                                   
+  }
+
+
   // Declare a function that will store all of the flashes for an event in a running list rather than separating them according to their flash producer.
   // This list assumes that there are two groups of flashes, one produced using 'simpleFlashBeam' and the second produced using 'simpleFlashCosmic', in that order.
   // Input list: 'opflashes_v', which contains the sets of opflash products in different vectors within the entire vector, with each corresponding to a different flash producer.
@@ -458,6 +811,17 @@ me(), flash.Frame(), PEperOpDet );
 
     return f;
   }
+
+
+  // Write a function from the 'TaggerFlashMatchAlgo' that returns an entire vector of data flashes.
+  std::vector<flashana::Flash_t> GeneralFlashMatchAlgo::MakeDataFlashes( std::vector<larlite::opflash> opflash_v ) {
+    std::vector<flashana::Flash_t> flashes_v;
+    for ( auto const& opflash : opflash_v ) {
+      flashana::Flash_t flash = MakeDataFlash( opflash );
+      flashes_v.emplace_back( std::move(flash) );
+    }
+    return flashes_v;
+  }
   
   // A function that will generate a flash hypothesis for a larlite track.  This will follow the logic at the beginning of the 'GeneralFlashMatchAlgo::InTimeFlashComparison' function.
   // Inputs: input_track: This is the input larlite track needed to generate the flash hypothesis.  It will be converted to a qcluster, which will be converted a flash_t object, which will be
@@ -501,7 +865,7 @@ me(), flash.Frame(), PEperOpDet );
 //         qcluster: The qcluster that corresponds to the opflash hypothesis.
 //         data_opflash: This is the 'data_flash' that you are matching to the 'flash_hypothesis' opflash object for the track.
 //         flash_prod_idx: This is a binary value for the flash producer which determines if we correct the waveform. '0' for the 'simpleFlashBeam' (no correction) or '1' for 'simpleFlashCosmic' (with correction).
-  float GeneralFlashMatchAlgo::generate_chi2_in_track_flash_comparison(const flashana::QCluster_t qcluster, const larlite::opflash data_opflash, int flash_prod_idx) {
+  float GeneralFlashMatchAlgo::generate_chi2_in_track_flash_comparison(const flashana::QCluster_t qcluster, const larlite::opflash data_opflash, float& totpe_data_flash, float& totpe_hypo_flash, int flash_prod_idx) {
     
     // Convert 'data_opflash' into type 'Flash_t' (a data flash).
     flashana::Flash_t data_flasht = MakeDataFlash( data_opflash );
@@ -517,9 +881,9 @@ me(), flash.Frame(), PEperOpDet );
     const larutil::Geometry* geo = ::larutil::Geometry::GetME();
 
     // Declare the variables for finding the chi2 value.
-    float chi2 = 0.;
-    float tot_pe_hypo = 0.;
-    float tot_pe_data = 0.;
+    float chi2       = 0.;
+    totpe_data_flash = 0.;
+    totpe_hypo_flash = 0.;
     std::vector< float > expectation(32,0);
 
     // Declare a vector for the number of valid PMTs.
@@ -528,7 +892,6 @@ me(), flash.Frame(), PEperOpDet );
     // This begins the part of the code that finds the chi2 value.
     for (size_t i=0; i<data_flasht.pe_v.size(); i++) {
       float observed = data_flasht.pe_v.at(i);
-      float expected = flash_hypo.pe_v.at(i); 
       
       // Apply these changes IF the flash is outside of the unbiased PMT (the beam) window.
       if ( flash_prod_idx == 1 ) {
@@ -540,8 +903,12 @@ me(), flash.Frame(), PEperOpDet );
 	  flash_hypo.pe_v.at( i) *= 0.354;
 
       }
-      tot_pe_data += observed;
-      tot_pe_hypo += expected;
+      
+      // Declare 'expected' down here after the cosmic discriminator correction has been applied.
+      float expected    = flash_hypo.pe_v.at(i);
+
+      totpe_data_flash += observed;
+      totpe_hypo_flash += expected;
 
       if ( observed>0 && expected==0 ) {
 	if ( !m_config.use_gaus2d )
@@ -564,7 +931,7 @@ me(), flash.Frame(), PEperOpDet );
     for (int ich=0; ich<32; ich++ ) {
       std::cout << std::setw(5) << (int)data_flasht.pe_v.at(  geo->OpDetFromOpChannel(ich) );
     }
-    std::cout << " TOT=" << tot_pe_data << " CHI2=" << chi2 << std::endl;
+    std::cout << " TOT=" << totpe_data_flash << " CHI2=" << chi2 << std::endl;
 
     std::cout << "  [expected] ";
     for ( int ich=0; ich<32; ich++ ) {
@@ -572,7 +939,7 @@ me(), flash.Frame(), PEperOpDet );
       //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
       std::cout << std::setw(5) << (int)expectation[ich];
     }
-    std::cout << " TOT=" << tot_pe_hypo << " BestCHI2=" << chi2 << std::endl;
+    std::cout << " TOT=" << totpe_hypo_flash << " BestCHI2=" << chi2 << std::endl;
 
     // Return the chi2 value.
     return chi2;

@@ -789,7 +789,12 @@ namespace larlitecv {
 
       // Determine the chi2 match between the qcluster and the opflash object.
       // Now we are getting the opflash producer from the entire list.
-      float chi2 = flash_match_obj.generate_chi2_in_track_flash_comparison( qcluster, opflash_object, opflash_producer_idx );
+
+      // Declare variables for the total PEs of the data flash and the total PEs of the hypothesis flash.
+      float totpe_data = 0.0;
+      float totpe_hypo = 0.0;
+
+      float chi2 = flash_match_obj.generate_chi2_in_track_flash_comparison( qcluster, opflash_object, totpe_data, totpe_hypo, opflash_producer_idx );
 
       std::cout << "The chi2 for the match of track #" << qcluster_iter << " among the tracks added in this pass to the qcluster vector = " << chi2 << "." << std::endl;
 
@@ -974,9 +979,13 @@ namespace larlitecv {
       // Declare an object of type 'ThruMuTracker::FlashMatchCandidate' for the flash.
       ThruMuTracker::FlashMatchCandidate candidate;
 
+      // Declare variables for the total PEs of the data flash and the total PEs of the hypothesis flash.
+      float totpe_data = 0.0;
+      float totpe_hypo = 0.0;
+
       // Set the chi2 and the index of the qcluster at this particular spot.
       candidate.idx     = qcluster_iter;
-      candidate.chi2    = flash_match_obj.generate_chi2_in_track_flash_comparison( qcluster_copy, opflash, opflash_producer );
+      candidate.chi2    = flash_match_obj.generate_chi2_in_track_flash_comparison( qcluster_copy, opflash, totpe_data, totpe_hypo, opflash_producer );
      
       // Append this list onto the 'opflash_track_match_list'.
       opflash_track_match_list.push_back( candidate );

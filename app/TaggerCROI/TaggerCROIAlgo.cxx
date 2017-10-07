@@ -588,7 +588,7 @@ namespace larlitecv {
 
     ClusterGroupAlgo         clusteralgo(   m_config.untagged_cluster_cfg );
     ClusterGroupMatchingAlgo matchingalgo;
-    TaggerFlashMatchAlgo     selectionalgo( m_config.croi_selection_cfg );
+    GeneralFlashMatchAlgo     selectionalgo( m_config.general_flash_match_cfg );
     Track3DRecluster         reclusteralgo;
     T3DPCMerge               pcamergealgo;
     //pcamergealgo.setVerbosity(0);

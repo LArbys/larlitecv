@@ -21,11 +21,13 @@
 
 // larcv
 #include "Base/PSet.h"
+#include "DataFormat/ROI.h"
 #include "PMTWeights/PMTWireWeights.h"
 
 // larlitecv
 #include "TaggerTypes/BoundarySpacePoint.h"
 #include "TaggerTypes/BMTrackCluster3D.h"
+#include "ContainedROI/TaggerFlashMatchTypes.h"
 #include "GeneralFlashMatchAlgoConfig.h"
 
 namespace larlitecv {
@@ -44,11 +46,25 @@ namespace larlitecv {
 
     std::vector < larlite::opflash* > generate_single_denomination_flash_list( std::vector< larlite::opflash > full_opflash_v, std::vector < int > idx_v);
 
-    std::vector < larlite::track >  generate_tracks_between_passes( const std::vector< larlitecv::BMTrackCluster3D > trackcluster3d_v);
+    std::vector<larcv::ROI> FindFlashMatchedContainedROIs( const std::vector< larlitecv::TaggerFlashMatchData>& flashdata_v, const std::vector< larlite::event_opflash* >& opflashes_v, std::vector< int >& flashdata_selected_v );
+    
+    std::vector<larlite::opflash> SelectInTimeOpFlashes( const std::vector<larlite::event_opflash*>& opflashes_v );
+
+    bool DoesTotalPEMatch( float totpe_data, float totpe_hypo );
+    
+    bool IsClusterContained( const TaggerFlashMatchData& data );
+
+    std::vector<flashana::Flash_t> GetInTimeFlashana( const std::vector<larlite::event_opflash*>& opflashes_v );
+
+    bool DoesQClusterMatchInTimeFlash( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster, float& totpe_data, float& totpe_hypo );
+
+    bool DoesQClusterMatchInTimeBetterThanCosmic( const std::vector<flashana::Flash_t>& intime_flashes_v, const flashana::QCluster_t& qcluster, const larlitecv::TaggerFlashMatchData& taggertrack, const int trackidx, float& dchi2 );
 
     std::vector< larlite::opflash > generate_single_opflash_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v );
 
     std::vector< int > generate_single_opflash_idx_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v );
+
+    std::vector< larlite::track >  generate_tracks_between_passes( const std::vector< larlitecv::BMTrackCluster3D > trackcluster3d_v);
 
     void ExpandQClusterStartingWithLarliteTrack( flashana::QCluster_t& qcluster, const larlite::track& larlite_track, double extension, bool extend_start, bool extend_end ); 
 
@@ -64,16 +80,52 @@ namespace larlitecv {
     
     flashana::Flash_t MakeDataFlash( const larlite::opflash& flash );
 
+    std::vector< flashana::Flash_t > MakeDataFlashes( std::vector< larlite::opflash > opflash_v );
+
     larlite::opflash make_flash_hypothesis(const larlite::track input_track);
 
     std::vector<larlite::opflash> make_flash_hypothesis_vector( const std::vector<larlite::track>& input_track_v );
 
+    float generate_chi2_in_track_flash_comparison(const flashana::QCluster_t qcluster, const larlite::opflash data_opflash, float& totpe_data_flash, float& totpe_hypo_flash, int flash_prod_idx);
 
-    float generate_chi2_in_track_flash_comparison(const flashana::QCluster_t qcluster, const larlite::opflash data_opflash, int flash_prod_idx);
-    
+    // Another function contaned in the header file that is not described in 'GeneralFlashMatchAlgo'.
+    const std::vector<larlite::opflash>& getOpFlashHypotheses() { return m_opflash_hypos; };
+
+    // selection results                                                                                                                                                                                   
+    const std::vector<int>& getContainmentCutResults() { return m_passes_containment; };
+    const std::vector<int>& getFlashMatchCutResults() { return m_passes_flashmatch; };
+    const std::vector<int>& getCosmicRatioCutResults() { return m_passes_cosmicflash_ratio; };
+    const std::vector<int>& getTotalPECutResults() { return m_passes_totpe; };
+
+    // selection variables                                                                                                                                                                               
+    const std::vector<float>& getContainmentCutValues() { return m_containment_dwall; };
+    const std::vector<float>& getInTimeChi2Values() { return m_min_chi2; };
+    const std::vector<float>& getTotPEratioValues() { return m_totpe_peratio; };
+    const std::vector<float>& getCosmicDeltaChi2Values() { return m_cosmicflash_ratio_dchi; };
+
     const GeneralFlashMatchAlgoConfig& getConfig() { return m_config; };
-    
+
     void setVerbosity( int v ) { m_verbosity = v; };
+
+  protected:
+
+    // CONTAINMENT CUT                                                                                                                                                                              
+    std::vector<int> m_passes_containment;
+    std::vector<float> m_containment_dwall;
+
+    // IN-TIME FLASH CUT                                                                                                                                                                              
+    std::vector<int> m_passes_flashmatch;
+    std::vector<larlite::opflash> m_opflash_hypos; ///< flash hypotheses for each track                                                                                                               
+    std::vector<float> m_min_chi2; ///< min-chi2 score for each flash                                                                                                                                 
+
+    // TOTAL PE                                                                                                                                                                                     
+    std::vector<int> m_passes_totpe;
+    std::vector<float> m_totpe_peratio; //< fraction difference of total pe between hypothesis and in-time                                                                                             
+
+    std::vector<int> m_passes_cosmicflash_ratio;
+    std::vector<float> m_cosmicflash_ratio_dchi; //< delta-Chi-squared between in-time flash and matched flash to track                                                                                 
+
+
 
   private:
     const GeneralFlashMatchAlgoConfig m_config;   //< configuration class
