@@ -29,7 +29,7 @@ namespace larlitecv {
 
     // mc-truth subroutines
     void runTruthBoundaryTagger( const InputPayload& input, ThruMuPayload& output );
-    
+
   protected:
 
 

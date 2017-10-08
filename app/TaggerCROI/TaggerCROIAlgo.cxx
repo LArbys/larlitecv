@@ -107,15 +107,11 @@ namespace larlitecv {
     }
     m_time_tracker[kThruMuBMT] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
-    // Because 'findImageTrackEnds' depends on 'flashMatchTrackEnds', use dummy vectors to use that function even though that part of the input is not necessary.
-    std::vector< int > necessary_for_compilation;
-    necessary_for_compilation.clear();
-
     // run flash tagger
     timer = std::clock();
-    anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v, output.anode_flash_idx_v  );
-    cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v, output.cathode_flash_idx_v  );
-    imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v, necessary_for_compilation  );
+    anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v );
+    cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v  );
+    imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v  );
 
     int totalflashes = (int)output.anode_spacepoint_v.size() + (int)output.cathode_spacepoint_v.size() + (int)output.imgends_spacepoint_v.size();
     if ( m_config.verbosity>0 ) {
@@ -126,11 +122,17 @@ namespace larlitecv {
     }
     std::cout << "Anode spacepoint flash indices: " << std::endl;
     for (int i=0; i<(int)output.anode_spacepoint_v.size(); i++) {
-      std::cout << "    [" << i << "] flashidx=" << output.anode_spacepoint_v.at(i).getFlashIndex() << std::endl;
+      std::cout << "    [" << i << "] flashidx="
+		<< "(" << output.anode_spacepoint_v.at(i).getFlashIndex().ivec << ","
+		<< output.anode_spacepoint_v.at(i).getFlashIndex().idx << ")"	
+		<< std::endl;
     }
     std::cout << "Cathode spacepoint flash indices: " << std::endl;
     for (int i=0; i<(int)output.cathode_spacepoint_v.size(); i++) {
-      std::cout << "    [" << i << "] flashidx=" << output.cathode_spacepoint_v.at(i).getFlashIndex() << std::endl;
+      std::cout << "    [" << i << "] flashidx="
+		<< "(" << output.cathode_spacepoint_v.at(i).getFlashIndex().ivec << ","
+		<< output.cathode_spacepoint_v.at(i).getFlashIndex().idx << ")"	
+		<< std::endl;
     }
     
     m_time_tracker[kThruMuFlash] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
@@ -167,26 +169,18 @@ namespace larlitecv {
     for (int isp=0; isp<(int)output.side_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.side_spacepoint_v.at( isp ));
       all_endpoints.push_back( *pts );
-      all_endpoints_flash_idx_v.push_back( -1 );
-      all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
     for (int isp=0; isp<(int)output.anode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.anode_spacepoint_v.at(isp));
       all_endpoints.push_back( *pts );
-      all_endpoints_flash_idx_v.push_back( output.anode_flash_idx_v.at( isp ) );
-      all_endpoints_boundary_type_idx_v.push_back( output.anode_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.cathode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.cathode_spacepoint_v.at(isp));
       all_endpoints.push_back( *pts );
-      all_endpoints_flash_idx_v.push_back( output.cathode_flash_idx_v.at( isp ) );
-      all_endpoints_boundary_type_idx_v.push_back( output.cathode_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.imgends_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_spacepoint_v.at(isp));
       all_endpoints.push_back( *pts );
-      all_endpoints_flash_idx_v.push_back( -1 );
-      all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
     if ( m_config.verbosity>0 )
       std::cout << "number of endpoints pre-filters: " << all_endpoints.size() << std::endl;
@@ -329,34 +323,18 @@ namespace larlitecv {
     for (int isp=0; isp<(int)output.side_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.side_filtered_v.at( isp ));
       all_endpoints.push_back( pts );
-      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
-      // with a -1 at the index corresponding to this endpoint. None of these tracks correspond to a flash.
-      all_endpoints_flash_idx_v.push_back( -1 );
-      all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
     for (int isp=0; isp<(int)output.anode_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.anode_filtered_v.at(isp));
       all_endpoints.push_back( pts );
-      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
-      // with the corresponding values in the 'anode_filtered_flash_idx_v' and 'anode_filtered_boundary_type_idx_v'.
-      all_endpoints_flash_idx_v.push_back( output.anode_filtered_flash_idx_v.at( isp ) );
-      all_endpoints_boundary_type_idx_v.push_back( output.anode_filtered_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.cathode_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.cathode_filtered_v.at(isp));
       all_endpoints.push_back( pts );
-      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
-      // with the corresponding values in the 'cathode_filtered_flash_idx_v' and 'cathode_filtered_boundary_type_idx_v'.
-      all_endpoints_flash_idx_v.push_back( output.cathode_filtered_flash_idx_v.at( isp ) );
-      all_endpoints_boundary_type_idx_v.push_back( output.cathode_filtered_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.imgends_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_filtered_v.at(isp));
       all_endpoints.push_back( pts );
-      // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
-      // with a -1 at the index corresponding to this endpoint.
-      all_endpoints_flash_idx_v.push_back( -1 );
-      all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
     if ( m_config.verbosity>0 )
       std::cout << "number of endpoints to search for thrumu: " << all_endpoints.size() << std::endl;
