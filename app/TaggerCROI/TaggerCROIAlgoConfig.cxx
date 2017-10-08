@@ -34,8 +34,8 @@ namespace larlitecv {
     larcv::PSet stopmu_cluster_pset      = tagger_pset.get<larcv::PSet>("StopMuCluster");
     larcv::PSet stopmu_foxtrot_pset      = tagger_pset.get<larcv::PSet>("StopMuFoxTrot");
     larcv::PSet untagged_cluster_ps      = tagger_pset.get<larcv::PSet>("ContainedGroupAlgo");
-    //larcv::PSet untagged_match_pset      = tagger_pset.get<larcv::PSet>("TaggerFlashMatchAlgo");
-    larcv::PSet general_flash_match_pset = tagger_pset.get<larcv::PSet>("GeneralFlashMatchAlgo"); // new for the general flash matching occurring between the tracks and the flashes of light.
+    larcv::PSet untagged_match_pset      = tagger_pset.get<larcv::PSet>("TaggerFlashMatchAlgo");
+    //larcv::PSet general_flash_match_pset = tagger_pset.get<larcv::PSet>("GeneralFlashMatchAlgo"); // new for the general flash matching occurring between the tracks and the flashes of light.
 
     cfg.input_write_cfg  = tagger_pset.get<larcv::PSet>("InputWriteConfig");
     cfg.thrumu_write_cfg = tagger_pset.get<larcv::PSet>("ThruMuWriteConfig");
@@ -49,8 +49,8 @@ namespace larlitecv {
     cfg.stopmu_cluster_cfg      = larlitecv::makeStopMuClusterConfigFromPSet( stopmu_cluster_pset );
     cfg.stopmu_foxtrot_cfg      = larlitecv::StopMuFoxTrotConfig::makeFromPSet( stopmu_foxtrot_pset );
     cfg.untagged_cluster_cfg    = larlitecv::ClusterGroupAlgoConfig::MakeClusterGroupAlgoConfigFromPSet( untagged_cluster_ps );
-    //cfg.croi_selection_cfg      = larlitecv::TaggerFlashMatchAlgoConfig::MakeTaggerFlashMatchAlgoConfigFromPSet( untagged_match_pset );
-    cfg.general_flash_match_cfg = larlitecv::GeneralFlashMatchAlgoConfig::MakeConfigFromPSet( general_flash_match_pset );
+    cfg.croi_selection_cfg      = larlitecv::TaggerFlashMatchAlgoConfig::FromPSet( untagged_match_pset );
+    //cfg.general_flash_match_cfg = larlitecv::GeneralFlashMatchAlgoConfig::MakeConfigFromPSet( general_flash_match_pset );
 
     // run controls
     cfg.run_thrumu_tracker      = tagger_pset.get<bool>("RunThruMuTracker",true);

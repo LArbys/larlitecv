@@ -685,18 +685,21 @@ namespace larlitecv {
     flashana::QCluster_t qcluster;
 
     // Follow the logic of the 'GeneralFlashMatchAlgo::InTimeFlashComparison' function to generate a flash hypothesis.
-    ExpandQClusterStartingWithLarliteTrack(qcluster, input_track, 10000., true, true); 
+    //ExpandQClusterStartingWithLarliteTrack(qcluster, input_track, 10000., true, true);
+    ExpandQClusterNearBoundaryFromLarliteTrack( qcluster, input_track, 10000, 10.0 );
 
+    // why generate all of these for no reason?
     flashana::Flash_t flash_hypo  = GenerateUnfittedFlashHypothesis( qcluster );
     larlite::opflash opflash_hypo = MakeOpFlashFromFlash( flash_hypo );
-    larlite::opflash gaus2d_hypo  = GetGaus2DPrediction( opflash_hypo );
 
     // What to return depends on the values set in the 'Config' class.
-    if (!m_config.use_gaus2d)
+    if (!m_config.use_gaus2d) {
       return opflash_hypo;
-
-    else
+    }
+    else {
+      larlite::opflash gaus2d_hypo  = GetGaus2DPrediction( opflash_hypo );      
       return gaus2d_hypo;
+    }
 
   }
 

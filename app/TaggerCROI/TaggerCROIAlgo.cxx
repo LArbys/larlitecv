@@ -453,9 +453,10 @@ namespace larlitecv {
       // information stored in the last two arguments of this function, 'all_endpoints_flash_idx_v'
       // and 'all_endpoints_boundary_type_idx_v', correspond to the endpoints in the
       // 'all_endpoints' vector (the third argument).
-      thrumu_tracker.makeTrackClusters3D( m_config.general_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints,
-					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v,
-					  all_endpoints_flash_idx_v, all_endpoints_boundary_type_idx_v);
+      // COMMENT OUT FOR NOW
+      // thrumu_tracker.makeTrackClusters3D( m_config.tagger_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints,
+      // 					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v,
+      // 					  all_endpoints_flash_idx_v, all_endpoints_boundary_type_idx_v);
       m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
       if ( m_config.verbosity>0 )
         std::cout << "thrumu tracker search " << all_endpoints.size() << " end points in " << m_time_tracker[kThruMuTracker] << " sec" << std::endl;
@@ -599,7 +600,7 @@ namespace larlitecv {
 
     ClusterGroupAlgo         clusteralgo(   m_config.untagged_cluster_cfg );
     ClusterGroupMatchingAlgo matchingalgo;
-    GeneralFlashMatchAlgo    selectionalgo( m_config.general_flash_match_cfg );
+    TaggerFlashMatchAlgo     selectionalgo( m_config.tagger_flash_match_cfg );
     Track3DRecluster         reclusteralgo;
     T3DPCMerge               pcamergealgo;
     //pcamergealgo.setVerbosity(0);
@@ -947,7 +948,7 @@ namespace larlitecv {
       if ( output.flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
         continue;
 
-      larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, m_config.croi_selection_cfg.bbox_pad , true );
+      larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, m_config.tagger_flash_match_cfg.bbox_pad , true );
 
       std::cout << "[Selected CROI]" << std::endl;
       for ( size_t p=0; p<3; p++ ) {

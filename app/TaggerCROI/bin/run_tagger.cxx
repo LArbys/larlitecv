@@ -23,7 +23,6 @@
 #include "TaggerCROI/TaggerCROIAlgo.h"
 #include "TaggerCROI/TaggerCROITypes.h"
 #include "TaggerCROI/PayloadWriteMethods.h"
-#include "GeneralFlashMatchAlgo/GeneralFlashMatchAlgo.h"
 
 int main(int nargs, char** argv ) {
 
