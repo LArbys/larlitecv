@@ -49,6 +49,10 @@ namespace larlitecv {
       opflashes_v.clear(); // we are assuming, this doesn't own the objects (dangerous)
     };
 
+    // mc truth information
+    const larlite::event_mctrack* p_ev_mctrack; //< pointer to mc track object if used
+  
+
   };
 
   class ThruMuPayload : public TaggerCROIVPayload {

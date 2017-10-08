@@ -209,6 +209,8 @@ namespace larlitecv {
     m_save_stopmu_space       = m_pset.get<bool>("SaveStopMuSpace", false);
     m_save_croi_space         = m_pset.get<bool>("SaveCROISpace",   false);
     m_save_mc                 = m_pset.get<bool>("SaveMC",false);
+    m_load_mctrack            = m_pset.get<bool>("LoadMCTrack",false);
+    m_mctrack_producer        = m_pset.get<std::string>("MCTrackProducer","mcreco");        
     m_skip_empty_events       = m_pset.get<bool>("SkipEmptyEvents",false);
     m_apply_unipolar_hack     = m_pset.get<bool>("ApplyUnipolarHack",false);
     configure_algos();
@@ -505,7 +507,19 @@ namespace larlitecv {
       return false;
     }
 
-    // set the state. the data is ready
+    // -------------------------------------------------------------------------------------------//
+    // LOAD MC TRACK INFORMATION: USED FOR PERFORMANCE METRICS
+    if ( m_load_mctrack ) {
+      try {
+	m_input_data.p_ev_mctrack = (larlite::event_mctrack*)m_dataco_input.get_larlite_data(larlite::data::kMCTrack, m_mctrack_producer);
+      }
+      catch (const std::exception& e ) {
+	std::cerr << "Error retrieving MC track information upon request: " << e.what() << std::endl;
+      }
+    }
+
+    // -------------------------------------------------------------------------------------------//
+    // set the state.  the input data is ready
     m_state.input_ready = true;
     return true;
   }

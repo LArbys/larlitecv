@@ -26,6 +26,9 @@ namespace larlitecv {
     // subroutines: for some development and flexibility
     void runBoundaryTagger( const InputPayload& data, ThruMuPayload& thrumu );
     void runThruMuTracker( const InputPayload& data, ThruMuPayload& thrumu );
+
+    // mc-truth subroutines
+    void runTruthBoundaryTagger( const InputPayload& input, ThruMuPayload& output );
     
   protected:
 

@@ -206,91 +206,6 @@ namespace larlitecv {
     sp_v.clear();
     m_time_tracker[kThruMuFilter] += double(std::clock()-timer)/(double)CLOCKS_PER_SEC;
     
-    // [OLD FILTERING SEQUENCE]
-    // // first filter: radialfilter
-    // std::vector< const larlitecv::BoundarySpacePoint* > pass_radial_filter;
-    // for ( auto const& psp : all_endpoints ) {
-    //   bool forms_segment = radialfilter.canFormSegment( (*psp).pos(), input.img_v, input.badch_v, 5.0, m_config.thrumu_tracker_cfg.pixel_threshold, 1, 2, 0.5, false ); // need parameters here
-    //   if ( forms_segment )
-    //     pass_radial_filter.push_back( psp );
-    // }
-    // if ( m_config.verbosity>0 )
-    //   std::cout << "number of endpoints post-radial filter: " << pass_radial_filter.size() << std::endl;
-
-    // // then we push the end points out
-    // std::vector< larlitecv::BoundarySpacePoint > pushed_endpoints;
-    // for ( auto const& psp : pass_radial_filter ) {
-    //   const larlitecv::BoundarySpacePoint& sp = (*psp);
-    //   if ( psp==NULL || sp.size()!=3 ) {
-    //     std::stringstream ss;
-    //     ss << "pass_radial_filter end point not well-formed. size=" << sp.size() << std::endl;
-    //     throw std::runtime_error(ss.str());
-    //   }
-    //   larlitecv::BoundarySpacePoint pushed = endptpusher.pushPoint( sp, input.img_v, input.badch_v );
-    //   if ( pushed.size()!=3 || pushed.pos().size()!=3 ) {
-    //     std::stringstream ss;
-    //     ss << "output of pushPoint not well-formed. size=" << pushed.size() << std::endl;
-    //     throw std::runtime_error(ss.str());
-    //   }
-    //   // we keep if the pushed end point is closer to the boundary in question
-    //   bool closer2wall = false;
-    //   if (sp.type()==0 && sp.pos()[1]<pushed.pos()[1])
-    //     closer2wall=true;
-    //   else if (sp.type()==1 && sp.pos()[1]>pushed.pos()[1] )
-    //     closer2wall=true;
-    //   else if (sp.type()==2 && sp.pos()[2]>pushed.pos()[2] )
-    //     closer2wall=true;
-    //   else if (sp.type()==3 && sp.pos()[2]<pushed.pos()[2])
-    //     closer2wall=true;
-    //   else if (sp.type()==4 && sp.pos()[0]>pushed.pos()[0])
-    //     closer2wall=true;
-    //   else if (sp.type()==5 && sp.pos()[0]<pushed.pos()[0])
-    //     closer2wall=true;
-    //   else if (sp.type()==6 && sp.pos()[0]<=0 && sp.pos()[0]>pushed.pos()[0])
-    //     closer2wall=true;
-    //   else if (sp.type()==6 && sp.pos()[0]>0 && sp.pos()[0]<pushed.pos()[0])
-    //     closer2wall=true;
-
-    //   if ( m_config.verbosity>1 ) {
-    //     std::cout << "Pushed type=" << sp.type()
-    //               << " (" << sp.pos()[0] << "," << sp.pos()[1] << "," << sp.pos()[2] << ") -> "
-    //               << " (" << pushed.pos()[0] << "," << pushed.pos()[1] << "," << pushed.pos()[2] << ")"
-    //               << " closer2wall=" << closer2wall << std::endl;
-    //   }
-
-    //   if ( closer2wall  )
-    //     pushed_endpoints.push_back( pushed );
-    //   else
-    //     pushed_endpoints.push_back( sp );
-    // }
-
-    // std::vector< const larlitecv::BoundarySpacePoint* > pushed_ptr_endpoints;
-    // for ( auto const& sp : pushed_endpoints ) {
-    //   pushed_ptr_endpoints.push_back( &sp );
-    // }
-
-    // // debug
-    // int itest=0;
-    // for ( auto const& psp : pushed_ptr_endpoints ) {
-    //   if ( pushed_endpoints.at(itest).size()!=3 ) {
-    //     std::stringstream ss;
-    //     ss << __FILE__ << ":" << __LINE__
-    //         << " stored push-point not well-formed. size=" << pushed_endpoints.at(itest).size() << " idx=" << itest << std::endl;
-    //     throw std::runtime_error(ss.str());
-    //   }
-    //   if ( psp==NULL || psp->size()!=3 ) {
-    //     std::stringstream ss;
-    //     ss << __FILE__ << ":" << __LINE__
-    //         << " stored push-point ptr not well-formed. psp=" << psp << " size=" << psp->size() << " idx=" << itest << std::endl;
-    //     throw std::runtime_error(ss.str());
-    //   }
-    //   itest++;
-    // }
-
-    // // filter end points
-    // std::vector<int> endpoint_passes( pushed_ptr_endpoints.size(), 1 );
-    // endptfilter.removeBoundaryAndFlashDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
-    // endptfilter.removeSameBoundaryDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
 
     // collect output
     // remove the filtered end points
@@ -372,6 +287,11 @@ namespace larlitecv {
       std::cout << "== End of Boundary Tagger ===============================" << std::endl;
 
     return;
+  }
+
+  void TaggerCROIAlgo::runTruthBoundaryTagger( const InputPayload& input, ThruMuPayload& output ) {
+    // This uses MC truth information to make boundary end points
+    // We use this for debugging and performance metrics
   }
 
   void TaggerCROIAlgo::runThruMuTracker( const InputPayload& input, ThruMuPayload& output ) {
@@ -600,7 +520,7 @@ namespace larlitecv {
 
     ClusterGroupAlgo         clusteralgo(   m_config.untagged_cluster_cfg );
     ClusterGroupMatchingAlgo matchingalgo;
-    TaggerFlashMatchAlgo     selectionalgo( m_config.tagger_flash_match_cfg );
+    TaggerFlashMatchAlgo     selectionalgo( m_config.croi_selection_cfg );
     Track3DRecluster         reclusteralgo;
     T3DPCMerge               pcamergealgo;
     //pcamergealgo.setVerbosity(0);
@@ -948,7 +868,7 @@ namespace larlitecv {
       if ( output.flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
         continue;
 
-      larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, m_config.tagger_flash_match_cfg.bbox_pad , true );
+      larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, m_config.croi_selection_cfg.bbox_pad , true );
 
       std::cout << "[Selected CROI]" << std::endl;
       for ( size_t p=0; p<3; p++ ) {
