@@ -36,21 +36,10 @@ namespace larlitecv {
   TaggerFlashMatchAlgoConfig TaggerFlashMatchAlgoConfig::FromPSet( const larcv::PSet& pset ) {
     TaggerFlashMatchAlgoConfig cfg;
     cfg.verbosity         = pset.get<int>("Verbosity");
-    cfg.qcluster_stepsize = pset.get<float>("QClusterStepSize");
-    cfg.MeV_per_cm        = pset.get<float>("MeV_per_cm");
-    cfg.fudge_factor      = pset.get<float>("FudgeFactor");
-    cfg.fudge_factor_cosmic = pset.get<float>("CosmicDiscFudgeFactor");
-    cfg.pmtflash_thresh   = pset.get<float>("PMTFlashThreshold");
-    cfg.flashpe_thresh    = pset.get<float>("FlashPEThreshold");
-    cfg.beam_tick_range   = pset.get< std::vector<int> >("BeamTickRange");
     cfg.FVCutX            = pset.get< std::vector<float> >("FVCutX");
     cfg.FVCutY            = pset.get< std::vector<float> >("FVCutY");
     cfg.FVCutZ            = pset.get< std::vector<float> >("FVCutZ");
-    cfg.flashmatch_chi2_cut = pset.get<float>("FlashMatchChi2Cut");
-    cfg.totpe_sigma_cut   = pset.get<float>("TotalPESigmaCut");
-    cfg.use_gaus2d        = pset.get<bool>("UseGaus2D");
-    cfg.bbox_pad          = pset.get<float>("BBoxPadcm");
-    cfg.gain_correction   = pset.get< std::vector<float> >("GainCorrection");
+    //cfg.gain_correction   = pset.get< std::vector<float> >("GainCorrection");
     cfg.genflashmatch_cfg = larlitecv::GeneralFlashMatchAlgoConfig::MakeConfigFromPSet( pset.get< larcv::PSet >("GeneralFlashMatchAlgo") );
     return cfg;
   }

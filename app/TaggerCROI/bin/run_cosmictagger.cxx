@@ -5,13 +5,14 @@
 
 int main( int nargs, const char** argv ) {
 
-  std::string cfg = "/home/twongjirad/working/larbys/dllee_unified/larlitecv/app/TaggerNotebook/tagger.cfg";
-
+  std::string cfg = argv[1];
+  
   larlitecv::CosmicTagger tagger( cfg );
 
   tagger.setEntry(0);
 
   bool inputok  = tagger.processInputImages();
+  bool endptok  = tagger.findBoundaryEnds();
   //bool thrumuok = tagger.findThruMu();
   
 }
