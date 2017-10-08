@@ -72,6 +72,7 @@ namespace larlitecv {
     std::vector< BoundarySpacePoint > imgends_spacepoint_v;
 
     // New info for the flash indices of the anode/cathode tracks.
+    // holds the index for the associated flash
     std::vector < int >               anode_flash_idx_v;
     std::vector < int >               cathode_flash_idx_v;
 
@@ -90,9 +91,11 @@ namespace larlitecv {
 
     // New info for the filtered flash indices of the anode/cathode tracks and ALL Tracks (for consistency).
     // All flash indices corresponding to a side endpoint are set to -1.
+    // holds the index for the associated flash    
     std::vector< int > anode_filtered_flash_idx_v;
     std::vector< int > cathode_filtered_flash_idx_v;
     std::vector< int > all_filtered_flash_idx_v;
+
 
     // New info for the flash producer indices corresponding to the flashes that are listed in the 'filtered' vectors shown above.
     // '0': simpleFlashBeam.

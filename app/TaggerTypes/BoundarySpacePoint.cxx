@@ -66,6 +66,12 @@ namespace larlitecv {
     return dwall;
   }
 
+  void BoundarySpacePoint::setFlashIndex( int ivec, int idx, larlite::opflash* popfl ) {
+    m_flashidx.ivec = ivec;
+    m_flashidx.idx  = idx;
+    m_flashidx.popflash = popfl;
+  }
+
   void BoundarySpacePoint::setup( const larcv::ImageMeta& meta ) {
     if ( m_pos.size()==0 ) {
       m_pos.resize(3,0);

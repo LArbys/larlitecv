@@ -57,14 +57,12 @@ namespace larlitecv {
 
     void configure( const FlashMuonTaggerAlgoConfig& config_ ) { fConfig=config_; fconfigured = true; };
 
-    bool flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets, const std::vector<larcv::Image2D>& tpc_imgs,
-			      const std::vector<larcv::Image2D>& badch_imgs,
-			      std::vector< BoundarySpacePoint >& trackendpts, std::vector< int >& endpoint_flash_idx,
-			      std::vector< int >& endpoint_boundary_type_idx ); // The last two arguments were added to find out which flash is matched to which endpoint.
-
+    bool flashMatchTrackEnds( const std::vector< larlite::event_opflash* >& opflashsets,
+			      const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
+			      std::vector< BoundarySpacePoint >& trackendpts );
+    
     bool findImageTrackEnds( const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-			     std::vector< BoundarySpacePoint >& trackendpts, std::vector < int >& endpoint_flash_idx,
-			     std::vector< int >& endpoint_boundary_type_idx ); // The last two arguments were added to find out which flash is matched to which endpoint.
+			     std::vector< BoundarySpacePoint >& trackendpts );
 
     BoundaryEnd_t SearchModeToEndType( SearchMode_t mode );
     
@@ -99,7 +97,6 @@ namespace larlitecv {
       std::vector< BoundarySpacePoint >& endpts_v, std::vector< std::vector< ClusterInfo_t > >& accepted_clusters,
       std::vector< std::vector<int> >& cluster_used );
 
-
     void filterClusters( const std::vector< std::vector< ClusterInfo_t > >& accepted_cluster_matches, 
       const std::vector<larcv::Image2D>& img_v, const int rmax_window, const int rmin_window, const int col_width, std::vector< int >& cluster_passed );    
 
@@ -113,10 +110,8 @@ namespace larlitecv {
 
     void FindFlashesBy3DSegments( const int row_target, const larlitecv::BoundaryEnd_t point_type,
 				  const std::vector<larcv::Image2D>& tpc_imgs, const std::vector<larcv::Image2D>& badch_imgs,
-				  const float z_max, const std::vector<float>& z_range, std::vector<BoundarySpacePoint >& trackendpts,
-				  std::vector < int >& endpoint_flash_idx, int& opflash_idx, 
-				  std::vector< int >& endpoint_boundary_type_idx );
-
+				  const float z_max, const std::vector<float>& z_range, std::vector<BoundarySpacePoint >& trackendpts );
+    
   public:
     int fNPMTs;
     float pmtpos[32][3];    
