@@ -31,8 +31,8 @@
 #include "TaggerTypes/BMTrackCluster3D.h"
 #include "ThruMuTrackerConfig.h"
 #include "Linear3DChargeTagger.h"
-#include "GeneralFlashMatchAlgo/GeneralFlashMatchAlgoConfig.h"
-#include "GeneralFlashMatchAlgo/GeneralFlashMatchAlgo.h"
+#include "FlashMatchInterface/GeneralFlashMatchAlgoConfig.h"
+#include "FlashMatchInterface/GeneralFlashMatchAlgo.h"
 
 namespace larlitecv {
 
@@ -48,12 +48,16 @@ namespace larlitecv {
     // 'flash_match_config' - this is the set of configuration parameters for the 'GeneralFlashMatchAlgo' class, of type 'GeneralFlashMatchAlgoConfig'.
 
     // Add two new arguments onto the end of this function:
-    // flash_idx_v: This is the vector of the indices that correspond to the endpoints contained in the 'spacepts' argument.  Note that this vector (1) assumes that the two flash producers are 'simpleFlashBeam' and 'simpleFlashCosmic' and (2) fills the flash indices in a running, one-dimensional list starting with the flashes produced by 'simpleFlashBeam' before continuing onto the flashes produced by 'simpleFlashCosmic'.
+    // flash_idx_v: This is the vector of the indices that correspond to the endpoints contained in the 'spacepts' argument.
+    //  Note that this vector
+    //  (1) assumes that the two flash producers are 'simpleFlashBeam' and 'simpleFlashCosmic' and
+    //  (2) fills the flash indices in a running, one-dimensional list starting with the flashes produced by 'simpleFlashBeam'
+    //      before continuing onto the flashes produced by 'simpleFlashCosmic'.
     void makeTrackClusters3D( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector<larcv::Image2D>& img_v,
-					     const std::vector<larcv::Image2D>& badchimg_v, const std::vector< const BoundarySpacePoint* >& spacepts,
-					     std::vector< larlitecv::BMTrackCluster3D >& trackclusters,
-					     std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices, const std::vector< larlite::event_opflash* >& opflashsets, 
-					     std::vector< int >& flash_idx_v, std::vector< int >& boundary_type_idx_v );
+			      const std::vector<larcv::Image2D>& badchimg_v, const std::vector< const BoundarySpacePoint* >& spacepts,
+			      std::vector< larlitecv::BMTrackCluster3D >& trackclusters,
+			      std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices, const std::vector< larlite::event_opflash* >& opflashsets, 
+			      std::vector< int >& flash_idx_v, std::vector< int >& boundary_type_idx_v );
 
 
   protected:
