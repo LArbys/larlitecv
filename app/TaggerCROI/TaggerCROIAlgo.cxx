@@ -149,22 +149,6 @@ namespace larlitecv {
     // we collect pointers to all the end points (make a copy for now)
     std::vector< larlitecv::BoundarySpacePoint > all_endpoints;
 
-    // For the rest of this function, I will declare the flash index vector with the same name as the current vector of the boundary spacepoints.
-
-    // Declare a vector of flash indices, corresponding to the flash index that this flash was matched to in 'FlashMuonTaggerAlgo' if it is anode-piercing or cathode-piercing.
-    // This will be the same dimension as 'all_endpoints'.  Endpoints that are not anode-piercing/cathode-piercing will have a value of -1 in this array.
-    std::vector< int > all_endpoints_flash_idx_v;
-    all_endpoints_flash_idx_v.clear();
-
-    // Declare a vector of flash producer indices, corresponding to the producer that the flash was generated with.
-    // The scoring sceme is as follows:
-    // '0': simpleFlashBeam.                                                                                                                                                                            
-    // '1': simpleFlashCosmic                                                                                                                                                                            
-    // '-1': endpoint was not determined from a flash.                                                                                                                                                  
-    // All flash producer indices corresponding to a side-piercing endpoint will be filled with -1.
-    std::vector< int > all_endpoints_boundary_type_idx_v;
-    all_endpoints_boundary_type_idx_v.clear();
-    
     // gather endpoints from space points
     for (int isp=0; isp<(int)output.side_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.side_spacepoint_v.at( isp ));

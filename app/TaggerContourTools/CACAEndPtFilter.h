@@ -110,6 +110,7 @@ namespace larlitecv {
 	pos.resize(3,0);
 	dir.resize(3,0);
 	type = -1;
+	vecindex = -1;
 	flashindex = -1;
 	passed = 0;
 	truthmatched = -1;
@@ -117,6 +118,7 @@ namespace larlitecv {
       std::vector<float> pos;
       std::vector<float> dir;
       int type;
+      int vecindex;
       int flashindex;
       int passed;
       int truthmatched;

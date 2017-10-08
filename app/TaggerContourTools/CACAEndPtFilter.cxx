@@ -487,25 +487,19 @@ namespace larlitecv {
 	  // clear the cluster vector
 	  clearClusters();
 	  
-	  int tot_flashidx = sp.getFlashIndex();
-	  int loc_flashidx = tot_flashidx;
+	  const larlitecv::BoundaryFlashIndex& flashidx = sp.getFlashIndex();
 	  if ( m_verbosity>1 ) {
 	    std::cout << "--------------------------------------------------------------" << std::endl;
 	    std::cout << "[ipt " << ireco << "] Anode/Cathode space point" << std::endl;
-	    std::cout << "  flash index: " << tot_flashidx << std::endl;
+	    std::cout << "  flash index: (" << flashidx.ivec << "," << flashidx.idx << "," << flashidx.popflash << ")" << std::endl;
 	  }
 	  
 	  const larlite::opflash* popflash = NULL;
 	  if ( sp.type()==larlitecv::kAnode || sp.type()==larlitecv::kCathode ) {
-	    for ( int ievop=0; ievop<(int)flash_v.size(); ievop++ ) {
-	      if ( loc_flashidx >= (int)(flash_v.at(ievop)->size()) )
-		loc_flashidx -= (int)(flash_v.at(ievop)->size());
-	      else
-		popflash = &(flash_v.at(ievop)->at(loc_flashidx));
-	    }
+	    // anode/cathode. get the flash index
+	    popflash = &((flash_v.at(flashidx.ivec))->at(flashidx.idx));
 
 	    if ( m_verbosity>1 ) {
-	      std::cout << "  flash local index: " << loc_flashidx << std::endl;		
 	      std::cout << "  flash pointer: " << popflash << std::endl;
 	    }
 	  }
@@ -760,8 +754,8 @@ namespace larlitecv {
     // make a past info
     PastClusterInfo_t info(seedcluster);
     info.type = (int)sp.type();
-    info.flashindex = sp.getFlashIndex();
-
+    info.vecindex   = sp.getFlashIndex().ivec;
+    info.flashindex = sp.getFlashIndex().idx;
 
     m_past_info.emplace_back( std::move(info) );
     return false;
