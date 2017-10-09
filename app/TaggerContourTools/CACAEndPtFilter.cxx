@@ -487,12 +487,12 @@ namespace larlitecv {
 	  // clear the cluster vector
 	  clearClusters();
 	  
-	  int tot_flashidx = sp.getFlashIndex();
-	  int loc_flashidx = tot_flashidx;
+	  BoundaryFlashIndex  tot_flashidx = sp.getFlashIndex();
+	  int loc_flashidx = tot_flashidx.idx;
 	  if ( m_verbosity>1 ) {
 	    std::cout << "--------------------------------------------------------------" << std::endl;
 	    std::cout << "[ipt " << ireco << "] Anode/Cathode space point" << std::endl;
-	    std::cout << "  flash index: " << tot_flashidx << std::endl;
+	    std::cout << "  flash index: " << loc_flashidx << std::endl;
 	  }
 	  
 	  const larlite::opflash* popflash = NULL;
@@ -760,7 +760,7 @@ namespace larlitecv {
     // make a past info
     PastClusterInfo_t info(seedcluster);
     info.type = (int)sp.type();
-    info.flashindex = sp.getFlashIndex();
+    info.flashindex = sp.getFlashIndex().idx;
 
 
     m_past_info.emplace_back( std::move(info) );

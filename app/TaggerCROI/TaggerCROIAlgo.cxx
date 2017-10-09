@@ -372,9 +372,8 @@ namespace larlitecv {
       // and 'all_endpoints_boundary_type_idx_v', correspond to the endpoints in the
       // 'all_endpoints' vector (the third argument).
       // COMMENT OUT FOR NOW
-      // thrumu_tracker.makeTrackClusters3D( m_config.tagger_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints,
-      // 					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v,
-      // 					  all_endpoints_flash_idx_v, all_endpoints_boundary_type_idx_v);
+      thrumu_tracker.makeTrackClusters3D( m_config.tagger_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints,
+      					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v ); // The last two arguments are no longer necessary and were removed.
       m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
       if ( m_config.verbosity>0 )
         std::cout << "thrumu tracker search " << all_endpoints.size() << " end points in " << m_time_tracker[kThruMuTracker] << " sec" << std::endl;
