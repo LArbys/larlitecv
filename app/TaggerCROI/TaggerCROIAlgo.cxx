@@ -107,15 +107,11 @@ namespace larlitecv {
     }
     m_time_tracker[kThruMuBMT] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
 
-    // Because 'findImageTrackEnds' depends on 'flashMatchTrackEnds', use dummy vectors to use that function even though that part of the input is not necessary.
-    std::vector< int > necessary_for_compilation;
-    necessary_for_compilation.clear();
-
     // run flash tagger
     timer = std::clock();
-    anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v, output.anode_flash_idx_v  );
-    cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v, output.cathode_flash_idx_v  );
-    imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v, necessary_for_compilation  );
+    anode_flash_tagger.flashMatchTrackEnds(   input.opflashes_v, input.img_v, input.badch_v, output.anode_spacepoint_v );
+    cathode_flash_tagger.flashMatchTrackEnds( input.opflashes_v, input.img_v, input.badch_v, output.cathode_spacepoint_v );
+    imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v );
 
     int totalflashes = (int)output.anode_spacepoint_v.size() + (int)output.cathode_spacepoint_v.size() + (int)output.imgends_spacepoint_v.size();
     if ( m_config.verbosity>0 ) {
@@ -126,11 +122,13 @@ namespace larlitecv {
     }
     std::cout << "Anode spacepoint flash indices: " << std::endl;
     for (int i=0; i<(int)output.anode_spacepoint_v.size(); i++) {
-      std::cout << "    [" << i << "] flashidx=" << output.anode_spacepoint_v.at(i).getFlashIndex() << std::endl;
+      // This prints out the index of the flash indices WITHIN THE VECTOR FOR THE PRODUCER.
+      std::cout << "    [" << i << "] flashidx=" << output.anode_spacepoint_v.at(i).getFlashIndex().idx << std::endl;
     }
     std::cout << "Cathode spacepoint flash indices: " << std::endl;
     for (int i=0; i<(int)output.cathode_spacepoint_v.size(); i++) {
-      std::cout << "    [" << i << "] flashidx=" << output.cathode_spacepoint_v.at(i).getFlashIndex() << std::endl;
+      // This prints out the index of the flash indices WITHIN THE VECTOR FOR THE PRODUCER.
+      std::cout << "    [" << i << "] flashidx=" << output.cathode_spacepoint_v.at(i).getFlashIndex().idx << std::endl;
     }
     
     m_time_tracker[kThruMuFlash] += (std::clock()-timer)/(double)CLOCKS_PER_SEC;
@@ -151,8 +149,8 @@ namespace larlitecv {
 
     // Declare a vector of flash indices, corresponding to the flash index that this flash was matched to in 'FlashMuonTaggerAlgo' if it is anode-piercing or cathode-piercing.
     // This will be the same dimension as 'all_endpoints'.  Endpoints that are not anode-piercing/cathode-piercing will have a value of -1 in this array.
-    std::vector< int > all_endpoints_flash_idx_v;
-    all_endpoints_flash_idx_v.clear();
+    //std::vector< int > all_endpoints_flash_idx_v;
+    //all_endpoints_flash_idx_v.clear();
 
     // Declare a vector of flash producer indices, corresponding to the producer that the flash was generated with.
     // The scoring sceme is as follows:
@@ -160,33 +158,33 @@ namespace larlitecv {
     // '1': simpleFlashCosmic                                                                                                                                                                            
     // '-1': endpoint was not determined from a flash.                                                                                                                                                  
     // All flash producer indices corresponding to a side-piercing endpoint will be filled with -1.
-    std::vector< int > all_endpoints_boundary_type_idx_v;
-    all_endpoints_boundary_type_idx_v.clear();
+    //std::vector< int > all_endpoints_boundary_type_idx_v;
+    //all_endpoints_boundary_type_idx_v.clear();
     
     // gather endpoints from space points
     for (int isp=0; isp<(int)output.side_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.side_spacepoint_v.at( isp ));
       all_endpoints.push_back( *pts );
-      all_endpoints_flash_idx_v.push_back( -1 );
-      all_endpoints_boundary_type_idx_v.push_back( -1 );
+      //all_endpoints_flash_idx_v.push_back( -1 );
+      //all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
     for (int isp=0; isp<(int)output.anode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.anode_spacepoint_v.at(isp));
       all_endpoints.push_back( *pts );
-      all_endpoints_flash_idx_v.push_back( output.anode_flash_idx_v.at( isp ) );
-      all_endpoints_boundary_type_idx_v.push_back( output.anode_boundary_type_idx_v.at( isp ) );
+      //all_endpoints_flash_idx_v.push_back( output.anode_flash_idx_v.at( isp ) );
+      //all_endpoints_boundary_type_idx_v.push_back( output.anode_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.cathode_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.cathode_spacepoint_v.at(isp));
       all_endpoints.push_back( *pts );
-      all_endpoints_flash_idx_v.push_back( output.cathode_flash_idx_v.at( isp ) );
-      all_endpoints_boundary_type_idx_v.push_back( output.cathode_boundary_type_idx_v.at( isp ) );
+      //all_endpoints_flash_idx_v.push_back( output.cathode_flash_idx_v.at( isp ) );
+      //all_endpoints_boundary_type_idx_v.push_back( output.cathode_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.imgends_spacepoint_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_spacepoint_v.at(isp));
       all_endpoints.push_back( *pts );
-      all_endpoints_flash_idx_v.push_back( -1 );
-      all_endpoints_boundary_type_idx_v.push_back( -1 );
+      //all_endpoints_flash_idx_v.push_back( -1 );
+      //all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
     if ( m_config.verbosity>0 )
       std::cout << "number of endpoints pre-filters: " << all_endpoints.size() << std::endl;
@@ -315,11 +313,11 @@ namespace larlitecv {
 
     // Collect the indices for the flash that determines each of the endpoints and the index for the producer that makes each of the endpoints as well.
     // This is a precaution to ensure that we are collecting this information properly.
-    std::vector< int > all_endpoints_flash_idx_v;
-    all_endpoints_flash_idx_v.clear();
+    //std::vector< int > all_endpoints_flash_idx_v;
+    //all_endpoints_flash_idx_v.clear();
 
-    std::vector< int > all_endpoints_boundary_type_idx_v;
-    all_endpoints_boundary_type_idx_v.clear();
+    //std::vector< int > all_endpoints_boundary_type_idx_v;
+    //all_endpoints_boundary_type_idx_v.clear();
 
     // When filling the 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v',
     // the correct flash indices have already been matched to the correct endpoint.
@@ -331,32 +329,32 @@ namespace larlitecv {
       all_endpoints.push_back( pts );
       // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
       // with a -1 at the index corresponding to this endpoint. None of these tracks correspond to a flash.
-      all_endpoints_flash_idx_v.push_back( -1 );
-      all_endpoints_boundary_type_idx_v.push_back( -1 );
+      //all_endpoints_flash_idx_v.push_back( -1 );
+      //all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
     for (int isp=0; isp<(int)output.anode_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.anode_filtered_v.at(isp));
       all_endpoints.push_back( pts );
       // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
       // with the corresponding values in the 'anode_filtered_flash_idx_v' and 'anode_filtered_boundary_type_idx_v'.
-      all_endpoints_flash_idx_v.push_back( output.anode_filtered_flash_idx_v.at( isp ) );
-      all_endpoints_boundary_type_idx_v.push_back( output.anode_filtered_boundary_type_idx_v.at( isp ) );
+      //all_endpoints_flash_idx_v.push_back( output.anode_filtered_flash_idx_v.at( isp ) );
+      //all_endpoints_boundary_type_idx_v.push_back( output.anode_filtered_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.cathode_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.cathode_filtered_v.at(isp));
       all_endpoints.push_back( pts );
       // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
       // with the corresponding values in the 'cathode_filtered_flash_idx_v' and 'cathode_filtered_boundary_type_idx_v'.
-      all_endpoints_flash_idx_v.push_back( output.cathode_filtered_flash_idx_v.at( isp ) );
-      all_endpoints_boundary_type_idx_v.push_back( output.cathode_filtered_boundary_type_idx_v.at( isp ) );
+      //all_endpoints_flash_idx_v.push_back( output.cathode_filtered_flash_idx_v.at( isp ) );
+      //all_endpoints_boundary_type_idx_v.push_back( output.cathode_filtered_boundary_type_idx_v.at( isp ) );
     }
     for (int isp=0; isp<(int)output.imgends_filtered_v.size(); isp++) {
       const larlitecv::BoundarySpacePoint* pts = &(output.imgends_filtered_v.at(isp));
       all_endpoints.push_back( pts );
       // Fill the vectors 'all_endpoints_flash_idx_v' and 'all_endpoints_boundary_type_idx_v'
       // with a -1 at the index corresponding to this endpoint.
-      all_endpoints_flash_idx_v.push_back( -1 );
-      all_endpoints_boundary_type_idx_v.push_back( -1 );
+      //all_endpoints_flash_idx_v.push_back( -1 );
+      //all_endpoints_boundary_type_idx_v.push_back( -1 );
     }
     if ( m_config.verbosity>0 )
       std::cout << "number of endpoints to search for thrumu: " << all_endpoints.size() << std::endl;
@@ -372,8 +370,8 @@ namespace larlitecv {
       // and 'all_endpoints_boundary_type_idx_v', correspond to the endpoints in the
       // 'all_endpoints' vector (the third argument).
       // COMMENT OUT FOR NOW
-      thrumu_tracker.makeTrackClusters3D( m_config.tagger_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints,
-      					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v ); // The last two arguments are no longer necessary and were removed.
+      thrumu_tracker.makeTrackClusters3D( m_config.general_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints,
+      					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v ); // The last two arguments (containing the flash match information that pertains to the endpoints) are no longer necessary and were removed.
       m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
       if ( m_config.verbosity>0 )
         std::cout << "thrumu tracker search " << all_endpoints.size() << " end points in " << m_time_tracker[kThruMuTracker] << " sec" << std::endl;

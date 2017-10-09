@@ -34,7 +34,8 @@ namespace larlitecv {
 
     // Declare a set, 'impossible_match_endpoints', meant to save the indices of endpoints that together constituted an impossible match.
     // This removes from consideration endpoints that were found to fail the flashmatching stage of reconstruction.                                                                                   
-    std::set< std::vector< BoundarySpacePoint > > impossible_match_endpoint_v;
+    std::vector< std::vector< BoundarySpacePoint > > impossible_match_endpoint_v;
+    impossible_match_endpoint_v.clear();
 
     // Declare a new vector, 'track_endpoint_indices', based off the indices in 'spacepts', for the endpoints that are used to make tracks.
     std::vector < std::vector< BoundarySpacePoint >  > track_endpoint_v;
@@ -49,7 +50,8 @@ namespace larlitecv {
     track_endpoint_boundary_type_idx_v.clear();
 
     // Declare a set of the 'BoundaryFlashIndex' information of the flashes that have already been well-matched to a track.
-    std::set< BoundaryFlashIndex > already_matched_flash_v;
+    std::vector< BoundaryFlashIndex > already_matched_flash_v;
+    already_matched_flash_v.clear();
 
     // Declare a vector for the well-matched tracks 'well_matched_tracks_idx_v'.
     std::vector < int > well_matched_tracks_idx_v;
@@ -365,16 +367,16 @@ namespace larlitecv {
 
 	  // Declare a vector for the flash index and producer index at the ith and jth points in the 'flash_idx_v' and 'boundary_type_idx_v' vectors.
 	  // 'i' necessarily must be less than j because 'j' begins to iterate at 'i+1'.
-	  single_track_endpoint_flash_v.resize(2);
+	  std::vector< BoundaryFlashIndex > single_track_endpoint_flash_v(2);
 	  single_track_endpoint_flash_v[0]          = spacepts.at( i )->getFlashIndex();
 	  single_track_endpoint_flash_v[1]          = spacepts.at( j )->getFlashIndex();
 
-	  single_track_boundary_type_idx_v.resize(2);
+	  std::vector< BoundaryEnd_t > single_track_boundary_type_idx_v(2);
 	  single_track_boundary_type_idx_v[0] = spacepts.at( i )->type();
 	  single_track_boundary_type_idx_v[1] = spacepts.at( j )->type();
 
 	  // Save the information for the boundary points in this vector.
-	  single_track_endpoint_v.resize(2);
+	  std::vector< BoundarySpacePoint > single_track_endpoint_v(2);
 	  single_track_endpoint_v[0] = *spacepts.at( i );
 	  single_track_endpoint_v[1] = *spacepts.at( j );
 	  
@@ -383,6 +385,11 @@ namespace larlitecv {
           }
           pass_end_indices.emplace_back( std::move(indices) );
           pass_track_candidates.emplace_back( std::move(track3d) );
+
+	  // Pass all of this information onto the vectors for the flashes, the boundary, and the endpoints.
+	  track_endpoint_flash_v.emplace_back( std::move( single_track_endpoint_flash_v) );
+	  track_endpoint_boundary_type_idx_v.emplace_back( std::move( single_track_boundary_type_idx_v ) );
+	  track_endpoint_v.emplace_back( std::move( single_track_endpoint_v ) );
 	  
         }
 
@@ -406,20 +413,6 @@ namespace larlitecv {
       used_endpoints_indices.at(indices[0]) = 1;
       used_endpoints_indices.at(indices[1]) = 1;
       
-    }
-
-    // Use the same logic to place the indices of the flash corresponding to the endpoints and the flash producer corresponding to the flash that determined the endpoints.
-    // The information for the flash matched to the track.
-    for ( auto& endpoint_flashes: single_track_endpoint_flash_v ) {
-      track_endpoint_flash_v.emplace_back( std::move(endpoint_flashes) );
-    }
-    // The information for the boundary type matched to the flash.
-    for( auto& boundary_types: single_track_boundary_type_idx_v) {
-      track_endpoint_boundary_type_idx_v.emplace_back( std::move(boundary_types) );
-    }
-    // The endpoints themselves saved in the loop.
-    for ( auto& endpoints: single_track_endpoint_v ) {
-      track_endpoint_v.emplace_back( std::move( endpoints) );
     }
 
     return;
@@ -612,7 +605,7 @@ namespace larlitecv {
   // anode_and_cathode_only: This only compares the endpoints for anode-piercing/cathode-piercing tracks, for which one flash is matched to the track.
   void ThruMuTracker::flashMatchTracks( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< const BoundarySpacePoint* >& spacepts,
 					const std::vector< larlite::event_opflash* >& opflash_v, std::vector< BMTrackCluster3D >& trackclusters,
-					std::set< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, std::set< BoundaryFlashIndex >& already_matched_flash_v,
+					std::vector< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, std::vector< BoundaryFlashIndex >& already_matched_flash_v,
 					std::vector< int >& well_matched_tracks_idx_v, const int& num_of_tracks_added_in_pass,
 					std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v, std::vector< std::vector< BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v,
 					std::vector< std::vector< BoundarySpacePoint > >& track_endpoint_v, bool anode_and_cathode_only ) {
@@ -651,37 +644,7 @@ namespace larlitecv {
     // Resize 'well_matched_tracks_idx_v' so that it is the same size as 'trackclusters_from_pass'.
     // '-1' corresponds to no decision rendered on these tracks, but this value will be changed.
     well_matched_tracks_idx_v.resize( track_endpoint_v_from_pass.size(), -1 );
-
-    // Loop through 'track_endpoint_v_from_pass' and mark any tracks that are determined by a pair of endpoints that are improperly matched as poorly reconstructed.
-    for ( size_t endpoint_iter = 0; endpoint_iter < track_endpoint_v_from_pass.size(); ++endpoint_iter ) {
-
-      // Remove any tracks that are determined by a set of endpoints that are an impossible match with one another.
-      // Use the 'find' functionality of the set in C++ to see if this qcluster is determined by a set of impossible endpoints.                                                                         
-      // Unpack the 'impossible_match' endpoints so that you can place them in either order.                                                                                                             
-      std::vector< BoundarySpacePoint > impossible_match_endpoints_for_qcluster = track_endpoint_v_from_pass.at( endpoint_iter );
-
-      std::vector< BoundarySpacePoint > order_one;
-      std::vector< BoundarySpacePoint > order_two;
-
-      order_one.resize(2);
-      order_two.resize(2);
-
-      order_one[0] = impossible_match_endpoints_for_qcluster[0];
-      order_one[1] = impossible_match_endpoints_for_qcluster[1];
-
-      order_two[0] = impossible_match_endpoints_for_qcluster[1];
-      order_two[1] = impossible_match_endpoints_for_qcluster[0];
-
-      auto const& first_order  = impossible_match_endpoint_v.find( order_one );
-      auto const& second_order = impossible_match_endpoint_v.find( order_two );
-
-      // See if either order of the endpoints has an index in 'impossible_match_endpoint_idx_v'.  If they do, then 'push_back' a '0' onto 'well_matched_tracks'.                                       
-      if ( first_order != impossible_match_endpoint_v.end() || second_order != impossible_match_endpoint_v.end() ) {
-	well_matched_tracks_idx_v.at(endpoint_iter) = 0;
-      }
-
-    }
-
+    
     // Turn this into a vector of larlite tracks using the the 'GeneralFlashMatchAlgo' functionality.
     std::vector < larlite::track > larlite_track_vector = flash_match_obj.generate_tracks_between_passes( trackclusters_from_pass );
 
@@ -718,6 +681,54 @@ namespace larlitecv {
 
     }
 
+    // Repeat the previous loop to look for any tracks that may have been determined by a set of impossible endpoints.                                                                                 
+    // This is only for tracks that passed the selection cuts.                                                                                                                                         
+    for ( size_t track_endpt_iter = 0; track_endpt_iter < track_endpoint_v_from_pass.size(); ++track_endpt_iter ) {
+
+      // Declare a boolean for if the track has impossible endpoints or not.                                                                                                                            
+      bool determined_by_set_of_impossible_match_endpoints = false;
+
+      // Declare values for the starting and ending endpoints of the track.
+      std::vector< float > first_track_endpt_pos;  
+      std::vector< float > second_track_endpt_pos; 
+      
+      // Set these variables.
+      track_endpoint_v_from_pass.at( track_endpt_iter )[0].pos( first_track_endpt_pos );
+      track_endpoint_v_from_pass.at( track_endpt_iter )[1].pos( second_track_endpt_pos );
+
+      // Start an inner loop over the sets of impossible match endpoints.                                                                                                                              
+      for ( size_t impossible_match_iter = 0; impossible_match_iter < impossible_match_endpoint_v.size(); ++impossible_match_iter ) {
+
+	// Declare objects for the first and second impossible match endpoints.
+	std::vector< float > first_impossible_endpt_pos;  
+	std::vector< float > second_impossible_endpt_pos; 
+
+	impossible_match_endpoint_v.at( impossible_match_iter )[0].pos( first_impossible_endpt_pos );
+	impossible_match_endpoint_v.at( impossible_match_iter )[1].pos( second_impossible_endpt_pos );
+
+	// Loop through the endpoints in 'impossible_match_endpoint_v' to see if any of them match the information in 'impossible_match.  Use the endpoint information here.                           
+	// Same point in index.               
+	if ( fabs( first_track_endpt_pos[0] - first_impossible_endpt_pos[0] ) < 0.00001 && fabs( first_track_endpt_pos[1] - first_impossible_endpt_pos[1] ) < 0.00001 && fabs( first_track_endpt_pos[2] - first_impossible_endpt_pos[2] ) < 0.00001 && fabs( second_track_endpt_pos[0] - second_impossible_endpt_pos[0] ) < 0.00001 && fabs( second_track_endpt_pos[1] - second_impossible_endpt_pos[1] ) < 0.00001 && fabs( second_track_endpt_pos[2] - second_impossible_endpt_pos[2] ) < 0.00001 ) {
+	  determined_by_set_of_impossible_match_endpoints = true;
+	  break;
+	}
+
+	// Opposite point in index.                                                                                                                                                                   
+	if ( fabs( second_track_endpt_pos[0] - first_impossible_endpt_pos[0] ) < 0.00001 && fabs( second_track_endpt_pos[1] - first_impossible_endpt_pos[1] ) < 0.00001 && fabs( second_track_endpt_pos[2] - first_impossible_endpt_pos[2] ) < 0.00001 && fabs( first_track_endpt_pos[0] - second_impossible_endpt_pos[0] ) < 0.00001 && fabs( first_track_endpt_pos[1] - second_impossible_endpt_pos[1] ) < 0.00001 && fabs( first_track_endpt_pos[2] - second_impossible_endpt_pos[2] ) < 0.00001 ){
+	  determined_by_set_of_impossible_match_endpoints = true;
+	  break;
+	}
+
+	// Set the value of 'well_match_tracks_idx_v' at 'track_endpt_iter' equal to 0 if the conditional is true.                                                                                     
+	// This is contingent on 'track_endpoint_v_from_pass' having the same length as 'track_endpt_iter', which it has been shown to have.                                                            
+	if ( determined_by_set_of_impossible_match_endpoints == true ) {
+	  well_matched_tracks_idx_v.at( track_endpt_iter ) = 0;
+	}
+
+      }
+
+    }
+
     return;
 
   }
@@ -734,8 +745,8 @@ namespace larlitecv {
   void ThruMuTracker::flashMatchAC( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< flashana::QCluster_t >& qcluster_vector, 
 				    const std::vector< BoundaryFlashIndex >& boundary_flash_index_vector, const std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v_from_pass, 
 				    const std::vector< std::vector< BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v_from_pass, 
-				    std::set< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > > & track_endpoint_v_from_pass, 
-				    std::vector < int >& well_matched_tracks_idx_v, std::set< BoundaryFlashIndex >&  already_matched_flash_v ) {
+				    std::vector< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > > & track_endpoint_v_from_pass, 
+				    std::vector < int >& well_matched_tracks_idx_v, std::vector< BoundaryFlashIndex >&  already_matched_flash_v ) {
 
     // Create a new object of class 'GeneralFlashMatchAlgo'.
     larlitecv::GeneralFlashMatchAlgo flash_match_obj( flash_match_config );
@@ -765,16 +776,25 @@ namespace larlitecv {
 	boundary_flash_idx_for_endpoint = track_endpoint_flash_v_from_pass.at( qcluster_iter )[1];
       } 
       
-      auto const& check_for_already_matched_flash = already_matched_flash_v.find( boundary_flash_index_vector.at( qcluster_iter ) );
+      // Check to see if that flash that defines these endpoints have already been well-matched to a track.
+      bool well_matched_flash = false;
 
-      // Continue if the flash has already been matched well to another track.                                                                                                                     
-      // If it has, then continue.
-      if ( check_for_already_matched_flash != already_matched_flash_v.end() ) {
-	well_matched_tracks_idx_v.at( qcluster_iter ) = 0;
-        continue;
+      // Loop through all of 'BoundaryFlashIndex' entries in 'already_matched_flash_v', comparing the 'ivec' and 'idx' values of each of the entries to those for 'boundary_flash_idx_for_endpoint'.
+      for ( size_t already_matched_flash_iter = 0; already_matched_flash_iter < already_matched_flash_v.size(); ++already_matched_flash_iter ) {
+
+	if ( boundary_flash_idx_for_endpoint.idx == already_matched_flash_v.at( already_matched_flash_iter ).idx && boundary_flash_idx_for_endpoint.ivec == already_matched_flash_v.at(already_matched_flash_iter ).ivec ) {
+	  well_matched_flash = true;
+	  break;
+	}
+
       }
 
-      
+      // If this track is matched to a well-matched flash, then set its entry in 'well_matched_tracks_idx_v' equal to 0 and continue.
+      if ( well_matched_flash == true ) {
+	well_matched_tracks_idx_v.at( qcluster_iter ) = 0;
+	continue;
+      }	
+	 
       // Set the opflash object and the producer of the opflash object.
       larlite::opflash opflash_object    = *boundary_flash_idx_for_endpoint.popflash;
       int opflash_producer_idx           = boundary_flash_idx_for_endpoint.ivec;
@@ -801,7 +821,7 @@ namespace larlitecv {
       if ( chi2 < flash_match_config.chi2_anode_cathode_cut ) { // to be defined somewhere... 
 	
 	// Add to the end of this vector the flash object corresponding to the qcluster, 'boundary_flash_idx_for_endpoint', using the 'insert' functionality.
-	already_matched_flash_v.insert( boundary_flash_idx_for_endpoint );
+	already_matched_flash_v.push_back( boundary_flash_idx_for_endpoint );
 	
 	// Change the index of 'well_matched_tracks_idx_v' at this index to equal 1, because the track is well-reconstructed according to the chi2 cut.
 	well_matched_tracks_idx_v.at( qcluster_iter ) = 1 ;
@@ -810,7 +830,7 @@ namespace larlitecv {
 
       else { // If the track's chi2 was greater than the anode/cathode piercing chi2 cut value, then put the track's endpoints in the 'impossible_match_endpoint_idx_v' list.
 	
-	impossible_match_endpoint_v.insert( track_endpoint_v_from_pass.at( qcluster_iter ) );
+	impossible_match_endpoint_v.push_back( track_endpoint_v_from_pass.at( qcluster_iter ) );
 
 	// Change the index of 'well_matched_tracks_idx_v' at this index to equal 0, because the track is not well-reconstructed according to the chi2 cut.
 	well_matched_tracks_idx_v.at( qcluster_iter ) = 0;
@@ -819,7 +839,7 @@ namespace larlitecv {
 	
 
     }
-	
+
     return;
 
   }
@@ -833,7 +853,7 @@ namespace larlitecv {
   //        'well_matched_tracks_idx' - This vector contains the information from the tracks in the event that are well-matched already to a single flash.
   //        'already_matched_flash_idx_v' - This vector contains the indices of the flashes that are already well-matched to a track in the event, meaning that they can be passed over.
   //        'entire_event' - This boolean indicator asks if we want to loop through all of the information contained in the event or in a pass after the 'ACflashMatch'.
-  void ThruMuTracker::flashMatchYZFaceTracks( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< larlitecv::BMTrackCluster3D >& trackclusters, const std::vector < flashana::QCluster_t >& qcluster_vector, const std::vector< BoundaryFlashIndex >& boundary_flash_index_vector, std::set< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > > & track_endpoint_v_from_pass, std::vector< int >& well_matched_tracks_idx_v, std::set< BoundaryFlashIndex >& already_matched_flash_v, bool entire_event ) {
+  void ThruMuTracker::flashMatchYZFaceTracks( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< larlitecv::BMTrackCluster3D >& trackclusters, const std::vector < flashana::QCluster_t >& qcluster_vector, const std::vector< BoundaryFlashIndex >& boundary_flash_index_vector, std::vector< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > > & track_endpoint_v_from_pass, std::vector< int >& well_matched_tracks_idx_v, std::vector< BoundaryFlashIndex >& already_matched_flash_v, bool entire_event ) {
 
     // Declare a 'GeneralFlashMatchAlgo' object with the 'flash_match_config' object passed to 'flashMatchAllTracks'.
     larlitecv::GeneralFlashMatchAlgo flash_match_obj( flash_match_config );
@@ -885,10 +905,21 @@ namespace larlitecv {
     // The list of flashes is now contained in 'boundary_flash_index_vector'.
     for ( size_t opflash_i = 0; opflash_i < boundary_flash_index_vector.size(); ++opflash_i ) {
 
-      auto const& check_for_already_matched_flash = already_matched_flash_v.find( boundary_flash_index_vector.at( opflash_i ) );
+      // Check to see if that flash that defines these endpoints have already been well-matched to a track.                                                                                            
+      bool well_matched_flash = false;
 
-      // Continue if the flash has already been matched well to another track.
-      if ( check_for_already_matched_flash != already_matched_flash_v.end() ) {
+      // Loop through all of 'BoundaryFlashIndex' entries in 'already_matched_flash_v', comparing the 'ivec' and 'idx' values of each of the entries to those for 'boundary_flash_idx_for_endpoint'.       
+      for ( size_t already_matched_flash_iter = 0; already_matched_flash_iter < already_matched_flash_v.size(); ++already_matched_flash_iter ) {
+
+        if ( boundary_flash_index_vector.at( opflash_i).idx == already_matched_flash_v.at( already_matched_flash_iter ).idx && boundary_flash_index_vector.at( opflash_i).ivec == already_matched_flash_v.at(already_matched_flash_iter ).ivec ) {
+          well_matched_flash = true;
+          break;
+        }
+
+      }
+
+      // If this flash is already well-matched, then continue on in the loop.
+      if ( well_matched_flash == true ) {
 	continue;
       }
 
@@ -913,12 +944,12 @@ namespace larlitecv {
   for ( size_t qcluster_idx_v_iter = 0; qcluster_idx_v_iter < corresponding_qcluster_idx_v.size(); ++qcluster_idx_v_iter ) {
 
     if ( best_chi2_v.at( qcluster_idx_v_iter ) < flash_match_config.chi2_yz_flash_cut ) {
-      well_matched_tracks_idx_v.at( qcluster_idx_v_iter ) = 1; // corresponding to a good track.
-      already_matched_flash_v.insert( opflash_with_track_lists_idx_v.at( qcluster_idx_v_iter ) ); // append the index of the flash used to determine this track.
+      well_matched_tracks_idx_v.at( corresponding_qcluster_idx_v.at( qcluster_idx_v_iter ) ) = 1; // corresponding to a good track.
+      already_matched_flash_v.push_back( opflash_with_track_lists_idx_v.at( qcluster_idx_v_iter ) ); // append the index of the flash used to determine this track.
     }
     else {
-      well_matched_tracks_idx_v.at( qcluster_idx_v_iter ) = 0; // corresponding to a bad track.
-      impossible_match_endpoint_v.insert( track_endpoint_v_from_pass.at( qcluster_idx_v_iter ) );
+      well_matched_tracks_idx_v.at( corresponding_qcluster_idx_v.at( qcluster_idx_v_iter ) ) = 0; // corresponding to a bad track.
+      impossible_match_endpoint_v.push_back( track_endpoint_v_from_pass.at( qcluster_idx_v_iter ) );
     } 
       
   }
