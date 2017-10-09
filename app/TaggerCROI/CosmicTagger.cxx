@@ -18,6 +18,7 @@
 // larlitecv
 #include "GapChs/EmptyChannelAlgo.h"
 #include "UnipolarHack/UnipolarHackAlgo.h"
+#include "FlashMatchInterface/GeneralFlashMatchAlgo.h"
 #include "TaggerCROIAlgo.h"
 
 #include "LArUtil/Geometry.h"
@@ -59,6 +60,9 @@ namespace larlitecv {
     m_dataco_output.configure( m_cfg_file, "StorageManagerOut", "IOManagerOut", "TaggerCROI" );
     m_dataco_output.initialize();
 
+    // initialize the global flashmatch interface instance
+    larlitecv::GeneralFlashMatchAlgo::GetME( m_tagger_cfg.croi_selection_cfg.genflashmatch_cfg );
+
     // num entries
     m_nentries = m_dataco_input.get_nentries("larcv");
     std::cout << "NUMBER OF ENTRIES: LARCV=" << m_nentries << " LARLITE=" << m_dataco_input.get_nentries("larlite") << std::endl;
@@ -86,6 +90,9 @@ namespace larlitecv {
     // output
     m_dataco_output.configure( m_cfg_file, "StorageManagerOut", "IOManagerOut", "TaggerCROI" );
     m_dataco_output.initialize();
+
+    // initialize the global flashmatch interface instance
+    larlitecv::GeneralFlashMatchAlgo::GetME( m_tagger_cfg.croi_selection_cfg.genflashmatch_cfg );    
 
     // num entries
     m_nentries = m_dataco_input.get_nentries("larcv");
