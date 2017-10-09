@@ -286,7 +286,7 @@ namespace larlitecv {
 
     // extract the truth points and make end point containers
     for ( auto const& xingpt : xingdata.truthcrossingptinfo_v ) {
-      BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)xingpt.type, xingpt.crossingpt_detsce_tyz, meta );
+      BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)xingpt.type, xingpt.crossingpt_detsce, meta );
       if ( sp.type()<=larlitecv::kDownstream  ) {
 	output.side_spacepoint_v.push_back( sp );
 	output.side_filtered_v.push_back( sp );	

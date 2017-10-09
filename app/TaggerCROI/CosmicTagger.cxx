@@ -582,7 +582,10 @@ namespace larlitecv {
 
     m_thrumu_data.clear();
     try {
-      m_taggercroialgo->runBoundaryTagger( m_input_data, m_thrumu_data );
+      if ( !m_pset.get<bool>("UseTruthEndPoints",false) )
+	m_taggercroialgo->runBoundaryTagger( m_input_data, m_thrumu_data ); //< reco end points
+      else
+	m_taggercroialgo->runTruthBoundaryTagger( m_input_data, m_thrumu_data );  // end points using MC truth tracks
     }
     catch ( const std::exception& e ) {
       std::cerr << "Error Running Boundary Tagger: " << e.what() << std::endl;
