@@ -98,7 +98,7 @@ namespace larlitecv {
     for ( auto const& sp : output.side_spacepoint_v ) {
       nsides[ sp.at(0).type ]++;
     }
-    if ( m_config.verbosity>0 ) {
+    if ( m_config.verbosity>=0 ) {
       std::cout << " Side Tagger End Points: " << output.side_spacepoint_v.size() << std::endl;
       std::cout << "   Top: "        << nsides[0] << std::endl;
       std::cout << "   Bottom: "     << nsides[1] << std::endl;
@@ -114,7 +114,7 @@ namespace larlitecv {
     imgends_flash_tagger.findImageTrackEnds( input.img_v, input.badch_v, output.imgends_spacepoint_v  );
 
     int totalflashes = (int)output.anode_spacepoint_v.size() + (int)output.cathode_spacepoint_v.size() + (int)output.imgends_spacepoint_v.size();
-    if ( m_config.verbosity>0 ) {
+    if ( m_config.verbosity>=0 ) {
       std::cout << " Flash Tagger End Points: " << totalflashes << std::endl;
       std::cout << "  Anode: "      << output.anode_spacepoint_v.size() << std::endl;
       std::cout << "  Cathode: "    << output.cathode_spacepoint_v.size() << std::endl;
@@ -259,6 +259,15 @@ namespace larlitecv {
     }
 
 
+    if ( m_config.verbosity>=0 ) {
+      std::cout << " Filtered Side Tagger End Points: " << cacapassing_moved_v.size() << std::endl;
+      std::cout << "   Side: "        << output.side_filtered_v.size() << std::endl;
+      std::cout << "   Anode: "       << output.anode_filtered_v.size() << std::endl;
+      std::cout << "   Cathode: "     << output.cathode_filtered_v.size() << std::endl;
+      std::cout << "   ImageEnds: "   << output.imgends_filtered_v.size() << std::endl;
+    }
+
+    
     if ( m_config.verbosity>0 )
       std::cout << "== End of Boundary Tagger ===============================" << std::endl;
 
