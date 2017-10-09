@@ -617,6 +617,10 @@ namespace larlitecv {
     //   return false;
     // }
 
+    std::cout << "Number of BMTrackCluster3D objects created by ThruMuTracker: " << m_thrumu_data.trackcluster3d_v.size() << std::endl;
+    std::cout << "Number of larlite::track objects created by ThruMuTracker: "   << m_thrumu_data.track_v.size() << std::endl;
+    std::cout << "Number of Pixel2DCluster objects created by ThruMuTracker: "   << m_thrumu_data.pixelcluster_v[0].size() << std::endl;
+    
     // set stte
     m_state.thrumu_run = true;
     return true;
