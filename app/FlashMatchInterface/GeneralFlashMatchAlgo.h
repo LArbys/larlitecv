@@ -104,6 +104,9 @@ namespace larlitecv {
 
     void setVerbosity( int v ) { m_verbosity = v; };
 
+    static GeneralFlashMatchAlgo* GetME();
+    static GeneralFlashMatchAlgo* GetME( larlitecv::GeneralFlashMatchAlgoConfig& config );
+
   protected:
 
     // CONTAINMENT CUT                                                                                                                                                                              
@@ -131,6 +134,8 @@ namespace larlitecv {
     //SpaceChargeMicroBooNE m_sce;           //< Space Charge Effect Calculator
     int m_verbosity;
     std::map<int,int> m_opch_from_opdet;
+
+    static GeneralFlashMatchAlgo* _global_instance;
 
   };
 

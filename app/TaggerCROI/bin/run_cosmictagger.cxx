@@ -13,6 +13,6 @@ int main( int nargs, const char** argv ) {
 
   bool inputok  = tagger.processInputImages();
   bool endptok  = tagger.findBoundaryEnds();
-  //bool thrumuok = tagger.findThruMu();
+  bool thrumuok = tagger.findThruMuTracks();
   
 }

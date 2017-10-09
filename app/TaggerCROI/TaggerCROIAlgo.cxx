@@ -33,6 +33,7 @@
 #include "T3DMerge/T3DPCMerge.h"
 #include "T3DMerge/T3D2LarliteTrack.h"
 #include "TaggerContourTools/CACAEndPtFilter.h"
+#include "MCTruthTools/crossingPointsAnaMethods.h"
 
 namespace larlitecv {
 
@@ -204,60 +205,8 @@ namespace larlitecv {
 	std::stringstream ss;
 	ss << __FILE__ << ":" << __LINE__ << " unrecognized boundary type" << std::endl;
 	throw std::runtime_error(ss.str());
-// =======
-//       itest++;
-//     }
-
-//     // remove
-//     std::vector<int> endpoint_passes( pushed_ptr_endpoints.size(), 1 );
-//     endptfilter.removeBoundaryAndFlashDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
-//     endptfilter.removeSameBoundaryDuplicates( pushed_ptr_endpoints, input.img_v, input.gapch_v, endpoint_passes );
-
-//    // Within this loop, append entries to all of the 'anode_filtered_flash_idx_v', 'cathode_filtered_flash_idx_v', 'all_filtered_flash_idx_v', 'anode_filtered_boundary_type_idx_v', 'cathode_filtered_boundary_type_idx_v', and 'all_filtered_boundary_type_idx_v' from
-//     // 'pushed_endpoints_flash_idx_v'.  
-    
-//     // remove the filtered end points
-//     for ( size_t idx=0; idx<endpoint_passes.size(); idx++ ) {
-//       larlitecv::BoundarySpacePoint& sp = pushed_endpoints[idx];
-
-//       if ( endpoint_passes.at(idx)==1 ) {
-//         if (sp.type()<=larlitecv::kDownstream ) {
-//           output.side_filtered_v.emplace_back( std::move(sp) );
-
-// 	  // These additions to 'output.all_filtered_flash_idx_v' and 'output.all_filtered_boundary_type_idx_v' will consist entirely of -1s.
-// 	  output.all_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
-// 	  output.all_filtered_boundary_type_idx_v.push_back( pushed_endpoints_boundary_type_idx_v.at( idx ) );
-//         }
-//         else if (sp.type()==larlitecv::kAnode) {
-//           output.anode_filtered_v.emplace_back( std::move(sp) );
-
-// 	  // These additions will consist of actual flashes.
-// 	  output.anode_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
-// 	  output.all_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
-// 	  output.anode_filtered_boundary_type_idx_v.push_back( pushed_endpoints_boundary_type_idx_v.at( idx ) );
-//           output.all_filtered_boundary_type_idx_v.push_back( pushed_endpoints_boundary_type_idx_v.at( idx ) );
-//         }
-//         else if (sp.type()==larlitecv::kCathode) {
-//           output.cathode_filtered_v.emplace_back( std::move(sp) );
-
-// 	  // These additions will consist of actual flashes matched to cathode-piercing tracks.                                                                                                      
-//           output.cathode_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
-//           output.all_filtered_flash_idx_v.push_back( pushed_endpoints_flash_idx_v.at( idx ) );
-// 	  output.cathode_filtered_boundary_type_idx_v.push_back( pushed_endpoints_boundary_type_idx_v.at( idx ) );
-//           output.all_filtered_boundary_type_idx_v.push_back( pushed_endpoints_boundary_type_idx_v.at( idx ) );
-//         }
-//         else if (sp.type()==larlitecv::kImageEnd) {
-//           output.imgends_filtered_v.emplace_back( std::move(sp) );
-//         }
-//         else {
-//           std::stringstream ss;
-//           ss << __FILE__ << ":" << __LINE__ << " unrecognized boundary type" << std::endl;
-//           throw std::runtime_error(ss.str());
-//         }
-// >>>>>>> origin/branch_off_chris_linker_libraries_error_take_two
       }
     }
-
 
     if ( m_config.verbosity>=0 ) {
       std::cout << " Filtered Side Tagger End Points: " << cacapassing_moved_v.size() << std::endl;
@@ -277,6 +226,33 @@ namespace larlitecv {
   void TaggerCROIAlgo::runTruthBoundaryTagger( const InputPayload& input, ThruMuPayload& output ) {
     // This uses MC truth information to make boundary end points
     // We use this for debugging and performance metrics
+
+    const larcv::ImageMeta& meta = input.img_v.front().meta();
+    
+    CrossingPointAnaData_t xingdata;
+    larlitecv::analyzeCrossingMCTracks( xingdata, meta, input.img_v, input.p_ev_trigger, input.p_ev_mctrack, input.opflashes_v, false );
+
+    // extract the truth points and make end point containers
+    for ( auto const& xingpt : xingdata.truthcrossingptinfo_v ) {
+      BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)xingpt.type, xingpt.crossingpt_detsce, meta );
+      if ( sp.type()<=larlitecv::kDownstream  ) {
+	output.side_spacepoint_v.push_back( sp );
+	output.side_filtered_v.push_back( sp );	
+      }
+      else if ( sp.type()==larlitecv::kAnode ) {
+	output.anode_spacepoint_v.push_back( sp );
+	output.anode_filtered_v.push_back( sp );		
+      }
+      else if ( sp.type()==larlitecv::kCathode ) {
+	output.cathode_spacepoint_v.push_back( sp );
+	output.cathode_filtered_v.push_back( sp );
+      }
+      else if ( sp.type()==larlitecv::kImageEnd ) {
+	output.imgends_spacepoint_v.push_back( sp );
+	output.imgends_filtered_v.push_back( sp );	
+      }
+    }
+    
   }
 
   void TaggerCROIAlgo::runThruMuTracker( const InputPayload& input, ThruMuPayload& output ) {
@@ -338,13 +314,10 @@ namespace larlitecv {
       timer = std::clock();
       output.trackcluster3d_v.clear();
       output.tagged_v.clear();
-      // Use the 'makeTrackClusters3D' function; the crucial point here is that the flash
-      // information stored in the last two arguments of this function, 'all_endpoints_flash_idx_v'
-      // and 'all_endpoints_boundary_type_idx_v', correspond to the endpoints in the
-      // 'all_endpoints' vector (the third argument).
-      // COMMENT OUT FOR NOW
-      thrumu_tracker.makeTrackClusters3D( m_config.tagger_flash_match_cfg, input.img_v, input.gapch_v, all_endpoints,
-      					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v ); // The last two arguments are no longer necessary and were removed.
+      
+      thrumu_tracker.makeTrackClusters3D( m_config.croi_selection_cfg, input.img_v, input.gapch_v, all_endpoints,
+      					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v ); 
+
       m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
       if ( m_config.verbosity>0 )
         std::cout << "thrumu tracker search " << all_endpoints.size() << " end points in " << m_time_tracker[kThruMuTracker] << " sec" << std::endl;
