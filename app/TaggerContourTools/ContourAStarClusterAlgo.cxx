@@ -24,13 +24,6 @@
 namespace larlitecv {
 
   ContourAStarCluster::~ContourAStarCluster() {
-    // m_bmtcv_indices.clear();
-    // m_plane_contours.clear();    
-    // m_clusterimg_v.clear();
-    // m_cvimg_v.clear();
-    // m_cvpath_v.clear();
-    // m_current_contours.clear();
-    // m_path_contours.clear();
   }
   
   void ContourAStarCluster::setImageMeta( const std::vector<larcv::Image2D>& img_v ) {
@@ -199,7 +192,8 @@ namespace larlitecv {
 
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
 
-    std::cout << "getCluster3DPointAtTimeTick: row=" << row << std::endl;
+    if ( m_verbosity>1 )
+      std::cout << "getCluster3DPointAtTimeTick: row=" << row << std::endl;
     
     std::vector<ctr_pt_t> contour_points;
     
@@ -254,7 +248,8 @@ namespace larlitecv {
 	  }
 	}//end of col loops
       }//end of loop ctr on the plane
-      std::cout << "Number of contour points of plane #" << p << ": " << nfound << std::endl;
+      if ( m_verbosity>0 )
+	std::cout << "Number of contour points of plane #" << p << ": " << nfound << std::endl;
     }//end of plane loop
 
 
@@ -276,7 +271,8 @@ namespace larlitecv {
 	int crosses;
 	std::vector<float> xsec_zy(2,0);
 	larcv::UBWireTool::getMissingWireAndPlane( pta.plane, pta.maxqc, ptb.plane, ptb.maxqc, otherp, otherw, xsec_zy, crosses );
-	std::cout << "  candidate point: (" << a << "," << b << ") crosses=" << crosses << " pos=(" << xsec_zy[1] << "," << xsec_zy[0] << ")" << std::endl; 
+	if ( m_verbosity>1 )
+	  std::cout << "  candidate point: (" << a << "," << b << ") crosses=" << crosses << " pos=(" << xsec_zy[1] << "," << xsec_zy[0] << ")" << std::endl; 
 	
 	// bad crossing or out of wire range
 	if ( crosses==0 || otherw<0 || otherw>=img_v[otherp].meta().max_x() )
@@ -312,9 +308,11 @@ namespace larlitecv {
 	  pos3d[1] = xsec_zy[1];
 	  pos3d[2] = xsec_zy[0];
 
-	  std::cout << "Produced 3D Point: imgcoords(" << imgcoords[0] << "," << imgcoords[1] << "," << imgcoords[2] << "," << imgcoords[3] << ")"
-		    << " tick=" << tick
-		    << " pos3d=(" << pos3d[0] << "," << pos3d[1] << "," << pos3d[2] << ")" << std::endl;
+	  if ( m_verbosity>1 ) {
+	    std::cout << "Produced 3D Point: imgcoords(" << imgcoords[0] << "," << imgcoords[1] << "," << imgcoords[2] << "," << imgcoords[3] << ")"
+		      << " tick=" << tick
+		      << " pos3d=(" << pos3d[0] << "," << pos3d[1] << "," << pos3d[2] << ")" << std::endl;
+	  }
 	}
       }
     }
@@ -363,6 +361,7 @@ namespace larlitecv {
     }
     
     ContourAStarCluster cluster = makeSeedClustersFrom3DPoint( pos3d, img_v, plane_contours_v, max_dist2cluster );
+    cluster.setVerbosity(m_verbosity);
     extendSeedCluster( pos3d, img_v, badch_v, plane_contours_v, maxloopsteps, cluster );
     return cluster;
   }
@@ -382,14 +381,16 @@ namespace larlitecv {
       timerange[0] += 3;
       timerange[1] -= 3;
     }
-    std::cout << "Row range: [" << timerange[0] << "," << timerange[1] << "]" << std::endl;
+    if ( m_verbosity>1 ) 
+      std::cout << "Row range: [" << timerange[0] << "," << timerange[1] << "]" << std::endl;
     cluster.m_current_min = timerange[0];
     cluster.m_current_max = timerange[1];
 
 
     // img coord of seed point
     std::vector<int> seed_imgcoord = larcv::UBWireTool::getProjectedImagePixel( pos3d, img_v.front().meta(), img_v.size() );
-    std::cout << "Seed imgcoord: (" << seed_imgcoord[1] << "," << seed_imgcoord[2] << "," << seed_imgcoord[3] << ") tick="  << seed_imgcoord[0] << std::endl;
+    if ( m_verbosity>1 )
+      std::cout << "Seed imgcoord: (" << seed_imgcoord[1] << "," << seed_imgcoord[2] << "," << seed_imgcoord[3] << ") tick="  << seed_imgcoord[0] << std::endl;
     
     // draw line
     if ( fMakeDebugImage ) {
@@ -407,14 +408,15 @@ namespace larlitecv {
     std::vector<float> min_pos3d;
     std::vector<int> max_imgcoords;
     std::vector<float> max_pos3d;
-    std::cout << "Get min point -----------------------" << std::endl;
+    //std::cout << "Get min point -----------------------" << std::endl;
     bool foundpoint_min = cluster.getCluster3DPointAtTimeTick( timerange[0], img_v, badch_v, true, min_imgcoords, min_pos3d );
-    std::cout << "Get max point -----------------------" << std::endl;    
+    //std::cout << "Get max point -----------------------" << std::endl;    
     bool foundpoint_max = cluster.getCluster3DPointAtTimeTick( timerange[1], img_v, badch_v, true, max_imgcoords, max_pos3d );
 
     if ( !foundpoint_min || !foundpoint_max ) {
       // bad seed
-      std::cout << "Bad seeds @min=" << foundpoint_min << " @max=" << foundpoint_max << std::endl;
+      if ( m_verbosity>1 )
+	std::cout << "Bad seeds @min=" << foundpoint_min << " @max=" << foundpoint_max << std::endl;
       return;
     }
 
@@ -439,7 +441,6 @@ namespace larlitecv {
 	cv::circle( cluster.m_cvimg_debug, cv::Point(min_imgcoords[p+1], min_imgcoords[0]), 3, cv::Scalar(255,0,255), 1 );
 	cv::circle( cluster.m_cvimg_debug, cv::Point(max_imgcoords[p+1], max_imgcoords[0]), 3, cv::Scalar(255,0,255), 1 );	
       }
-      
       std::cout << "Wrote seed cluster image and time bounds" << std::endl;
       cv::imwrite( "boundaryptimgs/astarcluster_seedcluster.png", cluster.m_cvimg_debug );      
     }
@@ -447,9 +448,11 @@ namespace larlitecv {
     // now we enter the buiding loop
     int iloop = 0;
     while( iloop<maxloopsteps ) {
-      std::cout << "////// LOOP " << iloop << " /////////" << std::endl;
-      std::cout << " Start: (" << min_pos3d[0] << "," << min_pos3d[1] << "," << min_pos3d[2] << ") " << std::endl;
-      std::cout << " End:   (" << max_pos3d[0] << "," << max_pos3d[1] << "," << max_pos3d[2] << ")   " << std::endl;      
+      if ( m_verbosity>0 ) {
+	std::cout << "////// LOOP " << iloop << " /////////" << std::endl;
+	std::cout << " Start: (" << min_pos3d[0] << "," << min_pos3d[1] << "," << min_pos3d[2] << ") " << std::endl;
+	std::cout << " End:   (" << max_pos3d[0] << "," << max_pos3d[1] << "," << max_pos3d[2] << ")   " << std::endl;
+      }
       iloop++;
 
       cluster.resetDebugImage( img_v );
@@ -481,8 +484,9 @@ namespace larlitecv {
       
       int goalhit = 0;
       path = algo.findpath( img_v, badch_v, badch_v, timerange[0], timerange[1], start_cols, end_cols, goalhit );
-      
-      std::cout << "Goal hit: " << goalhit << " pathsize=" << path.size() << std::endl;
+
+      if ( m_verbosity>0 )
+	std::cout << "Goal hit: " << goalhit << " pathsize=" << path.size() << std::endl;
 
       // stop if astar cannot connect
       if ( goalhit==0 )
@@ -568,11 +572,13 @@ namespace larlitecv {
       throw std::runtime_error( ss.str() );
     }
 
-    std::cout << __FILE__ << ":" << __LINE__ << " Seed Point: "
-	      << " pos=" << pos3d[0] << "," << pos3d[1] << "," << pos3d[2]
-	      << "  imgcoords=(" << imgcoords[0] << "," << imgcoords[1] << "," << imgcoords[2] << "," << imgcoords[3] << ")"
-	      << "  tick=" << img_v.front().meta().pos_y( imgcoords[0] )
-	      << std::endl;
+    if ( m_verbosity>0 ) {
+      std::cout << __FILE__ << ":" << __LINE__ << " Seed Point: "
+		<< " pos=" << pos3d[0] << "," << pos3d[1] << "," << pos3d[2]
+		<< "  imgcoords=(" << imgcoords[0] << "," << imgcoords[1] << "," << imgcoords[2] << "," << imgcoords[3] << ")"
+		<< "  tick=" << img_v.front().meta().pos_y( imgcoords[0] )
+		<< std::endl;
+    }
     
     
     std::vector<cv::Point> imgpt;
@@ -657,7 +663,6 @@ namespace larlitecv {
 								     const float max_dist2cluster ) {
     ContourAStarCluster cluster = makeSeedClustersFrom3DPoint( pos3d, img_v, plane_contours_v, max_dist2cluster );
     std::vector<int> rowrange = cluster.getOverlappingRowRange();
-    std::cout << "row range: [" << rowrange[0] << "," << rowrange[1] << "]" << std::endl;
     return cluster;
   }
 
@@ -747,7 +752,6 @@ namespace larlitecv {
 
     // (3) extend from ends and record clsuters it intersects/(4) mark the cluster image
     int numsteps = distextended/stepsize;
-    std::cout << "extend line with " << numsteps << " steps" << std::endl;
 
     std::vector< std::set<int> > indices_of_contours_v(3); // index of contours the extensions cross into
     std::vector< std::vector<float> > start_ext;
@@ -793,7 +797,8 @@ namespace larlitecv {
 	}
       }
       else {
-	std::cout << " stepmax out of bounds: (" << stepposmax[0] << "," << stepposmax[1] << "," << stepposmax[2] << ")" << std::endl;
+	if ( m_verbosity>1 )
+	  std::cout << " stepmax out of bounds: (" << stepposmax[0] << "," << stepposmax[1] << "," << stepposmax[2] << ")" << std::endl;
       }
       
       if ( stepposmin[0]>2400 && stepposmin[0]<8448 && stepposmin[1]>-117 && stepposmin[1]<117 && stepposmin[2]>0.3 && stepposmin[2]<1030 ) {
@@ -824,17 +829,20 @@ namespace larlitecv {
 	}
       }
       else {
-	std::cout << " stepmin out of bounds: (" << stepposmin[0] << "," << stepposmin[1] << "," << stepposmin[2] << ")" << std::endl;
+	if ( m_verbosity>1 )
+	  std::cout << " stepmin out of bounds: (" << stepposmin[0] << "," << stepposmin[1] << "," << stepposmin[2] << ")" << std::endl;
       }
       
     }//end of step loop
 
-    std::cout << "Cluster intersections: " << std::endl;
-    for (int p=0; p<3; p++) {
-      std::cout << " Plane " << p << ": ";
-      for (auto& idx : indices_of_contours_v[p] )
-	std::cout << " " << idx;
-      std::cout << std::endl;
+    if ( m_verbosity>0 ) {
+      std::cout << "Cluster intersections: " << std::endl;
+      for (int p=0; p<3; p++) {
+	std::cout << " Plane " << p << ": ";
+	for (auto& idx : indices_of_contours_v[p] )
+	  std::cout << " " << idx;
+	std::cout << std::endl;
+      }
     }
 
     // extend path

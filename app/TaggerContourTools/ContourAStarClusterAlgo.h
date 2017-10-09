@@ -26,15 +26,18 @@ namespace larlitecv {
   public:
     ContourAStarCluster() {
       makeDebugImage(false);
+      m_verbosity=0;
     };
     ContourAStarCluster( const std::vector<larcv::Image2D>& img_v, bool make_debug_img=false ) {
       makeDebugImage(make_debug_img);      
       setImageMeta(img_v);
+      m_verbosity=0;
     };
     virtual ~ContourAStarCluster();
 
     int numPlanes() { return m_nplanes; };
     const std::vector< std::vector<float> >& getPath() const { return m_path3d; };
+    void setVerbosity(int verb ) { m_verbosity=verb; };
     
     //protected:
   public: // temporary for debug
@@ -67,6 +70,8 @@ namespace larlitecv {
     bool getCluster3DPointAtTimeTick( const int row, const std::vector<larcv::Image2D>& img_v,
 				      const std::vector<larcv::Image2D>& badch_v, bool use_badch,
 				      std::vector<int>& imgcoords, std::vector<float>& pos3d );
+
+    int m_verbosity;
     
   };
   
@@ -75,6 +80,8 @@ namespace larlitecv {
   public:
     ContourAStarClusterAlgo() {
       m_stage_times.resize( kNumStages, 0.0 );
+      m_verbosity=0;
+      fMakeDebugImage=false;
     };
     virtual ~ContourAStarClusterAlgo() {};
 
@@ -108,12 +115,15 @@ namespace larlitecv {
 
     void makeDebugImage( bool make=true ) { fMakeDebugImage = make; };
     void printStageTimes();
+    void setVerbosity( int verbose ) { m_verbosity=verbose; };
     
   protected:
     bool fMakeDebugImage;
     
     enum { kContourLoop=0, kPointPolyTest, kImagePrep, kAddContours, kCreateCluster, kNumStages };
     std::vector<float> m_stage_times;
+
+    int m_verbosity;
 
     
     
