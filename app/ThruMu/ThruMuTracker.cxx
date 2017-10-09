@@ -151,7 +151,8 @@ namespace larlitecv {
   //   track_endpoint_boundary_type_idx_v: This vector of ints contains the producer of the flash that corresponds to the endpoints of the track in the 'trackclusters' vector.
   void ThruMuTracker::runPass( const int passid, const ThruMuTrackerConfig::ThruMuPassConfig& passcfg, const std::vector< const BoundarySpacePoint* >& spacepts,
 			       const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badchimg_v, std::vector<larcv::Image2D>& tagged_v,
-			       std::vector<int>& used_endpoints_indices, std::vector<larlitecv::BMTrackCluster3D>& trackclusters, std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v,
+			       std::vector<int>& used_endpoints_indices, std::vector<larlitecv::BMTrackCluster3D>& trackclusters,
+			       std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v,
 			       std::vector< std::vector< BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v, std::vector< std::vector< BoundarySpacePoint > >& track_endpoint_v) {
 
     // Make a pass to try and connect some end points.
@@ -183,7 +184,7 @@ namespace larlitecv {
     std::vector< BoundaryFlashIndex > single_track_endpoint_flash_v;
     single_track_endpoint_flash_v.clear();
 
-    std::vector< int > single_track_boundary_type_idx_v;
+    std::vector< larlitecv::BoundaryEnd_t > single_track_boundary_type_idx_v;
     single_track_boundary_type_idx_v.clear();
 
     std::vector< BoundarySpacePoint > single_track_endpoint_v;
@@ -369,15 +370,18 @@ namespace larlitecv {
 	  single_track_endpoint_flash_v.resize(2);
 	  single_track_endpoint_flash_v[0]          = spacepts.at( i )->getFlashIndex();
 	  single_track_endpoint_flash_v[1]          = spacepts.at( j )->getFlashIndex();
+	  track_endpoint_flash_v.emplace_back( std::move(single_track_endpoint_flash_v) );
 
 	  single_track_boundary_type_idx_v.resize(2);
 	  single_track_boundary_type_idx_v[0] = spacepts.at( i )->type();
 	  single_track_boundary_type_idx_v[1] = spacepts.at( j )->type();
+	  track_endpoint_boundary_type_idx_v.emplace_back( std::move(single_track_boundary_type_idx_v) );
 
 	  // Save the information for the boundary points in this vector.
 	  single_track_endpoint_v.resize(2);
 	  single_track_endpoint_v[0] = *spacepts.at( i );
 	  single_track_endpoint_v[1] = *spacepts.at( j );
+	  track_endpoint_v.emplace_back( std::move(single_track_endpoint_v) );
 	  
           if ( m_config.verbosity>1 ) {
             std::cout << "#### Storing track. size=" << track3d.path3d.size() << ". indices (" << indices[0] << "," << indices[1] << ") ####" << std::endl;
@@ -407,20 +411,6 @@ namespace larlitecv {
       used_endpoints_indices.at(indices[0]) = 1;
       used_endpoints_indices.at(indices[1]) = 1;
       
-    }
-
-    // Use the same logic to place the indices of the flash corresponding to the endpoints and the flash producer corresponding to the flash that determined the endpoints.
-    // The information for the flash matched to the track.
-    for ( auto& endpoint_flashes: single_track_endpoint_flash_v ) {
-      track_endpoint_flash_v.emplace_back( std::move(endpoint_flashes) );
-    }
-    // The information for the boundary type matched to the flash.
-    for( auto& boundary_types: single_track_boundary_type_idx_v) {
-      track_endpoint_boundary_type_idx_v.emplace_back( std::move(boundary_types) );
-    }
-    // The endpoints themselves saved in the loop.
-    for ( auto& endpoints: single_track_endpoint_v ) {
-      track_endpoint_v.emplace_back( std::move( endpoints) );
     }
 
     return;
@@ -660,6 +650,7 @@ namespace larlitecv {
       // Use the 'find' functionality of the set in C++ to see if this qcluster is determined by a set of impossible endpoints.                                                                         
       // Unpack the 'impossible_match' endpoints so that you can place them in either order.                                                                                                             
       std::vector< BoundarySpacePoint > impossible_match_endpoints_for_qcluster = track_endpoint_v_from_pass.at( endpoint_iter );
+      std::vector< BoundaryFlashIndex > impossible_match_flashindex             = track_endpoint_flash_v_from_pass.at( endpoint_iter );
 
       std::vector< BoundarySpacePoint > order_one;
       std::vector< BoundarySpacePoint > order_two;
@@ -673,13 +664,14 @@ namespace larlitecv {
       order_two[0] = impossible_match_endpoints_for_qcluster[1];
       order_two[1] = impossible_match_endpoints_for_qcluster[0];
 
-      auto const& first_order  = impossible_match_endpoint_v.find( order_one );
-      auto const& second_order = impossible_match_endpoint_v.find( order_two );
+      // // missing a comparison operator
+      // auto const& first_order  = impossible_match_endpoint_v.find( order_one );
+      // auto const& second_order = impossible_match_endpoint_v.find( order_two );
 
-      // See if either order of the endpoints has an index in 'impossible_match_endpoint_idx_v'.  If they do, then 'push_back' a '0' onto 'well_matched_tracks'.                                       
-      if ( first_order != impossible_match_endpoint_v.end() || second_order != impossible_match_endpoint_v.end() ) {
-	well_matched_tracks_idx_v.at(endpoint_iter) = 0;
-      }
+      // // See if either order of the endpoints has an index in 'impossible_match_endpoint_idx_v'.  If they do, then 'push_back' a '0' onto 'well_matched_tracks'.                                       
+      // if ( first_order != impossible_match_endpoint_v.end() || second_order != impossible_match_endpoint_v.end() ) {
+      // 	well_matched_tracks_idx_v.at(endpoint_iter) = 0;
+      // }
 
     }
 
@@ -743,7 +735,7 @@ namespace larlitecv {
 				    const std::vector< std::vector< BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v_from_pass, 
 				    std::set< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > > & track_endpoint_v_from_pass, 
 				    std::vector < int >& well_matched_tracks_idx_v, std::set< BoundaryFlashIndex >&  already_matched_flash_v ) {
-
+    
     // Create a new object of class 'GeneralFlashMatchAlgo'.
     larlitecv::GeneralFlashMatchAlgo flash_match_obj( flash_match_config );
  
@@ -775,8 +767,8 @@ namespace larlitecv {
 	boundary_flash_idx_for_endpoint = track_endpoint_flash_v_from_pass.at( qcluster_iter )[1];
       } 
       
-      auto const& check_for_already_matched_flash = already_matched_flash_v.find( boundary_flash_index_vector.at( qcluster_iter ) );
-
+      auto const& check_for_already_matched_flash = already_matched_flash_v.find( boundary_flash_idx_for_endpoint );
+      
       // Continue if the flash has already been matched well to another track.                                                                                                                     
       // If it has, then continue.
       if ( check_for_already_matched_flash != already_matched_flash_v.end() ) {
@@ -820,7 +812,7 @@ namespace larlitecv {
 
       else { // If the track's chi2 was greater than the anode/cathode piercing chi2 cut value, then put the track's endpoints in the 'impossible_match_endpoint_idx_v' list.
 	
-	impossible_match_endpoint_v.insert( track_endpoint_v_from_pass.at( qcluster_iter ) );
+	//impossible_match_endpoint_v.insert( track_endpoint_v_from_pass.at( qcluster_iter ) );
 
 	// Change the index of 'well_matched_tracks_idx_v' at this index to equal 0, because the track is not well-reconstructed according to the chi2 cut.
 	well_matched_tracks_idx_v.at( qcluster_iter ) = 0;
@@ -934,7 +926,7 @@ namespace larlitecv {
       }
       else {
 	well_matched_tracks_idx_v.at( qcluster_idx_v_iter ) = 0; // corresponding to a bad track.
-	impossible_match_endpoint_v.insert( track_endpoint_v_from_pass.at( qcluster_idx_v_iter ) );
+	//impossible_match_endpoint_v.insert( track_endpoint_v_from_pass.at( qcluster_idx_v_iter ) );
       } 
       
     }

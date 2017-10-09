@@ -56,7 +56,7 @@ namespace larlitecv {
     int num_passes; //< number of passes
     int compression_mode; //< downsampling method to use for astar (see larcv::Image2D for enum definition)
     int downsampling_factor; //< downsampling factor
-    bool thrumu_flashmatch;
+    bool thrumu_flashmatch; //< use flashmatch machinery
     std::vector<int> tag_neighborhood;
     std::vector<float> pixel_threshold;
     std::vector< ThruMuPassConfig > pass_configs; //< configuration for each pass
