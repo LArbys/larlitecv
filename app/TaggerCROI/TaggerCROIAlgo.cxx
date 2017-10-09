@@ -315,8 +315,9 @@ namespace larlitecv {
       output.trackcluster3d_v.clear();
       output.tagged_v.clear();
       
-      thrumu_tracker.makeTrackClusters3D( m_config.croi_selection_cfg, input.img_v, input.gapch_v, all_endpoints,
-      					  output.trackcluster3d_v, output.tagged_v, used_endpoints, input.opflashes_v ); 
+      thrumu_tracker.makeTrackClusters3D( m_config.croi_selection_cfg.genflashmatch_cfg, input.img_v, input.gapch_v,
+					  all_endpoints, output.trackcluster3d_v, 
+      					  output.tagged_v, used_endpoints, input.opflashes_v ); 
 
       m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
       if ( m_config.verbosity>0 )
