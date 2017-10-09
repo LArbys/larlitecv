@@ -32,10 +32,10 @@ namespace larlitecv {
 					const float max_dtick ) {
 
     // evaluates end point goodness
-    std::cout << __FILE__ << ":" << __LINE__ << " ----------------------------------" << std::endl;
+    if ( m_verbosity>0 )
+      std::cout << __FILE__ << ":" << __LINE__ << " ----------------------------------" << std::endl;
     
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;    
-    //larlitecv::ContourAStarCluster cluster = m_caca.makeCluster( pt.pos(), img_v, badch_v, plane_contours_v, -10, 3 );
 
     // make a seed cluster
     clock_t begin_seed = clock();
@@ -47,9 +47,9 @@ namespace larlitecv {
 
     // test if a duplicate
     clock_t begin_dup = clock();
-    std::cout << "  Check if duplicate" << std::endl;
     if ( isDuplicateEndPoint( cluster, pt ) ) {
-      std::cout << " Duplicate seed cluster." << std::endl;
+      if ( m_verbosity>0 )
+	std::cout << " Duplicate seed cluster." << std::endl;
       m_last_was_duplicate = true;
       m_last_clusters.emplace_back( std::move(cluster) );      
       return false;
@@ -76,9 +76,11 @@ namespace larlitecv {
     // fill in most recent past info
     // -----------------------------
     // set the position based on the end closest to the wall
-    std::cout << "fill in past info." << std::endl;
-    std::cout << "front: (" << cluster.m_path3d.front()[0] << "," << cluster.m_path3d.front()[1] << "," << cluster.m_path3d.front()[2] << ")" << std::endl;
-    std::cout << "back:  (" << cluster.m_path3d.back()[0] << "," << cluster.m_path3d.back()[1] << "," << cluster.m_path3d.back()[2] << ")" << std::endl;
+    if ( m_verbosity>0 ) {
+      std::cout << "fill in past info." << std::endl;
+      std::cout << "front: (" << cluster.m_path3d.front()[0] << "," << cluster.m_path3d.front()[1] << "," << cluster.m_path3d.front()[2] << ")" << std::endl;
+      std::cout << "back:  (" << cluster.m_path3d.back()[0] << "," << cluster.m_path3d.back()[1] << "," << cluster.m_path3d.back()[2] << ")" << std::endl;
+    }
 
     std::vector<float> pathdir_front(3,0);
     std::vector<float> pathdir_back(3,0);    
@@ -109,16 +111,19 @@ namespace larlitecv {
 	  pathdir_back[i] = (pos[i]-end[i])/dist2end;
       }
     }
-    
-    std::cout << "front dir: (" << pathdir_front[0] << "," << pathdir_front[1] << "," << pathdir_front[2] << ")" << std::endl;
-    std::cout << "back dir:  (" << pathdir_back[0] << "," << pathdir_back[1] << "," << pathdir_back[2] << ")" << std::endl;    
 
+    if ( m_verbosity>0 ) {
+      std::cout << "front dir: (" << pathdir_front[0] << "," << pathdir_front[1] << "," << pathdir_front[2] << ")" << std::endl;
+      std::cout << "back dir:  (" << pathdir_back[0] << "," << pathdir_back[1] << "," << pathdir_back[2] << ")" << std::endl;    
+    }
     PastClusterInfo_t& info = m_past_info.back();    
     bool usefront = true; // if false use back
     float tick_start = start[0]/cm_per_tick + 3200.0;
     float tick_end   = end[0]/cm_per_tick   + 3200.0;
-    std::cout << "front tick: " << tick_start << std::endl;
-    std::cout << "back tick:  " << tick_end << std::endl;
+    if ( m_verbosity>0 ) {
+      std::cout << "front tick: " << tick_start << std::endl;
+      std::cout << "back tick:  " << tick_end << std::endl;
+    }
     
     // use voting system, where we pick the end point that is closest to the edges of the different plane bounds determined by contour collection
     float tick_dist_start = 0;
@@ -131,7 +136,8 @@ namespace larlitecv {
 	continue; // nothing good here
       float cluster_rowmintick = meta.pos_y( cluster.m_plane_rowminmax[p][0] );
       float cluster_rowmaxtick = meta.pos_y( cluster.m_plane_rowminmax[p][1] );
-      std::cout << "plane tick bounds [" << cluster_rowmaxtick << "," << cluster_rowmintick << "]" << std::endl;
+      if ( m_verbosity>0 )
+	std::cout << "plane tick bounds [" << cluster_rowmaxtick << "," << cluster_rowmintick << "]" << std::endl;
 
       float start_dmin = fabs(cluster_rowmintick-tick_start);
       float start_dmax = fabs(cluster_rowmaxtick-tick_start);
@@ -148,121 +154,15 @@ namespace larlitecv {
 	tick_dist_end += end_dmax;
     }
 
-    std::cout << "front tick total dist: " << tick_dist_start << std::endl;
-    std::cout << "back tick total dist:  " << tick_dist_end << std::endl;    
+    if ( m_verbosity>0 ) {
+      std::cout << "front tick total dist: " << tick_dist_start << std::endl;
+      std::cout << "back tick total dist:  " << tick_dist_end << std::endl;
+    }
 
     if ( tick_dist_start<tick_dist_end )
       usefront = true;
     else
       usefront = false;
-    
-    // determine if we use front or back end point for boundary end point position and direction
-    /*
-      // here we were using directions/dwall -- ambiguous
-    if ( pt.type()<larlitecv::kAnode ) {
-      float fdwall_start = dspecificwall( cluster.m_path3d.front(), pt.type() );
-      float fdwall_end   = dspecificwall( cluster.m_path3d.back(),  pt.type() );
-      std::cout << "side tag (" << pt.type() << "): dwall start=" << fdwall_start << " dwall end=" << fdwall_end << std::endl;
-
-      // determine endpt from dir
-      bool gooddecision_fromdir = false;
-      bool usefront_fromdir   = true;
-      if ( pt.type()==larlitecv::kTop ) {
-	if ( pathdir_front[1]<0 ) {
-	  usefront_fromdir = true;
-	  gooddecision_fromdir = true;
-	}
-	else if ( pathdir_back[1]<0 ) {
-	  usefront_fromdir = false;
-	  gooddecision_fromdir = true;
-	}
-	else
-	  gooddecision_fromdir = false;
-      }
-      else if ( pt.type()==larlitecv::kBottom ) {
-	if ( pathdir_front[1]>0 ) {
-	  usefront_fromdir = true;
-	  gooddecision_fromdir = true;
-	}
-	else if ( pathdir_back[1]>0 ) {
-	  usefront_fromdir = false;
-	  gooddecision_fromdir = true;
-	}
-	else
-	  gooddecision_fromdir = false;
-      }
-      else if ( pt.type()==larlitecv::kUpstream ) {
-	if ( pathdir_front[2]>0 ) {
-	  usefront_fromdir = true;
-	  gooddecision_fromdir = true;
-	}
-	else if ( pathdir_back[2]>0 ) {
-	  usefront_fromdir = false;
-	  gooddecision_fromdir = true;
-	}
-	else
-	  gooddecision_fromdir = false;
-      }
-      else if ( pt.type()==larlitecv::kDownstream ) {
-	if ( pathdir_front[2]<0 ) {
-	  usefront_fromdir = true;
-	  gooddecision_fromdir = true;
-	}
-	else if ( pathdir_back[2]<0 ) {
-	  usefront_fromdir = false;
-	  gooddecision_fromdir = true;
-	}
-	else
-	  gooddecision_fromdir = false;
-      }
-      
-      // use dwall
-      bool usefront_fromdwall = true;
-      if ( fdwall_start<fdwall_end )
-	usefront_fromdwall = true;
-      else
-	usefront_fromdwall = false;
-
-      // how to decide based on these two metrics
-
-      // no ambiguity
-      if ( usefront_fromdwall && usefront_fromdir )
-	usefront = true;
-      else if ( !usefront_fromdwall && !usefront_fromdir )
-	usefront = false;
-      else {
-	// ambiguity can happen for cathode/anode crossings close to the wall...
-	usefront = usefront_fromdir; // this is a hack until I can think of something better
-      }
-    }
-    else if ( pt.type()==larlitecv::kAnode ) {
-      if ( cluster.m_path3d.front()[0]<cluster.m_path3d.back()[0] )
-	usefront = true;
-      else
-	usefront = false;
-    }
-    else if ( pt.type()==larlitecv::kCathode ) {
-      if ( cluster.m_path3d.front()[0]<cluster.m_path3d.back()[0] )
-	usefront = false;
-      else
-	usefront = true;
-    }
-    else {
-      // image end. use end closest to the original position
-      float dist2end   = 0;
-      float dist2start = 0;
-      for (int i=0; i<3; i++) {
-	dist2end   += ( cluster.m_path3d.back()[i]-pt.pos()[i] )*( cluster.m_path3d.back()[i]-pt.pos()[i] );
-	dist2start += ( cluster.m_path3d.front()[i]-pt.pos()[i] )*( cluster.m_path3d.front()[i]-pt.pos()[i] );	
-      }
-      dist2end = sqrt(dist2end);
-      dist2start = sqrt(dist2start);
-      if ( dist2start<dist2end )
-	usefront = true;
-      else
-	usefront = false;
-    }
-    */
     
     if ( usefront ) {
       for (int i=0; i<3; i++)
@@ -283,11 +183,13 @@ namespace larlitecv {
     
     if ( pt.type()==larlitecv::kAnode || pt.type()==larlitecv::kCathode ) {
       // perform end test, needs to be in-time with flash and be exiting or entering the right direction
-      std::cout << "ticks start=" << tick_start << " end=" << tick_end << std::endl;
+      if ( m_verbosity>0 )
+	std::cout << "ticks start=" << tick_start << " end=" << tick_end << std::endl;
       float flash_tick = 3200 + associated_flash->Time()/0.5;
       if ( pt.type()==larlitecv::kCathode )
 	flash_tick += (256.0)/cm_per_tick;
-      std::cout << "flash tick=" << flash_tick << std::endl;
+      if ( m_verbosity>0 )      
+	std::cout << "flash tick=" << flash_tick << std::endl;
 
       float dir[3] = { 0, 0, 0};
       std::vector<float> flashend;
@@ -316,9 +218,11 @@ namespace larlitecv {
 	for (int i=0; i<3; i++) dir[i] /= norm;
 
       float dtick = fabs(trackend_tick-flash_tick);
-      std::cout << "dtick=" << dtick << std::endl;
-      std::cout << "type=" << pt.type() << std::endl;
-      std::cout << "dir[0]=" << dir[0] << std::endl;
+      if ( m_verbosity>0 ) {
+	std::cout << "dtick=" << dtick << std::endl;
+	std::cout << "type=" << pt.type() << std::endl;
+	std::cout << "dir[0]=" << dir[0] << std::endl;
+      }
       
       if ( dtick < max_dtick ) {
 	if ( pt.type()==larlitecv::kAnode && dir[0]>0 )
@@ -587,17 +491,20 @@ namespace larlitecv {
 		const larlitecv::TruthCrossingPointAna_t* truthinfo = NULL;
 		try {
 		  truthinfo = &(m_truthinfo_ptr_v->at(recoinfo->truthmatch_index));
-		  std::cout << "Closest Truth crossing position: "
-			    << "(" << truthinfo->crossingpt_detsce[0] << "," << truthinfo->crossingpt_detsce[1] << "," << truthinfo->crossingpt_detsce[2] << ")"
-			    << " dist=" << recoinfo->truthmatch_dist
-			    << std::endl;
-		  std::cout << "Closest Stored Truth crossing position: "
-			    << "(" << recoinfo->truthmatch_detsce_tyz[0] << "," << recoinfo->truthmatch_detsce_tyz[1] << "," << recoinfo->truthmatch_detsce_tyz[2] << ")"
-			    << " dist=" << recoinfo->truthmatch_dist
-			    << std::endl;
+		  if ( m_verbosity>0 ) {
+		    std::cout << "Closest Truth crossing position: "
+			      << "(" << truthinfo->crossingpt_detsce[0] << "," << truthinfo->crossingpt_detsce[1] << "," << truthinfo->crossingpt_detsce[2] << ")"
+			      << " dist=" << recoinfo->truthmatch_dist
+			      << std::endl;
+		    std::cout << "Closest Stored Truth crossing position: "
+			      << "(" << recoinfo->truthmatch_detsce_tyz[0] << "," << recoinfo->truthmatch_detsce_tyz[1] << "," << recoinfo->truthmatch_detsce_tyz[2] << ")"
+			      << " dist=" << recoinfo->truthmatch_dist
+			      << std::endl;
+		  }
 		}
 		catch (...) {
-		  std::cout << "No closest truth point on record." << std::endl;
+		  if ( m_verbosity>0 ) 
+		    std::cout << "No closest truth point on record." << std::endl;
 		  continue;
 		}
 	      }
@@ -716,8 +623,8 @@ namespace larlitecv {
   bool CACAEndPtFilter::isDuplicateEndPoint( const larlitecv::ContourAStarCluster& seedcluster, const larlitecv::BoundarySpacePoint& sp ) {
     // checks the seed cluster against previous clusters.
     // if plane contours a subset of other contour clusters, then a duplicate
-    std::cout << "  duplicate check. number of past clusters=" << m_last_clusters.size() << std::endl;
-    std::cout << "  seedcluster plane indices: " << seedcluster.m_bmtcv_indices.size() << std::endl;
+    //std::cout << "  duplicate check. number of past clusters=" << m_last_clusters.size() << std::endl;
+    //std::cout << "  seedcluster plane indices: " << seedcluster.m_bmtcv_indices.size() << std::endl;
     
     for ( auto const& pastcluster : m_past_info ) {
       // check the plane contour indices
