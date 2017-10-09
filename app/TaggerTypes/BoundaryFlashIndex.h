@@ -24,6 +24,8 @@ namespace larlitecv {
     int idx;  //< index of opflash instance in the container
     const larlite::opflash* popflash; //< pointer to it
 
+    bool operator< ( const BoundaryFlashIndex& rhs ) const;
+
   };
 
 }
