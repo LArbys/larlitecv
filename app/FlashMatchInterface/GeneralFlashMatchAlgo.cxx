@@ -3,6 +3,8 @@
 
 namespace larlitecv {
 
+  GeneralFlashMatchAlgo* GeneralFlashMatchAlgo::_global_instance = NULL;
+  
   GeneralFlashMatchAlgo::GeneralFlashMatchAlgo()
     : m_pmtweights("geoinfo.root")
   {}
@@ -800,6 +802,20 @@ namespace larlitecv {
     // Return the chi2 value.
     return chi2;
         
+  }
+
+  GeneralFlashMatchAlgo* GeneralFlashMatchAlgo::GetME() {
+    if ( _global_instance==NULL ) {
+      throw std::runtime_error("Need to call global instance with a config for pset first");
+    }
+    return _global_instance;
+  }
+
+  GeneralFlashMatchAlgo* GeneralFlashMatchAlgo::GetME( larlitecv::GeneralFlashMatchAlgoConfig& config ) {
+    if ( _global_instance==NULL ) {
+      _global_instance = new GeneralFlashMatchAlgo( config );
+    }
+    return _global_instance;
   }
   
 }
