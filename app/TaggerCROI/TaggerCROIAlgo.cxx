@@ -33,6 +33,7 @@
 #include "T3DMerge/T3DPCMerge.h"
 #include "T3DMerge/T3D2LarliteTrack.h"
 #include "TaggerContourTools/CACAEndPtFilter.h"
+#include "MCTruthTools/crossingPointsAnaMethods.h"
 
 namespace larlitecv {
 
@@ -277,6 +278,33 @@ namespace larlitecv {
   void TaggerCROIAlgo::runTruthBoundaryTagger( const InputPayload& input, ThruMuPayload& output ) {
     // This uses MC truth information to make boundary end points
     // We use this for debugging and performance metrics
+
+    const larcv::ImageMeta& meta = input.img_v.front().meta();
+    
+    CrossingPointAnaData_t xingdata;
+    larlitecv::analyzeCrossingMCTracks( xingdata, meta, input.img_v, input.p_ev_trigger, input.p_ev_mctrack, input.opflashes_v, false );
+
+    // extract the truth points and make end point containers
+    for ( auto const& xingpt : xingdata.truthcrossingptinfo_v ) {
+      BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)xingpt.type, xingpt.crossingpt_detsce_tyz, meta );
+      if ( sp.type()<=larlitecv::kDownstream  ) {
+	output.side_spacepoint_v.push_back( sp );
+	output.side_filtered_v.push_back( sp );	
+      }
+      else if ( sp.type()==larlitecv::kAnode ) {
+	output.anode_spacepoint_v.push_back( sp );
+	output.anode_filtered_v.push_back( sp );		
+      }
+      else if ( sp.type()==larlitecv::kCathode ) {
+	output.cathode_spacepoint_v.push_back( sp );
+	output.cathode_filtered_v.push_back( sp );
+      }
+      else if ( sp.type()==larlitecv::kImageEnd ) {
+	output.imgends_spacepoint_v.push_back( sp );
+	output.imgends_filtered_v.push_back( sp );	
+      }
+    }
+    
   }
 
   void TaggerCROIAlgo::runThruMuTracker( const InputPayload& input, ThruMuPayload& output ) {

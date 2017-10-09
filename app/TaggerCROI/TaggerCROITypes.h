@@ -13,6 +13,7 @@
 
 // larlite
 #include "DataFormat/opflash.h"
+#include "DataFormat/trigger.h"
 
 // larcv
 #include "DataFormat/EventPixel2D.h"
@@ -36,6 +37,7 @@ namespace larlitecv {
     std::vector<larcv::Image2D>            badch_v;     //< image marking bad channels
     std::vector<larcv::Image2D>            gapch_v;     //< image marking gap channels
     std::vector< larlite::event_opflash* > opflashes_v; //< container of opflashes to consider
+    larlite::trigger*                      p_ev_trigger; //< event trigger data
     int run;
     int subrun;
     int event;

@@ -8,6 +8,7 @@
 #include "Base/DataFormatConstants.h"
 #include "DataFormat/mcnu.h"
 #include "DataFormat/mctruth.h"
+#include "DataFormat/trigger.h"
 
 // larcv
 #include "Base/LArCVBaseUtilFunc.h"
@@ -202,6 +203,7 @@ namespace larlitecv {
     m_emptych_thresh          = m_pset.get< std::vector<float> >("EmptyChannelThreshold");
     m_chstatus_datatype       = m_pset.get<std::string>("ChStatusDataType");
     m_opflash_producers       = m_pset.get< std::vector<std::string> >( "OpflashProducers" );
+    m_trigger_producer        = m_pset.get< std::string >( "TriggerProducer" );    
     m_RunThruMu               = m_pset.get<bool>("RunThruMu");
     m_RunStopMu               = m_pset.get<bool>("RunStopMu");
     m_RunCROI                 = m_pset.get<bool>("RunCROI");
@@ -518,6 +520,16 @@ namespace larlitecv {
       }
     }
 
+    // -------------------------------------------------------------------------------------------//
+    // LOAD EVENT TRIGGER
+    try {
+      m_input_data.p_ev_trigger = (larlite::trigger*)m_dataco_input.get_larlite_data(larlite::data::kTrigger, m_trigger_producer);
+    }
+    catch (const std::exception& e ) {
+      std::cerr << "Error retrieving MC track information upon request: " << e.what() << std::endl;
+      m_input_data.p_ev_trigger = NULL;
+    }
+    
     // -------------------------------------------------------------------------------------------//
     // set the state.  the input data is ready
     m_state.input_ready = true;
