@@ -3,6 +3,7 @@
 
 #include "TaggerCROIAlgoConfig.h"
 #include "TaggerCROITypes.h"
+#include "TaggerContourTools/BMTCV.h"
 
 namespace larlitecv {
 
@@ -25,12 +26,19 @@ namespace larlitecv {
     // subroutines: for some development and flexibility
     void runBoundaryTagger( const InputPayload& data, ThruMuPayload& thrumu );
     void runThruMuTracker( const InputPayload& data, ThruMuPayload& thrumu );
-    
+
+    // mc-truth subroutines
+    void runTruthBoundaryTagger( const InputPayload& input, ThruMuPayload& output );
+
   protected:
+
 
     TaggerCROIAlgoConfig m_config;
     std::vector<float> m_time_tracker;
-    enum Stages_t { kThruMuConfig = 0, kThruMuBMT, kThruMuFlash, kThruMuTracker, kStopMuTracker, kRecluster, kUntagged, kPCAmerge, kCROI, kNumStages };
+    enum Stages_t { kThruMuConfig = 0, kThruMuContour, kThruMuBMT, kThruMuFlash, kThruMuFilter, kThruMuTracker, kStopMuTracker, kRecluster, kUntagged, kPCAmerge, kCROI, kNumStages };
+
+    // Contour tool
+    larlitecv::BMTCV m_bmtcv_algo;
 
   };
   

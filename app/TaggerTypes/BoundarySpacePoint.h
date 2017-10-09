@@ -18,14 +18,21 @@
 #include <stdexcept>
 #include <vector>
 #include <string>
+
+// larlite
+#include "DataFormat/opflash.h"
+
+// larcv
 #include "DataFormat/ImageMeta.h"
+
+#include "BoundaryFlashIndex.h"
 
 namespace larlitecv {
 
   class BoundarySpacePoint : public std::vector<BoundaryEndPt> {
 
   public:
-  // constructors
+    // constructors
   BoundarySpacePoint()
     : boundary_type( kUndefined ) {
       m_pos.resize(3,0);
@@ -33,28 +40,29 @@ namespace larlitecv {
       m_empty=true;
     }; // default
   BoundarySpacePoint( BoundaryEnd_t type )
-    : boundary_type(type) {
+    : boundary_type(type)
+    {
       m_pos.resize(3,0);
       m_dir.resize(3,0);
       m_empty=true;
     }; // default with type
-  BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const std::vector<float>& dir, const larcv::ImageMeta& );
-  BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const larcv::ImageMeta& );
-
+    BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const std::vector<float>& dir, const larcv::ImageMeta& );
+    BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const larcv::ImageMeta& );
+    
 
 #ifndef __CINT__
 #ifndef __CLING__
     // move constructor
-  BoundarySpacePoint( BoundaryEnd_t type, std::vector<BoundaryEndPt>&& endpts, const larcv::ImageMeta& meta  )  // type and endpt vector
-    : std::vector<BoundaryEndPt>(std::move(endpts)) {
+    BoundarySpacePoint( BoundaryEnd_t type, std::vector<BoundaryEndPt>&& endpts, const larcv::ImageMeta& meta  )  // type and endpt vector
+      : std::vector<BoundaryEndPt>(std::move(endpts)) {
       boundary_type = type;
       m_empty = false;
       setup(meta);
     };
-
-    // move constructor
-    BoundarySpacePoint( BoundaryEnd_t type, std::vector<BoundaryEndPt>&& endpts, float x, float y, float z  )  // type and endpt vector and 3D poosition
-      : std::vector<BoundaryEndPt>(std::move(endpts)) {
+  
+  // move constructor
+  BoundarySpacePoint( BoundaryEnd_t type, std::vector<BoundaryEndPt>&& endpts, float x, float y, float z  )  // type and endpt vector and 3D poosition
+    : std::vector<BoundaryEndPt>(std::move(endpts)) {
     boundary_type = type;
     m_pos.resize(3,0.0);
     m_dir.resize(3,0.0);
@@ -66,10 +74,10 @@ namespace larlitecv {
 #endif
 #endif
 
-    // Copy Constructor
-    //BoundarySpacePoint( const BoundarySpacePoint& src );
-
-    virtual ~BoundarySpacePoint() {};
+  // Copy Constructor
+  //BoundarySpacePoint( const BoundarySpacePoint& src );
+  
+  virtual ~BoundarySpacePoint() {};
 
     BoundaryEnd_t type() const { return boundary_type; }
     const std::vector<float>& pos() const { return m_pos; }
@@ -106,6 +114,8 @@ namespace larlitecv {
     int tick( const larcv::ImageMeta& meta ) const;
     std::vector<int> wires( const larcv::ImageMeta& meta ) const;
     std::string printImageCoords( const larcv::ImageMeta& meta ) const;
+    void setFlashIndex( int ivec, int idx, larlite::opflash* popfl=NULL );
+    const BoundaryFlashIndex& getFlashIndex() const { return m_flashidx; };
 
 protected:
     BoundaryEnd_t boundary_type;
@@ -113,7 +123,7 @@ protected:
     std::vector<float> m_dir;
     void setup( const larcv::ImageMeta& meta );
     bool m_empty; ///< flag that marks that the position has not been filled. used to indicate error states sometimes.
-
+    BoundaryFlashIndex m_flashidx;
   };
 
 

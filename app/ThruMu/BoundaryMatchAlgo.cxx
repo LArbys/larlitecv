@@ -23,10 +23,6 @@ namespace larlitecv {
     
     m_combos.resize( match_arrays.nmatches(t) );
 
-    //const larcv::WireData& plane0data = larcv::UBWireTool::getWireData(0);
-    //const larcv::WireData& plane1data = larcv::UBWireTool::getWireData(1);
-    //const larcv::WireData& plane2data = larcv::UBWireTool::getWireData(2);
-
     for (int imatch=0; imatch<match_arrays.nmatches(t); imatch++) {
       int u, v, y;
       match_arrays.getMatch( t, imatch, u, v, y );

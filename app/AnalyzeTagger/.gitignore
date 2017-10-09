@@ -4,3 +4,4 @@ run_pixel_analysis
 *.txt
 *.root
 run_pixel_analysis_old_version
+plot_flash_timing

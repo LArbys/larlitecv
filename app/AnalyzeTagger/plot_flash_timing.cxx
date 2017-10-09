@@ -21,7 +21,7 @@
 #include "ContainedROI/TaggerFlashMatchAlgo.h"
 #include "ContainedROI/FlashMatchMetricMethods.h"
 #include "SCE/SpaceChargeMicroBooNE.h"
-#include "extractTruthMethods.h"
+#include "MCTruthTools/extractTruthMethods.h"
 
 // ROOT
 #include "TFile.h"

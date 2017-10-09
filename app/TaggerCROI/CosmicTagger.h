@@ -87,6 +87,9 @@ namespace larlitecv {
     bool m_save_stopmu_space;
     bool m_save_croi_space;
     bool m_save_mc;
+    bool m_load_mctrack;
+    std::string m_mctrack_producer;
+    std::string m_trigger_producer;    
     bool m_skip_empty_events;
     bool m_apply_unipolar_hack;
     void setRunParameters();

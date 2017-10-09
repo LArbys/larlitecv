@@ -9,6 +9,9 @@
 // LArLite
 #include "FhiclLite/PSet.h"
 
+// larlitecv
+#include "FlashMatchInterface/GeneralFlashMatchAlgo.h"
+
 namespace larlitecv {
 
   class TaggerFlashMatchAlgoConfig {
@@ -33,10 +36,9 @@ namespace larlitecv {
     std::vector<float> FVCutY;
     std::vector<float> FVCutZ;
     std::vector<float> gain_correction;
-    fcllite::PSet m_flashmatch_config;
-    static const std::string m_flashman_default;
+    larlitecv::GeneralFlashMatchAlgoConfig genflashmatch_cfg;
     
-    static TaggerFlashMatchAlgoConfig MakeTaggerFlashMatchAlgoConfigFromPSet( const larcv::PSet& pset );
+    static TaggerFlashMatchAlgoConfig FromPSet( const larcv::PSet& pset );
   };
 
 }

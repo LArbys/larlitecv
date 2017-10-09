@@ -14,12 +14,12 @@ namespace larlitecv {
   
   float dwall( const std::vector<float>& pos, int& boundary_type ) {
 
-    float dx1 = fabs(pos[0]);
-    float dx2 = fabs(258-pos[0]);
-    float dy1 = fabs(117.0-pos[1]);
-    float dy2 = fabs(-117.0-pos[1]);
-    float dz1 = fabs(pos[2]);
-    float dz2 = fabs(1036.0-pos[2]);
+    float dx1 = pos[0];
+    float dx2 = 258-pos[0];
+    float dy1 = 117.0-pos[1];
+    float dy2 = pos[1]+117.0;
+    float dz1 = pos[2];
+    float dz2 = 1036.0-pos[2];
 
     float dwall = 1.0e9;
 
@@ -61,12 +61,12 @@ namespace larlitecv {
   
   float dspecificwall( const std::vector<float>& pos, const int boundary_type ) {
 
-    float dx1 = fabs(pos[0]);
-    float dx2 = fabs(258-pos[0]);
-    float dy1 = fabs(117.0-pos[1]);
-    float dy2 = fabs(-117.0-pos[1]);
-    float dz1 = fabs(pos[2]);
-    float dz2 = fabs(1036.0-pos[2]);
+    float dx1 = pos[0];
+    float dx2 = 258-pos[0];
+    float dy1 = 117.0-pos[1];
+    float dy2 = pos[1]+117.0;
+    float dz1 = pos[2];
+    float dz2 = 1036.0-pos[2];
 
     float fdwall = 1.0e9;
 

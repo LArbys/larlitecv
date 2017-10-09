@@ -25,7 +25,7 @@ namespace larlitecv {
 	throw std::runtime_error(msg.str());
       }
     };
-
+    
     virtual ~BoundaryEndPt() {}; 
 
     void operator= ( const BoundaryEndPt& rhs ) {

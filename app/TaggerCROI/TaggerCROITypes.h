@@ -13,6 +13,7 @@
 
 // larlite
 #include "DataFormat/opflash.h"
+#include "DataFormat/trigger.h"
 
 // larcv
 #include "DataFormat/EventPixel2D.h"
@@ -36,6 +37,7 @@ namespace larlitecv {
     std::vector<larcv::Image2D>            badch_v;     //< image marking bad channels
     std::vector<larcv::Image2D>            gapch_v;     //< image marking gap channels
     std::vector< larlite::event_opflash* > opflashes_v; //< container of opflashes to consider
+    larlite::trigger*                      p_ev_trigger; //< event trigger data
     int run;
     int subrun;
     int event;
@@ -49,6 +51,10 @@ namespace larlitecv {
       opflashes_v.clear(); // we are assuming, this doesn't own the objects (dangerous)
     };
 
+    // mc truth information
+    const larlite::event_mctrack* p_ev_mctrack; //< pointer to mc track object if used
+  
+
   };
 
   class ThruMuPayload : public TaggerCROIVPayload {
@@ -61,16 +67,19 @@ namespace larlitecv {
     std::vector< larcv::Image2D >     realspacehit_image_v;
     std::vector< larcv::Image2D >     tagged_v;
 
+    // raw spacepoints from side and flash end point taggers
     std::vector< BoundarySpacePoint > side_spacepoint_v;
     std::vector< BoundarySpacePoint > anode_spacepoint_v;
     std::vector< BoundarySpacePoint > cathode_spacepoint_v;
     std::vector< BoundarySpacePoint > imgends_spacepoint_v;
-
+    
+    // filtered spacepoints
     std::vector< BoundarySpacePoint > side_filtered_v;
     std::vector< BoundarySpacePoint > anode_filtered_v;
     std::vector< BoundarySpacePoint > cathode_filtered_v;
     std::vector< BoundarySpacePoint > imgends_filtered_v;
-    
+
+    // track objects
     std::vector< BMTrackCluster3D >      trackcluster3d_v;
     std::vector< larlite::track >        track_v;
     std::vector< std::vector<larcv::Pixel2DCluster> > pixelcluster_v;

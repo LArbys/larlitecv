@@ -100,8 +100,13 @@ namespace larlitecv {
       realspace_endpts[larlitecv::kCathode]    = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "cathodepts" );
       realspace_endpts[larlitecv::kImageEnd]   = (larcv::EventPixel2D*)dataco.get_larcv_data( larcv::kProductPixel2D, "imgendpts" );
       std::vector< const std::vector<BoundarySpacePoint>* > spacepoint_lists;
-      spacepoint_lists.push_back( &(data.used_spacepoint_v) );
-      spacepoint_lists.push_back( &(data.unused_spacepoint_v) );
+      // spacepoint_lists.push_back( &(data.used_spacepoint_v) );
+      spacepoint_lists.push_back( &(data.side_filtered_v) );
+      spacepoint_lists.push_back( &(data.anode_filtered_v) );
+      spacepoint_lists.push_back( &(data.cathode_filtered_v) );
+      spacepoint_lists.push_back( &(data.imgends_filtered_v) );            
+
+      // spacepoint_lists.push_back( &(data.unused_spacepoint_v) );
       for ( auto const& plist : spacepoint_lists ) {
       	for ( auto const& sp_v : *plist ) {
           int sptype = (int)sp_v.type();
@@ -214,7 +219,7 @@ namespace larlitecv {
         }
       }
     }
-	}
+  }
 
   void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
 
@@ -239,7 +244,7 @@ namespace larlitecv {
     }
 
     // untagged track
-    if ( config.croi_write_cfg.get<bool>("WriteUntaggedTracks")) {
+    if ( config.croi_write_cfg.get<bool>("WriteUntaggedTracks") ) { 
       larlite::event_track* evout_tracks_untagged = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "untagged3d" );
 
       for ( size_t itrack=0; itrack<data.flashdata_v.size(); itrack++) {
@@ -348,7 +353,32 @@ namespace larlitecv {
     // combined tagged image
     if ( config.croi_write_cfg.get<bool>("WriteCombinedTaggedImage") ) {
       larcv::EventImage2D* evout_combined_v = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "combinedtags");
+      larcv::EventImage2D* evout_thrumutagged_v = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "thrumutags");
+      larcv::EventImage2D* evout_stopmutagged_v = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "stopmutags");
+      larcv::EventImage2D* evout_containedtagged_v = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "containedtags");
       for ( auto const& combined : data.combined_v ) {
+	// split the tags
+	larcv::Image2D thrumu( combined.meta() );
+	larcv::Image2D stopmu( combined.meta() );
+	larcv::Image2D contained( combined.meta() );
+	thrumu.paint(0);
+	stopmu.paint(0);
+	contained.paint(0);
+	for (int r=0; r<(int)combined.meta().rows(); r++) {
+	  for (int c=0; c<(int)combined.meta().cols(); c++) {
+	    float val = combined.pixel(r,c);
+	    if ( val>5 && val<15 )
+	      thrumu.set_pixel(r,c,255);
+	    else if ( val>15  && val<25 )
+	      stopmu.set_pixel(r,c,255);
+	    else if ( val>25 && val<35 )
+	      contained.set_pixel(r,c,255);
+	  }
+	}
+
+	evout_thrumutagged_v->Emplace( std::move(thrumu) );
+	evout_stopmutagged_v->Emplace( std::move(stopmu) );
+	evout_containedtagged_v->Emplace( std::move(contained) );	
         evout_combined_v->Append( combined );
       }
     }

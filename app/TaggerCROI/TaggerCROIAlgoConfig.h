@@ -14,6 +14,9 @@
 #include "UntaggedClustering/ClusterGroupAlgo.h"
 #include "ContainedROI/TaggerFlashMatchAlgoConfig.h"
 
+// larlite
+#include "FhiclLite/FhiclLiteUtilFunc.h"
+
 namespace larlitecv {
 
   class TaggerCROIAlgoConfig {

@@ -15,11 +15,11 @@
 
 // larcv
 #include "Base/PSet.h"
+#include "Reco3D/AStar3DAlgoConfig.h"
 
 // larlitecv
 #include "ChargeSegmentAlgos/FoxTrotTrackerAlgoConfig.h"
 #include "Linear3DChargeTaggerConfig.h"
-#include "AStar3DAlgoConfig.h"
 #include "RadialEndpointFilterConfig.h"
 
 namespace larlitecv {
@@ -45,7 +45,7 @@ namespace larlitecv {
       float astar3d_min_goodfrac; //< what is the goodfrac the linear tagger should see before running astar
       float astar3d_min_majfrac;  //< what is the majfrac the linear tagger should see before running astar
       Linear3DChargeTaggerConfig linear3d_cfg; //< configuration of the linear 3d tagger
-      AStar3DAlgoConfig astar3d_cfg; //< configuration of the astar algo config here
+      larcv::AStar3DAlgoConfig astar3d_cfg; //< configuration of the astar algo config here
       RadialEndpointFilterConfig radial_cfg; //< configuration for end point filter to limit which ones we try to connect
       FoxTrotTrackerAlgoConfig foxextend_cfg; //< config for fox trot algo, used to try and extend the tracks
     };
@@ -56,6 +56,7 @@ namespace larlitecv {
     int num_passes; //< number of passes
     int compression_mode; //< downsampling method to use for astar (see larcv::Image2D for enum definition)
     int downsampling_factor; //< downsampling factor
+    bool thrumu_flashmatch; //< use flashmatch machinery
     std::vector<int> tag_neighborhood;
     std::vector<float> pixel_threshold;
     std::vector< ThruMuPassConfig > pass_configs; //< configuration for each pass

@@ -6,3 +6,4 @@
 *.root
 *.txt
 build
+bin/run_*

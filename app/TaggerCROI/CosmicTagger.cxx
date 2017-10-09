@@ -8,6 +8,7 @@
 #include "Base/DataFormatConstants.h"
 #include "DataFormat/mcnu.h"
 #include "DataFormat/mctruth.h"
+#include "DataFormat/trigger.h"
 
 // larcv
 #include "Base/LArCVBaseUtilFunc.h"
@@ -17,6 +18,7 @@
 // larlitecv
 #include "GapChs/EmptyChannelAlgo.h"
 #include "UnipolarHack/UnipolarHackAlgo.h"
+#include "FlashMatchInterface/GeneralFlashMatchAlgo.h"
 #include "TaggerCROIAlgo.h"
 
 #include "LArUtil/Geometry.h"
@@ -58,6 +60,9 @@ namespace larlitecv {
     m_dataco_output.configure( m_cfg_file, "StorageManagerOut", "IOManagerOut", "TaggerCROI" );
     m_dataco_output.initialize();
 
+    // initialize the global flashmatch interface instance
+    larlitecv::GeneralFlashMatchAlgo::GetME( m_tagger_cfg.croi_selection_cfg.genflashmatch_cfg );
+
     // num entries
     m_nentries = m_dataco_input.get_nentries("larcv");
     std::cout << "NUMBER OF ENTRIES: LARCV=" << m_nentries << " LARLITE=" << m_dataco_input.get_nentries("larlite") << std::endl;
@@ -85,6 +90,9 @@ namespace larlitecv {
     // output
     m_dataco_output.configure( m_cfg_file, "StorageManagerOut", "IOManagerOut", "TaggerCROI" );
     m_dataco_output.initialize();
+
+    // initialize the global flashmatch interface instance
+    larlitecv::GeneralFlashMatchAlgo::GetME( m_tagger_cfg.croi_selection_cfg.genflashmatch_cfg );    
 
     // num entries
     m_nentries = m_dataco_input.get_nentries("larcv");
@@ -202,6 +210,7 @@ namespace larlitecv {
     m_emptych_thresh          = m_pset.get< std::vector<float> >("EmptyChannelThreshold");
     m_chstatus_datatype       = m_pset.get<std::string>("ChStatusDataType");
     m_opflash_producers       = m_pset.get< std::vector<std::string> >( "OpflashProducers" );
+    m_trigger_producer        = m_pset.get< std::string >( "TriggerProducer" );    
     m_RunThruMu               = m_pset.get<bool>("RunThruMu");
     m_RunStopMu               = m_pset.get<bool>("RunStopMu");
     m_RunCROI                 = m_pset.get<bool>("RunCROI");
@@ -209,6 +218,8 @@ namespace larlitecv {
     m_save_stopmu_space       = m_pset.get<bool>("SaveStopMuSpace", false);
     m_save_croi_space         = m_pset.get<bool>("SaveCROISpace",   false);
     m_save_mc                 = m_pset.get<bool>("SaveMC",false);
+    m_load_mctrack            = m_pset.get<bool>("LoadMCTrack",false);
+    m_mctrack_producer        = m_pset.get<std::string>("MCTrackProducer","mcreco");        
     m_skip_empty_events       = m_pset.get<bool>("SkipEmptyEvents",false);
     m_apply_unipolar_hack     = m_pset.get<bool>("ApplyUnipolarHack",false);
     configure_algos();
@@ -505,7 +516,29 @@ namespace larlitecv {
       return false;
     }
 
-    // set the state. the data is ready
+    // -------------------------------------------------------------------------------------------//
+    // LOAD MC TRACK INFORMATION: USED FOR PERFORMANCE METRICS
+    if ( m_load_mctrack ) {
+      try {
+	m_input_data.p_ev_mctrack = (larlite::event_mctrack*)m_dataco_input.get_larlite_data(larlite::data::kMCTrack, m_mctrack_producer);
+      }
+      catch (const std::exception& e ) {
+	std::cerr << "Error retrieving MC track information upon request: " << e.what() << std::endl;
+      }
+    }
+
+    // -------------------------------------------------------------------------------------------//
+    // LOAD EVENT TRIGGER
+    try {
+      m_input_data.p_ev_trigger = (larlite::trigger*)m_dataco_input.get_larlite_data(larlite::data::kTrigger, m_trigger_producer);
+    }
+    catch (const std::exception& e ) {
+      std::cerr << "Error retrieving MC track information upon request: " << e.what() << std::endl;
+      m_input_data.p_ev_trigger = NULL;
+    }
+    
+    // -------------------------------------------------------------------------------------------//
+    // set the state.  the input data is ready
     m_state.input_ready = true;
     return true;
   }
@@ -521,13 +554,14 @@ namespace larlitecv {
     m_state.boundary_run = m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
     larlitecv::ThruMuPayload thrumu_data;
-    try {
-      thrumu_data = m_taggercroialgo->runThruMu( m_input_data );
-    }
-    catch ( const std::exception& e ) {
-      std::cerr << "Error Running ThruMu: " << e.what() << std::endl;
-      return false;
-    }
+    //try {
+    thrumu_data = m_taggercroialgo->runThruMu( m_input_data );
+    // }
+    // catch ( const std::exception& e ) {
+    //   std::cerr << "Error Running ThruMu: " << e.what() << std::endl;
+    //   throw std::runtime_error("Stop at runCombinedThruMu");
+    //   return false;
+    // }
 
     std::swap( m_thrumu_data, thrumu_data );
     thrumu_data.clear();
@@ -549,7 +583,10 @@ namespace larlitecv {
 
     m_thrumu_data.clear();
     try {
-      m_taggercroialgo->runBoundaryTagger( m_input_data, m_thrumu_data );
+      if ( !m_pset.get<bool>("UseTruthEndPoints",false) )
+	m_taggercroialgo->runBoundaryTagger( m_input_data, m_thrumu_data ); //< reco end points
+      else
+	m_taggercroialgo->runTruthBoundaryTagger( m_input_data, m_thrumu_data );  // end points using MC truth tracks
     }
     catch ( const std::exception& e ) {
       std::cerr << "Error Running Boundary Tagger: " << e.what() << std::endl;
@@ -571,14 +608,19 @@ namespace larlitecv {
     // invalidate downstream
     m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
-    try {
-      m_taggercroialgo->runThruMuTracker( m_input_data, m_thrumu_data );
-    }
-    catch ( const std::exception& e ) {
-      std::cerr << "Error Running ThruMu Tracker: " << e.what() << std::endl;
-      return false;
-    }
+    //try {
+    m_taggercroialgo->runThruMuTracker( m_input_data, m_thrumu_data );
+    // }
+    // catch ( const std::exception& e ) {
+    //   std::cerr << "Error Running ThruMu: " << e.what() << std::endl;
+    //   throw std::runtime_error("Stop at runThruMuTracker");
+    //   return false;
+    // }
 
+    std::cout << "Number of BMTrackCluster3D objects created by ThruMuTracker: " << m_thrumu_data.trackcluster3d_v.size() << std::endl;
+    std::cout << "Number of larlite::track objects created by ThruMuTracker: "   << m_thrumu_data.track_v.size() << std::endl;
+    std::cout << "Number of Pixel2DCluster objects created by ThruMuTracker: "   << m_thrumu_data.pixelcluster_v[0].size() << std::endl;
+    
     // set stte
     m_state.thrumu_run = true;
     return true;

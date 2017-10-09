@@ -17,6 +17,7 @@ namespace larlitecv {
     pixel_threshold.resize(3,10);
     compression_mode = 2;
     downsampling_factor = 4;
+    thrumu_flashmatch = true;
 
     // setup example pass config
     ThruMuPassConfig passcfg;
@@ -80,6 +81,7 @@ namespace larlitecv {
     cfg.pixel_threshold  = pset.get< std::vector<float> >("PixelThresholds");
     cfg.downsampling_factor = pset.get<int>("DownsampleFactor");
     cfg.compression_mode = pset.get<int>("CompressionMode");
+    cfg.thrumu_flashmatch = pset.get<bool>("ThruMuFlashMatch");
     cfg.pass_configs.clear();
     for ( int ipass=0; ipass<cfg.num_passes; ipass++ ) {
       std::stringstream ss;
@@ -96,7 +98,7 @@ namespace larlitecv {
       passcfg.linear3d_min_majoritychargefraction = pass_pset.get<float>("Linear3DMinMajorityChargeFraction");
       passcfg.astar3d_min_goodfrac                = pass_pset.get<float>("AStar3DMinGoodFraction");
       passcfg.astar3d_min_majfrac                 = pass_pset.get<float>("AStar3DMinMajorityChargeFraction");
-      passcfg.astar3d_cfg   = larlitecv::AStar3DAlgoConfig::MakeFromPSet( pass_pset.get<larcv::PSet>( "AStarConfig" ) );
+      passcfg.astar3d_cfg   = larcv::AStar3DAlgoConfig::MakeFromPSet( pass_pset.get<larcv::PSet>( "AStarConfig" ) );
       passcfg.linear3d_cfg  = larlitecv::Linear3DChargeTaggerConfig::makeFromPSet( pass_pset.get<larcv::PSet>("Linear3DConfig" ) );
       passcfg.radial_cfg    = larlitecv::RadialEndpointFilterConfig::makeFromPSet( pass_pset.get<larcv::PSet>("RadialFilterConfig") );
       if ( passcfg.run_foxtrot_extender ) {
