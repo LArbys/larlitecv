@@ -66,6 +66,8 @@ namespace larlitecv {
     void GetFlashMinChi2( const std::vector<flashana::Flash_t>& flashana_v, const flashana::QCluster_t& qcluster, const int in_or_out_of_time,
 			  float& totpe_data, float& totpe_hypo, float& min_chi2, int& flash_idx );
 
+    std::vector< BoundaryFlashIndex > generate_boundaryflashindex_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v );
+
     std::vector< larlite::opflash > generate_single_opflash_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v );
 
     std::vector< int > generate_single_opflash_idx_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v );

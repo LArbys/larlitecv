@@ -245,6 +245,50 @@ namespace larlitecv {
       }
     }
   }
+
+  // Declare a function that will return a vector of 'BoundaryFlashIndex' objects for the event.
+  // This will contain, for each flash, (1) the vector that the flash comes from ('0' for 'simpleFlashBeam' and '1' for 'simpleFlashCosmic'), (2) the index of the flash within this inner list, and (3) a pointer to the opflash object.
+  // Input: std::vector< larlite::event_opflash* > opflashes_v - This is the vector of opflashes that is fed from the input of the event to the output.
+  std::vector< BoundaryFlashIndex > GeneralFlashMatchAlgo::generate_boundaryflashindex_vector_for_event( std::vector< larlite::event_opflash* > opflashes_v ) {
+
+    std::vector< BoundaryFlashIndex > output_boundaryflashidx_v;
+    output_boundaryflashidx_v.clear();
+
+    // Declare a variable for the index of the flash producer currently being looped over.
+    int iivec = 0;
+
+    for (auto& ptr_event_flash: opflashes_v ) {
+
+      // Declare an object for the pointer to this 'event_opflash' object.
+      // This will be a pointer, not the object itself, so that each of the individual opflash objects will be pointers.
+      auto& current_event_opflash_object = *ptr_event_flash;
+      
+      // Declare a variable for the index of the flash within the flash producer currently being looped over.
+      int iidex = 0;
+
+      for ( auto& opflash_object: current_event_opflash_object ) {
+
+	// Declare a 'BoundaryFlashIndex' object with the three pieces of information that you now have to do so.
+	larlitecv::BoundaryFlashIndex boundary_flash_idx( iivec, iidex, &opflash_object );
+
+	// Emplace back into the 'output_boundaryflashidx_v' vector.
+	output_boundaryflashidx_v.emplace_back( std::move( boundary_flash_idx) );
+
+	// Increment 'iidex'
+	++iidex;
+
+      }
+
+      // Increment 'iivec'.
+      ++iivec;
+
+    }
+
+    // Return 'output_boundaryflashidx_v'.
+    return output_boundaryflashidx_v;
+
+  }
+      
   
   // Declare a function that will store all of the flashes for an event in a running list rather than separating them according to their flash producer.
   // This list assumes that there are two groups of flashes, one produced using 'simpleFlashBeam' and the second produced using 'simpleFlashCosmic', in that order.
