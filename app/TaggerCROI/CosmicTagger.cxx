@@ -554,13 +554,14 @@ namespace larlitecv {
     m_state.boundary_run = m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
     larlitecv::ThruMuPayload thrumu_data;
-    try {
-      thrumu_data = m_taggercroialgo->runThruMu( m_input_data );
-    }
-    catch ( const std::exception& e ) {
-      std::cerr << "Error Running ThruMu: " << e.what() << std::endl;
-      return false;
-    }
+    //try {
+    thrumu_data = m_taggercroialgo->runThruMu( m_input_data );
+    // }
+    // catch ( const std::exception& e ) {
+    //   std::cerr << "Error Running ThruMu: " << e.what() << std::endl;
+    //   throw std::runtime_error("Stop at runCombinedThruMu");
+    //   return false;
+    // }
 
     std::swap( m_thrumu_data, thrumu_data );
     thrumu_data.clear();
@@ -607,13 +608,14 @@ namespace larlitecv {
     // invalidate downstream
     m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
-    try {
-      m_taggercroialgo->runThruMuTracker( m_input_data, m_thrumu_data );
-    }
-    catch ( const std::exception& e ) {
-      std::cerr << "Error Running ThruMu Tracker: " << e.what() << std::endl;
-      return false;
-    }
+    //try {
+    m_taggercroialgo->runThruMuTracker( m_input_data, m_thrumu_data );
+    // }
+    // catch ( const std::exception& e ) {
+    //   std::cerr << "Error Running ThruMu: " << e.what() << std::endl;
+    //   throw std::runtime_error("Stop at runThruMuTracker");
+    //   return false;
+    // }
 
     // set stte
     m_state.thrumu_run = true;
