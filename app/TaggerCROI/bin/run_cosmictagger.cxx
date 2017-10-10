@@ -9,13 +9,15 @@ int main( int nargs, const char** argv ) {
   
   larlitecv::CosmicTagger tagger( cfg );
 
-  tagger.setEntry(0);
-
-  bool inputok  = tagger.processInputImages();
-  bool endptok  = tagger.findBoundaryEnds();
-  bool thrumuok = tagger.findThruMuTracks();
-  bool stopmuok = tagger.findStopMu();
-  bool croiok   = tagger.findCROI();
-  bool writeok  = tagger.writeOutput();
+  for (int n=0; n<tagger.getNumEntries(); n++) {
+    tagger.setEntry(n);
+    tagger.clearData();
+    bool inputok  = tagger.processInputImages();
+    bool endptok  = tagger.findBoundaryEnds();
+    bool thrumuok = tagger.findThruMuTracks();
+    bool stopmuok = tagger.findStopMu();
+    bool croiok   = tagger.findCROI();
+    bool writeok  = tagger.writeOutput();
+  }
   tagger.finalize();
 }

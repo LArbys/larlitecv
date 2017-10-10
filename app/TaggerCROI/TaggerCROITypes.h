@@ -49,6 +49,7 @@ namespace larlitecv {
       badch_v.clear();
       gapch_v.clear();
       opflashes_v.clear(); // we are assuming, this doesn't own the objects (dangerous)
+      p_ev_trigger = NULL;
     };
 
     // mc truth information
@@ -140,6 +141,14 @@ namespace larlitecv {
       stopmu_candidate_endpt_v.clear();
       stopmu_pixel_endpt_v.clear();
     };
+    void clear() {
+      stopmu_pixel_endpt_v.clear();
+      stopmu_candidate_endpt_v.clear();
+      stopmu_trackcluster_v.clear();
+      track_v.clear();
+      pixelcluster_v.clear();
+      stopmu_v.clear();
+    }
   };
 
   class CROIPayload : public TaggerCROIVPayload {
@@ -183,7 +192,7 @@ namespace larlitecv {
     virtual void saveSpace() {
     };
 
-    void clean() {
+    void clear() {
       contained_tracks_v.clear();
       reclustered_contained_v.clear();
       stopthru_reclustered_v.clear();

@@ -696,7 +696,14 @@ namespace larlitecv {
     m_dataco_output.save_entry();
     return true;
   }
-  
+
+  bool CosmicTagger::clearData() {
+    m_input_data.clear();
+    m_thrumu_data.clear();
+    m_stopmu_data.clear();
+    m_croi_data_v.clear();
+    return true;
+  }
   void CosmicTagger::PrintTruthVertexInfo() {
 
     auto const* evt_mctruth = (larlite::event_mctruth*)m_dataco_input.get_larlite_data( larlite::data::kMCTruth, "generator" );

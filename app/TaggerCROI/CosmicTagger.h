@@ -45,6 +45,7 @@ namespace larlitecv {
     bool findThruMuTracks();
     bool runCombinedThruMu(); //< run boundary endpoint finder and thrumu tracker in one step    
     bool findStopMu();
+    bool clearData();
     //bool findUntaggedClusters();
     bool findCROI();
     bool writeOutput();
@@ -62,7 +63,7 @@ namespace larlitecv {
     bool hasStopMuRun() { return m_state.stopmu_run; };
     //bool hasUntaggedRun() { return m_state.untagged_run; };
     bool hasCROIrun() { return m_state.croi_run; };
-
+    int getNumEntries() { return m_nentries; };
 
     const larlitecv::InputPayload&  getInputData()  { return m_input_data; };
     const larlitecv::ThruMuPayload& getThruMuData() { return m_thrumu_data; };
