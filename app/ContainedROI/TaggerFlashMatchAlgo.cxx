@@ -61,12 +61,39 @@ namespace larlitecv {
     m_cosmicflash_ratio_dchi.reserve( inputdata.size() );
     m_genflashmatch.getFlashMatchManager().Reset();    
 
+    std::cout << "TPC List ------ -------------------------------------" << std::endl;
+    for ( size_t itrack=0; itrack<inputdata.size(); itrack++ ) {
+      const TaggerFlashMatchData& track = inputdata[itrack];
+      float xmin = track.m_track3d.Vertex()[0];
+      float xmax = track.m_track3d.End()[0];
+      std::cout << "  #" << itrack << " xmin=" << xmin << " xmax=" << xmax << std::endl;
+    }
+    std::cout << "-------------------------------------------------------" << std::endl;
+    
+    std::cout << "Flash List ------ -------------------------------------" << std::endl;
+    for ( size_t iflash=0; iflash<data_flashana.size(); iflash++) {
+      float usec = data_flashana[iflash].time;
+      std::cout << "  #" << iflash<< ": idx= " << data_flashana[iflash].idx << " pe=" << data_flashana[iflash].TotalPE() << " time=" << data_flashana[iflash].time << std::endl;
+    }
+    for ( size_t iflash=0; iflash<cosmicdata_flashana.size(); iflash++) {
+      float usec = cosmicdata_flashana[iflash].time;
+      std::cout << "  #" << iflash<< ": idx= " << cosmicdata_flashana[iflash].idx << " pe=" << cosmicdata_flashana[iflash].TotalPE() << " time=" << cosmicdata_flashana[iflash].time << std::endl;
+    }
+    std::cout << "-------------------------------------------------------" << std::endl;
+    
     // we fill the flash-match code with qclusters--with extensions along with the flashes
     setupFlashMatchInterface( data_flashana, cosmicdata_flashana, inputdata );
 
     // we do the many-to-many match: will use this later when comparing in-time to cosmic flashes
-    m_genflashmatch.getFlashMatchManager().Match();
+    std::vector<flashana::FlashMatch_t> results = m_genflashmatch.getFlashMatchManager().Match();
+    m_genflashmatch.getFlashMatchManager().PrintFullResult();
 
+    std::cout << "FlashMatch Result -----------------------------------" << std::endl;
+    for ( auto const& flashmatch : results ) {
+      std::cout << "  score: " << flashmatch.score << "  flashid=" << flashmatch.flash_id << " tpcid=" << flashmatch.tpc_id << std::endl;
+    }
+    std::cout << "------------------------------------------------------" << std::endl;
+    
     // choose contained candidates    
     for ( size_t i=0; i<inputdata.size(); i++ ) {
 
