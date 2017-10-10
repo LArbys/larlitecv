@@ -18,6 +18,7 @@ int main( int nargs, const char** argv ) {
     bool stopmuok = tagger.findStopMu();
     bool croiok   = tagger.findCROI();
     bool writeok  = tagger.writeOutput();
+    break;
   }
   tagger.finalize();
 }
