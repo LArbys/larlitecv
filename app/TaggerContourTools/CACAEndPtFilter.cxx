@@ -597,6 +597,7 @@ namespace larlitecv {
     
     for ( auto const& pastinfo : m_past_info ) {
       larlitecv::BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)pastinfo.type, pastinfo.pos, pastinfo.dir, img_v.front().meta() );
+      sp.setFlashIndex( pastinfo.vecindex, pastinfo.flashindex, pastinfo.popflash );
 
       if ( fMakeDebugImage ) {
 	int img_index = 0;
@@ -617,7 +618,7 @@ namespace larlitecv {
   void CACAEndPtFilter::setTruthInformation( const std::vector<larlitecv::TruthCrossingPointAna_t>& truthinfo, const std::vector<larlitecv::RecoCrossingPointAna_t>& recoinfo ) {
     m_truthinfo_ptr_v = &truthinfo;
     m_recoinfo_ptr_v  = &recoinfo;
-    fTruthInfoLoaded = true;
+    fTruthInfoLoaded  = true;
   }
 
   bool CACAEndPtFilter::isDuplicateEndPoint( const larlitecv::ContourAStarCluster& seedcluster, const larlitecv::BoundarySpacePoint& sp ) {
@@ -660,9 +661,10 @@ namespace larlitecv {
     // didn't overlap with any, not a duplicate
     // make a past info
     PastClusterInfo_t info(seedcluster);
-    info.type = (int)sp.type();
+    info.type       = (int)sp.type();
     info.vecindex   = sp.getFlashIndex().ivec;
     info.flashindex = sp.getFlashIndex().idx;
+    info.popflash   = sp.getFlashIndex().popflash;
 
     m_past_info.emplace_back( std::move(info) );
     return false;

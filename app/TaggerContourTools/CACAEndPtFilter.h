@@ -114,6 +114,7 @@ namespace larlitecv {
 	flashindex = -1;
 	passed = 0;
 	truthmatched = -1;
+	popflash = NULL;
       };
       std::vector<float> pos;
       std::vector<float> dir;
@@ -122,6 +123,7 @@ namespace larlitecv {
       int flashindex;
       int passed;
       int truthmatched;
+      const larlite::opflash* popflash;
     };
     std::vector< PastClusterInfo_t > m_past_info;
 

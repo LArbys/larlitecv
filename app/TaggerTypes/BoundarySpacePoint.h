@@ -114,7 +114,7 @@ namespace larlitecv {
     int tick( const larcv::ImageMeta& meta ) const;
     std::vector<int> wires( const larcv::ImageMeta& meta ) const;
     std::string printImageCoords( const larcv::ImageMeta& meta ) const;
-    void setFlashIndex( int ivec, int idx, larlite::opflash* popfl=NULL );
+    void setFlashIndex( int ivec, int idx, const larlite::opflash* popfl=NULL );
     const BoundaryFlashIndex& getFlashIndex() const { return m_flashidx; };
 
 protected:

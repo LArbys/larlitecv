@@ -74,7 +74,7 @@ namespace larlitecv {
     return dwall;
   }
 
-  void BoundarySpacePoint::setFlashIndex( int ivec, int idx, larlite::opflash* popfl ) {
+  void BoundarySpacePoint::setFlashIndex( int ivec, int idx, const larlite::opflash* popfl ) {
     m_flashidx.ivec = ivec;
     m_flashidx.idx  = idx;
     m_flashidx.popflash = popfl;
