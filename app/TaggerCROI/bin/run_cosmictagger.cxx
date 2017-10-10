@@ -14,5 +14,8 @@ int main( int nargs, const char** argv ) {
   bool inputok  = tagger.processInputImages();
   bool endptok  = tagger.findBoundaryEnds();
   bool thrumuok = tagger.findThruMuTracks();
-  
+  bool stopmuok = tagger.findStopMu();
+  bool croiok   = tagger.findCROI();
+  bool writeok  = tagger.writeOutput();
+  tagger.finalize();
 }

@@ -47,7 +47,9 @@ namespace larlitecv {
     bool findStopMu();
     //bool findUntaggedClusters();
     bool findCROI();
-	  	
+    bool writeOutput();
+    void finalize() { m_dataco_output.finalize(); };
+    
     void PrintTruthVertexInfo();	 
 	
     larlitecv::TaggerCROIAlgoConfig& getConfig() { return m_tagger_cfg; }; //< can change any parameter here
@@ -60,6 +62,7 @@ namespace larlitecv {
     bool hasStopMuRun() { return m_state.stopmu_run; };
     //bool hasUntaggedRun() { return m_state.untagged_run; };
     bool hasCROIrun() { return m_state.croi_run; };
+
 
     const larlitecv::InputPayload&  getInputData()  { return m_input_data; };
     const larlitecv::ThruMuPayload& getThruMuData() { return m_thrumu_data; };

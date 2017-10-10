@@ -20,6 +20,7 @@
 #include "UnipolarHack/UnipolarHackAlgo.h"
 #include "FlashMatchInterface/GeneralFlashMatchAlgo.h"
 #include "TaggerCROIAlgo.h"
+#include "PayloadWriteMethods.h"
 
 #include "LArUtil/Geometry.h"
 
@@ -656,6 +657,11 @@ namespace larlitecv {
     return true;
   }
 
+  // bool CosmicTagger::findUntaggedClusters() {
+    
+  //   return true;
+  // }
+
   bool CosmicTagger::findCROI() {
 
     if ( !m_state.configured || !m_state.input_ready || !m_state.thrumu_run || !m_state.stopmu_run ) {
@@ -682,6 +688,15 @@ namespace larlitecv {
     return true;
   }
 
+  bool CosmicTagger::writeOutput() {
+    WriteInputPayload(  m_input_data,  m_tagger_cfg, m_dataco_output  );
+    WriteThruMuPayload( m_thrumu_data, m_input_data, m_tagger_cfg, m_dataco_output  );
+    WriteStopMuPayload( m_stopmu_data, m_input_data, m_tagger_cfg, m_dataco_output  );
+    WriteCROIPayload(   m_croi_data_v.front(), m_input_data, m_tagger_cfg, m_dataco_output  );
+    m_dataco_output.save_entry();
+    return true;
+  }
+  
   void CosmicTagger::PrintTruthVertexInfo() {
 
     auto const* evt_mctruth = (larlite::event_mctruth*)m_dataco_input.get_larlite_data( larlite::data::kMCTruth, "generator" );
@@ -704,5 +719,7 @@ namespace larlitecv {
     std::cout<<"SCE Corrected Vertex Wire Coords : "<<vert_wire[0]<<","<<vert_wire[1]<<","<<vert_wire[2]<<std::endl;
 
   }
+
+  
 
 }
