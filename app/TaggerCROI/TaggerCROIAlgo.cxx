@@ -227,6 +227,7 @@ namespace larlitecv {
     // This uses MC truth information to make boundary end points
     // We use this for debugging and performance metrics
 
+    const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
     const larcv::ImageMeta& meta = input.img_v.front().meta();
     
     CrossingPointAnaData_t xingdata;
@@ -234,7 +235,11 @@ namespace larlitecv {
 
     // extract the truth points and make end point containers
     for ( auto const& xingpt : xingdata.truthcrossingptinfo_v ) {
-      BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)xingpt.type, xingpt.crossingpt_detsce, meta );
+      std::vector<float> tyz(3);
+      for (int i=0; i<3; i++)
+	tyz[i] = xingpt.crossingpt_detsce_tyz[i];
+      tyz[0] = (tyz[0]-3200.0)*cm_per_tick;
+      BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)xingpt.type, tyz, meta );
       if ( sp.type()<=larlitecv::kDownstream  ) {
 	output.side_spacepoint_v.push_back( sp );
 	output.side_filtered_v.push_back( sp );	
