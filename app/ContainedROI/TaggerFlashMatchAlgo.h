@@ -85,7 +85,13 @@ namespace larlitecv {
     const std::vector<larlite::opflash>& getOpFlashHypotheses() const { return m_opflash_hypos; };
    
   protected:
-   
+
+
+    void setupFlashMatchInterface( std::vector<flashana::Flash_t>& data_flashana,
+				   std::vector<flashana::Flash_t>& cosmicdata_flashana,
+				   const std::vector<TaggerFlashMatchData>& taggertracks_v );
+
+    
     const TaggerFlashMatchAlgoConfig m_config;   //< configuration class
    
     GeneralFlashMatchAlgo m_genflashmatch;   //< interface to flash match tools

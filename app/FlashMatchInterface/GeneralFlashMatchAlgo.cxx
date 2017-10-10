@@ -226,15 +226,19 @@ namespace larlitecv {
     float totpe_hypo_candidate = 0.0;
 
     int idx=-1;
-    for ( auto& flash: flashana_v ) {
+    for ( auto const& flash: flashana_v ) {
       idx++;
 
       // Convert 'cosmic_flash' into type 'Flash_t' (a data flash).
       larlite::opflash dataflash = MakeOpFlashFromFlash( flash );
       
       // we need to adjust qcluster position based on delta-t0
-      flashana::Flash_t qcluster_t0start; //< q-cluster if we match flash time to min-x of track
-      flashana::Flash_t qcluster_t0end;   //< q-cluster if we match flash time to max-x of track
+      //flashana::Flash_t qcluster_t0start; //< q-cluster if we match flash time to min-x of track
+      //flashana::Flash_t qcluster_t0end;   //< q-cluster if we match flash time to max-x of track
+
+      // need to make a qcluster assuming t0@start
+      // flashana::QCluster_t qcluster_t0start = shift_qcluster_for_flash( qcluster, flash, 0 );
+      // flashana::QCluster_t qcluster_t0end   = shift_qcluster_for_flash( qcluster, flash, 1 );
       
       // last argument generates hypo with cosmic disc. corrections
       min_chi2_candidate = generate_chi2_in_track_flash_comparison( qcluster, dataflash, totpe_data_candidate, totpe_hypo_candidate, in_or_out_of_time ); 
@@ -687,7 +691,10 @@ namespace larlitecv {
     std::vector<float> wire_range;
     GetFlashCenterAndRange( flash, wire_mean, wire_range );
     if ( m_verbosity>0 )
-      std::cout << "Flash: pe=" << flash.TotalPE() << " wire_mean=" << wire_mean << " wire_range=[" << (int)wire_range[0] << "," << (int)wire_range[1] << "]" << std::endl;
+      std::cout << "OpFlash: "
+		<< " time=" << flash.Time()
+		<< " pe=" << flash.TotalPE()
+		<< " wire_mean=" << wire_mean << " wire_range=[" << (int)wire_range[0] << "," << (int)wire_range[1] << "]" << std::endl;
 
     // also load flash info into flash manager                                                                                                                                                              
     flashana::Flash_t f;

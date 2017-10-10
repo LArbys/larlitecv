@@ -59,6 +59,13 @@ namespace larlitecv {
     m_min_chi2.reserve( inputdata.size() );
     m_totpe_peratio.reserve( inputdata.size() );
     m_cosmicflash_ratio_dchi.reserve( inputdata.size() );
+    m_genflashmatch.getFlashMatchManager().Reset();    
+
+    // we fill the flash-match code with qclusters--with extensions along with the flashes
+    setupFlashMatchInterface( data_flashana, cosmicdata_flashana, inputdata );
+
+    // we do the many-to-many match: will use this later when comparing in-time to cosmic flashes
+    m_genflashmatch.getFlashMatchManager().Match();
 
     // choose contained candidates    
     for ( size_t i=0; i<inputdata.size(); i++ ) {
@@ -364,6 +371,31 @@ namespace larlitecv {
     
 
     return true; // never gets here
+  }
+
+  void TaggerFlashMatchAlgo::setupFlashMatchInterface( std::vector<flashana::Flash_t>& data_flashana,
+						       std::vector<flashana::Flash_t>& cosmicdata_flashana,
+						       const std::vector<TaggerFlashMatchData>& taggertracks_v ) {
+    // we fill up the qcluster and flash objects into the flashmatchmanager located inside the
+    //  the flash interface class: generalflashmatchalgo
+
+    // in-time flash
+    for ( auto& flash : data_flashana ) {
+      m_genflashmatch.getFlashMatchManager().Add( flash, false );
+    }
+
+    // cosmic-disc fash
+    for ( auto& flash : cosmicdata_flashana ) {
+      m_genflashmatch.getFlashMatchManager().Add( flash, true );
+    }
+
+    // load qclusters
+    for ( auto const& taggertrack : taggertracks_v ) {
+      flashana::QCluster_t qcluster;
+      m_genflashmatch.ExpandQClusterNearBoundaryFromLarliteTrack( qcluster, taggertrack.m_track3d, 10000.0, 15.0 );
+      m_genflashmatch.getFlashMatchManager().Emplace( std::move(qcluster) );
+    }
+    
   }
 
 }
