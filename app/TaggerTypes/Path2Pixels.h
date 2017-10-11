@@ -3,6 +3,10 @@
 
 #include <vector>
 
+// larlite
+#include "DataFormat/track.h"
+
+// larcv
 #include "DataFormat/Image2D.h"
 #include "DataFormat/Pixel2DCluster.h"
 
@@ -18,6 +22,13 @@ namespace larlitecv {
 								      const std::vector<larcv::Image2D>& imgs, 
 								      const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
 								      const float stepsize );
+
+  // w/ badch
+  std::vector<larcv::Pixel2DCluster> getTrackPixelsFromImages( const larlite::track& lltrack,
+							       const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+							       const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
+							       const float stepsize );
+  
 
 }
 

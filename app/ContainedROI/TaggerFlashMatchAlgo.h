@@ -86,10 +86,11 @@ namespace larlitecv {
    
   protected:
 
-
+    void setupQClusters( const std::vector<TaggerFlashMatchData>& taggertracks_v );
+    
     void setupFlashMatchInterface( std::vector<flashana::Flash_t>& data_flashana,
 				   std::vector<flashana::Flash_t>& cosmicdata_flashana,
-				   const std::vector<TaggerFlashMatchData>& taggertracks_v );
+				   bool use_extended );
 
     
     const TaggerFlashMatchAlgoConfig m_config;   //< configuration class
@@ -119,6 +120,17 @@ namespace larlitecv {
    
     std::vector<int> m_passes_cosmicflash_ratio;
     std::vector<float> m_cosmicflash_ratio_dchi; //< delta-Chi-squared between in-time flash and matched flash to track
+
+    // Q-CLUSTERS
+    std::vector<flashana::QCluster_t> m_qcluster_v; // no extension -- for in-time tests
+    std::vector<flashana::QCluster_t> m_qcluster_extended_v; // w/ extension -- for cosmic-disc tests
+
+    // Best-fit flash hypothesis
+    std::vector<flashana::Flash_t> m_intime_bestflash_hypo_v;
+    std::vector<flashana::Flash_t> m_cosmic_bestflash_hypo_v;
+    std::vector<int>               m_cosmic_bestflash_idx_v;
+    std::vector<float>             m_intime_bestflash_chi2_v;
+    std::vector<float>             m_cosmic_bestflash_chi2_v;        
    
   };
   

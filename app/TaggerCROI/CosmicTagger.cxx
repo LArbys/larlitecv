@@ -671,14 +671,14 @@ namespace larlitecv {
 
     m_croi_data_v.clear();
 
-    try {
-      larlitecv::CROIPayload croi_data = m_taggercroialgo->runCROISelection( m_input_data, m_thrumu_data, m_stopmu_data );
-      m_croi_data_v.emplace_back( std::move(croi_data) );
-    }
-    catch ( const std::exception& e ) {
-      std::cerr << "Error finding untagged and CROI: " << e.what() << std::endl;
-      return false;
-    }
+    //try {
+    larlitecv::CROIPayload croi_data = m_taggercroialgo->runCROISelection( m_input_data, m_thrumu_data, m_stopmu_data );
+    m_croi_data_v.emplace_back( std::move(croi_data) );
+    //}
+    // catch ( const std::exception& e ) {
+    //   std::cerr << "Error finding untagged and CROI: " << e.what() << std::endl;
+    //   return false;
+    // }
 
     if ( m_save_croi_space )
       m_croi_data_v.front().saveSpace();

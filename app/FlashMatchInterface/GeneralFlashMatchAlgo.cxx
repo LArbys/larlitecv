@@ -394,29 +394,14 @@ namespace larlitecv {
     // Continue over the track if it has less than 2 trajectory points in its length.
     if ( larlite_track.NumberTrajectoryPoints() < 2 ) return;
 
+    qcluster.clear();
+    
     // Declare the two points that will be used in the function.
     ::geoalgo::Vector pt0(0.,0.,0.);
     ::geoalgo::Vector pt1(0.,0.,0.);
 
     // Declare an object for 'lightpath', which will extend the qcluster.
     flashana::LightPath lightpath;
-
-    //
-    // Add body.
-    //
-    for ( size_t step_idx = 0; step_idx < larlite_track.NumberTrajectoryPoints() - 1; ++step_idx ) {
-
-      pt0[0] = larlite_track.LocationAtPoint(step_idx)[0];
-      pt0[1] = larlite_track.LocationAtPoint(step_idx)[1];
-      pt0[2] = larlite_track.LocationAtPoint(step_idx)[2];
-
-      pt1[0] = larlite_track.LocationAtPoint(step_idx+1)[0];
-      pt1[1] = larlite_track.LocationAtPoint(step_idx+1)[1];
-      pt1[2] = larlite_track.LocationAtPoint(step_idx+1)[2];
-
-      lightpath.QCluster( pt0, pt1, qcluster );
-
-    }
 
     // Initialize the first point on the track's trajectory.
     pt0[0] = larlite_track.LocationAtPoint(0)[0]; pt0[1] = larlite_track.LocationAtPoint(0)[1]; pt0[2] = larlite_track.LocationAtPoint(0)[2];
@@ -434,15 +419,32 @@ namespace larlitecv {
 
       // Continue on only if 'next_point_idx' is less than the number of trajectory points on the track.
       if ( next_point_idx < larlite_track.NumberTrajectoryPoints() ) {
-	// Turn 'pt1' into a direction vector (not normalized).
+	// Turn 'pt1' into a direction vector (not normalized). 1 -> 0
 	pt1 = pt0 - pt1;
 	pt0    = pt0 + pt1.Dir()*extension;
 	pt1[0] = larlite_track.LocationAtPoint(0)[0]; pt1[1] = larlite_track.LocationAtPoint(0)[1]; pt1[2] = larlite_track.LocationAtPoint(0)[2];
 
 	// Extend the qcluster with 'lightpath' functionality.
-	lightpath.QCluster( pt0, pt1, qcluster );
+	lightpath.QCluster( pt1, pt0, qcluster );
 
       }
+
+    }
+    
+    //
+    // Add body.
+    //
+    for ( size_t step_idx = 0; step_idx < larlite_track.NumberTrajectoryPoints() - 1; ++step_idx ) {
+
+      pt0[0] = larlite_track.LocationAtPoint(step_idx)[0];
+      pt0[1] = larlite_track.LocationAtPoint(step_idx)[1];
+      pt0[2] = larlite_track.LocationAtPoint(step_idx)[2];
+
+      pt1[0] = larlite_track.LocationAtPoint(step_idx+1)[0];
+      pt1[1] = larlite_track.LocationAtPoint(step_idx+1)[1];
+      pt1[2] = larlite_track.LocationAtPoint(step_idx+1)[2];
+
+      lightpath.QCluster( pt1, pt0, qcluster );
 
     }
     
@@ -463,7 +465,7 @@ namespace larlitecv {
 	pt1[1] = larlite_track.LocationAtPoint( next_point_idx )[1];
 	pt1[2] = larlite_track.LocationAtPoint( next_point_idx )[2];
 	--next_point_idx;
-      } while ( fabs( pt0[0] - pt1[0] ) < 0.001 && fabs( pt0[1] - pt1[1] ) < 0.001 && fabs( pt0[2] - pt1[2] ) < 0.001 && next_point_idx > -1 );
+      } while ( fabs( pt0[0] - pt1[0] ) < 1.0 && fabs( pt0[1] - pt1[1] ) < 1.0 && fabs( pt0[2] - pt1[2] ) < 1.0 && next_point_idx > -1 );
 
       // Only perform the next part of the loop if 'next_point_idx' is greater than -1.
       if ( next_point_idx > -1 ) {
@@ -690,11 +692,11 @@ namespace larlitecv {
     float wire_mean;
     std::vector<float> wire_range;
     GetFlashCenterAndRange( flash, wire_mean, wire_range );
-    if ( m_verbosity>0 )
-      std::cout << "OpFlash: "
-		<< " time=" << flash.Time()
-		<< " pe=" << flash.TotalPE()
-		<< " wire_mean=" << wire_mean << " wire_range=[" << (int)wire_range[0] << "," << (int)wire_range[1] << "]" << std::endl;
+    // if ( m_verbosity>0 )
+    //   std::cout << "OpFlash: "
+    // 		<< " time=" << flash.Time()
+    // 		<< " pe=" << flash.TotalPE()
+    // 		<< " wire_mean=" << wire_mean << " wire_range=[" << (int)wire_range[0] << "," << (int)wire_range[1] << "]" << std::endl;
 
     // also load flash info into flash manager                                                                                                                                                              
     flashana::Flash_t f;
@@ -836,19 +838,19 @@ namespace larlitecv {
     }
     chi2 /= nvalid_pmts;
 
-    std::cout << "  [observed] ";
-    for (int ich=0; ich<32; ich++ ) {
-      std::cout << std::setw(5) << (int)data_flasht.pe_v.at(  geo->OpDetFromOpChannel(ich) );
-    }
-    std::cout << " TOT=" << totpe_data_flash << " CHI2=" << chi2 << std::endl;
+    // std::cout << "  [observed] ";
+    // for (int ich=0; ich<32; ich++ ) {
+    //   std::cout << std::setw(5) << (int)data_flasht.pe_v.at(  geo->OpDetFromOpChannel(ich) );
+    // }
+    // std::cout << " TOT=" << totpe_data_flash << " CHI2=" << chi2 << std::endl;
     
-    std::cout << "  [expected] ";
-    for ( int ich=0; ich<32; ich++ ) {
-      //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
-      //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
-      std::cout << std::setw(5) << (int)expectation[ich];
-    }
-    std::cout << " TOT=" << totpe_hypo_flash << " BestCHI2=" << chi2 << std::endl;
+    // std::cout << "  [expected] ";
+    // for ( int ich=0; ich<32; ich++ ) {
+    //   //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
+    //   //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
+    //   std::cout << std::setw(5) << (int)expectation[ich];
+    // }
+    // std::cout << " TOT=" << totpe_hypo_flash << " BestCHI2=" << chi2 << std::endl;
 
     // Return the chi2 value.
     return chi2;

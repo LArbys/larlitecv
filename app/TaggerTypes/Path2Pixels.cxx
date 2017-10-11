@@ -166,5 +166,14 @@ namespace larlitecv {
     return pixels;
     
   }
+
+  std::vector<larcv::Pixel2DCluster> getTrackPixelsFromImages( const larlite::track& lltrack,
+							       const std::vector<larcv::Image2D>& imgs, const std::vector<larcv::Image2D>& badchimgs,
+							       const std::vector<float>& thresholds, const std::vector<int>& neighborhood_size,
+							       const float stepsize ) {
+    std::vector<larcv::Pixel2DCluster> pixclust_v;
+    // convert larlite track to vector<vector<float>> path. use above methods.
+    return pixclust_v;
+  }
   
 }
