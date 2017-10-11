@@ -56,13 +56,12 @@ namespace larlitecv {
     m_passes_totpe.resize( inputdata.size(), 0 );
     m_passes_cosmicflash_ratio.resize( inputdata.size(), 0 );
 
-    m_min_chi2.clear();
     m_opflash_hypos.clear();
-    m_totpe_peratio.clear();
-    m_cosmicflash_ratio_dchi.clear();
-    m_min_chi2.reserve( inputdata.size() );
-    m_totpe_peratio.reserve( inputdata.size() );
-    m_cosmicflash_ratio_dchi.reserve( inputdata.size() );
+    m_containment_dwall.clear();
+    m_cosmicflash_ratio_dchi.resize( inputdata.size(), -1 );
+    m_min_chi2.resize( inputdata.size(), -1 );
+    m_totpe_peratio.resize( inputdata.size(),- 1 );
+    m_cosmicflash_ratio_dchi.resize( inputdata.size(), -1 );
     m_genflashmatch.getFlashMatchManager().Reset();
 
 
@@ -106,6 +105,8 @@ namespace larlitecv {
       double min_x = 1e9;
       for (size_t i = 0; i < best_cluster.size(); ++i) {
 	auto const &pt = best_cluster[i];
+	if ( pt.y<-116.5 || pt.y>116.5 || pt.z<0.0 || pt.z>1036.8 )
+	  continue;
 	if (pt.x < min_x) { min_x = pt.x; }
       }
       for ( auto& pt : best_cluster ) {
@@ -138,6 +139,8 @@ namespace larlitecv {
       double min_x = 1e9;
       for (size_t i = 0; i < best_cluster.size(); ++i) {
 	auto const &pt = best_cluster[i];
+	if ( pt.y<-116.5 || pt.y>116.5 || pt.z<0.0 || pt.z>1036.8 )
+	  continue;	
 	if (pt.x < min_x) { min_x = pt.x; }
       }      
       for ( auto& pt : best_cluster ) {
@@ -200,8 +203,28 @@ namespace larlitecv {
       flashana::QCluster_t qcluster;
       m_genflashmatch.ExpandQClusterNearBoundaryFromLarliteTrack( qcluster, inputdata[i].m_track3d, 100.0, 15.0 );
       
-      larlite::opflash ophypo = m_genflashmatch.make_flash_hypothesis( inputdata[i].m_track3d );
+      larlite::opflash ophypo = m_genflashmatch.MakeOpFlashFromFlash( m_intime_bestflash_hypo_v[i] );
+      m_opflash_hypos.emplace_back( std::move(ophypo) );
+
+      // store values
       
+      // intime chi2
+      m_min_chi2[i] = m_intime_bestflash_chi2_v[i];
+      // intime chi2 - cosmic chi2
+      if ( m_min_chi2[i]<0 ) {
+	m_cosmicflash_ratio_dchi[i] = -10 - m_cosmic_bestflash_chi2_v[i];
+      }
+      else {
+	m_cosmicflash_ratio_dchi[i] = m_min_chi2[i]-m_cosmic_bestflash_chi2_v[i];
+      }
+      // intime pe ratio
+      if ( m_min_chi2[i]<0 ) {
+	m_totpe_peratio[i] = -1;
+      }
+      else {
+	m_totpe_peratio[i] = data_flashana.front().TotalPE() / m_intime_bestflash_hypo_v[i].TotalPE();
+      }
+	
       if ( m_verbosity>=2  ) {
 	// data in-time flash
 	std::cout << "  [observed] ";
@@ -371,7 +394,9 @@ namespace larlitecv {
     std::vector<double> delta_zmin(3,0);
     std::vector<double> delta_zmax(3,0);
 
+    
 
+    
     if ( m_verbosity>=2 ) {
       std::cout << "bounds: x=[" << bb[0][0] << "," << bb[0][1] << "] "
                 << " y=[" << bb[1][0] << "," << bb[1][1] << "] "
@@ -380,14 +405,46 @@ namespace larlitecv {
                 << " dz=[" << delta_zmin[2] << "," << delta_zmax[2] << "] ";
     }
 
-    // x extrema, not a function of the other dimensions
-    if ( bb[0][0]<m_config.FVCutX[0] || bb[0][1]>m_config.FVCutX[1] )
-      return false;
-    if ( (bb[1][0]-delta_ymin[1]) < m_config.FVCutY[0] || (bb[1][1]-delta_ymax[1]) > m_config.FVCutY[1] )
-      return false;
-    if ( (bb[2][0]-delta_zmin[2]) < m_config.FVCutZ[0] || (bb[2][1]-delta_zmax[2]) > m_config.FVCutZ[1] )
-      return false;
+    float dwall[6];
+    dwall[0] = fabs(bb[0][0]-m_config.FVCutX[0]);
+    dwall[1] = fabs(bb[0][1]-m_config.FVCutX[1]);
+    dwall[2] = fabs(bb[1][0]-m_config.FVCutY[0]);
+    dwall[3] = fabs(bb[1][1]-m_config.FVCutY[1]);    
+    dwall[4] = fabs(bb[2][0]-m_config.FVCutZ[0]);
+    dwall[5] = fabs(bb[2][1]-m_config.FVCutZ[1]);
 
+    
+    // x extrema, not a function of the other dimensions
+    if ( bb[0][0]<m_config.FVCutX[0] || bb[0][1]>m_config.FVCutX[1] ) {
+      if ( dwall[0]<dwall[1] )
+	m_containment_dwall.push_back( dwall[0] );
+      else
+	m_containment_dwall.push_back( dwall[1] );
+      return false;
+    }
+    if ( (bb[1][0]-delta_ymin[1]) < m_config.FVCutY[0] || (bb[1][1]-delta_ymax[1]) > m_config.FVCutY[1] ) {
+      if ( dwall[2]<dwall[3] )
+	m_containment_dwall.push_back( dwall[2] );
+      else
+	m_containment_dwall.push_back( dwall[3] );
+      return false;
+    }
+    if ( (bb[2][0]-delta_zmin[2]) < m_config.FVCutZ[0] || (bb[2][1]-delta_zmax[2]) > m_config.FVCutZ[1] ) {
+      if ( dwall[4]<dwall[5] )
+	m_containment_dwall.push_back( dwall[4] );
+      else
+	m_containment_dwall.push_back( dwall[5] );      
+      return false;
+    }
+
+    float mindwall = 1e6;
+    for ( int i=0; i<6; i++) {
+      if ( mindwall>dwall[i] )
+	mindwall = dwall[i];
+    }
+
+    m_containment_dwall.push_back( mindwall );
+    
     // we made it!
     return true;
   }
@@ -557,7 +614,7 @@ namespace larlitecv {
       
       flashana::QCluster_t qcluster;
       //m_genflashmatch.ExpandQClusterStartingWithLarliteTrack( qcluster, taggertrack.m_track3d, 1000.0, extend_start, extend_end );
-      m_genflashmatch.ExpandQClusterStartingWithLarliteTrack( qcluster, taggertrack.m_track3d, 1.0, extend_start, extend_end );      
+      m_genflashmatch.ExpandQClusterStartingWithLarliteTrack( qcluster, taggertrack.m_track3d, 1000.0, extend_start, extend_end );      
       m_qcluster_extended_v.emplace_back( std::move(qcluster) );
     }
   }
