@@ -179,10 +179,10 @@ namespace larlitecv {
     std::vector< int > flashdata_passes_flashmatch_v;
     std::vector< int > flashdata_passes_totpe_v;
 
-    std::vector<float> containment_dwall_v;
-    std::vector<float> min_chi2_v; ///< min-chi2 score for each flash
-    std::vector<float> totpe_peratio_v; //< fraction difference of total pe between hypothesis and in-time
-    std::vector<float> cosmicflash_ratio_dchi_v; //< delta-Chi-squared between in-time flash and matched flash to track    
+    std::vector<double> containment_dwall_v;
+    std::vector<double> min_chi2_v; ///< min-chi2 score for each flash
+    std::vector<double> totpe_peratio_v; //< fraction difference of total pe between hypothesis and in-time
+    std::vector<double> cosmicflash_ratio_dchi_v; //< delta-Chi-squared between in-time flash and matched flash to track    
 
     std::vector< larcv::ROI > croi_v;
     std::vector< larcv::Image2D > combined_v;
