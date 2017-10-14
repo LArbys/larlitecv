@@ -75,10 +75,10 @@ namespace larlitecv {
     const std::vector<int>& getTotalPECutResults() { return m_passes_totpe; };
    
     // selection variables
-    const std::vector<float>& getContainmentCutValues() { return m_containment_dwall; };
-    const std::vector<float>& getInTimeChi2Values() { return m_min_chi2; };
-    const std::vector<float>& getTotPEratioValues() { return m_totpe_peratio; };
-    const std::vector<float>& getCosmicDeltaChi2Values() { return m_cosmicflash_ratio_dchi; };
+    const std::vector<double>& getContainmentCutValues() { return m_containment_dwall; };
+    const std::vector<double>& getInTimeChi2Values() { return m_min_chi2; };
+    const std::vector<double>& getTotPEratioValues() { return m_totpe_peratio; };
+    const std::vector<double>& getCosmicDeltaChi2Values() { return m_cosmicflash_ratio_dchi; };
    
     const TaggerFlashMatchAlgoConfig& getConfig() { return m_config; };
 
@@ -107,19 +107,19 @@ namespace larlitecv {
    
     // CONTAINMENT CUT
     std::vector<int> m_passes_containment;
-    std::vector<float> m_containment_dwall;
+    std::vector<double> m_containment_dwall;
    
     // IN-TIME FLASH CUT
     std::vector<int> m_passes_flashmatch;
     std::vector<larlite::opflash> m_opflash_hypos; ///< flash hypotheses for each track
-    std::vector<float> m_min_chi2; ///< min-chi2 score for each flash
+    std::vector<double> m_min_chi2; ///< min-chi2 score for each flash
    
     // TOTAL PE
     std::vector<int> m_passes_totpe;
-    std::vector<float> m_totpe_peratio; //< fraction difference of total pe between hypothesis and in-time
+    std::vector<double> m_totpe_peratio; //< fraction difference of total pe between hypothesis and in-time
    
     std::vector<int> m_passes_cosmicflash_ratio;
-    std::vector<float> m_cosmicflash_ratio_dchi; //< delta-Chi-squared between in-time flash and matched flash to track
+    std::vector<double> m_cosmicflash_ratio_dchi; //< delta-Chi-squared between in-time flash and matched flash to track
 
     // Q-CLUSTERS
     std::vector<flashana::QCluster_t> m_qcluster_v; // no extension -- for in-time tests
@@ -129,8 +129,8 @@ namespace larlitecv {
     std::vector<flashana::Flash_t> m_intime_bestflash_hypo_v;
     std::vector<flashana::Flash_t> m_cosmic_bestflash_hypo_v;
     std::vector<int>               m_cosmic_bestflash_idx_v;
-    std::vector<float>             m_intime_bestflash_chi2_v;
-    std::vector<float>             m_cosmic_bestflash_chi2_v;        
+    std::vector<double>            m_intime_bestflash_chi2_v;
+    std::vector<double>            m_cosmic_bestflash_chi2_v;        
    
   };
   
