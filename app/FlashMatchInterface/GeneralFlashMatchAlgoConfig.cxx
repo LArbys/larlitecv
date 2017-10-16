@@ -9,6 +9,7 @@ namespace larlitecv {
 
   GeneralFlashMatchAlgoConfig::GeneralFlashMatchAlgoConfig():
     m_flashmatch_config(fcllite::PSet("FlashMatchManager",m_flashman_default)) {
+    flashmatch_chi2_cut    = 100.0;
     chi2_anode_cathode_cut = 100.0;
     chi2_yz_flash_cut      = 20.0; // Arbitrarily chosen for now.
     verbosity = 0;
@@ -50,6 +51,8 @@ namespace larlitecv {
     cfg.flashpe_thresh    = pset.get<float>("FlashPEThreshold");
     cfg.beam_tick_range   = pset.get< std::vector<int> >("BeamTickRange");
     cfg.flashmatch_chi2_cut = pset.get<float>("FlashMatchChi2Cut");
+    cfg.chi2_anode_cathode_cut  = pset.get<float>("AnodeCathodeFlashCut");
+    cfg.chi2_yz_flash_cut       = pset.get<float>("YZFlashCut");
     cfg.totpe_sigma_cut   = pset.get<float>("TotalPESigmaCut");
     cfg.use_gaus2d        = pset.get<bool>("UseGaus2D");
     //std::cout << "converting pset from larcv::PSet to fcllite::PSet" << std::endl;

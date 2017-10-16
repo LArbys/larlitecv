@@ -12,6 +12,7 @@
 
 // stdlib
 #include <vector>
+#include <array>
 #include <algorithm>
 #include <set>
 
@@ -135,25 +136,28 @@ namespace larlitecv {
 
     // Add the new function for flash-matching the tracks in the ThruMu stage of reconstruction.
     void flashMatchTracks( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< const BoundarySpacePoint* >& spacepts, const std::vector< larlite::event_opflash* >& opflash_v, 
-					  std::vector< BMTrackCluster3D >& trackclusters, std::set< std::vector< BoundarySpacePoint >  >& impossible_match_endpoint_v, 
-			                  std::set< BoundaryFlashIndex >& already_matched_flash_v, std::vector< int >& well_matched_tracks_idx_v, const int& num_of_tracks_added_in_pass, 
+					  std::vector< BMTrackCluster3D >& trackclusters, std::vector< std::vector< BoundarySpacePoint >  >& impossible_match_endpoint_v, 
+			                  std::vector< BoundaryFlashIndex >& already_matched_flash_v, std::vector< int >& well_matched_tracks_idx_v, const int& num_of_tracks_added_in_pass, 
 			                  std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v, 
 			                  std::vector< std::vector< larlitecv::BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v, std::vector< std::vector< BoundarySpacePoint > >& track_endpoint_v, 
-			                  bool anode_and_cathode_only );
+			                  bool anode_and_cathode_only, bool single_pass );
 		
-    void flashMatchAC( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< flashana::QCluster_t >& qcluster_vector,
-				      const std::vector< BoundaryFlashIndex >& boundary_flash_index_vector, const std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v_from_pass,
+    void flashMatchAC( GeneralFlashMatchAlgoConfig& flash_match_config, std::vector< larlite::track >& larlite_track_vector, std::vector< larlitecv::BMTrackCluster3D >& trackclusters,
+				      std::vector< std::vector< BoundarySpacePoint > >& track_endpoint_v, std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v,
+				      std::vector< std::vector< BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v,  const std::vector< BoundaryFlashIndex >& boundary_flash_index_vector,
+				      const std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v_from_pass,
 				      const std::vector< std::vector< BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v_from_pass,
-				      std::set< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > > & track_endpoint_v_from_pass,
-		                      std::vector < int >& well_matched_tracks_idx_v, std::set< BoundaryFlashIndex >&  already_matched_flash_v );
+				      std::vector< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > > & track_endpoint_v_from_pass,
+				      std::vector < int >& well_matched_tracks_idx_v, std::vector< BoundaryFlashIndex >&  already_matched_flash_v );
 
     void flashMatchYZFaceTracks( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< larlitecv::BMTrackCluster3D >& trackclusters, 
-				 const std::vector < flashana::QCluster_t >& qcluster_vector, const std::vector< BoundaryFlashIndex >& boundary_flash_index_vector, 
-				 std::set< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > >& track_endpoint_v_from_pass, 
-				 std::vector< int >& well_matched_tracks_idx_v, std::set< BoundaryFlashIndex >& already_matched_flash_v, bool entire_event );
+				 std::vector< larlite::track >& larlite_track_vector, const std::vector< BoundaryFlashIndex >& boundary_flash_index_vector, 
+				 std::vector< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > >& track_endpoint_v_pass_or_full, 
+				 std::vector< int >& well_matched_tracks_idx_v, std::vector< BoundaryFlashIndex >& already_matched_flash_v, bool single_pass );
 
-    void rankTrackFlashMatches( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< flashana::QCluster_t >& qclusters_being_checked, const std::vector< int >& well_matched_tracks_idx_v, 
-				larlite::opflash opflash, int opflash_producer, std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list );
+    void rankTrackFlashMatches( GeneralFlashMatchAlgoConfig& flash_match_config, std::vector< larlite::track >& larlite_track_vector, const std::vector< int >& well_matched_tracks_idx_v, 
+				larlite::opflash opflash, int opflash_producer, std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list, 
+				std::vector< ThruMuTracker::FlashMatchCandidate >& ordered_opflash_track_match_list );
     
     void orderInAscendingChi2Order( const std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list, 
 						    std::vector< ThruMuTracker::FlashMatchCandidate >& ordered_opflash_track_match_list );
@@ -162,11 +166,16 @@ namespace larlitecv {
 		       std::vector< int >& corresponding_qcluster_idx_v );
 
     bool isSameQClusterMatchedToDifferentFlashes( const std::vector< ThruMuTracker::UniqueTrackFlashMatch >& unique_track_flash_match_v );
-      
-    void findQClusterFlashMatchWithWorseChi2( const std::vector< ThruMuTracker::UniqueTrackFlashMatch >& unique_track_flash_match_v, int& unique_track_flash_match_idx, 
-					      ThruMuTracker::UniqueTrackFlashMatch& duplicate_flash_match_with_worse_chi2 );
 
-    void sortOutBadTracks( std::vector < larlitecv::BMTrackCluster3D >& trackclusters, const std::vector< int >& well_matched_tracks_idx_v, std::vector< int >& tracks_per_pass, int tracks_under_consideration, bool single_pass );
+    void findQClusterFlashMatchWithWorseChi2( const std::vector< ThruMuTracker::UniqueTrackFlashMatch >& unique_track_flash_match_v, int& unique_track_flash_match_idx,
+                                              ThruMuTracker::UniqueTrackFlashMatch& duplicate_flash_match_with_worse_chi2 );
+
+    bool compareToOtherACTrackMatchedToThisFlash( GeneralFlashMatchAlgoConfig& flash_match_config, const larlite::track& larlite_track, const larlitecv::BoundaryFlashIndex& flash_info, 
+								 std::vector< larlitecv::BMTrackCluster3D >& trackclusters, std::vector< std::vector< larlitecv::BoundarySpacePoint > >& track_endpoint_v,
+								 std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v,
+								 std::vector< std::vector< BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v );
+
+    void sortOutBadTracksAndEndpoints( std::vector < larlitecv::BMTrackCluster3D >& trackclusters, std::vector< std::vector< larlitecv::BoundarySpacePoint > >& track_endpoint_v, std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v, std::vector< std::vector< BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v, const std::vector< int >& well_matched_tracks_idx_v, std::vector< int >& tbacks_per_pass, int tracks_under_consideration, bool single_pass );
 		
 
 
