@@ -124,8 +124,8 @@ namespace larlitecv {
       std::cout << "The size of 'well_matched_flash_v' before flashmatching in Pass #" << ipass << " = " << already_matched_flash_v.size() << "." << std::endl;
 
       // Depending if this is greater than the first pass, then set 'anode_and_cathode_only' to 'false'.
-      if ( ipass > 0 ) 
-	anode_and_cathode_only = false;
+      //if ( ipass > 0 ) 
+      //	anode_and_cathode_only = false;
 
       // Use the flag from the config file to determine if you want to flashmatch the tracks that survive this pass of the thrumu tracker.
       if (m_config.thrumu_flashmatch == true ) {
@@ -157,26 +157,52 @@ namespace larlitecv {
       sortOutBadTracksAndEndpoints( trackclusters, track_endpoint_v, track_endpoint_flash_v, track_endpoint_boundary_type_idx_v, well_matched_tracks_idx_v, tracks_per_pass, trackclusters.size(), single_pass ); 
     }
 
-    std::cout<< "The number of flashes considered well-matched at the end of the function = " << already_matched_flash_v.size() << "." << std::endl;
+    std::cout << "The number of flashes considered well-matched at the end of the function = " << already_matched_flash_v.size() << "." << std::endl;
+    //std::cout << "The number of objects in the 'trackclusters' vector before filtering out empty tracks = " << trackclusters.size() << "." << std::endl;
 
-    // Declare an iterator for the number of reconstructed tracks at the end.
-    int num_reco_tracks_at_end = 0;
+    // Print out the 'ivec' and 'idx' of each of the matched flashes.
+    for ( size_t j = 0; j < already_matched_flash_v.size(); ++j ) {
+      std::cout << "Entry of 'already_matched_flash_v' at idx #" << j << " has ivec = " << already_matched_flash_v.at( j ).ivec << " and idx = " << already_matched_flash_v.at( j ).idx << "." << std::endl; 
+    }
+
+    // Declare a dummy vector that will use to filter the 'BMTrackCluster3D' objects back into 'trackclusters'.
+    std::vector< larlitecv::BMTrackCluster3D > trackclusters_tmp;
+    trackclusters_tmp.clear();
 
     // tag the pixels
-    for (int itrack=0; itrack<(int)trackclusters.size(); itrack++ ) {
+    for (int itrack=0; itrack<trackclusters.size(); itrack++ ) {
+      
       // At this point, in addition to tagging the pixels, I can remove those tracks from consideration that have an empty path.  I no longer rely on the symmetry between the number of tracks in 'trackclusters' and the number of tracks reconstructed in the pass.
       if (trackclusters.at( itrack ).path3d.size() == 0 ) {
-	trackclusters.erase( trackclusters.begin() + itrack );
+	//std::cout << "Recording the index of an empty track at the end." << std::endl;
 	continue;
       }
-      
-      ++num_reco_tracks_at_end;
-      
-      BMTrackCluster3D& track3d = trackclusters[itrack];
-      track3d.markImageWithTrack( img_v, badchimg_v, m_config.pixel_threshold, m_config.tag_neighborhood, tagged_v, 0.3, itrack+1 );
+
+      trackclusters_tmp.push_back( trackclusters.at( itrack ) );
+
+      // Print out the information for the first coordinate on this track.
+      std::cout << "The first y-coordinate on the track that is being written at the end = " << trackclusters.at( itrack ).makeTrack().LocationAtPoint( 0 )[1] << " cm." << std::endl; 
+
     }
-    
-    std::cout << "Number of tracks reconstructed at the end = " << num_reco_tracks_at_end << "." << std::endl;
+
+    // Print the size of 'trackclusters_tmp'.
+    std::cout << "The size of 'trackclusters_tmp' after filtering out empty tracks =  " << trackclusters_tmp.size() << "." << std::endl;
+
+    // Now clear 'trackclusters' and place the values from 'trackclusters_tmp' back into 'trackclusters' while marking the images with each track.
+    trackclusters.clear();
+
+    for ( size_t i = 0; i < trackclusters_tmp.size(); ++i ) {
+      
+      // Fill 'trackclusters'.
+      trackclusters.push_back( trackclusters_tmp.at( i ) );
+
+      // Mark the image with the track.
+      BMTrackCluster3D& track3d = trackclusters_tmp[i];
+      track3d.markImageWithTrack( img_v, badchimg_v, m_config.pixel_threshold, m_config.tag_neighborhood, tagged_v, 0.3, i+1 );
+
+    }
+        
+    std::cout << "The size of 'trackclusters' after filtering out empty tracks = " << trackclusters.size() << "." << std::endl;
 
     //if ( m_config.verbosity>0 ) {
     //  for (int ipass=0; ipass<m_config.num_passes; ipass++) {
@@ -726,12 +752,11 @@ namespace larlitecv {
       }
       else {
 	
-	bool entire_event = false;
 	flashMatchAC( flash_match_config, larlite_track_vector, trackclusters, track_endpoint_v, track_endpoint_flash_v, track_endpoint_boundary_type_idx_v, boundary_flash_index_vector, 
 		      track_endpoint_flash_v_from_pass, track_endpoint_boundary_type_idx_v_from_pass, impossible_match_endpoint_v, track_endpoint_v_from_pass, well_matched_tracks_idx_v, 
 		      already_matched_flash_v );
 	
-	// Use 'track_endpoint_v_from_pass' here instead of 'track_endpoint_v'.  They will only be used to 
+	// Use 'track_endpoint_v_from_pass' here instead of 'track_endpoint_v'.  They will only be used to filter out the impossible endpoints once a bad match is found.
 	flashMatchYZFaceTracks( flash_match_config, trackclusters, larlite_track_vector, boundary_flash_index_vector, impossible_match_endpoint_v,
 			      track_endpoint_v_from_pass, well_matched_tracks_idx_v, already_matched_flash_v, single_pass );
 
@@ -984,20 +1009,24 @@ namespace larlitecv {
       if ( chi2 < flash_match_config.chi2_anode_cathode_cut ) { // to be defined somewhere... 
 
 	//std::cout << "Track #" << qcluster_iter << " is A/C piercing and has a chi2 value below our cut and will be kept." << std::endl;
-	//std::cout << "y-coordinate of the first track point = " << t0_tagged_track.LocationAtPoint( 0 )[1] << "." << std::endl;
+	std::cout << "y-coordinate of the first track point = " << t0_tagged_track.LocationAtPoint( 0 )[1] << "." << std::endl;
 
 	// Print out the cut that these tracks have to satisfy.
 	//std::cout << "The chi2 cut for anode/cathode piercing tracks = " << flash_match_config.chi2_anode_cathode_cut << "." << std::endl;
 
-	std::cout << "The chi2 value of the track passing the cuts in the 'flashMatchACTracks' function = " << chi2 << "." << std::endl;
-	std::cout << "This track is matched to flash with ivec = " << boundary_flash_idx_for_endpoint.ivec << " and idx = " << boundary_flash_idx_for_endpoint.idx << "." << std::endl;
-	std::cout << "The length of 'already_matched_flash_v' before this flash has been compared = " << already_matched_flash_v.size() << "." << std::endl;
+	//std::cout << "The chi2 value of the track passing the cuts in the 'flashMatchACTracks' function = " << chi2 << "." << std::endl;
 
 	// If the flash has not yet been compared, then you should add it to 'already_matched_flash_v'.
 	if ( well_matched_flash == false ) {
+	  std::cout << "This track is matched to flash with ivec = " << boundary_flash_idx_for_endpoint.ivec << " and idx = " << boundary_flash_idx_for_endpoint.idx << "." << std::endl;
 	  // Add to the end of this vector the flash object corresponding to the qcluster, 'boundary_flash_idx_for_endpoint', using the 'insert' functionality.
 	  already_matched_flash_v.push_back( boundary_flash_idx_for_endpoint );
 	}
+
+	//std::cout << "The length of 'already_matched_flash_v' after this flash has been compared = " << already_matched_flash_v.size() << "." << std::endl;
+	//std::cout << "The y-coordinate of the first point on the track that is being saved = " << t0_tagged_track.LocationAtPoint(0)[1] << " cm." << std::endl;
+
+	//std::cout << "QCluster iter of the track that is being saved = " << qcluster_iter << "." << std::endl;
 	
 	// Change the index of 'well_matched_tracks_idx_v' at this index to equal 1, because the track is well-reconstructed according to the chi2 cut.
 	well_matched_tracks_idx_v.at( qcluster_iter ) = 1 ;
@@ -1177,8 +1206,11 @@ namespace larlitecv {
 
       if ( best_chi2_v.at( qcluster_idx_v_iter ) < flash_match_config.chi2_yz_flash_cut ) {
 	//std::cout << "qcluster_idx_v_iter of qcluster passing cut = " << qcluster_idx_v_iter << "." << std::endl;
-	std::cout << "The chi2 value of the track passing the cuts in the 'flashMatchYZfunction' = " << best_chi2_v.at( qcluster_idx_v_iter ) << "." << std::endl;
+	std::cout << "The y-coordinate of the first point on this track being saved = " << larlite_tracks_being_checked.at( corresponding_qcluster_idx_v.at( qcluster_idx_v_iter ) ).LocationAtPoint(0)[1] << " cm." << std::endl;
+	//std::cout << "The chi2 value of the track passing the cuts in the 'flashMatchYZfunction' = " << best_chi2_v.at( qcluster_idx_v_iter ) << "." << std::endl;
 	std::cout << "The ivec = " << opflash_with_track_lists_idx_v.at( qcluster_idx_v_iter ).ivec << " and idx = " << opflash_with_track_lists_idx_v.at( qcluster_idx_v_iter ).idx << "." << std::endl;
+	//std::cout << "QCluster iter of the track that is being saved = " << corresponding_qcluster_idx_v.at( qcluster_idx_v_iter ) << "." << std::endl;
+	std::cout << "\n" << std::endl;
 	well_matched_tracks_idx_v.at( corresponding_qcluster_idx_v.at( qcluster_idx_v_iter ) ) = 1; // corresponding to a good track.
 	already_matched_flash_v.push_back( opflash_with_track_lists_idx_v.at( qcluster_idx_v_iter ) ); // append the index of the flash used to determine this track.
       }
@@ -1191,6 +1223,18 @@ namespace larlitecv {
 	impossible_match_endpoint_v.push_back( track_endpoint_v_pass_or_full.at( corresponding_qcluster_idx_v.at( qcluster_idx_v_iter ) ) );
       } 
       
+    }
+
+    // Loop through 'well_matched_tracks_idx_v' and set any value that is currently at -1 to 0.  This corresponds to the tracks that did not have a possible match/best match with ANY of the flashes and so are never compared.  Note, however, that this assumes that 'flashMatchAC' has already operated first.
+    for ( size_t i = 0; i < well_matched_tracks_idx_v.size(); ++i ) {
+
+      // Reset the value to 0.
+      if ( well_matched_tracks_idx_v.at( i ) == -1 ) {
+
+	well_matched_tracks_idx_v.at( i ) = 0;
+
+      }
+
     }
     
     return;
@@ -1297,8 +1341,8 @@ namespace larlitecv {
       // Set the chi2 and the index of the qcluster at this particular spot.
       candidate.idx     = qcluster_iter;
       candidate.chi2    = flash_match_obj.generate_chi2_in_track_flash_comparison( t0_tagged_qcluster, opflash, totpe_data, totpe_hypo, opflash_producer );
-      
-      std::cout << "chi2 = " << candidate.chi2 << "." << std::endl;
+      std::cout << "QCluster iter of the track being compared = " << qcluster_iter << "." << std::endl;
+      std::cout << "The chi2 of this match = " << candidate.chi2 << "." << std::endl;
      
       // Append this list onto the 'opflash_track_match_list'.
       opflash_track_match_list.push_back( candidate );
@@ -1666,16 +1710,16 @@ namespace larlitecv {
 
     // Return false if 'num_of_tracks_matched_to_this_flash' is less than 2.
     if ( num_of_tracks_matched_to_this_flash < 2 ) {
-      std::cout << "This track was previously matched to a non-A/C-piercing flash; it is too difficult to recover that track and make the comparison." << std::endl;
-      std::cout << "'num_of_tracks_matched_to_this_flash' = " << num_of_tracks_matched_to_this_flash << ", continuing!!" << std::endl;
+      //std::cout << "This track was previously matched to a non-A/C-piercing flash; it is too difficult to recover that track and make the comparison." << std::endl;
+      //std::cout << "'num_of_tracks_matched_to_this_flash' = " << num_of_tracks_matched_to_this_flash << ", continuing!!" << std::endl;
       return false;
     }
 
     // Otherwise, compare the element in 'trackclusters' to the input larlite track to this function to see which one has the better match to the flash.
     else {
 
-      // Print the length of 'num_of_tracks_matched_to_this_flash' (should be 2, otherwise something is wrong).
-      std::cout << "'num_of_tracks_matched_to_this_flash' = " << num_of_tracks_matched_to_this_flash << "." << std::endl;
+      // Print the length of 'num_of_tracks_matched_to_this_flash' (does not necessarily have to be 2; there could be tracks later on matched to this flash).
+      //std::cout << "'num_of_tracks_matched_to_this_flash' = " << num_of_tracks_matched_to_this_flash << "." << std::endl;
 
       // Generate an opflash object out of the input 'BoundaryFlashIndex' object.
       const larlite::opflash* opflash_pointer = flash_info.popflash;
@@ -1745,13 +1789,13 @@ namespace larlitecv {
       float chi2_of_first_track_matched_to_flash = flash_match_obj.generate_chi2_in_track_flash_comparison( qcluster_first_track_matched_to_this_flash_t0_tagged, opflash, data_PE_first_track_matched_to_flash, hypo_PE_first_track_matched_to_flash, flash_ivec );
 
       // Print these values out.
-      std::cout << "The chi2 of the track input to the 'compareToOtherACTrackMatchedToThisFlash' = " << chi2_of_track_input_to_this_function << "." << std::endl;
-      std::cout << "The chi2 of the track previously matched to this flash in the 'compareToOtherACTrackMatchedToThisFlash' = " << chi2_of_first_track_matched_to_flash << "." << std::endl;
+      //std::cout << "The chi2 of the track input to the 'compareToOtherACTrackMatchedToThisFlash' = " << chi2_of_track_input_to_this_function << "." << std::endl;
+      //std::cout << "The chi2 of the track previously matched to this flash in the 'compareToOtherACTrackMatchedToThisFlash' = " << chi2_of_first_track_matched_to_flash << "." << std::endl;
 
       // Compare the two chi2 values.  If the current track has a lower chi2, then empty out element of 'trackclusters' at the index located at 'idx_of_tracks_matched_to_this_flash.at( 0 )'.  This allows for two A/C tracks matched to the same flash to be compared between passes in the same way.  The element corresponding to the track previously matched to this flash ('trackclusters'), the element corresponding to the endpoints of the track previously matched to this flash ('track_endpoint_v'), the element corresponding to the flash information for this track ('track_endpoint_flash_v'), and the element corresponding to the boundary endpoint information for this track ('track_endpoint_boundary_type_idx_v') will all be set to empty values to keep the symmetry of those four lists with respect to each pass.
       if ( chi2_of_track_input_to_this_function < chi2_of_first_track_matched_to_flash ) {
 
-	std::cout << "The new input track has a better chi2 match.  Removing the information in the four vectors corresponding to the previous track." << std::endl;
+	//std::cout << "The new input track has a better chi2 match.  Removing the information in the four vectors corresponding to the previous track." << std::endl;
 
 	// Go through each of those lists and declare an object of the list, empty it, and replace the element in the list at index 'idx_of_tracks_matched_to_this_flash.at( 0 )' to this empty element.
 	
@@ -1777,7 +1821,7 @@ namespace larlitecv {
 
       else {
 
-	std::cout << "The old track had the better chi2 match.  Set 'well_matched_tracks_v' at the new tracks' index to 0." << std::endl;
+	//std::cout << "The old track had the better chi2 match.  Set 'well_matched_tracks_v' at the new tracks' index to 0." << std::endl;
 
 	// Return 'false', because the originally matched track is better matched to the flash than this one.
 	return false;
@@ -1840,10 +1884,18 @@ namespace larlitecv {
 
 	else {
 
-	  ++num_of_tracks_kept;
+	  if ( well_matched_tracks_idx_v.at( well_matched_tracks_index ) == 1 ) {
+	    std::cout << "SAVING A WELL-RECONSTRUCTED TRACK!!!" << std::endl;
+	  }
+
+	  if ( well_matched_tracks_idx_v.at( well_matched_tracks_index ) == -1 ) {
+	    std::cout << "THERE IS A TRACK WITH A -1 STILL IN THE LOOP!!" << std::endl;
+	  }
 	  
-	  if (trackclusters.at( trackclusters.size() - tracks_under_consideration + well_matched_tracks_index ).path3d.size() == 0 ) {
-	    ++num_of_tracks_kept_but_empty;
+	    ++num_of_tracks_kept;
+	    
+	    if (trackclusters.at( trackclusters.size() - tracks_under_consideration + well_matched_tracks_index ).path3d.size() == 0 ) {
+	      ++num_of_tracks_kept_but_empty;
 	  }
 
 	}
