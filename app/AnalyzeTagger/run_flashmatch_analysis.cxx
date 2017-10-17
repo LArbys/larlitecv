@@ -245,9 +245,10 @@ int main( int nargs, char** argv ) {
       }
     }
 
-    if ( ientry%10==0 || verbosity>0 ) {
-      std::cout << "entry " << ientry << ": (r,s,e)=(" << run << ", " << subrun << ", " << event << ")" << std::endl;
-    }
+    //if ( ientry%10==0 || verbosity>0 ) {
+    std::cout << "===================================================" << std::endl;
+    std::cout << "Entry " << ientry << ": (r,s,e)=(" << run << ", " << subrun << ", " << event << ")" << std::endl;
+    std::cout << "===================================================" << std::endl;
 
     // initialize the output variables
     truthdata.clear();
@@ -514,6 +515,12 @@ int main( int nargs, char** argv ) {
     std::vector<double>* flashdata_cosmicratio = flashdata.get_darray("cosmicratio_dchi2");
     std::vector<double>* flashdata_peratio     = flashdata.get_darray("totalpe_peratio");      
     std::vector<double>* flashdata_dwall       = flashdata.get_darray("containment_dwall");
+
+    if ( !flashdata_chi2 || !flashdata_cosmicratio || !flashdata_peratio || !flashdata_dwall ) {
+      std::cout << "Empty result" << std::endl;
+      evtree->Fill();
+      continue;
+    }
       
     for ( size_t itrack=0; itrack<numtracks; itrack++ ) {
       // tag if neutrino or cosmic
