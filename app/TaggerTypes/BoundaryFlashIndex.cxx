@@ -1,5 +1,7 @@
 #include "BoundaryFlashIndex.h"
 
+#include <sstream>
+
 namespace larlitecv {
 
   BoundaryFlashIndex::BoundaryFlashIndex()
@@ -25,5 +27,11 @@ namespace larlitecv {
     }
     return false;
   }
-  
+
+
+  std::string BoundaryFlashIndex::getInfo() const {
+    std::stringstream ss;
+    ss << "[ivec=" << ivec << ", idx=" << idx << ", opflash_ptr=" << popflash << "]";
+    return ss.str();
+  }
 }

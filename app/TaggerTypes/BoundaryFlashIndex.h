@@ -26,6 +26,8 @@ namespace larlitecv {
 
     bool operator< ( const BoundaryFlashIndex& rhs ) const;
 
+    std::string getInfo() const;
+
   };
 
 }
