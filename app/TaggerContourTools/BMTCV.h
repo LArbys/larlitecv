@@ -39,7 +39,9 @@ namespace larlitecv {
     void splitContour( const std::vector<larcv::Image2D>& img_v );    
     //#ifdef USE_OPENCV
     //std::vector<cv::Mat>& getImages();
-    //#endif    
+    //#endif
+
+    void clear();
 
 #ifdef USE_OPENCV
     std::vector<cv::Mat> cvimg_stage0_v; // unchanged images

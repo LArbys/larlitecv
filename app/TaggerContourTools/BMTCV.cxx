@@ -21,6 +21,19 @@ namespace larlitecv {
     return sp_v;
   }
 
+  void BMTCV::clear() {
+    cvimg_stage0_v.clear(); // unchanged images
+    cvimg_stage1_v.clear(); // contour points over time scan
+    cvimg_stage2_v.clear(); // 3D-matched contour points
+    cvimg_stage3_v.clear(); // 3D-matched spacepointso
+
+    m_plane_contours_v.clear();
+    m_plane_hulls_v.clear();
+    m_plane_defects_v.clear();
+    m_plane_atomics_v.clear();
+    m_plane_atomicmeta_v.clear();
+  }
+  
   void BMTCV::analyzeImages( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v, const float threshold, const int iterations ) { 
     TRandom3 rand(1983);
     
@@ -33,9 +46,9 @@ namespace larlitecv {
     // ------------------------------------------------------------------------
     // HAS OPENCV
 
+    clear();
+    
     // first convert the images into cv and binarize
-    cvimg_stage0_v.clear();
-    cvimg_stage1_v.clear();    
     for ( auto const& img : img_v ) {
       cv::Mat cvimg = larcv::as_gray_mat( img, threshold, 256.0, 1.0 );
       cv::Mat cvrgb = larcv::as_mat_greyscale2bgr( img, threshold, 100.0 );
@@ -44,10 +57,6 @@ namespace larlitecv {
       cvimg_stage0_v.emplace_back( std::move(cvrgb) );
       cvimg_stage1_v.emplace_back( std::move(thresh) );
     }
-
-    m_plane_contours_v.clear();
-    m_plane_hulls_v.clear();
-    m_plane_defects_v.clear();
     
     for (int p=0; p<3; p++) {
       // dilate image first
@@ -117,6 +126,7 @@ namespace larlitecv {
 
     m_plane_atomics_v.clear();
     m_plane_atomics_v.resize(3);
+    m_plane_atomicmeta_v.clear();
     m_plane_atomicmeta_v.resize(3);
     
     for (int p=0; p<3; p++) {
