@@ -78,7 +78,6 @@ namespace larlitecv {
     LarliteFileManager* flarlite = new LarliteFileManager( user_filelists["larlite"] );
     LarcvFileManager*     flarcv = new LarcvFileManager( user_filelists["larcv"] );
     
-
     // pass the filelists to the managers
     fManagers.insert( std::pair< std::string, FileManager* >( "larlite", flarlite ) );
     fManagers.insert( std::pair< std::string, FileManager* >( "larcv",   flarcv ) );
@@ -95,9 +94,17 @@ namespace larlitecv {
     // configure them
     larcv_io.configure( larcv_pset );  // we use the configure function
     do_larlite_config( larlite_io, larlite_pset ); // we have to add one for larlite
+    
+    // user may have override output file (for larcv...)
+    auto lc_iter = user_outpath.find("larcv");
+    if (lc_iter != user_outpath.end()) {
+      auto fname = (*lc_iter).second;
+      assert(!fname.empty());
+      larcv_io.set_out_file(fname);
+    }
 
     // get the iomode for larcv/larlite
-    fIOmodes["larcv"] = (int)larcv_pset.get<int>("IOMode",0);
+    fIOmodes["larcv"]   = (int)larcv_pset.get<int>("IOMode",0);
     fIOmodes["larlite"] = (int)larlite_pset.get<int>("IOMode",0);
 
     // determine if any of the inputs are unused
@@ -105,27 +112,29 @@ namespace larlitecv {
     larlite_unused = false;
  
     // most obvious tag that is unused: user sets to -1
-    if ( fIOmodes["larcv"]==-1 ) larcv_unused = true;
-    if ( fIOmodes["larlite"]==-1) larlite_unused = true;
+    if ( fIOmodes["larcv"]   == -1) larcv_unused = true;
+    if ( fIOmodes["larlite"] == -1) larlite_unused = true;
      
     // other way is if iomode is read-only, but there are no events provided
-    if ( fIOmodes["larcv"]==0 && fManagers["larcv"]->get_final_filelist().size()==0 ) larcv_unused = true;
-    if ( fIOmodes["larlite"]==0 && fManagers["larlite"]->get_final_filelist().size()==0 ) larlite_unused = true;
+    if ( fIOmodes["larcv"]==0  && fManagers["larcv"]->get_final_filelist().empty()  ) larcv_unused = true;
+    if ( fIOmodes["larlite"]==0 && fManagers["larlite"]->get_final_filelist().empty()) larlite_unused = true;
 
+    //
     // now load input files
-
+    //
     // larlite iomanager
     if ( !larlite_unused ) {
-      for ( auto const &larlitefile : fManagers["larlite"]->get_final_filelist() )
+      for ( auto const &larlitefile : fManagers["larlite"]->get_final_filelist() ) {
 	larlite_io.add_in_filename( larlitefile );
-      
+      }
       larlite_io.open();
       larlite_io.enable_event_alignment(false);
     }
     // larcv iomanager
     if ( !larcv_unused ) {
-      for ( auto const &larcvfile : fManagers["larcv"]->get_final_filelist() )
+      for ( auto const &larcvfile : fManagers["larcv"]->get_final_filelist() ) {
 	larcv_io.add_in_file( larcvfile );
+      }
       larcv_io.initialize();      
     }
 
@@ -182,7 +191,6 @@ namespace larlitecv {
     std::cout << "Loading pset=" << coord_cfgname << std::endl;
     larcv::PSet pset_head = larcv::CreatePSetFromFile( cfgfile, "cfg" );
     larcv::PSet pset_coord = pset_head.get<larcv::PSet>( coord_cfgname );
-    
 
     // get the 
     std::cout << "Loading larlite pset=" << larlite_cfgname << std::endl;
@@ -224,10 +232,10 @@ namespace larlitecv {
     }
 
     // specified read/write datatypes
-    std::vector<std::string> readonlyvars  = pset.get<std::vector<std::string> >( "ReadOnlyDataTypes", std::vector<std::string>() );
-    std::vector<std::string> readonlyname  = pset.get<std::vector<std::string> >( "ReadOnlyProducers", std::vector<std::string>() );
-    std::vector<std::string> writeonlyvars = pset.get<std::vector<std::string> >( "WriteOnlyDataTypes", std::vector<std::string>() );
-    std::vector<std::string> writeonlyname  = pset.get<std::vector<std::string> >( "WriteOnlyProducers", std::vector<std::string>() );
+    auto readonlyvars  = pset.get<std::vector<std::string> >( "ReadOnlyDataTypes", std::vector<std::string>() );
+    auto readonlyname  = pset.get<std::vector<std::string> >( "ReadOnlyProducers", std::vector<std::string>() );
+    auto writeonlyvars = pset.get<std::vector<std::string> >( "WriteOnlyDataTypes", std::vector<std::string>() );
+    auto writeonlyname = pset.get<std::vector<std::string> >( "WriteOnlyProducers", std::vector<std::string>() );
 
     if ( readonlyvars.size()!=readonlyname.size() ) {
       std::cout << "ERROR: number of read-only data types and names are not the same." << std::endl;
