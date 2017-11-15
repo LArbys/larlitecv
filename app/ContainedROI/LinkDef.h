@@ -10,5 +10,8 @@
 #pragma link off all functions;
 
 #pragma link C++ namespace larlitecv;
+#pragma link C++ class larlitecv::TaggerFlashMatchAlgoConfig+;
+#pragma link C++ class larlitecv::TaggerFlashMatchAlgo+;
+#pragma link C++ class larlitecv::TaggerFlashMatchAlgoV2+;
 //ADD_NEW_CLASS ... do not change this line
 #endif
