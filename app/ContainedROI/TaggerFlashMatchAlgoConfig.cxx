@@ -7,6 +7,7 @@ namespace larlitecv {
 
   TaggerFlashMatchAlgoConfig::TaggerFlashMatchAlgoConfig() {
     verbosity = 0;
+    use_version = 1;
     qcluster_stepsize = 0.3;
     MeV_per_cm = 2.3;
     fudge_factor = 33333.0;
@@ -39,6 +40,9 @@ namespace larlitecv {
     cfg.FVCutX            = pset.get< std::vector<float> >("FVCutX");
     cfg.FVCutY            = pset.get< std::vector<float> >("FVCutY");
     cfg.FVCutZ            = pset.get< std::vector<float> >("FVCutZ");
+    cfg.use_version       = pset.get< int >("Version");
+    if ( cfg.use_version<1 || cfg.use_version>2 )
+      throw std::runtime_error( "TaggerFlashMatchAlgoConfig::FromPSet : Version must be 1 or 2" );
     //cfg.gain_correction   = pset.get< std::vector<float> >("GainCorrection");
     cfg.genflashmatch_cfg = larlitecv::GeneralFlashMatchAlgoConfig::MakeConfigFromPSet( pset.get< larcv::PSet >("GeneralFlashMatchAlgo") );
     return cfg;

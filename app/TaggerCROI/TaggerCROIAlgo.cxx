@@ -27,6 +27,7 @@
 #include "UntaggedClustering/ClusterGroupAlgo.h"
 #include "UntaggedClustering/ClusterGroupMatchingAlgo.h"
 #include "ContainedROI/TaggerFlashMatchAlgo.h"
+#include "ContainedROI/TaggerFlashMatchAlgoV2.h"
 #include "ContainedROI/MatchTaggerData2Flash.h"
 #include "T3DMerge/T3DCluster.h"
 #include "T3DMerge/Track3DRecluster.h"
@@ -467,7 +468,8 @@ namespace larlitecv {
 
     ClusterGroupAlgo         clusteralgo(   m_config.untagged_cluster_cfg );
     ClusterGroupMatchingAlgo matchingalgo;
-    TaggerFlashMatchAlgo     selectionalgo( m_config.croi_selection_cfg );
+    TaggerFlashMatchAlgo     selectionalgo(   m_config.croi_selection_cfg );
+    TaggerFlashMatchAlgoV2   selectionv2algo( m_config.croi_selection_cfg );
     Track3DRecluster         reclusteralgo;
     T3DPCMerge               pcamergealgo;
     //pcamergealgo.setVerbosity(0);
@@ -807,7 +809,13 @@ namespace larlitecv {
     timer = std::clock();
 
     output.flashdata_selected_v.resize( output.flashdata_v.size(), 0 );
-    std::vector<larcv::ROI> selected_rois = selectionalgo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, output.flashdata_selected_v );
+    std::vector<larcv::ROI> selected_rois;
+    if ( m_config.croi_selection_cfg.use_version==1 )
+      selected_rois = selectionalgo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, output.flashdata_selected_v );
+    else if ( m_config.croi_selection_cfg.use_version==2 )
+      selected_rois = selectionv2algo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, output.flashdata_selected_v );
+    else
+      throw std::runtime_error("Unrecognized TaggerFlashMatchAlgo version");
 
     output.croi_v.clear();
     for ( size_t itrack=0; itrack<output.flashdata_v.size(); itrack++ ){
@@ -831,18 +839,23 @@ namespace larlitecv {
     // Copy cut results
     if ( m_config.croi_write_cfg.get<bool>("WriteCutResults") ) {
 
-      output.containment_dwall_v = selectionalgo.getContainmentCutValues();
-      output.min_chi2_v          = selectionalgo.getInTimeChi2Values();
-      output.totpe_peratio_v     = selectionalgo.getTotPEratioValues();
-      output.cosmicflash_ratio_dchi_v = selectionalgo.getCosmicDeltaChi2Values();
-
-      output.flashdata_passes_containment_v = selectionalgo.getContainmentCutResults();
-      output.flashdata_passes_cosmicflash_ratio_v = selectionalgo.getCosmicRatioCutResults();
-      output.flashdata_passes_flashmatch_v = selectionalgo.getFlashMatchCutResults();
-      output.flashdata_passes_totpe_v      = selectionalgo.getTotalPECutResults();
+      if ( m_config.croi_selection_cfg.use_version==1 ) {
+	output.containment_dwall_v = selectionalgo.getContainmentCutValues();
+	output.min_chi2_v          = selectionalgo.getInTimeChi2Values();
+	output.totpe_peratio_v     = selectionalgo.getTotPEratioValues();
+	output.cosmicflash_ratio_dchi_v = selectionalgo.getCosmicDeltaChi2Values();
+	
+	output.flashdata_passes_containment_v = selectionalgo.getContainmentCutResults();
+	output.flashdata_passes_cosmicflash_ratio_v = selectionalgo.getCosmicRatioCutResults();
+	output.flashdata_passes_flashmatch_v = selectionalgo.getFlashMatchCutResults();
+	output.flashdata_passes_totpe_v      = selectionalgo.getTotalPECutResults();
+      }
+      else {
+	// help
+      }
     }
-
-
+    
+    
     // ------------------------------------------------------------------------//
     // Make Combined Tagged Image
 

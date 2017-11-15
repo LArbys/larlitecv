@@ -41,6 +41,7 @@ namespace larlitecv {
 
     // cosmic flash match
     m_passes_cosmic_flashmatch.resize( n_tracks, 0);
+    m_qcluster_v.resize( n_tracks );    
     m_qcluster_extended_v.resize( n_tracks );
     m_cosmic_bestflash_chi2_v.resize( n_tracks, 0);
     m_cosmic_bestflash_idx_v.resize( n_tracks, 0);    
@@ -169,7 +170,7 @@ namespace larlitecv {
 		<< std::endl;
       m_cosmic_bestflash_idx_v[flashmatch.tpc_id]  = flashmatch.flash_id;
       m_cosmic_bestflash_chi2_v[flashmatch.tpc_id] = chi2;
-      if ( chi2<10.0 )
+      if ( chi2<2.0 )
 	m_passes_cosmic_flashmatch[flashmatch.tpc_id] = 0;
       else
 	m_passes_cosmic_flashmatch[flashmatch.tpc_id] = 1;
@@ -207,7 +208,7 @@ namespace larlitecv {
 	}
 	std::cout << " TOT=" << data_flashana.front().TotalPE() << " CHI2=" << "XXX" << std::endl;
     
-	std::cout << "  [cosmichypo] ";
+	std::cout << "  [cosmic] ";
 	for ( int ich=0; ich<32; ich++ ) {
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
@@ -240,13 +241,13 @@ namespace larlitecv {
         }
 
 	// FINAL RESULT
-	m_passes_finalresult[i] = m_passes_intimepos[i] & m_passes_containment[i] & m_passes_cosmic_flashmatch[i];
+	flashdata_selected[i] = m_passes_finalresult[i] = m_passes_intimepos[i] & m_passes_containment[i] & m_passes_cosmic_flashmatch[i];
 
 	if ( m_passes_finalresult[i] )
           std::cout << " **PASSES**";
         std::cout << std::endl;	
       }
-
+      
       //m_qcluster_v.emplace_back( std::move(qcluster) );
       //m_opflash_hypos.emplace_back( std::move(ophypo) );
       

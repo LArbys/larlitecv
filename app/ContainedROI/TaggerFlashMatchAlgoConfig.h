@@ -20,6 +20,7 @@ namespace larlitecv {
     virtual ~TaggerFlashMatchAlgoConfig() {};
     
     int verbosity;
+    int use_version;
     float qcluster_stepsize;
     float MeV_per_cm;
     float fudge_factor;
