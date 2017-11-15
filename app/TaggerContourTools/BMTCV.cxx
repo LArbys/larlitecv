@@ -137,7 +137,8 @@ namespace larlitecv {
 	for ( auto& ctr : atomics ) {
 	  if ( ctr.size()<3 )
 	    continue;
-	  larlitecv::ContourShapeMeta ctrinfo( ctr, img_v[p].meta() );
+	  //larlitecv::ContourShapeMeta ctrinfo( ctr, img_v[p].meta() );
+	  larlitecv::ContourShapeMeta ctrinfo( ctr, img_v[p] );	  
 	  m_plane_atomics_v[p].push_back( std::move(ctr) );
 	  m_plane_atomicmeta_v[p].emplace_back( std::move(ctrinfo) );
 	}

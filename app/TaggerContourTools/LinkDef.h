@@ -12,6 +12,7 @@
 #pragma link C++ namespace larlitecv;
 #pragma link C++ class larlitecv::ContourShapeMeta+;
 #pragma link C++ class larlitecv::BMTCV+;
+#pragma link C++ class larlitecv::ContourGapFill+;
 
 
 //ADD_NEW_CLASS ... do not change this line

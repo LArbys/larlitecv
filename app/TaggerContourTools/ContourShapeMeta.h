@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "DataFormat/ImageMeta.h"
+#include "DataFormat/Image2D.h"
 
 #ifdef USE_OPENCV
 #include <opencv2/opencv.hpp>
@@ -19,7 +20,8 @@ namespace larlitecv {
    
  public:
    ContourShapeMeta();   
-   ContourShapeMeta( const std::vector<cv::Point>& contour, const larcv::ImageMeta& img );
+   //ContourShapeMeta( const std::vector<cv::Point>& contour, const larcv::ImageMeta& img );
+   ContourShapeMeta( const std::vector<cv::Point>& contour, const larcv::Image2D& img );   
    virtual ~ContourShapeMeta() {};
 
    const larcv::ImageMeta& meta() const { return m_meta; };    
@@ -38,14 +40,19 @@ namespace larlitecv {
    float getMaxX() const { return xbounds[1]; };
    float getMinY() const { return ybounds[0]; };
    float getMaxY() const { return ybounds[1]; };
+
+   std::vector<float> getPCAdir( int axis=0 ) const;
+   std::vector<float> getPCAStartdir() const;
+   std::vector<float> getPCAEnddir() const;
+   std::vector<float> getPCAStartPos() const { return m_pca_startpt; };
+   std::vector<float> getPCAEndPos() const   { return m_pca_endpt; };
+
    
  protected:
    
    // ImageMeta
    const larcv::ImageMeta m_meta;
    
-   // 2D PCA
-
    // Line Fit/Projected End
    std::vector<float> m_dir;
    cv::Point m_start;
@@ -56,9 +63,22 @@ namespace larlitecv {
    cv::Rect m_bbox;
    void _build_bbox();
 
+   // Bounds
    std::vector<float> ybounds;
    std::vector<float> xbounds;
-   void _get_tick_range();   
+   void _get_tick_range();
+
+   // Charge core PCA
+   void _charge_core_pca( const larcv::Image2D& img );
+   cv::Point center;
+   std::vector<cv::Point2d> eigen_vecs;
+   std::vector<double> eigen_val;
+   // start and end points determined by radius from center and either neg or pos on major axis
+   std::vector<float> m_pca_startpt; 
+   std::vector<float> m_pca_endpt;
+   
+   
+   
  };
  
 
