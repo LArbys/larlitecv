@@ -27,6 +27,30 @@ namespace larlitecv {
     }
   }
 
+  void TaggerFlashMatchAlgoV2::clearResults( int n_intime_flashes, int n_tracks ) {
+    // in-time position cuts
+    m_passes_intimepos.resize(n_tracks,0);
+    m_intime_meanz.resize(n_intime_flashes, -1 );
+    m_intime_zfwhm.resize(n_intime_flashes, -1 );
+    m_intime_pemax.resize(n_intime_flashes, -1 );
+    m_trackend_zdiff_frac.resize(n_tracks,0);
+
+    // containment cuts
+    m_passes_containment.resize( n_tracks, 0);
+    m_containment_dwall.resize(  n_tracks, 0);
+
+    // cosmic flash match
+    m_passes_cosmic_flashmatch.resize( n_tracks, 0);
+    m_qcluster_extended_v.resize( n_tracks );
+    m_cosmic_bestflash_chi2_v.resize( n_tracks, 0);
+    m_cosmic_bestflash_idx_v.resize( n_tracks, 0);    
+    m_cosmic_bestflash_hypo_v.resize( n_tracks );
+
+    // final result
+    m_passes_finalresult.resize( n_tracks, 0 );
+
+  }
+
   std::vector<larcv::ROI> TaggerFlashMatchAlgoV2::FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata,
 									       const std::vector<larlite::event_opflash*>& opflashes_v, std::vector<int>& flashdata_selected ) {
 
@@ -48,20 +72,10 @@ namespace larlitecv {
       return roi_v;
     }
 
-    // merge objects [later if needed]
+    // reset results/variables storage vectors (it also allocates for this event)
+    clearResults( data_flashana.size(), inputdata.size() );
 
-    // prepare result containers
-    m_passes_containment.resize( inputdata.size(), 0 );
-    m_passes_flashmatch.resize( inputdata.size(), 0 );
-    m_passes_totpe.resize( inputdata.size(), 0 );
-    m_passes_cosmicflash_ratio.resize( inputdata.size(), 0 );
-
-    m_opflash_hypos.clear();
-    m_containment_dwall.clear();
-    m_cosmicflash_ratio_dchi.resize( inputdata.size(), -1 );
-    m_min_chi2.resize( inputdata.size(), -1 );
-    m_totpe_peratio.resize( inputdata.size(),- 1 );
-    m_cosmicflash_ratio_dchi.resize( inputdata.size(), -1 );
+    // reset flash match algo
     m_genflashmatch.getFlashMatchManager().Reset();
 
 
@@ -75,10 +89,12 @@ namespace larlitecv {
     std::cout << "-------------------------------------------------------" << std::endl;
     
     std::cout << "Flash List ------ -------------------------------------" << std::endl;
+    std::cout << "[in time]" << std::endl;
     for ( size_t iflash=0; iflash<data_flashana.size(); iflash++) {
       float usec = data_flashana[iflash].time;
       std::cout << "  #" << iflash<< ": idx= " << data_flashana[iflash].idx << " pe=" << data_flashana[iflash].TotalPE() << " time=" << data_flashana[iflash].time << std::endl;
     }
+    std::cout << "[out of time]" << std::endl;    
     for ( size_t iflash=0; iflash<cosmicdata_flashana.size(); iflash++) {
       float usec = cosmicdata_flashana[iflash].time;
       std::cout << "  #" << iflash<< ": idx= " << cosmicdata_flashana[iflash].idx << " pe=" << cosmicdata_flashana[iflash].TotalPE() << " time=" << cosmicdata_flashana[iflash].time << std::endl;
@@ -93,47 +109,31 @@ namespace larlitecv {
     // (2) keep those tracks within bounds
 
     std::vector<FlashRange_t> flashrange_v = getFlashRange( data_flashana );
-    
-    
-    std::vector<flashana::FlashMatch_t> results = m_genflashmatch.getFlashMatchManager().Match();
-    // print results and make flash-hypothesis
-    m_intime_bestflash_hypo_v.resize(inputdata.size());
-    m_intime_bestflash_chi2_v.resize(inputdata.size(),-1.0);
-    for (auto& flash : m_intime_bestflash_hypo_v)
-      flash.pe_v.resize(32,0.);
-    std::cout << "In-time FlashMatch Result -----------------------------------" << std::endl;
-    for ( auto const& flashmatch : results ) {
-      flashana::Flash_t& flashhypo = m_intime_bestflash_hypo_v[flashmatch.tpc_id];
-      flashhypo.pe_v.resize(32);
-      float x_offset = flashmatch.tpc_point.x;
-      flashana::QCluster_t best_cluster( m_qcluster_v[flashmatch.tpc_id] );
-      double min_x = 1e9;
-      for (size_t i = 0; i < best_cluster.size(); ++i) {
-	auto const &pt = best_cluster[i];
-	if ( pt.y<-116.5 || pt.y>116.5 || pt.z<0.0 || pt.z>1036.8 )
-	  continue;
-	if (pt.x < min_x) { min_x = pt.x; }
-      }
-      for ( auto& pt : best_cluster ) {
-	pt.x += x_offset-min_x;
-      }
-      ((flashana::BaseFlashMatch*)m_genflashmatch.getFlashMatchManager().GetAlgo( flashana::kFlashMatch ))->FillEstimate( best_cluster, flashhypo );
-      std::cout << "  score: " << flashmatch.score << "  flashid=" << flashmatch.flash_id << " tpcid=" << flashmatch.tpc_id
-		<< " x-offset=" << x_offset << " x-min=" << min_x << " dx=" << x_offset-min_x
+    // store flash range info
+    for ( size_t iflash=0; iflash<flashrange_v.size(); iflash++ ) {
+      const FlashRange_t& rangeinfo = flashrange_v[iflash];
+      m_intime_meanz[iflash] = rangeinfo.meanz;
+      m_intime_zfwhm[iflash] = fabs( rangeinfo.zfwhm[1]-rangeinfo.zfwhm[0] );
+      m_intime_pemax[iflash] = rangeinfo.maxq;
+    }
+    // perform position matching
+    matchFlashAndTrackPosition( flashrange_v, inputdata, m_passes_intimepos, m_trackend_zdiff_frac );
+        
+    std::cout << "In-time Flash Position Match Result -----------------------------------" << std::endl;
+    for ( size_t itrack=0; itrack<inputdata.size(); itrack++ ) {
+      std::cout << "  [" << itrack << "]: "
+		<< " zdiff_frac= " << m_trackend_zdiff_frac[itrack]
+		<< " passes=" << m_passes_intimepos[itrack]
 		<< std::endl;
-      m_intime_bestflash_chi2_v[flashmatch.tpc_id] = -2.0*log10(flashmatch.score);
     }
     std::cout << "-------------------------------------------------------------" << std::endl;
 
     // --------------------------------------------------------------------------------
-    // out-of-time flash tests: load in-time flash(es) and non-extended flashes
+    // out-of-time flash tests: load out-of-time flash(es) and extended tracks
     bool extend_tracks = true;
     setupFlashMatchInterface( data_flashana, cosmicdata_flashana, extend_tracks );
     std::vector<flashana::FlashMatch_t> results_outoftime = m_genflashmatch.getFlashMatchManager().Match();
     // print results and make flash-hypothesis
-    m_cosmic_bestflash_hypo_v.resize(inputdata.size());
-    m_cosmic_bestflash_idx_v.resize(inputdata.size());
-    m_cosmic_bestflash_chi2_v.resize(inputdata.size(),-1);    
     for (auto& flash : m_cosmic_bestflash_hypo_v)
       flash.pe_v.resize(32,0.);    
     std::cout << "Out-of-time FlashMatch Result -----------------------------------" << std::endl;
@@ -163,12 +163,16 @@ namespace larlitecv {
 	  pe *= 0.354;
 	flashhypo.pe_v[ich] = pe;
       }
-      m_cosmic_bestflash_idx_v[flashmatch.tpc_id] = flashmatch.flash_id;
-      std::cout << "  score: " << flashmatch.score << "  flashid=" << flashmatch.flash_id << " tpcid=" << flashmatch.tpc_id
+      float chi2 = -2.0*log10(flashmatch.score);
+      std::cout << "  [TPCID " << flashmatch.tpc_id << "]: chi2= " << chi2 << "  flashid=" << flashmatch.flash_id << " tpcid=" << flashmatch.tpc_id
 		<< " x-offset=" << x_offset << " x-min=" << min_x << " dx=" << x_offset-min_x
 		<< std::endl;
-		
-      m_cosmic_bestflash_chi2_v[flashmatch.tpc_id] = -2.0*log10(flashmatch.score);
+      m_cosmic_bestflash_idx_v[flashmatch.tpc_id]  = flashmatch.flash_id;
+      m_cosmic_bestflash_chi2_v[flashmatch.tpc_id] = chi2;
+      if ( chi2<10.0 )
+	m_passes_cosmic_flashmatch[flashmatch.tpc_id] = 0;
+      else
+	m_passes_cosmic_flashmatch[flashmatch.tpc_id] = 1;
     }
     std::cout << "-----------------------------------------------------------------" << std::endl;
 
@@ -195,43 +199,7 @@ namespace larlitecv {
           std::cout << " {contained}" << std::endl;
       	else
           std::cout << "{uncontained}" << std::endl;
-      }
-      
-      // in-time flash matching
-      float totpe_data = 0;
-      float totpe_hypo = 0;
-      float min_chi2   = -1;
-      m_passes_flashmatch[i] = ( DoesQClusterMatchInTimeFlash( data_flashana, inputdata[i], totpe_data, totpe_hypo, min_chi2 )  ) ? 1 : 0;
-
-      // totpe
-      m_passes_totpe[i] = ( m_genflashmatch.DoesTotalPEMatch( totpe_data, totpe_hypo ) ) ? 1 : 0;
-
-      flashana::QCluster_t qcluster;
-      m_genflashmatch.ExpandQClusterNearBoundaryFromLarliteTrack( qcluster, inputdata[i].m_track3d, 100.0, 15.0 );
-      
-      larlite::opflash ophypo = m_genflashmatch.MakeOpFlashFromFlash( m_intime_bestflash_hypo_v[i] );
-      m_opflash_hypos.emplace_back( std::move(ophypo) );
-
-      // store values
-      
-      // intime chi2
-      m_min_chi2[i] = m_intime_bestflash_chi2_v[i];
-      // intime chi2 - cosmic chi2
-      if ( m_min_chi2[i]<0 ) {
-	m_cosmicflash_ratio_dchi[i] = -10 - m_cosmic_bestflash_chi2_v[i];
-      }
-      else {
-	m_cosmicflash_ratio_dchi[i] = m_min_chi2[i]-m_cosmic_bestflash_chi2_v[i];
-      }
-      // intime pe ratio
-      if ( m_min_chi2[i]<0 ) {
-	m_totpe_peratio[i] = -1;
-      }
-      else {
-	m_totpe_peratio[i] = data_flashana.front().TotalPE() / m_intime_bestflash_hypo_v[i].TotalPE();
-      }
 	
-      if ( m_verbosity>=2  ) {
 	// data in-time flash
 	std::cout << "  [observed] ";
 	for (int ich=0; ich<32; ich++ ) {
@@ -239,16 +207,7 @@ namespace larlitecv {
 	}
 	std::cout << " TOT=" << data_flashana.front().TotalPE() << " CHI2=" << "XXX" << std::endl;
     
-	std::cout << "  [in-time ] ";
-	for ( int ich=0; ich<32; ich++ ) {
-	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
-	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
-	  std::cout << std::setw(5) << (int)m_intime_bestflash_hypo_v[i].pe_v[ich];
-	}
-	std::cout << " TOT=" << m_intime_bestflash_hypo_v[i].TotalPE()
-		  << " BestCHI2=" << m_intime_bestflash_chi2_v[i] << std::endl;
-
-	std::cout << "  [bestdata] ";
+	std::cout << "  [cosmichypo] ";
 	for ( int ich=0; ich<32; ich++ ) {
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
@@ -264,16 +223,8 @@ namespace larlitecv {
 	}
 	std::cout << " TOT=" << m_cosmic_bestflash_hypo_v[i].TotalPE()
 		  << " BestCHI2=" << m_cosmic_bestflash_chi2_v[i] << std::endl;
-	
-      }
-	
-      
-      // cosmic versus in-time flash log-likelihood ratio
-      float dchi2=0;
-      m_passes_cosmicflash_ratio[i] = ( DoesQClusterMatchInTimeBetterThanCosmic( cosmicdata_flashana, inputdata[i], min_chi2, dchi2 ) ) ? 1 : 0;
-      m_cosmicflash_ratio_dchi.push_back( dchi2 );
 
-      if ( m_verbosity>=2 ) {
+	// result line
         std::cout << "  ";
 
       	if ( m_passes_containment[i] )
@@ -281,27 +232,17 @@ namespace larlitecv {
       	else
           std::cout << "{uncontained}";
 
-        if ( m_passes_flashmatch[i]==1 ) {
-          std::cout << " {in-time flash-matched}";
+        if ( m_passes_intimepos[i]==1 ) {
+          std::cout << " {in-time position-matched}";
         }
         else {
-          std::cout << " {not-matched}";
+          std::cout << " {not position-matched}";
         }
 
-	if ( m_passes_totpe[i]==1 )
-	  std::cout << " {totpe matched}";
-	else
-	  std::cout << " {totpe fails}";
+	// FINAL RESULT
+	m_passes_finalresult[i] = m_passes_intimepos[i] & m_passes_containment[i] & m_passes_cosmic_flashmatch[i];
 
-	if ( !m_passes_cosmicflash_ratio[i] )
-	  std::cout << " {fails cosmic-flash match: dchi2=" << dchi2 << "}";
-	else if ( dchi2!=0 )
-	  std::cout << " {passes cosmic-flash match: dchi2=" << dchi2 << "}";
-	else
-	  std::cout << " { no flash end }";
-
-
-	if ( m_passes_flashmatch[i] && m_passes_containment[i] && m_passes_cosmicflash_ratio[i] && m_passes_totpe[i] )
+	if ( m_passes_finalresult[i] )
           std::cout << " **PASSES**";
         std::cout << std::endl;	
       }
@@ -310,14 +251,6 @@ namespace larlitecv {
       //m_opflash_hypos.emplace_back( std::move(ophypo) );
       
     }//end of input data loop
-
-    for ( size_t i=0; i<inputdata.size(); i++) {
-      if ( m_passes_containment[i] && m_passes_flashmatch[i] && m_passes_cosmicflash_ratio[i] && m_passes_totpe[i] ) {
-        // Make ROI
-        flashdata_selected[i] = 1;
-      }
-    }
-
 
     // std::cout << "QCLUSTER List ------ -------------------------------------" << std::endl;
     // for ( size_t itrack=0; itrack<inputdata.size(); itrack++ ) {
@@ -332,24 +265,24 @@ namespace larlitecv {
     
     return roi_v;
   }
+  
+  // bool TaggerFlashMatchAlgoV2::didTrackPassContainmentCut( int itrack ) {
+  //   if ( itrack<0 || itrack>=(int)m_passes_containment.size() )
+  //     return false;
+  //   return m_passes_containment[itrack];
+  // }
 
-  bool TaggerFlashMatchAlgoV2::didTrackPassContainmentCut( int itrack ) {
-    if ( itrack<0 || itrack>=(int)m_passes_containment.size() )
-      return false;
-    return m_passes_containment[itrack];
-  }
+  // bool TaggerFlashMatchAlgoV2::didTrackPassFlashMatchCut( int itrack ) {
+  //   if ( itrack<0 || itrack>=(int)m_passes_flashmatch.size() )
+  //     return false;
+  //   return m_passes_flashmatch[itrack];
+  // }
 
-  bool TaggerFlashMatchAlgoV2::didTrackPassFlashMatchCut( int itrack ) {
-    if ( itrack<0 || itrack>=(int)m_passes_flashmatch.size() )
-      return false;
-    return m_passes_flashmatch[itrack];
-  }
-
-  bool TaggerFlashMatchAlgoV2::didTrackPassCosmicFlashCut( int itrack ) {
-    if ( itrack<0 || itrack>=(int)m_passes_cosmicflash_ratio.size() )
-      return false;
-    return m_passes_cosmicflash_ratio[itrack];
-  }
+  // bool TaggerFlashMatchAlgoV2::didTrackPassCosmicFlashCut( int itrack ) {
+  //   if ( itrack<0 || itrack>=(int)m_passes_cosmicflash_ratio.size() )
+  //     return false;
+  //   return m_passes_cosmicflash_ratio[itrack];
+  // }
 
   flashana::QCluster_t TaggerFlashMatchAlgoV2::GenerateQCluster( const TaggerFlashMatchData& data ) {
     // we use the generalflashmatch algo qcluster maker, which will extend the ends if needed.
@@ -591,18 +524,17 @@ namespace larlitecv {
 
   void TaggerFlashMatchAlgoV2::setupQClusters( const std::vector<TaggerFlashMatchData>& taggertracks_v ) {
 
-    m_qcluster_v.clear();
-    m_qcluster_extended_v.clear();
-    
     // load qclusters, no extension for in-time tests
+    int itrack=-1;
     for ( auto const& taggertrack : taggertracks_v ) {
-      flashana::QCluster_t qcluster;
-      m_genflashmatch.ExpandQClusterStartingWithLarliteTrack( qcluster, taggertrack.m_track3d, 0.0, false, false );
-      m_qcluster_v.emplace_back( std::move(qcluster) );
+      itrack++;
+      m_genflashmatch.ExpandQClusterStartingWithLarliteTrack( m_qcluster_v[itrack], taggertrack.m_track3d, 0.0, false, false );
     }
     
     // load qclusters, extension for out-of-time tests
+    itrack = -1;
     for ( auto const& taggertrack : taggertracks_v ) {
+      itrack++;
       
       // we extend if near the side boundarys
       //  or if there is a flash end
@@ -611,23 +543,20 @@ namespace larlitecv {
       auto const& tvecend   = taggertrack.m_track3d.End();
       
       bool extend_start = false;
-      if ( tvecstart.Y()<-107.0 || tvecstart.Y()>107.0 || tvecstart.Z()<10.0 || tvecstart.Z()>1026.0 )
+      if ( tvecstart.Y()<-102.0 || tvecstart.Y()>102.0 || tvecstart.Z()<15.0 || tvecstart.Z()>1021.0 )
 	extend_start = true;
       
       bool extend_end   = false;      
-      if ( tvecend.Y()<-107.0 || tvecend.Y()>107.0 || tvecend.Z()<10.0 || tvecend.Z()>1026.0 )
+      if ( tvecend.Y()<-102.0 || tvecend.Y()>102.0 || tvecend.Z()<15.0 || tvecend.Z()>1021.0 )
 	extend_end = true;      
       
-      flashana::QCluster_t qcluster;
-      //m_genflashmatch.ExpandQClusterStartingWithLarliteTrack( qcluster, taggertrack.m_track3d, 1000.0, extend_start, extend_end );
-      m_genflashmatch.ExpandQClusterStartingWithLarliteTrack( qcluster, taggertrack.m_track3d, 1000.0, extend_start, extend_end );      
-      m_qcluster_extended_v.emplace_back( std::move(qcluster) );
+      m_genflashmatch.ExpandQClusterStartingWithLarliteTrack( m_qcluster_extended_v[itrack], taggertrack.m_track3d, 1000.0, extend_start, extend_end );      
     }
   }
   
   void TaggerFlashMatchAlgoV2::setupFlashMatchInterface( std::vector<flashana::Flash_t>& data_flashana,
-						       std::vector<flashana::Flash_t>& cosmicdata_flashana,
-						       bool use_extended ) {
+							 std::vector<flashana::Flash_t>& cosmicdata_flashana,
+							 bool use_extended ) {
     // we fill up the qcluster and flash objects into the flashmatchmanager located inside the
     //  the flash interface class: generalflashmatchalgo
     m_genflashmatch.getFlashMatchManager().Reset();
@@ -699,6 +628,49 @@ namespace larlitecv {
 
     return flashrange_v;
   }
+
+  void TaggerFlashMatchAlgoV2::matchFlashAndTrackPosition( const std::vector<TaggerFlashMatchAlgoV2::FlashRange_t>& rangeinfo_v, const std::vector<TaggerFlashMatchData>& inputdata,
+							   std::vector<int>& passes_intimepos, std::vector<double>& trackend_zdiff_frac ) {
+    for ( size_t itrack=0; itrack<inputdata.size(); itrack++ ) {
+      const TaggerFlashMatchData& track = inputdata.at(itrack);
+
+      // we get the closest x-position, we see if its within range of the flash position
+      // if so, it passes
+      
+      float minx = 1.0e6;
+      float z_atmin = 0;
+      
+      for ( size_t ipt=0; ipt<track.m_track3d.NumberTrajectoryPoints(); ipt++ ) {
+	const TVector3& pos = track.m_track3d.LocationAtPoint(ipt);
+	
+	if ( pos[0]<minx ) {
+	  minx = pos[0];
+	  z_atmin = pos[2];
+	}
+	
+      }
+
+      // compare against ranges
+      float min_zdiff_frac = 1.0e6;
+      for ( auto const& rangeinfo : rangeinfo_v ) {
+	float zdiff_frac = z_atmin - rangeinfo.meanz;
+	if ( zdiff_frac>0 )
+	  zdiff_frac = fabs(zdiff_frac/(rangeinfo.zfwhm[1]-rangeinfo.meanz));
+	else
+	  zdiff_frac = fabs(zdiff_frac/(rangeinfo.zfwhm[0]-rangeinfo.meanz));
+
+	if ( zdiff_frac < min_zdiff_frac )
+	  min_zdiff_frac = zdiff_frac;
+      }
+      
+      trackend_zdiff_frac[itrack] = min_zdiff_frac;
+      if ( min_zdiff_frac<1.0 )
+	passes_intimepos[itrack] = 1;
+      else
+	passes_intimepos[itrack] = 0;
+    }
+  }
+  
 
   
 }

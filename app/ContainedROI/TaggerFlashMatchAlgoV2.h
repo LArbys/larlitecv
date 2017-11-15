@@ -66,9 +66,9 @@ namespace larlitecv {
 						  const float intime_min_chi2, float& dchi2 );
     
    
-    bool didTrackPassContainmentCut( int itrack );
-    bool didTrackPassFlashMatchCut( int itrack );
-    bool didTrackPassCosmicFlashCut( int itrack );
+    /* bool didTrackPassContainmentCut( int itrack ); */
+    /* bool didTrackPassFlashMatchCut( int itrack ); */
+    /* bool didTrackPassCosmicFlashCut( int itrack ); */
 
     flashana::QCluster_t GenerateQCluster( const TaggerFlashMatchData& data );
 
@@ -79,22 +79,24 @@ namespace larlitecv {
       float zfwhm[2];
     };
     std::vector<FlashRange_t> getFlashRange( const std::vector<flashana::Flash_t>& intime_flash_t );
-   
-    // selection results
-    const std::vector<int>& getContainmentCutResults() { return m_passes_containment; };
-    const std::vector<int>& getFlashMatchCutResults() { return m_passes_flashmatch; };
-    const std::vector<int>& getCosmicRatioCutResults() { return m_passes_cosmicflash_ratio; };
-    const std::vector<int>& getTotalPECutResults() { return m_passes_totpe; };
-   
-    // selection variables
-    const std::vector<double>& getContainmentCutValues() { return m_containment_dwall; };
-    const std::vector<double>& getInTimeChi2Values() { return m_min_chi2; };
-    const std::vector<double>& getTotPEratioValues() { return m_totpe_peratio; };
-    const std::vector<double>& getCosmicDeltaChi2Values() { return m_cosmicflash_ratio_dchi; };
-   
-    const TaggerFlashMatchAlgoConfig& getConfig() { return m_config; };
 
-    const std::vector<larlite::opflash>& getOpFlashHypotheses() const { return m_opflash_hypos; };
+    void matchFlashAndTrackPosition( const std::vector<FlashRange_t>& rangeinfo_v, const std::vector<TaggerFlashMatchData>& inputdata,
+				     std::vector<int>& passes_intimepos, std::vector<double>& trackend_zdiff_frac );
+   
+    /* // selection results */
+    /* const std::vector<int>& getContainmentCutResults() { return m_passes_containment; }; */
+    /* const std::vector<int>& getFlashMatchCutResults() { return m_passes_flashmatch; }; */
+    /* const std::vector<int>& getCosmicRatioCutResults() { return m_passes_cosmicflash_ratio; }; */
+    /* const std::vector<int>& getTotalPECutResults() { return m_passes_totpe; }; */
+   
+    /* // selection variables */
+    /* const std::vector<double>& getContainmentCutValues() { return m_containment_dwall; }; */
+    /* const std::vector<double>& getInTimeChi2Values() { return m_min_chi2; }; */
+    /* const std::vector<double>& getTotPEratioValues() { return m_totpe_peratio; }; */
+    /* const std::vector<double>& getCosmicDeltaChi2Values() { return m_cosmicflash_ratio_dchi; }; */
+    //const std::vector<larlite::opflash>& getOpFlashHypotheses() const { return m_opflash_hypos; };
+    
+    const TaggerFlashMatchAlgoConfig& getConfig() { return m_config; };
    
   protected:
 
@@ -116,33 +118,30 @@ namespace larlitecv {
     // -----------------------------------------------------------------------------------------
     // We save the cut results and cut variables of this algo. We'll save it to a larlite::user_info product if requested
     // This is useful for study of the cuts
-   
+
+    void clearResults( int n_intime_flashes, int n_tracks );
+
+    // IN-TIME POSITION CUT
+    std::vector<int>    m_passes_intimepos;
+    std::vector<double>  m_intime_meanz;        ///< pe-weighted z position
+    std::vector<double>  m_intime_zfwhm;        ///< z range that includes tubes above half max
+    std::vector<double>  m_intime_pemax;        ///< pe max value
+    std::vector<double>  m_trackend_zdiff_frac; ///< passes cut: (meanz-trackend)/zfwhm
+    
     // CONTAINMENT CUT
-    std::vector<int> m_passes_containment;
+    std::vector<int>    m_passes_containment;
     std::vector<double> m_containment_dwall;
    
-    // IN-TIME FLASH CUT
-    std::vector<int> m_passes_flashmatch;
-    std::vector<larlite::opflash> m_opflash_hypos; ///< flash hypotheses for each track
-    std::vector<double> m_min_chi2; ///< min-chi2 score for each flash
-   
-    // TOTAL PE
-    std::vector<int> m_passes_totpe;
-    std::vector<double> m_totpe_peratio; //< fraction difference of total pe between hypothesis and in-time
-   
-    std::vector<int> m_passes_cosmicflash_ratio;
-    std::vector<double> m_cosmicflash_ratio_dchi; //< delta-Chi-squared between in-time flash and matched flash to track
+    // COSMIC-FLASH MATCH
+    std::vector<int>                  m_passes_cosmic_flashmatch;
+    std::vector<double>               m_cosmic_bestflash_chi2_v; //< delta-Chi-squared between in-time flash and matched flash to track
+    std::vector<flashana::QCluster_t> m_qcluster_v;              // w/o extension -- for in-time tests
+    std::vector<flashana::QCluster_t> m_qcluster_extended_v;     // w/ extension  -- for cosmic-disc tests
+    std::vector<flashana::Flash_t>    m_cosmic_bestflash_hypo_v;
+    std::vector<int>                  m_cosmic_bestflash_idx_v;
 
-    // Q-CLUSTERS
-    std::vector<flashana::QCluster_t> m_qcluster_v; // no extension -- for in-time tests
-    std::vector<flashana::QCluster_t> m_qcluster_extended_v; // w/ extension -- for cosmic-disc tests
-
-    // Best-fit flash hypothesis
-    std::vector<flashana::Flash_t> m_intime_bestflash_hypo_v;
-    std::vector<flashana::Flash_t> m_cosmic_bestflash_hypo_v;
-    std::vector<int>               m_cosmic_bestflash_idx_v;
-    std::vector<double>            m_intime_bestflash_chi2_v;
-    std::vector<double>            m_cosmic_bestflash_chi2_v;        
+    // FINAL RESULT
+    std::vector<int> m_passes_finalresult;
    
   };
   
