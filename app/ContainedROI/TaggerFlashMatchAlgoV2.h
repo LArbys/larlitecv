@@ -83,17 +83,19 @@ namespace larlitecv {
     void matchFlashAndTrackPosition( const std::vector<FlashRange_t>& rangeinfo_v, const std::vector<TaggerFlashMatchData>& inputdata,
 				     std::vector<int>& passes_intimepos, std::vector<double>& trackend_zdiff_frac );
    
-    /* // selection results */
-    /* const std::vector<int>& getContainmentCutResults() { return m_passes_containment; }; */
-    /* const std::vector<int>& getFlashMatchCutResults() { return m_passes_flashmatch; }; */
-    /* const std::vector<int>& getCosmicRatioCutResults() { return m_passes_cosmicflash_ratio; }; */
-    /* const std::vector<int>& getTotalPECutResults() { return m_passes_totpe; }; */
+    // selection results
+    const std::vector<int>& getIntimeFlashPosResults()   const { return m_passes_intimepos;  };    
+    const std::vector<int>& getContainmentCutResults()   const { return m_passes_containment; };
+    const std::vector<int>& getCosmicFlashMatchResults() const { return m_passes_cosmic_flashmatch; };
+    const std::vector<int>& getFinalResults()            const { return m_passes_finalresult; };
    
-    /* // selection variables */
-    /* const std::vector<double>& getContainmentCutValues() { return m_containment_dwall; }; */
-    /* const std::vector<double>& getInTimeChi2Values() { return m_min_chi2; }; */
-    /* const std::vector<double>& getTotPEratioValues() { return m_totpe_peratio; }; */
-    /* const std::vector<double>& getCosmicDeltaChi2Values() { return m_cosmicflash_ratio_dchi; }; */
+    // selection variables
+    const std::vector<double>& getIntimeMeanZ()          const { return m_intime_meanz; };
+    const std::vector<double>& getIntimeZFWHM()          const { return m_intime_zfwhm; };
+    const std::vector<double>& getIntimePEMax()          const { return m_intime_pemax; };
+    const std::vector<double>& getIntimeZDiffFrac()      const { return m_trackend_zdiff_frac; };    
+    const std::vector<double>& getContainmentCutValues() const { return m_containment_dwall; };
+    const std::vector<double>& getCosmicFlashMatchChi2Values()  const { return m_cosmic_bestflash_chi2_v; };
     //const std::vector<larlite::opflash>& getOpFlashHypotheses() const { return m_opflash_hypos; };
     
     const TaggerFlashMatchAlgoConfig& getConfig() { return m_config; };
@@ -122,7 +124,7 @@ namespace larlitecv {
     void clearResults( int n_intime_flashes, int n_tracks );
 
     // IN-TIME POSITION CUT
-    std::vector<int>    m_passes_intimepos;
+    std::vector<int>     m_passes_intimepos;
     std::vector<double>  m_intime_meanz;        ///< pe-weighted z position
     std::vector<double>  m_intime_zfwhm;        ///< z range that includes tubes above half max
     std::vector<double>  m_intime_pemax;        ///< pe max value

@@ -172,17 +172,25 @@ namespace larlitecv {
     std::vector< larcv::Image2D > tagged_v;
     std::vector< larcv::Image2D > subimg_v;
     std::vector< larlitecv::TaggerFlashMatchData > flashdata_v;
+
+    // Result Variables
     std::vector< int > flashdata_selected_v;
 
-    std::vector< int > flashdata_passes_containment_v;
-    std::vector< int > flashdata_passes_cosmicflash_ratio_v;
-    std::vector< int > flashdata_passes_flashmatch_v;
-    std::vector< int > flashdata_passes_totpe_v;
+    std::vector< int > flashdata_passes_containment_v;         //v1,v2
+    std::vector< int > flashdata_passes_cosmicflash_ratio_v;   //v1,v2
+    std::vector< int > flashdata_passes_flashmatch_v;          //v1
+    std::vector< int > v2_flashdata_passes_flashpos_v;         //v2    
+    std::vector< int > flashdata_passes_totpe_v;               //v1
 
-    std::vector<double> containment_dwall_v;
-    std::vector<double> min_chi2_v; ///< min-chi2 score for each flash
-    std::vector<double> totpe_peratio_v; //< fraction difference of total pe between hypothesis and in-time
-    std::vector<double> cosmicflash_ratio_dchi_v; //< delta-Chi-squared between in-time flash and matched flash to track    
+    std::vector<double> containment_dwall_v;      //< v1,v2: smallest distance of track to wall
+    std::vector<double> min_chi2_v;               //< v1: min-chi2 score for each flash
+    std::vector<double> totpe_peratio_v;          //< v1: fraction difference of total pe between hypothesis and in-time
+    std::vector<double> cosmicflash_ratio_dchi_v; //< v1:dChi^2 between in-time flash and matched flash to track. v2: best chi^2 to out-of-time flashes from flash matching
+
+    std::vector<double> v2_intime_meanz_v;        //< v2: pe-weighted mean z position of flash
+    std::vector<double> v2_intime_zfwhm_v;        //< v2: max z-range using pmts with > 0.5 of max pe values
+    std::vector<double> v2_intime_pemax_v;        //< v2: max pe
+    std::vector<double> v2_track_zdiff_frac_v;    //< v2: z distance difference of track end to flash meanz in units of zfhwm
 
     std::vector< larcv::ROI > croi_v;
     std::vector< larcv::Image2D > combined_v;
@@ -214,6 +222,12 @@ namespace larlitecv {
       croi_v.clear();
       combined_v.clear();
       track_opflash_v.clear();
+      v2_flashdata_passes_flashpos_v.clear();  
+      v2_intime_meanz_v.clear();        //< v2: pe-weighted mean z position of flash
+      v2_intime_zfwhm_v.clear();        //< v2: max z-range using pmts with > 0.5 of max pe values
+      v2_intime_pemax_v.clear();        //< v2: max pe
+      v2_track_zdiff_frac_v.clear();    //< v2: z distance difference of track end to flash meanz in units of zfhwm
+      
     }
   };
   

@@ -37,13 +37,14 @@ namespace larlitecv {
 
     // containment cuts
     m_passes_containment.resize( n_tracks, 0);
-    m_containment_dwall.resize(  n_tracks, 0);
+    m_containment_dwall.clear();
+    m_containment_dwall.reserve( n_tracks );
 
     // cosmic flash match
     m_passes_cosmic_flashmatch.resize( n_tracks, 0);
     m_qcluster_v.resize( n_tracks );    
     m_qcluster_extended_v.resize( n_tracks );
-    m_cosmic_bestflash_chi2_v.resize( n_tracks, 0);
+    m_cosmic_bestflash_chi2_v.resize( n_tracks, 100.0 );
     m_cosmic_bestflash_idx_v.resize( n_tracks, 0);    
     m_cosmic_bestflash_hypo_v.resize( n_tracks );
 
@@ -165,6 +166,8 @@ namespace larlitecv {
 	flashhypo.pe_v[ich] = pe;
       }
       float chi2 = -2.0*log10(flashmatch.score);
+      if ( std::isinf(chi2) )
+	chi2 = 10.0;
       std::cout << "  [TPCID " << flashmatch.tpc_id << "]: chi2= " << chi2 << "  flashid=" << flashmatch.flash_id << " tpcid=" << flashmatch.tpc_id
 		<< " x-offset=" << x_offset << " x-min=" << min_x << " dx=" << x_offset-min_x
 		<< std::endl;
@@ -197,9 +200,12 @@ namespace larlitecv {
 
       if ( m_verbosity>=2 ) {
       	if ( m_passes_containment[i] )
-          std::cout << " {contained}" << std::endl;
+          std::cout << "{contained: dwall " << m_containment_dwall[i] << "}";
       	else
-          std::cout << "{uncontained}" << std::endl;
+          std::cout << "{uncontained: dwall " << m_containment_dwall[i] << "}";
+
+	std::cout << "{zfrac: " << m_trackend_zdiff_frac[i] << "}";
+	std::cout << std::endl;
 	
 	// data in-time flash
 	std::cout << "  [observed] ";
@@ -241,7 +247,7 @@ namespace larlitecv {
         }
 
 	// FINAL RESULT
-	flashdata_selected[i] = m_passes_finalresult[i] = m_passes_intimepos[i] & m_passes_containment[i] & m_passes_cosmic_flashmatch[i];
+	flashdata_selected[i] = m_passes_finalresult[i] = (m_passes_intimepos[i] & m_passes_containment[i] & m_passes_cosmic_flashmatch[i]);
 
 	if ( m_passes_finalresult[i] )
           std::cout << " **PASSES**";

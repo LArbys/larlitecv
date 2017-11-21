@@ -840,6 +840,7 @@ namespace larlitecv {
     if ( m_config.croi_write_cfg.get<bool>("WriteCutResults") ) {
 
       if ( m_config.croi_selection_cfg.use_version==1 ) {
+	// version 1
 	output.containment_dwall_v = selectionalgo.getContainmentCutValues();
 	output.min_chi2_v          = selectionalgo.getInTimeChi2Values();
 	output.totpe_peratio_v     = selectionalgo.getTotPEratioValues();
@@ -851,7 +852,17 @@ namespace larlitecv {
 	output.flashdata_passes_totpe_v      = selectionalgo.getTotalPECutResults();
       }
       else {
-	// help
+	// version 2 (we reuse vectors named for v1 variables)
+	output.flashdata_passes_containment_v       = selectionv2algo.getContainmentCutResults();
+	output.flashdata_passes_cosmicflash_ratio_v = selectionv2algo.getCosmicFlashMatchResults();
+	output.v2_flashdata_passes_flashpos_v       = selectionv2algo.getIntimeFlashPosResults();
+	
+	output.containment_dwall_v        = selectionv2algo.getContainmentCutValues();
+	output.cosmicflash_ratio_dchi_v   = selectionv2algo.getCosmicFlashMatchChi2Values();
+	output.v2_intime_meanz_v          = selectionv2algo.getIntimeMeanZ();
+	output.v2_intime_zfwhm_v          = selectionv2algo.getIntimeZFWHM();
+	output.v2_intime_pemax_v          = selectionv2algo.getIntimePEMax();
+	output.v2_track_zdiff_frac_v      = selectionv2algo.getIntimeZDiffFrac();
       }
     }
     

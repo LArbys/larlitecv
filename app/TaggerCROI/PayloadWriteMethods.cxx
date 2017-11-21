@@ -397,26 +397,57 @@ namespace larlitecv {
       larlite::event_user* ev_user_info = (larlite::event_user*)dataco.get_larlite_data( larlite::data::kUserInfo, "croicutresults" );
       larlite::user_info cutinfo;
 
-      for ( auto const& result : data.flashdata_passes_containment_v )
-	cutinfo.append( "containment", result );
-      for ( auto const& fdwall : data.containment_dwall_v )
-	cutinfo.append( "containment_dwall", fdwall );
+      if ( config.croi_selection_cfg.use_version==1 ) {
 
-      for ( auto const& result : data.flashdata_passes_flashmatch_v )
-	cutinfo.append( "flashmatch", result );
-      for ( auto const& intimechi2 : data.min_chi2_v )
-	cutinfo.append( "flashmatch_intimechi2", intimechi2 );
-
-      for ( auto const& result : data.flashdata_passes_cosmicflash_ratio_v )
-	cutinfo.append( "cosmicratio", result );
-      for ( auto const& dchi2 : data.cosmicflash_ratio_dchi_v ) {
-	cutinfo.append( "cosmicratio_dchi2", dchi2 );
+	for ( auto const& result : data.flashdata_passes_containment_v )
+	  cutinfo.append( "containment", result );
+	for ( auto const& fdwall : data.containment_dwall_v )
+	  cutinfo.append( "containment_dwall", fdwall );
+	
+	for ( auto const& result : data.flashdata_passes_flashmatch_v )
+	  cutinfo.append( "flashmatch", result );
+	for ( auto const& intimechi2 : data.min_chi2_v )
+	  cutinfo.append( "flashmatch_intimechi2", intimechi2 );
+	
+	for ( auto const& result : data.flashdata_passes_cosmicflash_ratio_v )
+	  cutinfo.append( "cosmicratio", result );
+	for ( auto const& dchi2 : data.cosmicflash_ratio_dchi_v ) {
+	  cutinfo.append( "cosmicratio_dchi2", dchi2 );
+	}
+	
+	for ( auto const& result : data.flashdata_passes_totpe_v )
+	  cutinfo.append( "totalpe", result );
+	for ( auto const& totpe_ratio : data.totpe_peratio_v ) {
+	  cutinfo.append( "totalpe_peratio",totpe_ratio );
+	}
       }
+      else if ( config.croi_selection_cfg.use_version==2 ) {
 
-      for ( auto const& result : data.flashdata_passes_totpe_v )
-	cutinfo.append( "totalpe", result );
-      for ( auto const& totpe_ratio : data.totpe_peratio_v ) {
-	cutinfo.append( "totalpe_peratio",totpe_ratio );
+	// cut result: one value per track
+	for ( auto const& result : data.flashdata_passes_containment_v )
+	  cutinfo.append( "containment", result );
+	for ( auto const& result : data.v2_flashdata_passes_flashpos_v )
+	  cutinfo.append( "flashpos", result );
+	for ( auto const& result : data.flashdata_passes_cosmicflash_ratio_v )
+	  cutinfo.append( "cosmicflash", result );
+
+	// cut variables
+	for ( auto const& result : data.containment_dwall_v )
+	  cutinfo.append( "containment_dwall", result );	
+	for ( auto const& result : data.cosmicflash_ratio_dchi_v )
+	  cutinfo.append( "cosmicflash_chi2", result );	
+	for ( auto const& result : data.v2_intime_meanz_v )
+	  cutinfo.append( "flash_meanz", result );	
+	for ( auto const& result : data.v2_intime_zfwhm_v )
+	  cutinfo.append( "flash_zfwhm", result );	
+	for ( auto const& result : data.v2_intime_pemax_v )
+	  cutinfo.append( "flash_pemax", result );	
+	for ( auto const& result : data.v2_track_zdiff_frac_v )
+	  cutinfo.append( "track_zdiff_frac", result );	
+	
+      }
+      else {
+	throw std::runtime_error("WriteCROIPayload: unsupported version specified");
       }
 
       ev_user_info->emplace_back( std::move(cutinfo) );
