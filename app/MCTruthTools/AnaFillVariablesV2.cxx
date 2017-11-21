@@ -116,9 +116,12 @@ namespace larlitecv {
   
   void AnaFillVariablesV2::fillIntimeFlashInfo( larlite::event_user* ev_user_info ) {
     larlite::user_info& info = ev_user_info->front();
-    ev_meanz     = info.get_darray( "flash_meanz" )->front();
-    ev_fwhm      = info.get_darray( "flash_zfwhm" )->front();
-    ev_maxpe     = info.get_darray( "flash_pemax" )->front();
+    if ( info.exist_double("flash_meanz") )
+      ev_meanz     = info.get_darray( "flash_meanz" )->front();
+    if ( info.exist_double("flash_zfwhm") )
+      ev_fwhm      = info.get_darray( "flash_zfwhm" )->front();
+    if ( info.exist_double("flash_pemax") )
+      ev_maxpe     = info.get_darray( "flash_pemax" )->front();
   }
   
   void AnaFillVariablesV2::fillTrackInfo( larlite::event_user* ev_user_info ,
@@ -152,7 +155,7 @@ namespace larlitecv {
       track_chi2      = pcosmicflash_chi2_v->at(itrack);
       track_dwall     = pcontainment_v->at(itrack);
       track_nufrac    = nufrac_v[itrack];
-      if ( itrack==idx_highest_nufrac )
+      if ( (int)itrack==idx_highest_nufrac )
 	track_highestnufrac = 1;
       else
 	track_highestnufrac = 0;
