@@ -1,5 +1,5 @@
 /*
-  TAGGER PIXEL ANALYSIS
+  TAGGER V2 PIXEL ANALYSIS
 
   Inputs:
 
@@ -60,6 +60,7 @@
 #include "DataFormat/simch.h"
 #include "DataFormat/trigger.h"
 #include "DataFormat/track.h"
+#include "DataFormat/user_info.h"
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/Geometry.h"
 
@@ -70,8 +71,7 @@
 #include "TaggerTypes/dwall.h"
 #include "MCTruthTools/crossingPointsAnaMethods.h"
 #include "MCTruthTools/extractTruthMethods.h"
-
-
+#include "MCTruthTools/AnaFillVariablesV2.h"
 
 // OpenCV
 #ifdef USE_OPENCV
@@ -79,8 +79,6 @@
 #include <opencv2/core/core.hpp>
 #include "CVUtil/CVUtil.h"
 #endif
-
-
 
 
 int main( int nargs, char** argv ) {
@@ -94,7 +92,7 @@ int main( int nargs, char** argv ) {
   std::string cfg_file = argv[1];
 
   larcv::PSet cfg_root = larcv::CreatePSetFromFile( cfg_file );
-  larcv::PSet pset = cfg_root.get<larcv::PSet>("AnalyzeTagger");
+  larcv::PSet pset     = cfg_root.get<larcv::PSet>("AnalyzeTaggerV2");
 
   enum SourceTypes_t { kSource=0, kCROIfile, kNumSourceTypes };
   std::string source_param[2] = { "InputSourceFilelist", "InputCROIFilelist" };
@@ -103,7 +101,7 @@ int main( int nargs, char** argv ) {
     std::cout << "LOADING " << source_param[isrc] << " FILES" << std::endl;
     dataco[isrc].set_filelist( pset.get<std::string>(source_param[isrc]+"LArCV"),   "larcv" );
     dataco[isrc].set_filelist( pset.get<std::string>(source_param[isrc]+"LArLite"), "larlite" );
-    dataco[isrc].configure( cfg_file, "StorageManager", "IOManager", "AnalyzeTagger" );
+    dataco[isrc].configure( cfg_file, "StorageManager", "IOManager", "AnalyzeTaggerV2" );
     dataco[isrc].initialize();
   }
 
@@ -126,6 +124,7 @@ int main( int nargs, char** argv ) {
   bool printFlashEnds    = pset.get<bool>("PrintFlashEnds");
   bool use_reclustered   = pset.get<bool>("UseReclustered");
   bool load_prefiltered  = pset.get<bool>("LoadPrefilteredSpacePoints");
+  bool has_instance_img  = pset.get<bool>("HasInstanceTruthImage");
   float fMatchRadius     = pset.get<float>("EndPointMatchRadius", 10.0 );
   std::vector<std::string> flashprod  = pset.get<std::vector<std::string> >("OpFlashProducer");
 
@@ -142,22 +141,25 @@ int main( int nargs, char** argv ) {
     kStopMu = 1;    
     kUntagged = 2;
     kCROI = 3;
-    stages_pixel_producers.resize(kNumStages);
+    stages_pixel_producers.resize(kNumStages+1);
     stages_pixel_producers[0] = "mergedthrumupixels";
     stages_pixel_producers[1] = "mergedstopmupixels";
     stages_pixel_producers[2] = "mergeduntaggedpixels";
     stages_pixel_producers[3] = "croipixels";
-    stages_track_producers.resize(kNumStages);    
+    stages_pixel_producers[4] = "allpixels";
+    stages_track_producers.resize(kNumStages+1);    
     stages_track_producers[0] = "mergedthrumu3d";
     stages_track_producers[1] = "mergedstopmu3d";
     stages_track_producers[2] = "mergeduntagged3d";
-    stages_track_producers[3] = "croi3d";    
+    stages_track_producers[3] = "croi3d";
+    stages_track_producers[4] = "all3d";
   }
+  std::string spacepoint_producers[7] = { "topspacepts", "botspacepts", "upspacepts", "downspacepts", "anodepts", "cathodepts", "imgendpts" };  
   
   // setup output
-  TFile* rfile = new TFile(outfname.c_str(), "recreate");
-  TTree* tree = new TTree("pixana", "Pixel-level analysis");
-  TTree* mcxingpt_tree = new TTree("mcxingptana", "Info on MC Crossing Point");
+  TFile* rfile                    = new TFile(outfname.c_str(), "recreate");
+  TTree* tree                     = new TTree("pixanav2", "Pixel-level analysis (Tagger Version 2)");
+  TTree* mcxingpt_tree            = new TTree("mcxingptana", "Info on MC Crossing Point");
   TTree* mcxingpt_prefilter_tree  = new TTree("mcxingptana_prefilter", "Info on MC Crossing Point");      
 
   // Event Index
@@ -219,11 +221,11 @@ int main( int nargs, char** argv ) {
   tree->Branch("nvertex_tagged",      nvertex_tagged,      std::string("nvertex_tagged"+s_arr.str()).c_str() );
   tree->Branch("nvertex_incroi",      nvertex_incroi,      "nvertex_incroi[4]/I" );
 
-  tree->Branch("num_rois", &num_rois, "num_rois/I");
-  tree->Branch("nnu_inroi", nnu_inroi, "nnu_inroi[4]" );
-  tree->Branch("vtx_in_croi", &vertex_in_croi,         "vtx_in_croi/I" );
-  tree->Branch("dist_to_vtx", &closest_dist_to_vertex, "dist_to_vtx/F" );
-  tree->Branch("stage_at_vtx", &closest_dist_stage, "stage_at_vtx/I" );
+  tree->Branch("num_rois",     &num_rois,               "num_rois/I"     );
+  tree->Branch("nnu_inroi",    nnu_inroi,               "nnu_inroi[4]"   );
+  tree->Branch("vtx_in_croi",  &vertex_in_croi,         "vtx_in_croi/I"  );
+  tree->Branch("dist_to_vtx",  &closest_dist_to_vertex, "dist_to_vtx/F"  );
+  tree->Branch("stage_at_vtx", &closest_dist_stage,     "stage_at_vtx/I" );
 
   // Crossing point analysis results
   xingptdata.bindToTree( tree );
@@ -233,10 +235,10 @@ int main( int nargs, char** argv ) {
   int ntracks_recod_2planeq = 0;
   int ntracks_all = 0;
   int ntracks_recod_all = 0;
-  tree->Branch( "ntracks_2planeq", &ntracks_2planeq, "ntracks_2planeq/I" );
+  tree->Branch( "ntracks_2planeq",       &ntracks_2planeq,       "ntracks_2planeq/I"       );
   tree->Branch( "ntracks_recod_2planeq", &ntracks_recod_2planeq, "ntracks_recod_2planeq/I" );
-  tree->Branch( "ntracks_all", &ntracks_all, "ntracks_all/I" );
-  tree->Branch( "ntracks_recod_all", &ntracks_recod_all, "ntracks_recod_all/I" );  
+  tree->Branch( "ntracks_all",           &ntracks_all,           "ntracks_all/I"           );
+  tree->Branch( "ntracks_recod_all",     &ntracks_recod_all,     "ntracks_recod_all/I"     );  
 
   // Crossing point anaysis tree
   int mcxingpt_type;
@@ -250,16 +252,23 @@ int main( int nargs, char** argv ) {
   float mcxingpt_pos[3];
   TTree* xingpt_trees[2] = { mcxingpt_tree, mcxingpt_prefilter_tree };
   for ( int i=0; i<2; i++) {
-    xingpt_trees[i]->Branch( "truth_type", &mcxingpt_type, "truth_type/I" );
-    xingpt_trees[i]->Branch( "matched", &mcxingpt_matched, "matched/I" );
-    xingpt_trees[i]->Branch( "matched_type", &mcxingpt_matched_type, "matched_type/I" );  
-    xingpt_trees[i]->Branch( "nplaneswcharge", &mcxingpt_nplaneswcharge, "nplaneswcharge/I" );
-    xingpt_trees[i]->Branch( "trueflashmatched", &mcxingpt_flashmatched, "trueflashmatched/I" );
-    xingpt_trees[i]->Branch( "wire", mcxingpt_wire, "wire[3]/I" );
-    xingpt_trees[i]->Branch( "dist", &mcxingpt_dist, "dist/F" );
-    xingpt_trees[i]->Branch( "dwall", &mcxingpt_dwall, "dwall/F" );    
-    xingpt_trees[i]->Branch( "pos", mcxingpt_pos, "pos[3]/F" );
+    xingpt_trees[i]->Branch( "truth_type",       &mcxingpt_type,           "truth_type/I" );
+    xingpt_trees[i]->Branch( "matched",          &mcxingpt_matched,        "matched/I" );
+    xingpt_trees[i]->Branch( "matched_type",     &mcxingpt_matched_type,   "matched_type/I" );  
+    xingpt_trees[i]->Branch( "nplaneswcharge",   &mcxingpt_nplaneswcharge, "nplaneswcharge/I" );
+    xingpt_trees[i]->Branch( "trueflashmatched", &mcxingpt_flashmatched,   "trueflashmatched/I" );
+    xingpt_trees[i]->Branch( "wire",             mcxingpt_wire,            "wire[3]/I" );
+    xingpt_trees[i]->Branch( "dist",             &mcxingpt_dist,           "dist/F" );
+    xingpt_trees[i]->Branch( "dwall",            &mcxingpt_dwall,          "dwall/F" );    
+    xingpt_trees[i]->Branch( "pos",              mcxingpt_pos,             "pos[3]/F" );
   }
+
+  // V2 Variable Analysis
+  larlitecv::AnaFillVariablesV2 v2ana;
+  v2ana.bindEventTree( tree );
+  // track-level tree
+  TTree* trackv2ana = new TTree("trackv2ana", "V2 Track selection variables" );
+  v2ana.bindTrackTree( trackv2ana );
   
   // ==================================================================================================
   // ALGORITHMS
@@ -335,9 +344,10 @@ int main( int nargs, char** argv ) {
     // ok now to do damage
 
     // get the original, segmentation, and tagged images
-    larcv::EventImage2D* ev_imgs   = (larcv::EventImage2D*)dataco[kSource].get_larcv_data(larcv::kProductImage2D,inputimgs);
-    larcv::EventImage2D* ev_badch  = NULL;
-    larcv::EventImage2D* ev_segs   = NULL;
+    larcv::EventImage2D* ev_imgs     = (larcv::EventImage2D*)dataco[kSource].get_larcv_data(larcv::kProductImage2D,inputimgs);
+    larcv::EventImage2D* ev_badch    = NULL;
+    larcv::EventImage2D* ev_segs     = NULL;
+    larcv::EventImage2D* ev_instance = NULL;
     if ( ismc ) {
       ev_segs = (larcv::EventImage2D*)dataco[kSource].get_larcv_data(larcv::kProductImage2D,"segment");
     }
@@ -352,16 +362,19 @@ int main( int nargs, char** argv ) {
       ev_badch = new larcv::EventImage2D;
       ev_badch->Emplace( std::move(chstatus_img_v) );
     }
+    if ( has_instance_img ) {
+      ev_instance  = (larcv::EventImage2D*)dataco[kSource].get_larcv_data(larcv::kProductImage2D, "instance");
+    }
 
     // get the output of the tagger
-    larcv::EventPixel2D* ev_pix[kNumStages];
-    larlite::event_track* ev_track[kNumStages];
-    for (int i=0; i<kNumStages; i++) {
-      ev_pix[i] = NULL;
+    larcv::EventPixel2D*  ev_pix[kNumStages+1];
+    larlite::event_track* ev_track[kNumStages+1];
+    for (int i=0; i<=kNumStages; i++) {
+      ev_pix[i]   = NULL;
       ev_track[i] = NULL;
     }
     try {
-      ev_pix[kThruMu]    = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,stages_pixel_producers[kThruMu]);
+      ev_pix[kThruMu]    = (larcv::EventPixel2D*) dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,stages_pixel_producers[kThruMu]);
       ev_track[kThruMu]  = (larlite::event_track*)dataco[kCROIfile].get_larlite_data(larlite::data::kTrack,stages_track_producers[kThruMu]);      
     }
     catch (...) {
@@ -389,10 +402,16 @@ int main( int nargs, char** argv ) {
     catch (...) {
       ev_pix[kCROI] = NULL;
     }
+    try {
+      ev_pix[kNumStages]      = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,stages_pixel_producers[kNumStages]);
+    }
+    catch (...) {
+      ev_pix[kNumStages] = NULL;
+    }
 
-    const std::vector<larcv::Image2D>& imgs_v   = ev_imgs->Image2DArray();
+    const std::vector<larcv::Image2D>& imgs_v          = ev_imgs->Image2DArray();
     const std::vector<larcv::Image2D>& chstatus_img_v  = ev_badch->Image2DArray();
-    const std::vector<larcv::Image2D>* segs_v   = NULL;
+    const std::vector<larcv::Image2D>* segs_v          = NULL;
     if ( ismc ) {
       segs_v = &(ev_segs->Image2DArray());
     }
@@ -419,7 +438,6 @@ int main( int nargs, char** argv ) {
     // get the boundary end point info (only if have MC info to compare against)
     std::vector<larcv::EventPixel2D*> ev_spacepoints(7,0);
     std::vector< larlitecv::BoundarySpacePoint > filtered_spacepoints; // container holding reconstitued spacepoints
-    std::string spacepoint_producers[7] = { "topspacepts", "botspacepts", "upspacepts", "downspacepts", "anodepts", "cathodepts", "imgendpts" };
     for ( int i=0; i<7; i++ ) {
       try {
 	ev_spacepoints[i] = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,spacepoint_producers[i]);
@@ -527,9 +545,14 @@ int main( int nargs, char** argv ) {
       ev_mctrack = (larlite::event_mctrack*) dataco[kSource].get_larlite_data(larlite::data::kMCTrack,"mcreco");
       ev_mcshower = (larlite::event_mcshower*)dataco[kSource].get_larlite_data(larlite::data::kMCShower,"mcreco");
 
-      // extract the truth quantities of interest
+      // extract the typical truth quantities of interest
       larlitecv::extractTruth( *ev_mctruth, *ev_mctrack, truthdata );
     }
+
+    // get user info
+    larlite::event_user* ev_user_info = NULL;
+    ev_user_info = (larlite::event_user*) dataco[kCROIfile].get_larlite_data( larlite::data::kUserInfo, "croicutresults" );
+      
 
     // =======================================================================
     // MC INFO ANALYSIS
@@ -562,7 +585,7 @@ int main( int nargs, char** argv ) {
 	vertex_row = imgs_v.at(0).meta().row( vertex_tick );
 
       std::cout << "Vertex Pixel Coordinates (SCE corrected): (" << vertex_row << ", " << vertex_col[0] << "," << vertex_col[1] << "," << vertex_col[2] << ")" << std::endl;
-      std::cout << "Vertex 3D Coordinates (uncorrected): (" << dpos[0] << "," << dpos[1] << "," << dpos[2] << ")" << std::endl;
+      std::cout << "Vertex 3D Coordinates (uncorrected):      (" << dpos[0] << "," << dpos[1] << "," << dpos[2] << ")" << std::endl;
 
       // did any of the ROIs contain the vertex?
       vertex_in_croi = 0;
@@ -580,6 +603,7 @@ int main( int nargs, char** argv ) {
       }
 
       // loop over MC tracks, get end points of muons
+      // ---------------------------------------------
       larlitecv::analyzeCrossingMCTracks( xingptdata, imgs_v.front().meta(), imgs_v, ev_trigger, ev_mctrack, opflash_v, printFlashEnds );
       xingptdata_prefilter = xingptdata;
       std::cout << "-------------------------------------------" << std::endl;
@@ -591,10 +615,8 @@ int main( int nargs, char** argv ) {
 
       // ----------------------------------------------------------------------------
       // ananlyze how well the reconstructed endpoints could find the true end points
-
-      larlitecv::analyzeCrossingMatches( xingptdata,  spacepoint_vv, imgs_v.front().meta(), fMatchRadius );
+      larlitecv::analyzeCrossingMatches( xingptdata,            spacepoint_vv,           imgs_v.front().meta(), fMatchRadius );
       larlitecv::analyzeCrossingMatches( xingptdata_prefilter,  prefilter_spacepoint_vv, imgs_v.front().meta(), fMatchRadius );
-      //larlitecv::analyzeCrossingMatches( xingptdata, ev_spacepoints, imgs_v.front().meta(), fMatchRadius );      
       
       larlitecv::CrossingPointAnaData_t* pxingptdata[2] = { &xingptdata, &xingptdata_prefilter };
       for (int i=0; i<2; i++) {
@@ -987,6 +1009,8 @@ int main( int nargs, char** argv ) {
       }
     }
 #endif
+
+    v2ana.fillEventInfo( *ev_imgs, *ev_contained_roi, ev_user_info, ev_segs, ev_pix[kNumStages] );
     
     tree->Fill();
     

@@ -1,4 +1,5 @@
 run_pixel_analysis
+run_v2_analysis
 *.o
 *.jpg
 *.txt
