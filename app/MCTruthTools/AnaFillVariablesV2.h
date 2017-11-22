@@ -24,6 +24,10 @@ class TTree;
 
 // larlite
 #include "DataFormat/user_info.h"
+#include "DataFormat/track.h"
+
+// larlitecv
+#include "crossingPointsAnaMethods.h"
 
 namespace larlitecv {
 
@@ -52,6 +56,7 @@ namespace larlitecv {
     float track_dwall;         //< track-level: smallest dwall used to measure containment
     float track_nufrac;        //< track-level: fraction of nu pixels we've covered
     int   track_highestnufrac; //< track-level: 1 if track has highest neutrino pixel fraction in event, 0 otherwise
+    float track_flashdtick;    //< track-level: dtick to matched flash
 
     void clearEventVars();
     void clearTrackVars();
@@ -59,19 +64,27 @@ namespace larlitecv {
     // Fill Methods
     void fillEventInfo( const larcv::EventImage2D& ev_img, const larcv::EventROI& ev_roi,
 			larlite::event_user* ev_user_info, const larcv::EventImage2D* ev_segment,
-			larcv::EventPixel2D* ev_allpixels_v );
+			larcv::EventPixel2D* ev_allpixels_v,
+			const larlite::event_track* ev_track,
+			const CrossingPointAnaData_t& xingptdata );
     
     std::vector<larcv::Image2D> _area_counter_v;
     void fillCROIPixArea( const larcv::EventImage2D& ev_img, const larcv::EventROI& ev_roi );
 
     void fillIntimeFlashInfo( larlite::event_user* ev_user_info );
     void fillTrackInfo( larlite::event_user* ev_user_info,
+			const larlite::event_track* ev_track,
+			const CrossingPointAnaData_t& xingptdata,
 			const larcv::EventImage2D* ev_segment=NULL,
 			larcv::EventPixel2D* ev_allpixels_v=NULL );
     
     float fillTrackNuFraction( const larcv::EventImage2D* ev_segment,
 			       const int itrack, larcv::EventPixel2D* ev_allpixels_v );
     
+    float isTrackFlashMatched( const int itrack,
+			       const larlite::event_track* ev_track,
+			       const CrossingPointAnaData_t& xingptdata,
+			       larlite::event_user* ev_user );
     
     
   };

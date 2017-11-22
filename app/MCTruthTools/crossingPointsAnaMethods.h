@@ -61,6 +61,13 @@ namespace larlitecv {
     std::vector<float> truthmatch_detsce_tyz;
     void clear();
   };
+
+  struct FlashAnaInfo_t {
+    int tick;
+    int unrolled_index;    
+    int mctrack_index;
+    int truthcrossingidx;
+  };
   
   
   struct CrossingPointAnaData_t {
@@ -79,6 +86,11 @@ namespace larlitecv {
     int true_intime_stopmu;
     int true_intime_thrumu;
 
+    int num_intime_flashes;
+    int num_cosmic_flashes;
+
+    std::vector< FlashAnaInfo_t > flashanainfo_v;
+    
     std::vector< TruthCrossingPointAna_t > truthcrossingptinfo_v; // info stored for each true crossing point
     std::vector< RecoCrossingPointAna_t >  recocrossingptinfo_v;
 
@@ -107,6 +119,8 @@ namespace larlitecv {
       true_intime_thrumu = 0;
       truthcrossingptinfo_v.clear();
       recocrossingptinfo_v.clear();
+      flashanainfo_v.clear();
+      mctrack_imgendpoint_indices.clear();
       saved_mc = false;
     };
 

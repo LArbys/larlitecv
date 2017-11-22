@@ -19,6 +19,7 @@ namespace larlitecv {
     run_thrumu_tracker = true;
     recluster_stop_and_thru = true;
     use_truth_endpoints = false;
+    use_truth_muontracks = false;    
     verbosity = 0;
   }
 
@@ -57,6 +58,7 @@ namespace larlitecv {
     cfg.run_thrumu_tracker      = tagger_pset.get<bool>("RunThruMuTracker",true);
     cfg.recluster_stop_and_thru = tagger_pset.get<bool>("ReclusterStopAndThruMu",true);
     cfg.use_truth_endpoints     = tagger_pset.get<bool>("UseTruthEndPoints",false);
+    cfg.use_truth_muontracks    = tagger_pset.get<bool>("UseTruthMuonTracks",false);    
     cfg.verbosity               = tagger_pset.get<int>("Verbosity");
 
     cfg.larcv_image_producer    = tagger_pset.get<std::string>("LArCVImageProducer");

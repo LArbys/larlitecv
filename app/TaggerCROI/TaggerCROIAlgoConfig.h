@@ -41,6 +41,7 @@ namespace larlitecv {
     int verbosity;
     bool run_thrumu_tracker;
     bool use_truth_endpoints;
+    bool use_truth_muontracks;
     bool recluster_stop_and_thru;
 
     std::string larcv_image_producer;

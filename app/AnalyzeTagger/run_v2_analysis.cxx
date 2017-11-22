@@ -405,9 +405,11 @@ int main( int nargs, char** argv ) {
     }
     try {
       ev_pix[kNumStages]      = (larcv::EventPixel2D*)dataco[kCROIfile].get_larcv_data(larcv::kProductPixel2D,stages_pixel_producers[kNumStages]);
+      ev_track[kNumStages]    = (larlite::event_track*)dataco[kCROIfile].get_larlite_data(larlite::data::kTrack,stages_track_producers[kNumStages]);      
     }
     catch (...) {
       ev_pix[kNumStages] = NULL;
+      ev_track[kNumStages] = NULL;
     }
 
     const std::vector<larcv::Image2D>& imgs_v          = ev_imgs->Image2DArray();
@@ -1007,17 +1009,50 @@ int main( int nargs, char** argv ) {
 	for ( auto const& roi : containedrois_v ) {
 	  larcv::draw_bb( leftover, imgs_v.front().meta(), roi.BB(p), 255, 0, 255, 2 );
 	}
-	
+      }//end of p loop
       
+      // draw track paths
+      for ( auto const& track : *(ev_track[kNumStages]) ) {
+	for ( int istep=0; istep<(int)track.NumberTrajectoryPoints()-1; istep++ ) {
+	  std::vector<float> pos(3);
+	  pos[0] = track.LocationAtPoint(istep).X();
+	  pos[1] = track.LocationAtPoint(istep).Y();
+	  pos[2] = track.LocationAtPoint(istep).Z();
+	  std::vector<float> nextpos(3);
+	  nextpos[0] = track.LocationAtPoint(istep+1).X();
+	  nextpos[1] = track.LocationAtPoint(istep+1).Y();
+	  nextpos[2] = track.LocationAtPoint(istep+1).Z();
+	  
+	  std::vector<int> imgcoords1 = larcv::UBWireTool::getProjectedImagePixel( pos, imgs_v.front().meta(), 3 );
+	  std::vector<int> imgcoords2 = larcv::UBWireTool::getProjectedImagePixel( nextpos, imgs_v.front().meta(), 3 );	
+	  
+	  imgcoords1[0] = imgcoords1[0]/cm_per_tick + 3200.0;
+	  imgcoords2[0] = imgcoords2[0]/cm_per_tick + 3200.0;
+
+	  //std::cout << "istep=" << istep << ": " << imgcoords1[0] << " " << imgcoords2[0] << std::endl;
+	  
+	  if ( imgcoords1[0]<imgs_v.front().meta().min_y() || imgcoords1[0]>imgs_v.front().meta().max_y() )
+	    continue;
+	  if ( imgcoords2[0]<imgs_v.front().meta().min_y() || imgcoords2[0]>imgs_v.front().meta().max_y() )
+	    continue;
+
+	  for (int p=0; p<3; p++) 
+	    cv::line( cvleftover_v[p], cv::Point(imgcoords1[p+1],imgcoords1[0]), cv::Point(imgcoords2[p+1],imgcoords2[0]), cv::Scalar(255,255,255,255), 1 );
+	}//loop over steps
+      }//loop over tracks
+
+      for (int p=0; p<3; p++) {
+	cv::Mat& leftover = cvleftover_v[p];
 	std::stringstream ss;
 	ss << "leftover_clust_i" << ientry << "_r" << run << "_s" << subrun << "_e" << event << "_p" << p << ".jpg";
 	std::cout << "write: " << ss.str() << std::endl;
 	cv::imwrite( ss.str(), leftover );
       }
-    }
+    }//end of if leftover image is made
+	
 #endif
 
-    v2ana.fillEventInfo( *ev_imgs, *ev_contained_roi, ev_user_info, ev_segs, ev_pix[kNumStages] );
+    v2ana.fillEventInfo( *ev_imgs, *ev_contained_roi, ev_user_info, ev_segs, ev_pix[kNumStages], ev_track[kNumStages], xingptdata );
     
     tree->Fill();
     

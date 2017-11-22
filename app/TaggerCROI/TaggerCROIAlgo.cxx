@@ -36,7 +36,7 @@
 #include "T3DMerge/T3DPCMerge.h"
 #include "T3DMerge/T3D2LarliteTrack.h"
 #include "TaggerContourTools/CACAEndPtFilter.h"
-#include "MCTruthTools/crossingPointsAnaMethods.h"
+#include "MCTruthTools/MCTrack2ImagePath.h"
 
 namespace larlitecv {
 
@@ -244,12 +244,18 @@ namespace larlitecv {
 
     ThruMuPayload output;
 
+
     if ( !m_config.use_truth_endpoints )
       runBoundaryTagger( input, output );
     else
       runTruthBoundaryTagger( input, output );  // end points using MC truth tracks      
 
-    runThruMuTracker( input, output);
+    if ( m_config.use_truth_muontracks ) {
+      runTruthThruMu( input, output );
+    }
+    else {
+      runThruMuTracker( input, output);
+    }
 
     if ( m_config.verbosity>0 )
       std::cout << "== End of ThruMu ===============================" << std::endl;
@@ -428,12 +434,12 @@ namespace larlitecv {
 
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
     const larcv::ImageMeta& meta = input.img_v.front().meta();
-    
-    CrossingPointAnaData_t xingdata;
-    larlitecv::analyzeCrossingMCTracks( xingdata, meta, input.img_v, input.p_ev_trigger, input.p_ev_mctrack, input.opflashes_v, false );
+
+    m_truthxingdata.clear();
+    larlitecv::analyzeCrossingMCTracks( m_truthxingdata, meta, input.img_v, input.p_ev_trigger, input.p_ev_mctrack, input.opflashes_v, false );
 
     // extract the truth points and make end point containers
-    for ( auto const& xingpt : xingdata.truthcrossingptinfo_v ) {
+    for ( auto const& xingpt : m_truthxingdata.truthcrossingptinfo_v ) {
       std::vector<float> tyz(3);
       for (int i=0; i<3; i++)
 	tyz[i] = xingpt.crossingpt_detsce_tyz[i];
@@ -562,6 +568,124 @@ namespace larlitecv {
 
   }
 
+  void TaggerCROIAlgo::runTruthThruMu( const InputPayload& input, ThruMuPayload& output ) {
+
+    if ( m_config.verbosity>0 )
+      std::cout << "== Run MC Truth ThruMu ===============================" << std::endl;
+
+    // We fill the ThruMu payload using MC Track Truth
+
+    std::clock_t timer = std::clock();
+
+    // we collect pointers to all the end points
+    std::vector< const larlitecv::BoundarySpacePoint* > all_endpoints;
+
+    // Collect the indices for the flash that determines each of the endpoints and the index for the producer that makes each of the endpoints as well.
+    // This is a precaution to ensure that we are collecting this information properly.
+    std::vector< int > all_endpoints_flash_idx_v;
+    all_endpoints_flash_idx_v.clear();
+
+    std::vector< int > all_endpoints_boundary_type_idx_v;
+    all_endpoints_boundary_type_idx_v.clear();
+
+    // gather endpoints from space points
+    for (int isp=0; isp<(int)output.side_filtered_v.size(); isp++) {
+      const larlitecv::BoundarySpacePoint* pts = &(output.side_filtered_v.at( isp ));
+      all_endpoints.push_back( pts );
+    }
+    for (int isp=0; isp<(int)output.anode_filtered_v.size(); isp++) {
+      const larlitecv::BoundarySpacePoint* pts = &(output.anode_filtered_v.at(isp));
+      all_endpoints.push_back( pts );
+    }
+    for (int isp=0; isp<(int)output.cathode_filtered_v.size(); isp++) {
+      const larlitecv::BoundarySpacePoint* pts = &(output.cathode_filtered_v.at(isp));
+      all_endpoints.push_back( pts );
+    }
+    for (int isp=0; isp<(int)output.imgends_filtered_v.size(); isp++) {
+      const larlitecv::BoundarySpacePoint* pts = &(output.imgends_filtered_v.at(isp));
+      all_endpoints.push_back( pts );
+    }
+    if ( m_config.verbosity>0 )
+      std::cout << "number of endpoints to search for thrumu: " << all_endpoints.size() << std::endl;
+
+    // make track clusters
+    std::vector<int> used_endpoints( all_endpoints.size(), 1 ); // all end points "used"
+    output.trackcluster3d_v.clear();
+    output.tagged_v.clear();
+    
+    // we loop through the true crossing points saved in m_truthxingdata
+    // we find those tagged as through-going
+    for ( auto const& truthxing : m_truthxingdata.truthcrossingptinfo_v ) {
+      if ( truthxing.start_or_end==1 )
+	continue; // we only want to work with starts
+
+      // get the mc track
+      int mctrackidx = truthxing.mctrack_index;
+      const larlite::mctrack& truthtrack = input.p_ev_mctrack->at( mctrackidx );
+
+      // get the other end point
+      const TruthCrossingPointAna_t* endpt = NULL;
+      for ( auto const& truthendpt : m_truthxingdata.truthcrossingptinfo_v ) {
+	if ( truthendpt.start_or_end==0 )
+	  continue;
+	if ( truthendpt.mctrack_index==mctrackidx ) {
+	  endpt = &truthendpt;
+	  break;
+	}
+      }
+      
+      // use the above to build the BMTrackCluster3D object!!
+      // make path: we have to go between start and end pt of mctrack object (just use the whole thing for, restricting inside TPC)
+      std::vector<std::vector<double>> path_tyz_sce = mctrack2tyz( truthtrack, input.p_ev_trigger->TriggerTime(), true, &m_sce );
+      
+      BoundarySpacePoint startspt( (BoundaryEnd_t)truthxing.type, truthxing.crossingpt_detsce, input.img_v.front().meta() );
+      BoundarySpacePoint endspt;
+
+      if ( endpt!=NULL )
+	endspt = BoundarySpacePoint( (BoundaryEnd_t)endpt->type, endpt->crossingpt_detsce, input.img_v.front().meta() );
+
+      BMTrackCluster3D track3d( startspt, endspt, path_tyz_sce );
+
+      /// make pixels and tag
+      track3d.markImageWithTrack( input.img_v, input.badch_v,
+				  m_config.thrumu_tracker_cfg.pixel_threshold,
+				  m_config.thrumu_tracker_cfg.tag_neighborhood,
+				  output.tagged_v, 0.3, 10.0 );
+      
+      output.trackcluster3d_v.emplace_back( std::move(track3d) );
+    }
+    
+    // collect unused endpoints
+    output.used_spacepoint_v.clear();
+    output.unused_spacepoint_v.clear();
+    for ( size_t isp=0; isp<all_endpoints.size(); isp++ ) {
+      if ( used_endpoints.at(isp)==1 )
+        output.used_spacepoint_v.push_back( *(all_endpoints.at(isp)) );
+      else {
+        const BoundarySpacePoint& sp = *(all_endpoints.at(isp));
+        if ( m_config.verbosity>1 )
+          std::cout << "unused spacepoint for StopMu: (" << sp.pos()[0] << "," << sp.pos()[1] << "," << sp.pos()[2] << ")" << std::endl;
+        output.unused_spacepoint_v.push_back( *(all_endpoints.at(isp)) );
+      }
+    }
+
+    // copy track and pixels into separate containers.
+    output.track_v.clear();
+    output.pixelcluster_v.clear();
+    for ( auto const& bmtrack : output.trackcluster3d_v ) {
+      output.track_v.push_back( bmtrack.makeTrack() );
+      std::vector< larcv::Pixel2DCluster > cluster_v;
+      for ( auto const& track2d : bmtrack.plane_pixels )
+        cluster_v.push_back( track2d );
+      output.pixelcluster_v.emplace_back( std::move(cluster_v) );
+    }
+    
+    if ( m_config.verbosity>0 )
+      std::cout << "== End of Truth ThruMu ===============================" << std::endl;
+
+    m_time_tracker[kThruMuTracker]  +=  (std::clock()-timer)/(double)CLOCKS_PER_SEC;
+  }
+  
   StopMuPayload TaggerCROIAlgo::runStopMu( const InputPayload& input, const ThruMuPayload& thrumu ) {
 
     if ( m_config.verbosity>0 )

@@ -70,6 +70,9 @@ namespace larlitecv {
 			      const larlite::trigger* ev_trigger, const larlite::event_mctrack* ev_mctrack ) {
 			      
     data.clear();
+    data.num_intime_flashes = opflash_v.front()->size();
+    if ( opflash_v.size()>1 )
+      data.num_cosmic_flashes = opflash_v.at(1)->size();
 
     if ( ev_mctrack && ev_trigger ) {
       analyzeCrossingMCTracks( data, meta, img_v, ev_trigger, ev_mctrack, opflash_v, true );
@@ -82,11 +85,32 @@ namespace larlitecv {
     // loop over MC tracks, get end points of muons
     //int intime_cosmics = 0;
 
+    data.num_intime_flashes = opflash_v.front()->size();
+    if ( opflash_v.size()>1 )
+      data.num_cosmic_flashes = opflash_v.at(1)->size();
+    
     larlitecv::SpaceChargeMicroBooNE sce;
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
     const int endpt_radius = 3;
 
     data.mctrack_imgendpoint_indices.resize( ev_mctrack->size() );
+
+    // make flash info collection
+    data.flashanainfo_v.clear();
+    int iflashindex = -1;
+    for ( auto const& ev_opflash : opflash_v ) {
+      for ( auto const& opflash : *ev_opflash ) {
+	iflashindex++;
+    
+	FlashAnaInfo_t flinfo;
+	flinfo.tick = (3200.0+opflash.Time()/0.5);
+	flinfo.unrolled_index = iflashindex;
+	flinfo.mctrack_index  = -1;
+	flinfo.truthcrossingidx = -1;
+	data.flashanainfo_v.push_back( flinfo );
+      }
+    }
+    
 
     int trackindex = -1;
     for ( auto const& track : *ev_mctrack ) {
@@ -219,18 +243,20 @@ namespace larlitecv {
       for ( auto const& ev_opflash : opflash_v ) {
 	for ( auto const& opflash : *ev_opflash ) {
 	  iflashindex++;
-	  if ( start_found_flash )
-	    break;		
-	  if ( fabs( orig_start_tick - (3200.0+opflash.Time()/0.5) )<5.0 ) {
-	    start_found_flash = true;
-	    flash_index = iflashindex;
-	    std::cout << "  Flash Match: tick time of start=" << orig_start_tick
-		      << "  flash_tick=" << 3200.0+opflash.Time()/0.5
-		      << "  trackidx=" << trackindex << " flashidx=" << flash_index << std::endl;
+	  
+	  if ( !start_found_flash ) {
+	    if ( fabs( orig_start_tick - (3200.0+opflash.Time()/0.5) )<5.0 ) {
+	      start_found_flash = true;
+	      flash_index = iflashindex;
+	      std::cout << "  Flash Match: tick time of start=" << orig_start_tick
+			<< "  flash_tick=" << 3200.0+opflash.Time()/0.5
+			<< "  trackidx=" << trackindex << " flashidx=" << flash_index << std::endl;
+	      data.flashanainfo_v.at(iflashindex).mctrack_index = trackindex;
+	    }
 	  }
 	}
       }
-
+      
       // change from tick to row coordinate
       start_pix[0] = meta.row( start_pix[0] );
 	  
@@ -292,8 +318,11 @@ namespace larlitecv {
 	truthdata_start.matched_dist = -1;
 
 	data.truthcrossingptinfo_v.emplace_back( std::move(truthdata_start) );
-	start_info_index = (int)data.truthcrossingptinfo_v.size()-1;
 	
+	start_info_index = (int)data.truthcrossingptinfo_v.size()-1;
+	if ( flash_index>=0 )
+	  data.flashanainfo_v.at(flash_index).truthcrossingidx = start_info_index;
+		  
 	// data.start_pixels.push_back( start_pix );
 	// data.start_crossingpts.emplace_back( std::move(sce_start) );
 	// data.start_crossing_flashindex.push_back( flash_index );

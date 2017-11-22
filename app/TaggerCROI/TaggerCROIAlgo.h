@@ -1,10 +1,13 @@
 #ifndef __TAGGER_CROI_ALGO_H__
 #define __TAGGER_CROI_ALGO_H__
 
+// larlitecv
 #include "TaggerCROIAlgoConfig.h"
 #include "TaggerCROITypes.h"
 #include "TaggerContourTools/BMTCV.h"
 #include "Base/DataCoordinator.h"
+#include "MCTruthTools/crossingPointsAnaMethods.h"
+#include "SCE/SpaceChargeMicroBooNE.h"
 
 namespace larlitecv {
 
@@ -31,6 +34,7 @@ namespace larlitecv {
 
     // mc-truth subroutines
     void runTruthBoundaryTagger( const InputPayload& input, ThruMuPayload& output );
+    void runTruthThruMu( const InputPayload& input, ThruMuPayload& output );
 
   protected:
 
@@ -41,6 +45,11 @@ namespace larlitecv {
     
     // Contour tool
     larlitecv::BMTCV m_bmtcv_algo;
+
+    // Truth data (if used)
+    CrossingPointAnaData_t m_truthxingdata;
+
+    SpaceChargeMicroBooNE m_sce;
 
   };
   
