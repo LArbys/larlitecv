@@ -340,9 +340,6 @@ namespace larlitecv {
     std::vector<double> delta_zmin(3,0);
     std::vector<double> delta_zmax(3,0);
 
-    
-
-    
     if ( m_verbosity>=2 ) {
       std::cout << "bounds: x=[" << bb[0][0] << "," << bb[0][1] << "] "
                 << " y=[" << bb[1][0] << "," << bb[1][1] << "] "
@@ -359,7 +356,6 @@ namespace larlitecv {
     dwall[4] = fabs(bb[2][0]-m_config.FVCutZ[0]);
     dwall[5] = fabs(bb[2][1]-m_config.FVCutZ[1]);
 
-    
     // x extrema, not a function of the other dimensions
     if ( bb[0][0]<m_config.FVCutX[0] || bb[0][1]>m_config.FVCutX[1] ) {
       if ( dwall[0]<dwall[1] )

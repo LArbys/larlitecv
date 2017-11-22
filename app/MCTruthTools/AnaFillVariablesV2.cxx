@@ -116,20 +116,30 @@ namespace larlitecv {
   
   void AnaFillVariablesV2::fillIntimeFlashInfo( larlite::event_user* ev_user_info ) {
     larlite::user_info& info = ev_user_info->front();
-    if ( info.exist_double("flash_meanz") )
+    if ( info.exist_darray("flash_meanz") )
       ev_meanz     = info.get_darray( "flash_meanz" )->front();
-    if ( info.exist_double("flash_zfwhm") )
+    if ( info.exist_darray("flash_zfwhm") )
       ev_fwhm      = info.get_darray( "flash_zfwhm" )->front();
-    if ( info.exist_double("flash_pemax") )
+    if ( info.exist_darray("flash_pemax") )
       ev_maxpe     = info.get_darray( "flash_pemax" )->front();
   }
   
   void AnaFillVariablesV2::fillTrackInfo( larlite::event_user* ev_user_info ,
 					  const larcv::EventImage2D* ev_segment,
 					  larcv::EventPixel2D* ev_allpixels_v ) {
-    
+
+    std::cout << "[AnaFillVariablesV2::fillTrackInfo]";
+    std::cout << " number of reco tracks: " << ev_allpixels_v->Pixel2DClusterArray(0).size() << std::endl;
+      
     // fill reco variables
     larlite::user_info& info = ev_user_info->front();
+
+    if ( !info.exist_darray("cosmicflash_chi2")
+    	 || !info.exist_darray("containment_dwall")
+    	 || !info.exist_darray("track_zdiff_frac") ) {
+      std::cout << "Missing Double Array" << std::endl;
+      return;
+    }
     
     std::vector<double>* pcosmicflash_chi2_v = info.get_darray( "cosmicflash_chi2" );
     std::vector<double>* pcontainment_v      = info.get_darray( "containment_dwall" );

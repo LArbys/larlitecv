@@ -125,6 +125,7 @@ int main( int nargs, char** argv ) {
   bool use_reclustered   = pset.get<bool>("UseReclustered");
   bool load_prefiltered  = pset.get<bool>("LoadPrefilteredSpacePoints");
   bool has_instance_img  = pset.get<bool>("HasInstanceTruthImage");
+  bool make_leftover_image = pset.get<bool>("SaveJPEG");
   float fMatchRadius     = pset.get<float>("EndPointMatchRadius", 10.0 );
   std::vector<std::string> flashprod  = pset.get<std::vector<std::string> >("OpFlashProducer");
 
@@ -788,14 +789,16 @@ int main( int nargs, char** argv ) {
 
     // Loop over track pixels
     // make left over image
-#ifdef USE_OPENCV
     std::vector<cv::Mat> cvleftover_v;
-    for ( auto const& img : imgs_v ) {
-      cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img, fthreshold, 100.0 );
-      cvleftover_v.emplace_back(std::move(cvimg));
-    }
+    if ( make_leftover_image ) {
+#ifdef USE_OPENCV
+      for ( auto const& img : imgs_v ) {
+	cv::Mat cvimg = larcv::as_mat_greyscale2bgr( img, fthreshold, 100.0 );
+	cvleftover_v.emplace_back(std::move(cvimg));
+      }
 #endif
-
+    }
+    
     // we need an image to mark how times a pixel has been marked
     std::vector< larcv::Image2D > img_marker_v;
     for (size_t p=0; p<3; p++) {
@@ -843,33 +846,37 @@ int main( int nargs, char** argv ) {
           for ( auto const& pix : tagged_set ) {
             float val = img_counter.pixel( pix[1], pix[0]) + 1.0;
             img_counter.set_pixel( pix[1], pix[0], val );
-	    
+
+	    if ( make_leftover_image ) {
 #ifdef USE_OPENCV
-            // set color of tagged pixel
-            if ( istage==kCROI ) {
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 255;
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[1] = 0;
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[2] = 255;
-            }
-            else if ( istage==kUntagged ) {
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 0;
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[1] = 255;
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[2] = 0;
-            }
-            else if ( istage==kThruMu ) {
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 200;
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[1] = 0;
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[2] = 0;
-            }
-            else if ( istage==kStopMu ) {
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 0;
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[1] = 0;
-              cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[2] = 200;
-            }
-            else {
-              throw std::runtime_error("oops.");
-            }
-#endif
+	      // set color of tagged pixel
+	      if ( istage==kCROI ) {
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 255;
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[1] = 0;
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[2] = 255;
+	      }
+	      else if ( istage==kUntagged ) {
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 0;
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[1] = 255;
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[2] = 0;
+	      }
+	      else if ( istage==kThruMu ) {
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 200;
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[1] = 0;
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[2] = 0;
+	      }
+	      else if ( istage==kStopMu ) {
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[0] = 0;
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[1] = 0;
+		cvleftover_v.at(p).at<cv::Vec3b>(cv::Point(pix[0],pix[1]))[2] = 200;
+	      }
+	      else {
+		throw std::runtime_error("oops.");
+	      }
+#endif	      
+	    }// end of make leftover image
+
+	    
           }
         }//end of pix cluster loop
 	
@@ -958,7 +965,7 @@ int main( int nargs, char** argv ) {
 
 #ifdef USE_OPENCV
     // draw image
-    if ( pset.get<bool>("SaveJPEG") ) {
+    if ( make_leftover_image ) {
       int color_codes[7][3] = { {255,0,0}, // top
 				{0,0,255}, // bot
 				{0,255,255}, // upstream
