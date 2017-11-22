@@ -4,6 +4,7 @@
 #include "TaggerCROIAlgoConfig.h"
 #include "TaggerCROITypes.h"
 #include "TaggerContourTools/BMTCV.h"
+#include "Base/DataCoordinator.h"
 
 namespace larlitecv {
 
@@ -17,6 +18,7 @@ namespace larlitecv {
     virtual ~TaggerCROIAlgo() {};
 
 
+    InputPayload  loadInput( DataCoordinator& dataco );
     ThruMuPayload runThruMu( const InputPayload& data );
     StopMuPayload runStopMu( const InputPayload& input, const ThruMuPayload& thrumu );
     CROIPayload   runCROISelection( const InputPayload& input, const ThruMuPayload& thrumu, const StopMuPayload& stopmu );    
@@ -36,7 +38,7 @@ namespace larlitecv {
     TaggerCROIAlgoConfig m_config;
     std::vector<float> m_time_tracker;
     enum Stages_t { kThruMuConfig = 0, kThruMuContour, kThruMuBMT, kThruMuFlash, kThruMuFilter, kThruMuTracker, kStopMuTracker, kRecluster, kUntagged, kPCAmerge, kCROI, kNumStages };
-
+    
     // Contour tool
     larlitecv::BMTCV m_bmtcv_algo;
 

@@ -40,7 +40,28 @@ namespace larlitecv {
 
     int verbosity;
     bool run_thrumu_tracker;
+    bool use_truth_endpoints;
     bool recluster_stop_and_thru;
+
+    std::string larcv_image_producer;
+    std::string larcv_chstatus_producer;
+    bool DeJebWires;
+    float jebwiresfactor;
+    std::vector<float> emptych_thresh;
+    std::string chstatus_datatype;
+    std::vector<std::string> opflash_producers;
+    bool RunThruMu;
+    bool RunStopMu;
+    bool RunCROI;
+    bool save_thrumu_space;
+    bool save_stopmu_space;
+    bool save_croi_space;
+    bool save_mc;
+    bool load_mctrack;
+    std::string mctrack_producer;
+    std::string trigger_producer;    
+    bool skip_empty_events;
+    bool apply_unipolar_hack;
 
     static TaggerCROIAlgoConfig makeConfigFromFile( std::string );
 
