@@ -96,6 +96,7 @@ namespace larlitecv {
     const std::vector<double>& getIntimeZDiffFrac()      const { return m_trackend_zdiff_frac; };    
     const std::vector<double>& getContainmentCutValues() const { return m_containment_dwall; };
     const std::vector<double>& getCosmicFlashMatchChi2Values()  const { return m_cosmic_bestflash_chi2_v; };
+    const std::vector<int>&    getCosmicMatchedFlashIndices()   const { return m_cosmic_bestflash_idx_v; };    
     //const std::vector<larlite::opflash>& getOpFlashHypotheses() const { return m_opflash_hypos; };
     
     const TaggerFlashMatchAlgoConfig& getConfig() { return m_config; };

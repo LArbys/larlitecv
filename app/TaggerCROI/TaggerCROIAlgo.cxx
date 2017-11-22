@@ -1057,6 +1057,7 @@ namespace larlitecv {
 	
 	output.containment_dwall_v        = selectionv2algo.getContainmentCutValues();
 	output.cosmicflash_ratio_dchi_v   = selectionv2algo.getCosmicFlashMatchChi2Values();
+	output.cosmicflash_bestindex_v    = selectionv2algo.getCosmicMatchedFlashIndices();
 	output.v2_intime_meanz_v          = selectionv2algo.getIntimeMeanZ();
 	output.v2_intime_zfwhm_v          = selectionv2algo.getIntimeZFWHM();
 	output.v2_intime_pemax_v          = selectionv2algo.getIntimePEMax();

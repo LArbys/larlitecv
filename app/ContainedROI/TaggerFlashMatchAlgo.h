@@ -79,6 +79,7 @@ namespace larlitecv {
     const std::vector<double>& getInTimeChi2Values() { return m_min_chi2; };
     const std::vector<double>& getTotPEratioValues() { return m_totpe_peratio; };
     const std::vector<double>& getCosmicDeltaChi2Values() { return m_cosmicflash_ratio_dchi; };
+    const std::vector<int>& getCosmicMatchedFlashIndices() { return m_cosmic_bestflash_idx_v; };
    
     const TaggerFlashMatchAlgoConfig& getConfig() { return m_config; };
 

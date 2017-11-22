@@ -197,5 +197,36 @@ namespace larlitecv {
     std::cout << "[itrack " << itrack << "] track_nufrac=" << nufrac << " ("  << num_tagged_nu << "/" << num_nu_pixels << ")" << std::endl;
     return nufrac;
   }
-  
+
+  /*
+  void AnaFillVariablesV2::isTrackMatched( const int itrack,
+					   const CrossingPointAnaData_t& xingptdata,
+					   const std::vector< larlite::event_opflash* >& ev_opflash_v,
+					   larlite::event_user* ev_user ) {
+    // get the index of the cosmic flash
+    larlite::user_info& info = ev_user_info->front();
+    std::vector<int>* cosmicflash_index_v = info.get_iarray( "cosmicflash_index" );
+    int cosmicflash_idx = cosmicflash_index_v->at(itrack);
+    // adjust to be unrolled index
+    cosmicflash_idx += (int)(ev_opflash_v.front()->size());
+
+    // get the matching true start crossing matched to this flash index
+    int itruthxing = -1;
+    for ( auto const& truthxing : xingptdata.truthcrossingptinfo_v ) {
+      itruthxing++;
+      if ( truthxing.start_or_end==1 )
+	continue; // skip end crossings
+      if ( truthxing.matched==0 )
+	continue; // not matched to a flash
+      if ( truthxing.flashindex==cosmicflash_idx ) {
+	// found the match!
+	break;
+      }
+    }
+    auto const& truthxing = xingptdata.truthcrossingptinfo_v[itruthxing];
+
+    // ok did i match the right reco track to the right truth track?
+    
+  }
+  */
 }

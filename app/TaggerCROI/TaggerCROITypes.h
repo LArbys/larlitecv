@@ -186,6 +186,7 @@ namespace larlitecv {
     std::vector<double> min_chi2_v;               //< v1: min-chi2 score for each flash
     std::vector<double> totpe_peratio_v;          //< v1: fraction difference of total pe between hypothesis and in-time
     std::vector<double> cosmicflash_ratio_dchi_v; //< v1:dChi^2 between in-time flash and matched flash to track. v2: best chi^2 to out-of-time flashes from flash matching
+    std::vector<int>    cosmicflash_bestindex_v;  //< v2: index of out-of-time cosmic flash that best matches track
 
     std::vector<double> v2_intime_meanz_v;        //< v2: pe-weighted mean z position of flash
     std::vector<double> v2_intime_zfwhm_v;        //< v2: max z-range using pmts with > 0.5 of max pe values

@@ -431,11 +431,13 @@ namespace larlitecv {
 	for ( auto const& result : data.flashdata_passes_cosmicflash_ratio_v )
 	  cutinfo.append( "cosmicflash", result );
 
-	// cut variables
+	// cut/track variables
 	for ( auto const& result : data.containment_dwall_v )
 	  cutinfo.append( "containment_dwall", result );	
 	for ( auto const& result : data.cosmicflash_ratio_dchi_v )
 	  cutinfo.append( "cosmicflash_chi2", result );	
+	for ( auto const& result : data.cosmicflash_bestindex_v )
+	  cutinfo.append( "cosmicflash_index", result );	
 	for ( auto const& result : data.v2_intime_meanz_v )
 	  cutinfo.append( "flash_meanz", result );	
 	for ( auto const& result : data.v2_intime_zfwhm_v )

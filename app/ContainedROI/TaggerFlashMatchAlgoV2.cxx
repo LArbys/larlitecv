@@ -141,35 +141,15 @@ namespace larlitecv {
     std::cout << "Out-of-time FlashMatch Result -----------------------------------" << std::endl;
     for ( auto const& flashmatch : results_outoftime ) {
       flashana::Flash_t& flashhypo = m_cosmic_bestflash_hypo_v[flashmatch.tpc_id];
-      flashhypo.pe_v.resize(32);      
+      flashhypo.pe_v = flashmatch.hypothesis;
+      
+      //float chi2 = -2.0*log10(flashmatch.score);
+      float chi2 = 1.0/flashmatch.score;
       float x_offset = flashmatch.tpc_point.x;
-      flashana::QCluster_t best_cluster( m_qcluster_extended_v[flashmatch.tpc_id] );
-      double min_x = 1e9;
-      for (size_t i = 0; i < best_cluster.size(); ++i) {
-	auto const &pt = best_cluster[i];
-	if ( pt.y<-116.5 || pt.y>116.5 || pt.z<0.0 || pt.z>1036.8 )
-	  continue;	
-	if (pt.x < min_x) { min_x = pt.x; }
-      }      
-      for ( auto& pt : best_cluster ) {
-	pt.x += x_offset-min_x;
-      }
-      ((flashana::BaseFlashMatch*)m_genflashmatch.getFlashMatchManager().GetAlgo( flashana::kFlashMatch ))->FillEstimate( best_cluster, flashhypo );
-
-      // cosmic disc correction from chris
-      for (size_t ich=0; ich<flashhypo.pe_v.size(); ich++ ) {
-	float pe = flashhypo.pe_v.at(ich);
-	if ( pe < 60.0 )
-	  pe *= 0.424;
-	else if ( pe > 60.0 )
-	  pe *= 0.354;
-	flashhypo.pe_v[ich] = pe;
-      }
-      float chi2 = -2.0*log10(flashmatch.score);
       if ( std::isinf(chi2) )
-	chi2 = 10.0;
+	chi2 = 100.0;
       std::cout << "  [TPCID " << flashmatch.tpc_id << "]: chi2= " << chi2 << "  flashid=" << flashmatch.flash_id << " tpcid=" << flashmatch.tpc_id
-		<< " x-offset=" << x_offset << " x-min=" << min_x << " dx=" << x_offset-min_x
+		<< " x-offset=" << x_offset
 		<< std::endl;
       m_cosmic_bestflash_idx_v[flashmatch.tpc_id]  = flashmatch.flash_id;
       m_cosmic_bestflash_chi2_v[flashmatch.tpc_id] = chi2;
@@ -214,13 +194,15 @@ namespace larlitecv {
 	}
 	std::cout << " TOT=" << data_flashana.front().TotalPE() << " CHI2=" << "XXX" << std::endl;
     
-	std::cout << "  [cosmic] ";
+	std::cout << "  [ cosmic ] ";
 	for ( int ich=0; ich<32; ich++ ) {
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
 	  std::cout << std::setw(5) << (int)cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].pe_v[ich];
 	}
-	std::cout << " TOT=" << cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].TotalPE()  << std::endl;
+	std::cout << " TOT=" << cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].TotalPE()
+		  << " IDX=" << m_cosmic_bestflash_idx_v[i]
+		  << std::endl;
 
 	std::cout << "  [besthypo] ";
 	for ( int ich=0; ich<32; ich++ ) {

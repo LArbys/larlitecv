@@ -455,7 +455,7 @@ namespace larlitecv {
       else if ( start_crosses && !end_crosses )
 	data.true_intime_stopmu++;
 
-      std::cout << std::endl;
+      //std::cout << std::endl;
     }//end of loop over mctracks
     std::cout << "number of intime thrumu: "        << data.true_intime_thrumu << std::endl;
     std::cout << "number of intime stopmu: "        << data.true_intime_stopmu << std::endl;
