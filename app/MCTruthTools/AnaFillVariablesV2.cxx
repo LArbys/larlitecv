@@ -177,7 +177,9 @@ namespace larlitecv {
 	track_highestnufrac = 1;
       else
 	track_highestnufrac = 0;
-      track_flashdtick = isTrackFlashMatched( itrack, ev_track, xingptdata, ev_user_info );
+
+      // flash matching checks
+      //track_flashdtick = isTrackFlashMatched( itrack, ev_track, xingptdata, ev_user_info );
       
       m_track_tree->Fill();
     }

@@ -1031,9 +1031,9 @@ int main( int nargs, char** argv ) {
 
 	  //std::cout << "istep=" << istep << ": " << imgcoords1[0] << " " << imgcoords2[0] << std::endl;
 	  
-	  if ( imgcoords1[0]<imgs_v.front().meta().min_y() || imgcoords1[0]>imgs_v.front().meta().max_y() )
+	  if ( imgcoords1[0]<=imgs_v.front().meta().min_y() || imgcoords1[0]>=imgs_v.front().meta().max_y() )
 	    continue;
-	  if ( imgcoords2[0]<imgs_v.front().meta().min_y() || imgcoords2[0]>imgs_v.front().meta().max_y() )
+	  if ( imgcoords2[0]<=imgs_v.front().meta().min_y() || imgcoords2[0]>=imgs_v.front().meta().max_y() )
 	    continue;
 
 	  int row1 = imgs_v.front().meta().row( imgcoords1[0] );
