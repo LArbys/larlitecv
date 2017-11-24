@@ -35,6 +35,8 @@ namespace larlitecv {
     std::vector<float> FVCutY;
     std::vector<float> FVCutZ;
     fcllite::PSet m_flashmatch_config;
+    fcllite::PSet m_qllmatch_config;
+    fcllite::PSet m_lightpath_config;
     std::vector < float > gain_correction;
     static const std::string m_flashman_default;
     

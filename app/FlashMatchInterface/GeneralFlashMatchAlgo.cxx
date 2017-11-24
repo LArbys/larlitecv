@@ -389,7 +389,10 @@ namespace larlitecv {
   //                           This number is arbitrarily set to 10 m so that the track is extended to the edge of the cryostat and beyond.            
   //         'extend_start'  - a boolean to allow the user to refrain from extending the start of track if that is desired.
   //         'extend_end'    - a boolean to allow the user to refrain from extending the end of the track if that is desired.
-  void GeneralFlashMatchAlgo::ExpandQClusterStartingWithLarliteTrack( flashana::QCluster_t& qcluster, const larlite::track& larlite_track, double extension, bool extend_start, bool extend_end ) {
+  void GeneralFlashMatchAlgo::ExpandQClusterStartingWithLarliteTrack( flashana::QCluster_t& qcluster,
+								      const larlite::track& larlite_track,
+								      double extension,
+								      bool extend_start, bool extend_end ) {
 
     // Continue over the track if it has less than 2 trajectory points in its length.
     if ( larlite_track.NumberTrajectoryPoints() < 2 ) return;
@@ -402,6 +405,7 @@ namespace larlitecv {
 
     // Declare an object for 'lightpath', which will extend the qcluster.
     flashana::LightPath lightpath;
+    lightpath.Configure( m_config.m_lightpath_config );
 
     // Initialize the first point on the track's trajectory.
     pt0[0] = larlite_track.LocationAtPoint(0)[0]; pt0[1] = larlite_track.LocationAtPoint(0)[1]; pt0[2] = larlite_track.LocationAtPoint(0)[2];

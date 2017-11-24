@@ -8,7 +8,10 @@ namespace larlitecv {
   const std::string GeneralFlashMatchAlgoConfig::m_flashman_default = "FlashMatchManager: {AllowReuseFlash: true CustomAlgo: [0,0] FlashFilterAlgo: \"\" HypothesisAlgo: \"PhotonLibHypothesis\" MatchAlgo: \"QLLMatch\" ProhibitAlgo: \"\" StoreFullResult: true TPCFilterAlgo: \"TimeCompatMatch\" Verbosity: 02 }";
 
   GeneralFlashMatchAlgoConfig::GeneralFlashMatchAlgoConfig():
-    m_flashmatch_config(fcllite::PSet("FlashMatchManager",m_flashman_default)) {
+    m_flashmatch_config(fcllite::PSet("FlashMatchManager",m_flashman_default)),
+    m_lightpath_config(fcllite::PSet("LightPath","Verbosity: 2")),
+    m_qllmatch_config(fcllite::PSet("QLLMatch","Verbosity: 2"))
+  {
     chi2_anode_cathode_cut = 100.0;
     chi2_yz_flash_cut      = 20.0; // Arbitrarily chosen for now.
     verbosity = 0;
@@ -54,8 +57,10 @@ namespace larlitecv {
     cfg.use_gaus2d        = pset.get<bool>("UseGaus2D");
     //std::cout << "converting pset from larcv::PSet to fcllite::PSet" << std::endl;
     fcllite::PSet vox( "GenFlashMatchAlgoManager", pset.data_string() );
+
     cfg.m_flashmatch_config    = vox.get<fcllite::PSet>("GeneralFlashMatchAlgo");
-    //std::cout << cfg.m_flashmatch_config.dump() << std::endl;
+    cfg.m_lightpath_config     = cfg.m_flashmatch_config.get<fcllite::PSet>("LightPath");
+    cfg.m_qllmatch_config      = cfg.m_flashmatch_config.get<fcllite::PSet>("QLLMatch");
     return cfg;
   }
 }

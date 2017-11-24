@@ -106,6 +106,7 @@ namespace larlitecv {
 	flinfo.tick = (3200.0+opflash.Time()/0.5);
 	flinfo.unrolled_index = iflashindex;
 	flinfo.mctrack_index  = -1;
+	flinfo.mctrackid      = -1;	
 	flinfo.truthcrossingidx = -1;
 	data.flashanainfo_v.push_back( flinfo );
       }
@@ -250,8 +251,11 @@ namespace larlitecv {
 	      flash_index = iflashindex;
 	      std::cout << "  Flash Match: tick time of start=" << orig_start_tick
 			<< "  flash_tick=" << 3200.0+opflash.Time()/0.5
-			<< "  trackidx=" << trackindex << " flashidx=" << flash_index << std::endl;
+			<< "  trackidx=" << trackindex
+			<< "  mctrkidx=" << track.TrackID()
+			<< "  flashidx=" << flash_index << std::endl;
 	      data.flashanainfo_v.at(iflashindex).mctrack_index = trackindex;
+	      data.flashanainfo_v.at(iflashindex).mctrackid     = track.TrackID();
 	    }
 	  }
 	}
@@ -312,6 +316,7 @@ namespace larlitecv {
 	truthdata_start.nplanes_w_charge = start_nplanes_above_thresh;
 	truthdata_start.flashindex = flash_index;
 	truthdata_start.mctrack_index = trackindex;
+	truthdata_start.mctrackid     = track.TrackID();	
 	truthdata_start.matched = -1;
 	truthdata_start.matched_type = -1;
 	truthdata_start.matched_recoindex = -1;
@@ -399,6 +404,7 @@ namespace larlitecv {
 	truthdata_end.nplanes_w_charge = end_nplanes_above_thresh;
 	truthdata_end.flashindex = flash_index;
 	truthdata_end.mctrack_index = trackindex;
+	truthdata_end.mctrackid     = track.TrackID();
 	truthdata_end.matched = -1;
 	truthdata_end.matched_type = -1;
 	truthdata_end.matched_recoindex = -1;

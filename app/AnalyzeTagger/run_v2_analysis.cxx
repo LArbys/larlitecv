@@ -1026,8 +1026,8 @@ int main( int nargs, char** argv ) {
 	  std::vector<int> imgcoords1 = larcv::UBWireTool::getProjectedImagePixel( pos, imgs_v.front().meta(), 3 );
 	  std::vector<int> imgcoords2 = larcv::UBWireTool::getProjectedImagePixel( nextpos, imgs_v.front().meta(), 3 );	
 	  
-	  imgcoords1[0] = imgcoords1[0]/cm_per_tick + 3200.0;
-	  imgcoords2[0] = imgcoords2[0]/cm_per_tick + 3200.0;
+	  imgcoords1[0] = pos[0]/cm_per_tick + 3200.0;
+	  imgcoords2[0] = nextpos[0]/cm_per_tick + 3200.0;
 
 	  //std::cout << "istep=" << istep << ": " << imgcoords1[0] << " " << imgcoords2[0] << std::endl;
 	  
@@ -1036,11 +1036,15 @@ int main( int nargs, char** argv ) {
 	  if ( imgcoords2[0]<imgs_v.front().meta().min_y() || imgcoords2[0]>imgs_v.front().meta().max_y() )
 	    continue;
 
-	  for (int p=0; p<3; p++) 
-	    cv::line( cvleftover_v[p], cv::Point(imgcoords1[p+1],imgcoords1[0]), cv::Point(imgcoords2[p+1],imgcoords2[0]), cv::Scalar(255,255,255,255), 1 );
+	  int row1 = imgs_v.front().meta().row( imgcoords1[0] );
+	  int row2 = imgs_v.front().meta().row( imgcoords2[0] );	  
+	  
+	  for (int p=0; p<3; p++)  {
+	    cv::line( cvleftover_v[p], cv::Point(imgcoords1[p+1],row1), cv::Point(imgcoords2[p+1],row2), cv::Scalar(255,255,255,100), 1 );
+	  }
 	}//loop over steps
       }//loop over tracks
-
+      
       for (int p=0; p<3; p++) {
 	cv::Mat& leftover = cvleftover_v[p];
 	std::stringstream ss;

@@ -647,6 +647,7 @@ namespace larlitecv {
       BMTrackCluster3D track3d( startspt, endspt, path_tyz_sce );
 
       /// make pixels and tag
+      std::cout << "Fill MCTrack trackindex=" << truthxing.mctrack_index << " mctrackid=" << truthxing.mctrackid << std::endl;
       track3d.markImageWithTrack( input.img_v, input.badch_v,
 				  m_config.thrumu_tracker_cfg.pixel_threshold,
 				  m_config.thrumu_tracker_cfg.tag_neighborhood,

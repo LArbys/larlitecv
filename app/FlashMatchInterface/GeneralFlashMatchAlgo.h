@@ -128,7 +128,6 @@ namespace larlitecv {
     std::vector<float> m_cosmicflash_ratio_dchi; //< delta-Chi-squared between in-time flash and matched flash to track                                                                                 
 
 
-
   private:
     const GeneralFlashMatchAlgoConfig m_config;   //< configuration class
     larcv::pmtweights::PMTWireWeights m_pmtweights;

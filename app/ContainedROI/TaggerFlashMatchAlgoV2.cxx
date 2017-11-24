@@ -81,6 +81,9 @@ namespace larlitecv {
     m_genflashmatch.getFlashMatchManager().Reset();
 
 
+    // see if QLLMatch config is set to normalize hypothesis
+    bool norm_hypothesis = m_genflashmatch.getConfig().m_qllmatch_config.get<bool>("NormalizeHypothesis");
+    
     std::cout << "TPC List ------ -------------------------------------" << std::endl;
     for ( size_t itrack=0; itrack<inputdata.size(); itrack++ ) {
       const TaggerFlashMatchData& track = inputdata[itrack];
@@ -198,7 +201,10 @@ namespace larlitecv {
 	for ( int ich=0; ich<32; ich++ ) {
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
-	  std::cout << std::setw(5) << (int)cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].pe_v[ich];
+	  float data_pe = cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].pe_v[ich];
+	  if ( norm_hypothesis )
+	    data_pe *= (100.0/cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].TotalPE());
+	  std::cout << std::setw(5) << (int)data_pe;
 	}
 	std::cout << " TOT=" << cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].TotalPE()
 		  << " IDX=" << m_cosmic_bestflash_idx_v[i]
@@ -208,7 +214,10 @@ namespace larlitecv {
 	for ( int ich=0; ich<32; ich++ ) {
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
 	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
-	  std::cout << std::setw(5) << (int)m_cosmic_bestflash_hypo_v[i].pe_v[ich];
+	  float hypo_pe = m_cosmic_bestflash_hypo_v[i].pe_v[ich];
+	  if ( norm_hypothesis )
+	    hypo_pe *= 100;
+	  std::cout << std::setw(5) << (int)hypo_pe;
 	}
 	std::cout << " TOT=" << m_cosmic_bestflash_hypo_v[i].TotalPE()
 		  << " BestCHI2=" << m_cosmic_bestflash_chi2_v[i] << std::endl;
@@ -528,12 +537,14 @@ namespace larlitecv {
       auto const& tvecend   = taggertrack.m_track3d.End();
       
       bool extend_start = false;
-      if ( tvecstart.Y()<-102.0 || tvecstart.Y()>102.0 || tvecstart.Z()<15.0 || tvecstart.Z()>1021.0 )
-	extend_start = true;
-      
-      bool extend_end   = false;      
-      if ( tvecend.Y()<-102.0 || tvecend.Y()>102.0 || tvecend.Z()<15.0 || tvecend.Z()>1021.0 )
-	extend_end = true;      
+      bool extend_end   = false;
+
+      if ( m_config.extend_cosmics ) {
+	if ( tvecstart.Y()<-102.0 || tvecstart.Y()>102.0 || tvecstart.Z()<15.0 || tvecstart.Z()>1021.0 )
+	  extend_start = true;
+	if ( tvecend.Y()<-102.0 || tvecend.Y()>102.0 || tvecend.Z()<15.0 || tvecend.Z()>1021.0 )
+	  extend_end = true;
+      }
       
       m_genflashmatch.ExpandQClusterStartingWithLarliteTrack( m_qcluster_extended_v[itrack], taggertrack.m_track3d, 1000.0, extend_start, extend_end );      
     }

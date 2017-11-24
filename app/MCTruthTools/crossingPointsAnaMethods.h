@@ -41,7 +41,8 @@ namespace larlitecv {
     std::vector< float > crossingpt_detsce_tyz2; // (tick, y, z) detector coordinates w/ space charge correction. further inside det.
     int nplanes_w_charge;
     int flashindex;
-    int mctrack_index;    
+    int mctrack_index;
+    int mctrackid;
     int matched;
     int matched_type;
     int matched_recoindex;
@@ -66,6 +67,7 @@ namespace larlitecv {
     int tick;
     int unrolled_index;    
     int mctrack_index;
+    int mctrackid;
     int truthcrossingidx;
   };
   

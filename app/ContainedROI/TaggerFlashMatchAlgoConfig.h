@@ -32,6 +32,7 @@ namespace larlitecv {
     float totpe_sigma_cut;
     float bbox_pad;
     bool use_gaus2d;
+    bool extend_cosmics;
     std::vector<int> beam_tick_range;
     std::vector<float> FVCutX;
     std::vector<float> FVCutY;

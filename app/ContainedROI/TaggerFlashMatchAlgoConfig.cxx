@@ -32,6 +32,7 @@ namespace larlitecv {
     gain_correction.resize(32,1.0);
     totpe_sigma_cut = 4.0;
     use_gaus2d = false;
+    extend_cosmics = true;
   }
 
   TaggerFlashMatchAlgoConfig TaggerFlashMatchAlgoConfig::FromPSet( const larcv::PSet& pset ) {
@@ -41,6 +42,7 @@ namespace larlitecv {
     cfg.FVCutY            = pset.get< std::vector<float> >("FVCutY");
     cfg.FVCutZ            = pset.get< std::vector<float> >("FVCutZ");
     cfg.use_version       = pset.get< int >("Version");
+    cfg.extend_cosmics    = pset.get< bool >("ExtendCosmicTracks");
     if ( cfg.use_version<1 || cfg.use_version>2 )
       throw std::runtime_error( "TaggerFlashMatchAlgoConfig::FromPSet : Version must be 1 or 2" );
     //cfg.gain_correction   = pset.get< std::vector<float> >("GainCorrection");
