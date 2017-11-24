@@ -187,6 +187,10 @@ namespace larlitecv {
     std::vector<double> totpe_peratio_v;          //< v1: fraction difference of total pe between hypothesis and in-time
     std::vector<double> cosmicflash_ratio_dchi_v; //< v1:dChi^2 between in-time flash and matched flash to track. v2: best chi^2 to out-of-time flashes from flash matching
     std::vector<int>    cosmicflash_bestindex_v;  //< v2: index of out-of-time cosmic flash that best matches track
+    std::vector<int>    cosmicflash_mctrackid_v;  //< v2: if we make thrumu tracks using mc truth (and no reclustering) mctrackid is passed to track objects (-1 if not available)
+    std::vector<int>    cosmicflash_bestflash_mctrackid_v; //< v2: mctrackid of flash objects paired to track (-1 if could not pair)
+    int num_matchable_flashes;                    //< v2: number of tracks we could match to a flash
+    int num_matched_flashes;                      //< v2: number of tracks correctly matched to a flash
 
     std::vector<double> v2_intime_meanz_v;        //< v2: pe-weighted mean z position of flash
     std::vector<double> v2_intime_zfwhm_v;        //< v2: max z-range using pmts with > 0.5 of max pe values
@@ -228,6 +232,8 @@ namespace larlitecv {
       v2_intime_zfwhm_v.clear();        //< v2: max z-range using pmts with > 0.5 of max pe values
       v2_intime_pemax_v.clear();        //< v2: max pe
       v2_track_zdiff_frac_v.clear();    //< v2: z distance difference of track end to flash meanz in units of zfhwm
+      num_matchable_flashes = 0;
+      num_matched_flashes   = 0;
       
     }
   };

@@ -19,7 +19,7 @@ namespace larlitecv {
     typedef enum { kThruMu=0, kStopMu, kUntagged } ClusterType_t;
 
   TaggerFlashMatchData( ClusterType_t type, const std::vector<larcv::Pixel2DCluster>& pixels, const larlite::track& track ) 
-    : m_type(type), m_pixels(pixels), m_track3d(track), m_pstart_flash(NULL), m_pend_flash(NULL), has_startflash(false), has_endflash(false) {};
+    : m_type(type), m_pixels(pixels), m_track3d(track), m_pstart_flash(NULL), m_pend_flash(NULL), has_startflash(false), has_endflash(false), mctrackid(-1) {};
     virtual ~TaggerFlashMatchData() {};
 
     ClusterType_t m_type;
@@ -47,6 +47,8 @@ namespace larlitecv {
     };
     bool hasStartFlash() const { return has_startflash; };
     bool hasEndFlash() const { return has_endflash; };
+
+    int mctrackid; //< used for truth-based studies
     
   };
  

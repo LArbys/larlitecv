@@ -98,9 +98,13 @@ namespace larlitecv {
     // make flash info collection
     data.flashanainfo_v.clear();
     int iflashindex = -1;
+    int icontainer = -1;
     for ( auto const& ev_opflash : opflash_v ) {
+      icontainer++;
+      int iflash = -1;
       for ( auto const& opflash : *ev_opflash ) {
 	iflashindex++;
+	iflash++;
     
 	FlashAnaInfo_t flinfo;
 	flinfo.tick = (3200.0+opflash.Time()/0.5);
@@ -108,6 +112,8 @@ namespace larlitecv {
 	flinfo.mctrack_index  = -1;
 	flinfo.mctrackid      = -1;	
 	flinfo.truthcrossingidx = -1;
+	flinfo.flashindex.ivec = icontainer;
+	flinfo.flashindex.idx  = iflash;
 	data.flashanainfo_v.push_back( flinfo );
       }
     }
@@ -246,7 +252,7 @@ namespace larlitecv {
 	  iflashindex++;
 	  
 	  if ( !start_found_flash ) {
-	    if ( fabs( orig_start_tick - (3200.0+opflash.Time()/0.5) )<5.0 ) {
+	    if ( fabs( orig_start_tick - (3200.0+opflash.Time()/0.5) )<20.0 ) {
 	      start_found_flash = true;
 	      flash_index = iflashindex;
 	      std::cout << "  Flash Match: tick time of start=" << orig_start_tick

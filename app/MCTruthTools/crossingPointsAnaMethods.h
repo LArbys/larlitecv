@@ -9,6 +9,7 @@
 // larlitecv
 #include "TaggerTypes/BoundaryMuonTaggerTypes.h"
 #include "TaggerTypes/BoundarySpacePoint.h"
+#include "TaggerTypes/BoundaryFlashIndex.h"
 
 class TTree;
 
@@ -69,6 +70,7 @@ namespace larlitecv {
     int mctrack_index;
     int mctrackid;
     int truthcrossingidx;
+    BoundaryFlashIndex flashindex;
   };
   
   

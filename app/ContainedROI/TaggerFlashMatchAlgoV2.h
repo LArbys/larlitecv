@@ -34,6 +34,7 @@
 #include "FlashMatchInterface/GeneralFlashMatchAlgo.h"
 #include "TaggerFlashMatchAlgoConfig.h"
 #include "TaggerFlashMatchTypes.h"
+#include "MCTruthTools/crossingPointsAnaMethods.h"
 
 
 namespace larlitecv {
@@ -96,11 +97,18 @@ namespace larlitecv {
     const std::vector<double>& getIntimeZDiffFrac()      const { return m_trackend_zdiff_frac; };    
     const std::vector<double>& getContainmentCutValues() const { return m_containment_dwall; };
     const std::vector<double>& getCosmicFlashMatchChi2Values()  const { return m_cosmic_bestflash_chi2_v; };
-    const std::vector<int>&    getCosmicMatchedFlashIndices()   const { return m_cosmic_bestflash_idx_v; };    
+    const std::vector<int>&    getCosmicMatchedFlashIndices()   const { return m_cosmic_bestflash_idx_v; };
+    const std::vector<int>&    getCosmicBestFlashMCTrackIDs()   const { return m_cosmic_bestflash_mctrackid_v; };    
+    const std::vector<int>&    getCosmicMCTrackIDs()     const { return m_cosmic_mctrackid_v; };
+    const int                  getMatchableFlashes()     const { return m_num_matchable_flashes; };
+    const int                  getMatchedFlashes()       const { return m_num_matched_flashes; };
+
     //const std::vector<larlite::opflash>& getOpFlashHypotheses() const { return m_opflash_hypos; };
     
     const TaggerFlashMatchAlgoConfig& getConfig() { return m_config; };
-   
+
+    void provideTruthCrossingData( const CrossingPointAnaData_t& truthxingdata ) { ptruthxingdata=&truthxingdata; };
+    
   protected:
 
     void setupQClusters( const std::vector<TaggerFlashMatchData>& taggertracks_v );
@@ -117,6 +125,10 @@ namespace larlitecv {
     //SpaceChargeMicroBooNE m_sce;           //< Space Charge Effect Calculator
     int m_verbosity;
     std::map<int,int> m_opch_from_opdet;
+
+    // MC Truth variables -- to study flash matching accuracy
+    const CrossingPointAnaData_t* ptruthxingdata;
+    std::vector<int> m_cosmicflash_mctrackid;
    
     // -----------------------------------------------------------------------------------------
     // We save the cut results and cut variables of this algo. We'll save it to a larlite::user_info product if requested
@@ -142,6 +154,11 @@ namespace larlitecv {
     std::vector<flashana::QCluster_t> m_qcluster_extended_v;     // w/ extension  -- for cosmic-disc tests
     std::vector<flashana::Flash_t>    m_cosmic_bestflash_hypo_v;
     std::vector<int>                  m_cosmic_bestflash_idx_v;
+    std::vector<int>                  m_cosmic_bestflash_mctrackid_v; //< mctrack id of paired flash
+    std::vector<int>                  m_cosmic_mctrackid_v;           //< mctrack id of track (only if loaded MC track)
+    int                               m_num_matchable_flashes;
+    int                               m_num_matched_flashes;
+
 
     // FINAL RESULT
     std::vector<int> m_passes_finalresult;

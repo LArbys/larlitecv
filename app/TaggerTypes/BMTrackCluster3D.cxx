@@ -13,10 +13,16 @@
 
 namespace larlitecv {
 
-  BMTrackCluster3D::BMTrackCluster3D() {}
-
+  BMTrackCluster3D::BMTrackCluster3D()
+    : mctrackid(-1)
+  {
+    plane_pixels.clear();
+  }
+  
   BMTrackCluster3D::BMTrackCluster3D( const BoundarySpacePoint& startpt, const BoundarySpacePoint& endpt, const std::vector< std::vector<double> >& path )
-    : start_endpts( startpt ), end_endpts(endpt), path3d( path ) {
+    : start_endpts( startpt ), end_endpts(endpt), path3d( path ), mctrackid(-1)
+  {
+    plane_pixels.clear();
   }
 
   BMTrackCluster3D::~BMTrackCluster3D() {}
@@ -62,6 +68,10 @@ namespace larlitecv {
       for ( auto const& pix : pixels.at(p) ) {
 	markedimgs.at(p).set_pixel( pix.Y(), pix.X(), markvalue );
       }
+    }
+
+    if ( plane_pixels.empty() ) {
+      plane_pixels = pixels;
     }
 
   }

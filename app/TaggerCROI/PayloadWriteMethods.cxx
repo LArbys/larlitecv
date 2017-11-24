@@ -438,6 +438,10 @@ namespace larlitecv {
 	  cutinfo.append( "cosmicflash_chi2", result );	
 	for ( auto const& result : data.cosmicflash_bestindex_v )
 	  cutinfo.append( "cosmicflash_index", result );	
+	for ( auto const& result : data.cosmicflash_bestflash_mctrackid_v )
+	  cutinfo.append( "cosmicflash_flashmctrackid", result );	
+	for ( auto const& result : data.cosmicflash_mctrackid_v )
+	  cutinfo.append( "cosmicflash_trackmctrackid", result );	
 	for ( auto const& result : data.v2_intime_meanz_v )
 	  cutinfo.append( "flash_meanz", result );	
 	for ( auto const& result : data.v2_intime_zfwhm_v )
@@ -446,7 +450,10 @@ namespace larlitecv {
 	  cutinfo.append( "flash_pemax", result );	
 	for ( auto const& result : data.v2_track_zdiff_frac_v )
 	  cutinfo.append( "track_zdiff_frac", result );	
-	
+
+	// truth flash-match results (if truth was available)
+	cutinfo.store( "num_matchable_flashes", data.num_matchable_flashes );
+	cutinfo.store( "num_matched_flashes",   data.num_matched_flashes );
       }
       else {
 	throw std::runtime_error("WriteCROIPayload: unsupported version specified");

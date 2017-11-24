@@ -647,12 +647,12 @@ namespace larlitecv {
       BMTrackCluster3D track3d( startspt, endspt, path_tyz_sce );
 
       /// make pixels and tag
-      std::cout << "Fill MCTrack trackindex=" << truthxing.mctrack_index << " mctrackid=" << truthxing.mctrackid << std::endl;
       track3d.markImageWithTrack( input.img_v, input.badch_v,
 				  m_config.thrumu_tracker_cfg.pixel_threshold,
 				  m_config.thrumu_tracker_cfg.tag_neighborhood,
 				  output.tagged_v, 0.3, 10.0 );
-      
+      track3d.mctrackid = truthxing.mctrackid;
+      std::cout << "Fill MCTrack trackindex=" << truthxing.mctrack_index << " mctrackid=" << track3d.mctrackid << std::endl;
       output.trackcluster3d_v.emplace_back( std::move(track3d) );
     }
     
@@ -920,13 +920,17 @@ namespace larlitecv {
       // DONT USE RECLUSTERED STOP/THRU MU TRACKS
       // ThruMu
       for ( int itrack=0; itrack<(int)thrumu.trackcluster3d_v.size(); itrack++ ) {
+	
         larlitecv::TaggerFlashMatchData thrumu_track( larlitecv::TaggerFlashMatchData::kThruMu, thrumu.pixelcluster_v.at(itrack), thrumu.track_v.at(itrack) );
+	thrumu_track.mctrackid = thrumu.trackcluster3d_v[itrack].mctrackid;
+	std::cout << "transfer mctrackid=" << thrumu_track.mctrackid << " " << thrumu.trackcluster3d_v[itrack].mctrackid << std::endl;
         output.flashdata_v.emplace_back( std::move(thrumu_track) );
       }
 
       // StopMu
       for ( int itrack=0; itrack<(int)stopmu.stopmu_trackcluster_v.size(); itrack++ ) {
         larlitecv::TaggerFlashMatchData stopmu_track( larlitecv::TaggerFlashMatchData::kStopMu, stopmu.pixelcluster_v.at(itrack), stopmu.track_v.at(itrack) );
+	stopmu_track.mctrackid = stopmu.stopmu_trackcluster_v[itrack].mctrackid;	
         output.flashdata_v.emplace_back( std::move(stopmu_track) );
       }
     }
@@ -1135,8 +1139,11 @@ namespace larlitecv {
     std::vector<larcv::ROI> selected_rois;
     if ( m_config.croi_selection_cfg.use_version==1 )
       selected_rois = selectionalgo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, output.flashdata_selected_v );
-    else if ( m_config.croi_selection_cfg.use_version==2 )
+    else if ( m_config.croi_selection_cfg.use_version==2 ) {
+      if ( m_config.use_truth_endpoints )
+	selectionv2algo.provideTruthCrossingData( m_truthxingdata );
       selected_rois = selectionv2algo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, output.flashdata_selected_v );
+    }
     else
       throw std::runtime_error("Unrecognized TaggerFlashMatchAlgo version");
 
@@ -1183,10 +1190,15 @@ namespace larlitecv {
 	output.containment_dwall_v        = selectionv2algo.getContainmentCutValues();
 	output.cosmicflash_ratio_dchi_v   = selectionv2algo.getCosmicFlashMatchChi2Values();
 	output.cosmicflash_bestindex_v    = selectionv2algo.getCosmicMatchedFlashIndices();
+	output.cosmicflash_mctrackid_v    = selectionv2algo.getCosmicMCTrackIDs();
+	output.cosmicflash_bestflash_mctrackid_v = selectionv2algo.getCosmicBestFlashMCTrackIDs();
 	output.v2_intime_meanz_v          = selectionv2algo.getIntimeMeanZ();
 	output.v2_intime_zfwhm_v          = selectionv2algo.getIntimeZFWHM();
 	output.v2_intime_pemax_v          = selectionv2algo.getIntimePEMax();
 	output.v2_track_zdiff_frac_v      = selectionv2algo.getIntimeZDiffFrac();
+
+	output.num_matchable_flashes      = selectionv2algo.getMatchableFlashes();
+	output.num_matched_flashes        = selectionv2algo.getMatchedFlashes();
       }
     }
     
@@ -1196,7 +1208,7 @@ namespace larlitecv {
 
     if ( m_config.croi_write_cfg.get<bool>("WriteCombinedTaggedImage") ) {
 
-
+      // create blank image for combined tags
       for ( size_t p=0; p<input.img_v.size(); p++ ) {
         larcv::Image2D combined( input.img_v.at(p).meta() );
         combined.paint(0.0);

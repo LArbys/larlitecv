@@ -63,6 +63,8 @@ namespace larlitecv {
     std::vector< std::vector<double> > path3d;
     std::vector< larcv::Pixel2DCluster > plane_pixels; // only filled if asked for
 
+    int mctrackid; //< for use with truth-studies
+
   };
 
 

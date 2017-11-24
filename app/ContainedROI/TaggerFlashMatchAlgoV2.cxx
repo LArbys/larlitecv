@@ -17,7 +17,8 @@ namespace larlitecv {
   }
 
   TaggerFlashMatchAlgoV2::TaggerFlashMatchAlgoV2( TaggerFlashMatchAlgoConfig& config )
-    : m_config(config),m_genflashmatch(config.genflashmatch_cfg) {
+    : m_config(config),m_genflashmatch(config.genflashmatch_cfg),ptruthxingdata(NULL)
+  {
     // set verbosity
     setVerbosity( m_config.verbosity );
     // opdet-opch map
@@ -47,6 +48,10 @@ namespace larlitecv {
     m_cosmic_bestflash_chi2_v.resize( n_tracks, 100.0 );
     m_cosmic_bestflash_idx_v.resize( n_tracks, 0);    
     m_cosmic_bestflash_hypo_v.resize( n_tracks );
+    m_cosmic_bestflash_mctrackid_v.resize( n_tracks, -1 );
+    m_cosmic_mctrackid_v.resize( n_tracks, -1 );
+    m_num_matchable_flashes = 0;
+    m_num_matched_flashes   = 0;
 
     // final result
     m_passes_finalresult.resize( n_tracks, 0 );
@@ -73,7 +78,21 @@ namespace larlitecv {
     if ( data_flashana.size()==0 ) {
       return roi_v;
     }
-
+    if ( ptruthxingdata ) {
+      // match flash with truth flash info
+      m_cosmicflash_mctrackid.resize(cosmicdata_flashana.size(),-1);
+      for ( int i=0; i<(int)cosmicdata_flashana.size(); i++ ) {
+	auto const& cosmicflash = cosmicdata_flashana[i];
+	int tick = 3200 + cosmicflash.time/0.5;
+	for ( auto const& flashinfo : ptruthxingdata->flashanainfo_v ) {
+	  if ( abs(tick-flashinfo.tick)<3 ) {
+	    m_cosmicflash_mctrackid[i] = flashinfo.mctrackid;
+	    break;
+	  }
+	}
+      }
+    }
+    
     // reset results/variables storage vectors (it also allocates for this event)
     clearResults( data_flashana.size(), inputdata.size() );
 
@@ -97,12 +116,20 @@ namespace larlitecv {
     std::cout << "[in time]" << std::endl;
     for ( size_t iflash=0; iflash<data_flashana.size(); iflash++) {
       float usec = data_flashana[iflash].time;
-      std::cout << "  #" << iflash<< ": idx= " << data_flashana[iflash].idx << " pe=" << data_flashana[iflash].TotalPE() << " time=" << data_flashana[iflash].time << std::endl;
+      std::cout << "  #" << iflash<< ": idx= " << data_flashana[iflash].idx << " pe=" << data_flashana[iflash].TotalPE()
+		<< " time=" << data_flashana[iflash].time
+		<< " tick=" << 3200+data_flashana[iflash].time/0.5
+		<< std::endl;
     }
     std::cout << "[out of time]" << std::endl;    
     for ( size_t iflash=0; iflash<cosmicdata_flashana.size(); iflash++) {
       float usec = cosmicdata_flashana[iflash].time;
-      std::cout << "  #" << iflash<< ": idx= " << cosmicdata_flashana[iflash].idx << " pe=" << cosmicdata_flashana[iflash].TotalPE() << " time=" << cosmicdata_flashana[iflash].time << std::endl;
+      std::cout << "  #" << iflash<< ": idx= " << cosmicdata_flashana[iflash].idx << " pe=" << cosmicdata_flashana[iflash].TotalPE()
+		<< " time=" << cosmicdata_flashana[iflash].time
+		<< " tick=" << 3200+cosmicdata_flashana[iflash].time/0.5;
+      if ( ptruthxingdata )
+	std::cout << " mctrackid=" << m_cosmicflash_mctrackid[iflash];
+      std::cout << std::endl;
     }
     std::cout << "-------------------------------------------------------" << std::endl;
 
@@ -164,6 +191,13 @@ namespace larlitecv {
     std::cout << "-----------------------------------------------------------------" << std::endl;
 
     //m_genflashmatch.getFlashMatchManager().PrintFullResult();
+
+    // --------------------------------------
+    // Track successful matching
+    m_num_matchable_flashes = 0; // we get mctrackid from track, check flashes if that mctrackid exists
+    m_num_matched_flashes   = 0; // mctrackid of track and flash match
+    // --------------------------------------
+    
     
     // choose contained candidates    
     for ( size_t i=0; i<inputdata.size(); i++ ) {
@@ -237,6 +271,32 @@ namespace larlitecv {
           std::cout << " {not position-matched}";
         }
 
+	// mc track id comparison
+	if ( ptruthxingdata ) {
+	  std::cout << "{mctrackid: track=" << inputdata[i].mctrackid
+		    << " flash=" << m_cosmicflash_mctrackid[m_cosmic_bestflash_idx_v[i]] << "}";
+	  m_cosmic_bestflash_mctrackid_v[i] =  m_cosmicflash_mctrackid[m_cosmic_bestflash_idx_v[i]];
+	  m_cosmic_mctrackid_v[i]           =  inputdata[i].mctrackid;
+
+	  // is it matchable?
+	  bool matchable = false;
+	  if ( inputdata[i].mctrackid!=-1) {
+	    for (auto const& flash_mctrackid : m_cosmicflash_mctrackid ) {
+	      if ( flash_mctrackid==inputdata[i].mctrackid ) {
+		matchable = true;
+		break;
+	      }
+	    }
+	  }
+	  if ( matchable )
+	    m_num_matchable_flashes++;
+
+	  // did it match?
+	  if ( inputdata[i].mctrackid!=-1 && inputdata[i].mctrackid==m_cosmicflash_mctrackid[m_cosmic_bestflash_idx_v[i]] )
+	    m_num_matched_flashes++;
+	  
+	}
+
 	// FINAL RESULT
 	flashdata_selected[i] = m_passes_finalresult[i] = (m_passes_intimepos[i] & m_passes_containment[i] & m_passes_cosmic_flashmatch[i]);
 
@@ -250,6 +310,11 @@ namespace larlitecv {
       
     }//end of input data loop
 
+    if ( ptruthxingdata ) {
+      std::cout << "NUM OF FLASH-MATCHABLE TRACKS: "       << m_num_matchable_flashes << std::endl;
+      std::cout << "NUM OF CORRECT FLASH-MATCHED TRACKS: " << m_num_matched_flashes << std::endl;
+    }
+    
     // std::cout << "QCLUSTER List ------ -------------------------------------" << std::endl;
     // for ( size_t itrack=0; itrack<inputdata.size(); itrack++ ) {
     //   const flashana::QCluster_t& qcluster = m_qcluster_v[itrack];
