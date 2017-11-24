@@ -50,7 +50,9 @@ namespace larlitecv {
 
     // Primary Method
     std::vector<larcv::ROI> FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata,
-							   const std::vector<larlite::event_opflash*>& opflashes_v, std::vector<int>& flashdata_selected );
+							   const std::vector<larlite::event_opflash*>& opflashes_v,
+							   const std::vector<larcv::Image2D>& img_v,							   
+							   std::vector<int>& flashdata_selected );
     
     void setVerbosity( int verbosity ) { m_verbosity = verbosity; };
    

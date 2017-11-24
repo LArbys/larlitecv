@@ -59,7 +59,9 @@ namespace larlitecv {
   }
 
   std::vector<larcv::ROI> TaggerFlashMatchAlgoV2::FindFlashMatchedContainedROIs( const std::vector<TaggerFlashMatchData>& inputdata,
-									       const std::vector<larlite::event_opflash*>& opflashes_v, std::vector<int>& flashdata_selected ) {
+										 const std::vector<larlite::event_opflash*>& opflashes_v,
+										 const std::vector<larcv::Image2D>& img_v,
+										 std::vector<int>& flashdata_selected ) {
 
     // the output
     std::vector<larcv::ROI> roi_v;
@@ -198,7 +200,6 @@ namespace larlitecv {
     m_num_matched_flashes   = 0; // mctrackid of track and flash match
     // --------------------------------------
     
-    
     // choose contained candidates    
     for ( size_t i=0; i<inputdata.size(); i++ ) {
 
@@ -313,6 +314,25 @@ namespace larlitecv {
     if ( ptruthxingdata ) {
       std::cout << "NUM OF FLASH-MATCHABLE TRACKS: "       << m_num_matchable_flashes << std::endl;
       std::cout << "NUM OF CORRECT FLASH-MATCHED TRACKS: " << m_num_matched_flashes << std::endl;
+    }
+
+    // MAKE ROI based on tracks
+    if ( !m_config.use_fixed_croi ) {
+      for ( size_t itrack=0; itrack<inputdata.size(); itrack++ ){
+	const larlite::track& track3d = inputdata.at(itrack).m_track3d;
+	if ( flashdata_selected.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
+	  continue;
+	
+	larcv::ROI croi = inputdata.at(itrack).MakeROI( img_v, m_config.bbox_pad , true );
+	
+	std::cout << "[Selected CROI]" << std::endl;
+	for ( size_t p=0; p<3; p++ ) {
+	  std::cout << "  " << croi.BB(p).dump() << std::endl;
+	}
+	roi_v.emplace_back( std::move(croi) );
+      }
+    }
+    else {
     }
     
     // std::cout << "QCLUSTER List ------ -------------------------------------" << std::endl;

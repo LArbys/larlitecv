@@ -30,7 +30,7 @@ namespace larlitecv {
     bool has_startflash;
     bool has_endflash;  
 
-    larcv::ROI MakeROI( const std::vector<larcv::Image2D>& img_v, const float bbox_pad_cm=0.0, const bool iscroi_candidate=false );
+    larcv::ROI MakeROI( const std::vector<larcv::Image2D>& img_v, const float bbox_pad_cm=0.0, const bool iscroi_candidate=false ) const;
     void setStartFlash( const larlite::opflash* pflash ) {
       m_pstart_flash=pflash;
       if ( m_pstart_flash!=NULL )

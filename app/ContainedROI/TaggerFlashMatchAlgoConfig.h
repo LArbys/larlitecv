@@ -33,6 +33,7 @@ namespace larlitecv {
     float bbox_pad;
     bool use_gaus2d;
     bool extend_cosmics;
+    bool use_fixed_croi;
     std::vector<int> beam_tick_range;
     std::vector<float> FVCutX;
     std::vector<float> FVCutY;

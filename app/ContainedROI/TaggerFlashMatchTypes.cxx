@@ -15,7 +15,7 @@
 
 namespace larlitecv {
 
-  larcv::ROI TaggerFlashMatchData::MakeROI( const std::vector<larcv::Image2D>& img_v, const float bbox_pad_cm, const bool iscroi_candidate ) {
+  larcv::ROI TaggerFlashMatchData::MakeROI( const std::vector<larcv::Image2D>& img_v, const float bbox_pad_cm, const bool iscroi_candidate ) const {
 
     larcv::ROIType_t    roitype = larcv::kROIUnknown;
     larcv::ShapeType_t roishape = larcv::kShapeUnknown;

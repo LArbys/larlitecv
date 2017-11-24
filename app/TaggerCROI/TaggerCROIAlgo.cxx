@@ -1142,25 +1142,29 @@ namespace larlitecv {
     else if ( m_config.croi_selection_cfg.use_version==2 ) {
       if ( m_config.use_truth_endpoints )
 	selectionv2algo.provideTruthCrossingData( m_truthxingdata );
-      selected_rois = selectionv2algo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, output.flashdata_selected_v );
+      selected_rois = selectionv2algo.FindFlashMatchedContainedROIs( output.flashdata_v, input.opflashes_v, input.img_v, output.flashdata_selected_v );
     }
     else
       throw std::runtime_error("Unrecognized TaggerFlashMatchAlgo version");
-
+    
     output.croi_v.clear();
-    for ( size_t itrack=0; itrack<output.flashdata_v.size(); itrack++ ){
-      const larlite::track& track3d = output.flashdata_v.at(itrack).m_track3d;
-      if ( output.flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
-        continue;
+    // Moved to croi selection algo
+    // for ( size_t itrack=0; itrack<output.flashdata_v.size(); itrack++ ){
+    //   const larlite::track& track3d = output.flashdata_v.at(itrack).m_track3d;
+    //   if ( output.flashdata_selected_v.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
+    //     continue;
 
-      larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, m_config.croi_selection_cfg.bbox_pad , true );
+    //   larcv::ROI croi = output.flashdata_v.at(itrack).MakeROI( input.img_v, m_config.croi_selection_cfg.bbox_pad , true );
 
-      std::cout << "[Selected CROI]" << std::endl;
-      for ( size_t p=0; p<3; p++ ) {
-        std::cout << "  " << croi.BB(p).dump() << std::endl;
-      }
+    //   std::cout << "[Selected CROI]" << std::endl;
+    //   for ( size_t p=0; p<3; p++ ) {
+    //     std::cout << "  " << croi.BB(p).dump() << std::endl;
+    //   }
 
-      output.croi_v.emplace_back( std::move(croi) );
+    //   output.croi_v.emplace_back( std::move(croi) );
+    // }
+    for ( auto& roi : selected_rois ) {
+      output.croi_v.push_back( roi );
     }
 
     m_time_tracker[kCROI] = (std::clock()-timer)/(double)CLOCKS_PER_SEC;
