@@ -29,6 +29,10 @@ namespace larlitecv {
     m_track_tree->Branch( "track_dwall",         &track_dwall,         "track_dwall/F" );
     m_track_tree->Branch( "track_nufrac",        &track_nufrac,        "track_nufrac/F" );
     m_track_tree->Branch( "track_flashdtick",    &track_flashdtick,    "track_flashdtick/F" );
+    m_track_tree->Branch( "track_mctrackid",     &track_mctrackid,     "track_mctrackid/I" );
+    m_track_tree->Branch( "track_matchable",     &track_matchable,     "track_matchable/I" );
+    m_track_tree->Branch( "track_matched",       &track_matched,       "track_matched/I" );
+    m_track_tree->Branch( "track_flashmcid",     &track_flashmcid,     "track_flashmcid/I" );
   }
 
   void AnaFillVariablesV2::clearEventVars() {
@@ -47,6 +51,10 @@ namespace larlitecv {
     track_dwall      = -1;
     track_nufrac     = -1;
     track_flashdtick = -1;
+    track_mctrackid  = -1;
+    track_flashmcid  = -1;
+    track_matchable  = -1;
+    track_matched    = -1;
   }
 
   void AnaFillVariablesV2::fillEventInfo( const larcv::EventImage2D& ev_img, const larcv::EventROI& ev_roi,
@@ -179,7 +187,7 @@ namespace larlitecv {
 	track_highestnufrac = 0;
 
       // flash matching checks
-      //track_flashdtick = isTrackFlashMatched( itrack, ev_track, xingptdata, ev_user_info );
+      isTrackFlashMatched( itrack, ev_track, xingptdata, ev_user_info );
       
       m_track_tree->Fill();
     }
@@ -210,73 +218,48 @@ namespace larlitecv {
   }
 
   
-  float AnaFillVariablesV2::isTrackFlashMatched( const int itrack,
-						 const larlite::event_track* ev_track,
-						 const CrossingPointAnaData_t& xingptdata,
-						 larlite::event_user* ev_user_info ) {
+  void AnaFillVariablesV2::isTrackFlashMatched( const int itrack,
+						const larlite::event_track* ev_track,
+						const CrossingPointAnaData_t& xingptdata,
+						larlite::event_user* ev_user_info ) {
 
     const float cm_per_tick = ::larutil::LArProperties::GetME()->DriftVelocity()*0.5;
     
     // get the index of the cosmic flash
     larlite::user_info& info = ev_user_info->front();
-    std::vector<int>* cosmicflash_index_v = info.get_iarray( "cosmicflash_index" );
+    std::vector<int>* cosmicflash_index_v     = info.get_iarray( "cosmicflash_index" );
+    std::vector<int>* cosmicflash_mctrackid_v = info.get_iarray( "cosmicflash_trackmctrackid" );
+    std::vector<int>* cosmicflash_flashmcid_v = info.get_iarray( "cosmicflash_flashmctrackid" );
+
+      
     int cosmicflash_idx = cosmicflash_index_v->at(itrack);
-    // adjust to be unrolled index
-    cosmicflash_idx += (int)xingptdata.num_intime_flashes;
-
-    // get the matching true start crossing matched to this flash index
-    auto const& flashinfo = xingptdata.flashanainfo_v[cosmicflash_idx];    
-    auto const& truthxing = xingptdata.truthcrossingptinfo_v[flashinfo.truthcrossingidx];
-
-    // ok did i match the right reco track to the right truth track?
-    // we use the t0 time to check
-    const larlite::track& track = ev_track->at(itrack);
-
-    // get tick of track for entrance -- don't know apriori so we check tick at both ends
-    float start_x = track.Vertex().X();
-    float end_x   = track.End().X();
-
-    float start_tick = start_x/cm_per_tick + 3200.0;
-    float end_tick   = end_x/cm_per_tick   + 3200.0;
-
-    
-    float start_dt   = start_tick - flashinfo.tick;
-    float end_dt     = end_tick   - flashinfo.tick;
-
-    float start_dx   = start_dt*cm_per_tick; // real x-position
-    float end_dx     = end_dt*cm_per_tick;   // real x-position
-
-    float start_diff1 = 0;
-    float start_diff2 = 0;
-    float end_diff1   = 0;
-    float end_diff2   = 0;
-
-    try {
-      start_diff1 = fabs(start_tick-truthxing.crossingpt_detsce_tyz[0]);
-      start_diff2 = fabs(start_tick-truthxing.crossingpt_detsce_tyz2[0]);
-      end_diff1 = fabs(end_tick-truthxing.crossingpt_detsce_tyz[0]);
-      end_diff2 = fabs(end_tick-truthxing.crossingpt_detsce_tyz2[0]);      
+    track_mctrackid = cosmicflash_mctrackid_v->at(itrack);
+    track_flashmcid = cosmicflash_flashmcid_v->at(itrack);
+    if ( track_mctrackid==-1 ) {
+      track_matchable = 0;
+      track_matched   = 0;
+      return;
     }
-    catch (...) {
+    
+    // is it matchable. we check to see if there is any flash with the mctrackid of the track
+    track_matchable = 0;
+    for ( auto const& flashinfo : xingptdata.flashanainfo_v ) {
+      if ( flashinfo.mctrackid==track_mctrackid ) {
+	track_matchable = 1;
+	break;
+      }
+    }
+    if ( track_matchable==0 ) {
+      track_matched   =  0;
+      return;
     }
 
+    // ok, did it match?
+    if ( track_mctrackid==track_flashmcid )
+      track_matched = 1;
+    else
+      track_matched = 0;
     
-    float start_diff = (start_diff1<start_diff2) ? start_diff1 : start_diff2;
-    float end_diff = (end_diff1<end_diff2) ? end_diff1 : end_diff2;
-    
-    std::cout << "[AnaFillVariablesV2::isTrackFlashMatched] checking track #" << itrack
-	      << " start_tick=" << start_tick
-	      << " end_tick=" << end_tick
-	      << " flashidx=" << cosmicflash_idx
-	      << " flashtick=" << flashinfo.tick
-	      << std::endl;
-    std::cout << "  start_dt=" << start_dt << " end_dt=" << end_dt << " start_dx=" << start_dx << " end_dx=" << end_dx
-	      << " start_diff=" << start_diff << " end_diff=" << end_diff
-	      << std::endl;
-
-    float diff = ( start_diff < end_diff ) ? start_diff : end_diff;
-    
-    return diff;
   }
   
 }

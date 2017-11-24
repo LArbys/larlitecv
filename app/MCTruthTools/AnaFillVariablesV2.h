@@ -57,6 +57,10 @@ namespace larlitecv {
     float track_nufrac;        //< track-level: fraction of nu pixels we've covered
     int   track_highestnufrac; //< track-level: 1 if track has highest neutrino pixel fraction in event, 0 otherwise
     float track_flashdtick;    //< track-level: dtick to matched flash
+    int track_mctrackid;       //< track-level: mctrack id (filled if tagger run in truth-track mode)
+    int track_flashmcid;       //< track-level: mctrack id of paired flash (filled if tagger run in truth-track mode)
+    int track_matchable;       //< track-level: track had a flash it could pair with (filled if tagger run in truth-track mode)
+    int track_matched;         //< track-level: track matched to correct flash (filled if tagger run in truth-track mode)
 
     void clearEventVars();
     void clearTrackVars();
@@ -81,10 +85,10 @@ namespace larlitecv {
     float fillTrackNuFraction( const larcv::EventImage2D* ev_segment,
 			       const int itrack, larcv::EventPixel2D* ev_allpixels_v );
     
-    float isTrackFlashMatched( const int itrack,
-			       const larlite::event_track* ev_track,
-			       const CrossingPointAnaData_t& xingptdata,
-			       larlite::event_user* ev_user );
+    void isTrackFlashMatched( const int itrack,
+			      const larlite::event_track* ev_track,
+			      const CrossingPointAnaData_t& xingptdata,
+			      larlite::event_user* ev_user );
     
     
   };
