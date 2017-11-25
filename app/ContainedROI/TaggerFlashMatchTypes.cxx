@@ -37,6 +37,7 @@ namespace larlitecv {
   	
     for ( size_t i=0; i<m_track3d.NumberTrajectoryPoints(); i++ ) {
       const TVector3& xyz = m_track3d.LocationAtPoint(i);
+      std::cout << "xyz: (" << xyz.X() << "," << xyz.Y() << "," << xyz.Z() << ")" << std::endl;
       for (int v=0; v<3; v++) {
 	// minvalue
 	if ( bb[v][0]>xyz[v] ) {
@@ -79,8 +80,10 @@ namespace larlitecv {
     max_tick += 120.0;
 
     if ( ( min_tick < meta.min_y() || min_tick>meta.max_y() )
-	 && ( max_tick < meta.min_y() || max_tick>meta.max_y() ) )
+	 && ( max_tick < meta.min_y() || max_tick>meta.max_y() ) ) {
+      std::cout << "[TaggerFlashMatchTypes::MakeROI] min (" << min_tick << ") and max (" << max_tick << ") tick out of range" << std::endl;
       return roi;
+    }
 
     if ( min_tick < meta.min_y() )
       min_tick = meta.min_y();

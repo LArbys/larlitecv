@@ -325,15 +325,49 @@ namespace larlitecv {
 	
 	larcv::ROI croi = inputdata.at(itrack).MakeROI( img_v, m_config.bbox_pad , true );
 	
-	std::cout << "[Selected CROI]" << std::endl;
-	for ( size_t p=0; p<3; p++ ) {
-	  std::cout << "  " << croi.BB(p).dump() << std::endl;
-	}
 	roi_v.emplace_back( std::move(croi) );
       }
     }
     else {
+      // we make 2 ROIs. z-center is the flash pe center.
+      // x-center splits the drift region
+      float croi_xcenters[2] = {  65.0, 190.0 };
+      float croi_ycenters[2] = { -60.0, 60.0  };
+      float croi_zcenter = m_intime_meanz.front();
+      int icroi = 0;
+      for (int ix=0; ix<2; ix++) {
+	for (int iy=0; iy<2; iy++) {
+	  // we define a croi that covers the edges
+	  // we make a fake TaggerFlashMatchData object using 3 points of a larlite track
+	  std::cout << "Making ROI with center: (" << croi_xcenters[ix] << "," << croi_ycenters[iy] << "," << croi_zcenter << ")" << std::endl;
+	  TVector3 ur( croi_xcenters[ix] - 66.0, croi_ycenters[iy]-60.0, croi_zcenter - 35.0 );
+	  TVector3 ce( croi_xcenters[ix] +  0.0, croi_ycenters[iy]+ 0.0, croi_zcenter +  0.0 );
+	  TVector3 ll( croi_xcenters[ix] + 66.0, croi_ycenters[iy]+60.0, croi_zcenter + 35.0 );
+	  TVector3 dir(1,0,0);
+	  dir[0] = 1.0;
+	  larlite::track croitrack;
+	  croitrack.reserve(3);
+	  croitrack.add_vertex( ur );
+	  croitrack.add_direction( dir );
+	  croitrack.add_vertex( ce );
+	  croitrack.add_direction( dir );	  
+	  croitrack.add_vertex( ll );
+	  croitrack.add_direction( dir );	  
+	  std::vector<larcv::Pixel2DCluster> emptypix;
+	  TaggerFlashMatchData temp( TaggerFlashMatchData::kUntagged, emptypix, croitrack );
+	  larcv::ROI croi = temp.MakeROI( img_v, 5.0, true );
+	  roi_v.emplace_back( std::move(croi) );
+	}
+      }
     }
+    std::cout << " ------------------ " << std::endl;
+    std::cout << "[Selected CROI]" << std::endl;
+    for ( auto const& croi : roi_v ) {
+      for ( size_t p=0; p<3; p++ ) {
+	std::cout << "  " << croi.BB(p).dump() << std::endl;
+      }
+    }
+    std::cout << " ------------------ " << std::endl;
     
     // std::cout << "QCLUSTER List ------ -------------------------------------" << std::endl;
     // for ( size_t itrack=0; itrack<inputdata.size(); itrack++ ) {
