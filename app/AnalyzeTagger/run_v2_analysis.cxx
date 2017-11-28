@@ -193,7 +193,9 @@ int main( int nargs, char** argv ) {
   // ROI quantities
   int num_rois;     // number of identified ROis
   int nnu_inroi[4]; // number of nu pixels contained in the CROI
-  int vertex_in_croi; // is vertex in an CROI
+  int vertex_in_croi_2plane;  // is vertex in an CROI (numplanes>=2)
+  int vertex_in_croi_3plane;  // is vertex in an CROI (numplanes==3)
+  int vertex_in_croi_2planeY; // is vertex in an CROI (numplanes>=2 && vtx in y croi )
   float closest_dist_to_vertex;
   int closest_dist_stage;
 
@@ -222,11 +224,14 @@ int main( int nargs, char** argv ) {
   tree->Branch("nvertex_tagged",      nvertex_tagged,      std::string("nvertex_tagged"+s_arr.str()).c_str() );
   tree->Branch("nvertex_incroi",      nvertex_incroi,      "nvertex_incroi[4]/I" );
 
-  tree->Branch("num_rois",     &num_rois,               "num_rois/I"     );
-  tree->Branch("nnu_inroi",    nnu_inroi,               "nnu_inroi[4]"   );
-  tree->Branch("vtx_in_croi",  &vertex_in_croi,         "vtx_in_croi/I"  );
-  tree->Branch("dist_to_vtx",  &closest_dist_to_vertex, "dist_to_vtx/F"  );
-  tree->Branch("stage_at_vtx", &closest_dist_stage,     "stage_at_vtx/I" );
+  tree->Branch("num_rois",            &num_rois,               "num_rois/I"     );
+  tree->Branch("nnu_inroi",           nnu_inroi,               "nnu_inroi[4]"   );
+  tree->Branch("dist_to_vtx",         &closest_dist_to_vertex, "dist_to_vtx/F"  );
+  tree->Branch("stage_at_vtx",        &closest_dist_stage,     "stage_at_vtx/I" );
+  tree->Branch("vtx_in_croi_3plane",  &vertex_in_croi_3plane,  "vtx_in_croi_3plane/I"  );
+  tree->Branch("vtx_in_croi_2plane",  &vertex_in_croi_2plane,  "vtx_in_croi_2plane/I"  );
+  tree->Branch("vtx_in_croi_2planeY", &vertex_in_croi_2planeY, "vtx_in_croi_2planeY/I"  );
+    
 
   // Crossing point analysis results
   xingptdata.bindToTree( tree );
@@ -339,7 +344,9 @@ int main( int nargs, char** argv ) {
       }
       nvertex_incroi[p] = 0;
     }
-    vertex_in_croi = 0;    
+    vertex_in_croi_3plane = 0;
+    vertex_in_croi_2plane = 0;
+    vertex_in_croi_2planeY = 0;
 
 
     // ok now to do damage
@@ -591,20 +598,28 @@ int main( int nargs, char** argv ) {
       std::cout << "Vertex 3D Coordinates (uncorrected):      (" << dpos[0] << "," << dpos[1] << "," << dpos[2] << ")" << std::endl;
 
       // did any of the ROIs contain the vertex?
-      vertex_in_croi = 0;
+      int vertex_in_croi  = 0;
+      int vertex_in_ycroi = 0;
       for ( auto& roi : containedrois_v ) {
 	int nplanes_in_roi = 0;
 	for (size_t p=0; p<3; p++ ) {
 	  const larcv::ImageMeta& bb = roi.BB( (larcv::PlaneID_t)p );
-	  if ( vertex_tick>=bb.min_y() && vertex_tick<=bb.max_y() && vertex_col[p]>=bb.min_x() && vertex_col[p]<=bb.max_x() )
+	  if ( vertex_tick>=bb.min_y() && vertex_tick<=bb.max_y() && vertex_col[p]>=bb.min_x() && vertex_col[p]<=bb.max_x() ) {
 	    nplanes_in_roi++;
+	    if ( p==2 )
+	      vertex_in_ycroi = 1;
+	  }
 	}
 	if (nplanes_in_roi>=2) {
-	  vertex_in_croi = 1;
-	  break;
+	  vertex_in_croi_2plane = 1;
+	  if ( vertex_in_ycroi==1 )
+	    vertex_in_croi_2planeY = 1;
+	}
+	if (nplanes_in_roi>=3) {
+	  vertex_in_croi_3plane = 1;
 	}
       }
-
+      
       // loop over MC tracks, get end points of muons
       // ---------------------------------------------
       larlitecv::analyzeCrossingMCTracks( xingptdata, imgs_v.front().meta(), imgs_v, ev_trigger, ev_mctrack, opflash_v, printFlashEnds );
