@@ -330,12 +330,15 @@ namespace larlitecv {
     else {
       // we make 2 ROIs. z-center is the flash pe center.
       // x-center splits the drift region
-      float croi_xcenters[2] = {  65.0, 190.0 };
-      float croi_ycenters[2] = { -60.0, 60.0  };
+      float croi_xcenters[2]  = {  65.0, 190.0 };
+      float croi_ycenters[2]  = { -60.0,  60.0 };
+      float croi_dzcenters[2] = { -75.0,  75.0 };
       float croi_zcenter = m_intime_meanz.front();
+      bool split_z = m_config.split_fixed_ycroi;
       int icroi = 0;
       for (int ix=0; ix<2; ix++) {
 	for (int iy=0; iy<2; iy++) {
+
 	  // we define a croi that covers the edges
 	  // we make a fake TaggerFlashMatchData object using 3 points of a larlite track
 	  std::cout << "Making ROI with center: (" << croi_xcenters[ix] << "," << croi_ycenters[iy] << "," << croi_zcenter << ")" << std::endl;
@@ -355,29 +358,42 @@ namespace larlitecv {
 	  std::vector<larcv::Pixel2DCluster> emptypix;
 	  TaggerFlashMatchData temp( TaggerFlashMatchData::kUntagged, emptypix, croitrack );
 	  larcv::ROI croi = temp.MakeROI( img_v, 5.0, true );
-	  larcv::ROI croi_zmod( croi.Type(), croi.Shape() );
-	  
-	  // we expand the y-plane roi to be 512 pixels wide (they are smaller in order to keep 3D consistent box)
-	  std::vector<larcv::ImageMeta> bb_zmod;
-	  for ( auto const& meta : croi.BB() ) {
-	    if ( (int)meta.plane()!=2 ) {
-	      // U,V just pass through
-	      bb_zmod.push_back( meta );
+
+	  int nzrois = 1;
+	  if ( split_z )
+	    nzrois = 2;
+
+	  for (int iz=0; iz<nzrois; iz++) {
+	    
+	    larcv::ROI croi_zmod( croi.Type(), croi.Shape() );
+	    
+	    // we expand the y-plane roi to be 512 pixels wide (they are smaller in order to keep 3D consistent box)
+	    std::vector<larcv::ImageMeta> bb_zmod;
+	    for ( auto const& meta : croi.BB() ) {
+	      if ( (int)meta.plane()!=2 ) {
+		// U,V just pass through
+		bb_zmod.push_back( meta );
+	      }
+	      else {
+		// Y, make an expanded roi in the wire dimension. keep tick dimension
+		double postemp[3] = {0,0, croi_zcenter};
+
+		// if we split, we move the z position
+		if (split_z)
+		  postemp[2] += croi_dzcenters[iz];
+		
+		double ywire = larutil::Geometry::GetME()->NearestWire( postemp, 2 );
+		larcv::ImageMeta ymeta( 510.0, meta.height(), meta.rows(), 510, ywire-255.0, meta.max_y(), 2 );
+		bb_zmod.push_back( ymeta );
+	      }
 	    }
-	    else {
-	      // Y, make an expanded roi in the wire dimension. keep tick dimension
-	      double postemp[3] = {0,0, croi_zcenter};
-	      double ywire = larutil::Geometry::GetME()->NearestWire( postemp, 2 );
-	      larcv::ImageMeta ymeta( 510.0, meta.height(), meta.rows(), 510, ywire-255.0, meta.max_y(), 2 );
-	      bb_zmod.push_back( ymeta );
-	    }
-	  }
-	  // update the BB
-	  croi_zmod.SetBB( bb_zmod );
+	    // update the BB
+	    croi_zmod.SetBB( bb_zmod );
 	  
-	  roi_v.emplace_back( std::move(croi_zmod) );
-	}
-      }
+	    roi_v.emplace_back( std::move(croi_zmod) );
+	  }//end of z loop
+	}//end of y loop
+      }//end of x loop
     }
     std::cout << " ------------------ " << std::endl;
     std::cout << "[Selected CROI]" << std::endl;
@@ -587,33 +603,6 @@ namespace larlitecv {
 
     dchi2 -= intime_min_chi2;
     
-    // float cosmicflash_start_chi2 = 1.0e6;
-    // if ( taggertrack.hasStartFlash() ) {
-    //   std::vector< larlite::opflash > cosmicflash_start_v;
-    //   float start_tick = taggertrack.m_pstart_flash->Time()/m_config.us_per_tick;
-    //   float start_ly = m_config.fudge_factor;
-    //   if ( start_tick<m_config.beam_tick_range[0] || start_tick>m_config.beam_tick_range[1] )
-    //     start_ly = m_config.fudge_factor_cosmic;
-    //   cosmicflash_start_v.push_back( *(taggertrack.m_pstart_flash ) );
-    //   cosmicflash_start_chi2 = larlitecv::CalculateFlashMatchChi2( cosmicflash_start_v, opflash_hypo, totpe_cosmicflash, totpe_hypoflash, start_ly, m_config.use_gaus2d, false );
-    // }
-
-    // float cosmicflash_end_chi2 = 1.0e6;
-    // if ( taggertrack.hasEndFlash() ) {
-    //   std::vector< larlite::opflash > cosmicflash_end_v;
-    //   float end_ly = m_config.fudge_factor;
-    //   float end_tick = taggertrack.m_pend_flash->Time()/m_config.us_per_tick;
-    //   if ( end_tick<m_config.beam_tick_range[0] || end_tick>m_config.beam_tick_range[1] )
-    //     end_ly = m_config.fudge_factor_cosmic; // use cosmic disc.
-    //   cosmicflash_end_v.push_back( *(taggertrack.m_pend_flash ) );
-    //   cosmicflash_end_chi2 = larlitecv::CalculateFlashMatchChi2( cosmicflash_end_v, opflash_hypo, totpe_cosmicflash, totpe_hypoflash, end_ly, m_config.use_gaus2d, false );
-    // }
-
-    // float cosmicflash_chi2 = ( cosmicflash_start_chi2<cosmicflash_end_chi2 ) ? cosmicflash_start_chi2 : cosmicflash_end_chi2;
-
-    // dchi2 = intime_min_chi2 - cosmicflash_chi2;
-    // m_cosmicflash_ratio_dchi.push_back( dchi2 );
-
     if ( dchi2<0 ) {
       // matches cosmic flash better
       return false;
@@ -621,35 +610,6 @@ namespace larlitecv {
     else {
       return true;
     }
-
-    // // our cut needs to be position dependent, so we need a position. we get the q-weighted mean and the intervals.                                                                                   
-    // float totw = 0.;
-    // float mean[3] = {0};
-    // float min_x = 1.0e6;
-    // float max_x = -1.0e6;
-    // for ( auto const& qpt : qcluster ) {
-    //   mean[0] += qpt.x*qpt.q;
-    //   mean[1] += qpt.y*qpt.q;
-    //   mean[2] += qpt.z*qpt.q;
-    //   totw += qpt.q;
-    //   if ( qpt.x < min_x ) min_x = qpt.x;
-    //   if ( qpt.x > max_x ) max_x = qpt.x;
-    // }
-    // if ( totw==0 ) {
-    //   return false;
-    // }
-    // else {
-    //   for (int i=0; i<3; i++) mean[i] /= totw;
-    // }
-
-    // //  still a dumb cut                                                                                                                                                                               
-    // if ( mean[0] < 100.0 && min_chi2< m_config.flashmatch_chi2_cut*1.5 )
-    //   return true;
-    // else if ( mean[0]>100.0 && min_chi2<m_config.flashmatch_chi2_cut )
-    //   return true;
-    // else
-    //   return false;
-    
 
     return true; // never gets here
   }

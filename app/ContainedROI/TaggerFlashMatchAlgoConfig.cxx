@@ -44,6 +44,7 @@ namespace larlitecv {
     cfg.use_version       = pset.get< int >("Version");
     cfg.extend_cosmics    = pset.get< bool >("ExtendCosmicTracks");
     cfg.use_fixed_croi    = pset.get< bool >("UseFixedCROI");           //< CROI are made using flash position. No selection based on flash-matching.
+    cfg.split_fixed_ycroi = pset.get< bool >("SplitFixedYCROI");        //< CROI are made using flash position. No selection based on flash-matching.
     if ( cfg.use_version<1 || cfg.use_version>2 )
       throw std::runtime_error( "TaggerFlashMatchAlgoConfig::FromPSet : Version must be 1 or 2" );
     //cfg.gain_correction   = pset.get< std::vector<float> >("GainCorrection");
