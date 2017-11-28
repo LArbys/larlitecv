@@ -14,6 +14,7 @@
 // larlite
 #include "DataFormat/opflash.h"
 #include "DataFormat/trigger.h"
+#include "DataFormat/mctrack.h"
 
 // larcv
 #include "DataFormat/EventPixel2D.h"
