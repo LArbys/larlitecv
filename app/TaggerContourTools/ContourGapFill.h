@@ -5,7 +5,8 @@
 
 #include "DataFormat/Image2D.h"
 #include "DataFormat/ImageMeta.h"
-#include "TaggerContourTools/BMTCV.h"
+#include "BMTCV.h"
+#include "ContourShapeMeta.h"
 
 #include <opencv2/opencv.hpp>
 #include <opencv2/core/core.hpp>

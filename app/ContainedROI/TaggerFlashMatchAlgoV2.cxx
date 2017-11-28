@@ -323,8 +323,7 @@ namespace larlitecv {
 	if ( flashdata_selected.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
 	  continue;
 	
-	larcv::ROI croi = inputdata.at(itrack).MakeROI( img_v, m_config.bbox_pad , true );
-	
+	larcv::ROI croi = inputdata.at(itrack).MakeROI( img_v, m_config.bbox_pad , true );	
 	roi_v.emplace_back( std::move(croi) );
       }
     }
@@ -356,7 +355,27 @@ namespace larlitecv {
 	  std::vector<larcv::Pixel2DCluster> emptypix;
 	  TaggerFlashMatchData temp( TaggerFlashMatchData::kUntagged, emptypix, croitrack );
 	  larcv::ROI croi = temp.MakeROI( img_v, 5.0, true );
-	  roi_v.emplace_back( std::move(croi) );
+	  larcv::ROI croi_zmod( croi.Type(), croi.Shape() );
+	  
+	  // we expand the y-plane roi to be 512 pixels wide (they are smaller in order to keep 3D consistent box)
+	  std::vector<larcv::ImageMeta> bb_zmod;
+	  for ( auto const& meta : croi.BB() ) {
+	    if ( (int)meta.plane()!=2 ) {
+	      // U,V just pass through
+	      bb_zmod.push_back( meta );
+	    }
+	    else {
+	      // Y, make an expanded roi in the wire dimension. keep tick dimension
+	      double postemp[3] = {0,0, croi_zcenter};
+	      double ywire = larutil::Geometry::GetME()->NearestWire( postemp, 2 );
+	      larcv::ImageMeta ymeta( 510.0, meta.height(), meta.rows(), 510, ywire-255.0, meta.max_y(), 2 );
+	      bb_zmod.push_back( ymeta );
+	    }
+	  }
+	  // update the BB
+	  croi_zmod.SetBB( bb_zmod );
+	  
+	  roi_v.emplace_back( std::move(croi_zmod) );
 	}
       }
     }
