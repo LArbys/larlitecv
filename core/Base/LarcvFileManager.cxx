@@ -7,9 +7,11 @@
 #include <set>
 #include <vector>
 #include <assert.h>
-#include "DataFormat/EventBase.h"
-#include "DataFormat/EventROI.h"
 #include <algorithm>
+
+#include "larcv/core/DataFormat/EventBase.h"
+//#include "larcv/core/DataFormat/EventROI.h"
+
 
 namespace larlitecv {
 
@@ -63,8 +65,8 @@ namespace larlitecv {
          size_t found1 = keyname.find("_");
          std::string dtype    = keyname.substr(0,found1);
          std::string producer = keyname.substr(found1+1,foundlast-found1-1 );
-         if ( (!found_id_tree && dtype=="image2d") or 
-	      (!found_id_tree && dtype=="partroi") or
+         if ( (!found_id_tree && dtype=="image2d") ||
+	      //(!found_id_tree && dtype=="partroi") or
 	      (!found_id_tree && dtype=="pgraph" ) ) {
           found_id_tree = true;
           idtreename = keyname;
@@ -99,18 +101,9 @@ namespace larlitecv {
       RSElist fileentry_rse;
       TTree* idtree = (TTree*)rfile.Get( idtreename.c_str() );
       ULong_t run, subrun, event;
-      //larcv::EventROI* ev_roi = nullptr;
-      //idtree->SetBranchAddress("_run",&run);
-      //idtree->SetBranchAddress("_subrun",&subrun);
-      //idtree->SetBranchAddress("_event",&event);
       larcv::EventBase* product_ptr = nullptr; 
-      if ( idtreetype=="image2d" )
-        product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductImage2D,idtreeproducer));
-      else if ( idtreetype=="partroi" ) 
-        product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductROI,idtreeproducer));
-      else if ( idtreetype=="pgraph" ) 
-        product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(larcv::kProductPGraph,idtreeproducer));
-      else {
+      product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(idtreeproducer));
+      if ( product_ptr==NULL ) {
         throw std::runtime_error( "could not find a LArCV tree to build an index with." );
       }
 

@@ -7,8 +7,8 @@
 #include <stdexcept>
 #include <sstream>
 #include <assert.h>
-#include "Base/LArCVBaseUtilFunc.h"
-#include "Base/larcv_logger.h"
+#include "larcv/core/Base/LArCVBaseUtilFunc.h"
+#include "larcv/core/Base/larcv_logger.h"
 
 namespace larlitecv {
 
@@ -364,12 +364,12 @@ namespace larlitecv {
     return -1;
   }
 
-  larlite::event_base* DataCoordinator::get_data( const larlite::data::DataType_t type, const std::string& name) {
+  larlite::event_base* DataCoordinator::get_larlite_data( const larlite::data::DataType_t type, const std::string& name) {
     return larlite_io.get_data( type, name );
   }
 
-  larcv::EventBase* DataCoordinator::get_data( const larcv::ProductType_t type, const std::string& producer) {
-    return larcv_io.get_data( type, producer );
+  larcv::EventBase* DataCoordinator::get_larcv_data( const std::string& datatypename, const std::string& producer) {
+    return larcv_io.get_data( datatypename, producer );
   }
 
   void DataCoordinator::get_id( int& run, int& subrun, int& event ) {
