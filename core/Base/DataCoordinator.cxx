@@ -95,7 +95,7 @@ namespace larlitecv {
     larcv_io.configure( larcv_pset );  // we use the configure function
     do_larlite_config( larlite_io, larlite_pset ); // we have to add one for larlite
     
-    // user may have override output file (for larcv...)
+    // user may have override output file (for larcv)
     auto lc_iter = user_outpath.find("larcv");
     if (lc_iter != user_outpath.end()) {
       auto fname = (*lc_iter).second;
@@ -116,7 +116,7 @@ namespace larlitecv {
     if ( fIOmodes["larlite"] == -1) larlite_unused = true;
      
     // other way is if iomode is read-only, but there are no events provided
-    if ( fIOmodes["larcv"]==0  && fManagers["larcv"]->get_final_filelist().empty()  ) larcv_unused = true;
+    if ( fIOmodes["larcv"]==0   && fManagers["larcv"]->get_final_filelist().empty()  ) larcv_unused = true;
     if ( fIOmodes["larlite"]==0 && fManagers["larlite"]->get_final_filelist().empty()) larlite_unused = true;
 
     //
@@ -124,6 +124,7 @@ namespace larlitecv {
     //
     // larlite iomanager
     if ( !larlite_unused ) {
+      std::cout << "[DataCoordinator] num larlite files=" << fManagers["larlite"]->get_final_filelist().size() << std::endl;
       for ( auto const &larlitefile : fManagers["larlite"]->get_final_filelist() ) {
 	larlite_io.add_in_filename( larlitefile );
       }
@@ -132,6 +133,7 @@ namespace larlitecv {
     }
     // larcv iomanager
     if ( !larcv_unused ) {
+      std::cout << "[DataCoordinator] num larcv files=" << fManagers["larcv"]->get_final_filelist().size() << std::endl;
       for ( auto const &larcvfile : fManagers["larcv"]->get_final_filelist() ) {
 	larcv_io.add_in_file( larcvfile );
       }
@@ -272,10 +274,7 @@ namespace larlitecv {
       fManagers["larlite"]->getRSE( entry, run, subrun, event );
       if ( !larcv_unused ) {
 	fManagers["larcv"]->getEntry( run, subrun, event, other_entry );
-	// std::cout << "given larlite entry=" << entry  << " with "
-	// 	  << " rse=(" << run << ", " << subrun << ", " << event << ")"
-	// 	  << " corresponds to larcv entry=" << other_entry << std::endl;
-	larcv_io.read_entry( other_entry );
+	larcv_io.read_entry(other_entry);
       }
     }
     else if ( ftype_driver=="larcv" ) {

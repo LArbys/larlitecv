@@ -62,8 +62,11 @@ namespace larlitecv {
 
       }
       
-      if ( !found_id_tree )
-	continue; // skip this file, we won't know how to index it.
+      if ( !found_id_tree ) {
+	// skip this file, we won't know how to index it.
+	std::cout << "[LarliteFileManager] CANNOT INDEX THIS FILE! " << std::endl;
+	continue; 
+      }
 
       // make a hash out of the name of tree is the file. will be used to define the flavor of this file
       std::string treehashname = ":";
@@ -133,12 +136,12 @@ namespace larlitecv {
       }
       
       
-      std::cout << "File " << fpath << " flavor-hash: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
+      std::cout << "[LarliteFileManager] File " << fpath << " flavor-hash: " << treehash << " number of events: " << fileentry_rse.size() << ": " 
 		<< fileentry_rse.run() 
 		<< " " << fileentry_rse.subrun() 
  		<< " "  << fileentry_rse.event() << std::endl;
 	
-    }//end of file list loop
+    } //end of file list loop
 
     // ok, we now have maps where
     // flavor to list of files
@@ -163,7 +166,7 @@ namespace larlitecv {
 	maxset = iter.first;
       }
     }
-
+    
     // now we finally fill what we've been asked to fill
     finallist.clear();
     rse2entry.clear();
@@ -178,38 +181,34 @@ namespace larlitecv {
 	finalrseset.push_back( rselist );
       }
     }
-    std::vector< RSElist > finalrse_v;
+
+    std::set< RSElist > finalrse_v;
     for ( auto &rselist : finalrseset ) {
-      finalrse_v.push_back( rselist );
+      finalrse_v.insert( rselist );
     }
-    if ( isSorted() )
-      sort( finalrse_v.begin(), finalrse_v.end() );
 
     // make rse dictionaries
     int entrynum = 0;
+
     for ( auto &rselist : finalrse_v ) {
       
       for ( auto &rse: rselist ) {
 	rse2entry.insert( std::pair< RSE, int >( rse, entrynum ) );
 	entry2rse.insert( std::pair< int, RSE >( entrynum, rse ) );
-	//std::cout << entrynum << " " << rse << std::endl;
 	entrynum++;
       }
-      
+
       auto iter_rse2flist = rse_filelist.find( rselist );
       for ( auto &fpath : iter_rse2flist->second ) {
 	finallist.push_back( fpath ); // we end up resorting
-	//std::cout << "final list: " << fpath << " (ientry=" << entrynum << ",rse=" << rselist.run() << "," << rselist.subrun() << ")" << std::endl;
+	std::cout << "final list: " << fpath << " (ientry=" << entrynum << ",rse=" << rselist.run() << "," << rselist.subrun() << ")" << std::endl;
       }
     }
-    
-//     std::cout << "Max flavor set has " << numevents_per_flavorset.find(maxset)->second << " entries. "
-// 	      << "Consists of " << maxset.size() << " different tree flavors." << std::endl;
-    std::cout << "Index sizes: " << rse2entry.size() << " vs. entries: "<< entrynum << std::endl;
-    std::cout << "Final file list size: " << ffinallist.size() << std::endl;
 
     
-      
+    //     std::cout << "Max flavor set has " << numevents_per_flavorset.find(maxset)->second << " entries. "
+    // 	      << "Consists of " << maxset.size() << " different tree flavors." << std::endl;
+
   }//end of user_build_index
 
 }
