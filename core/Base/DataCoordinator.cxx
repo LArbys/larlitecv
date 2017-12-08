@@ -270,10 +270,12 @@ namespace larlitecv {
 	std::cout << "[larlite unused. goto_entry driven by larlite stopped.]" << std::endl;
 	return;
       }
-      larlite_io.go_to( entry );
+      larlite_io.go_to( entry, false );
       fManagers["larlite"]->getRSE( entry, run, subrun, event );
+      std::cout << "[DataCoordinator] LL RSEE=("<<run<<","<<subrun<<","<<event<<","<<entry<<")"<<std::endl;
       if ( !larcv_unused ) {
 	fManagers["larcv"]->getEntry( run, subrun, event, other_entry );
+	std::cout << "[DataCoordinator] LC RSEE=("<<run<<","<<subrun<<","<<event<<","<<other_entry<<")"<<std::endl;
 	larcv_io.read_entry(other_entry);
       }
     }
@@ -284,11 +286,10 @@ namespace larlitecv {
       }
       larcv_io.read_entry( entry );
       fManagers["larcv"]->getRSE( entry, run, subrun, event );
+      std::cout << "[DataCoordinator] LC RSEE=("<<run<<","<<subrun<<","<<event<<","<<entry<<")"<<std::endl;
       if ( !larlite_unused ) {
 	fManagers["larlite"]->getEntry( run, subrun, event, other_entry );
-	// std::cout << "given larcv entry=" << entry  << " with "
-	// 	  << " rse=(" << run << ", " << subrun << ", " << event << ")"
-	// 	  << " corresponds to larlite entry=" << other_entry << std::endl;
+	std::cout << "[DataCoordinator] LL RSEE=("<<run<<","<<subrun<<","<<event<<","<<other_entry<<")"<<std::endl;
 	larlite_io.go_to( other_entry, false );
       }
     }
@@ -334,11 +335,12 @@ namespace larlitecv {
       larcv_io.save_entry();
     if ( !larlite_unused ) 
       larlite_io.next_event(true);
+    
     // writing done implicitly when event changes for larlite storage_manager
   }
 
   void DataCoordinator::set_id( int run, int subrun, int event ) {
-    if ( !larcv_unused ) larcv_io.set_id( run, subrun, event );
+    if ( !larcv_unused )  larcv_io.set_id( run, subrun, event );
     if ( !larlite_unused )larlite_io.set_id( run, subrun, event );    
     _current_run    = run;
     _current_subrun = subrun;
