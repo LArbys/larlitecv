@@ -334,6 +334,16 @@ namespace larlitecv {
       float croi_ycenters[2]  = { -60.0,  60.0 };
       float croi_dzcenters[2] = { -75.0,  75.0 };
       float croi_zcenter = m_intime_meanz.front();
+      if ( croi_zcenter>1036.0-croi_dzcenters[1] ){
+	croi_zcenter = 1036.0-croi_dzcenters[1];
+	std::cout << "z-center(" << m_intime_meanz.front() << " above higher bound, adjusting to " << croi_zcenter << std::endl;
+      }
+      if ( croi_zcenter+croi_dzcenters[0]<0 ) {
+	croi_zcenter = fabs(croi_dzcenters[0]);
+	std::cout << "z-center(" << m_intime_meanz.front() << " below lower bound, adjusting to " << croi_zcenter << std::endl;
+      }
+
+      
       bool split_z = m_config.split_fixed_ycroi;
       int icroi = 0;
       for (int ix=0; ix<2; ix++) {
