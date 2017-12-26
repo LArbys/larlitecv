@@ -17,8 +17,24 @@ namespace larlitecv {
   BoundarySpacePoint::BoundarySpacePoint( BoundaryEnd_t type, const std::vector<float>& pos, const std::vector<float>& dir, const larcv::ImageMeta& meta  )
   {
     std::vector<int> imgcoords = larcv::UBWireTool::getProjectedImagePixel( pos, meta, 3 );
-    for (int p=0; p<3; p++)
-      (*this).push_back( BoundaryEndPt(imgcoords[0],imgcoords[p+1],type) );
+
+    //if ( imgcoords[0]<0 ) imgcoords[0] = 0;
+    //if ( imgcoords[0]>=(int)meta.rows() ) imgcoords[0] = meta.rows()-1;
+
+    try {
+      for (int p=0; p<3; p++) {
+	//int col = imgcoords[p+1];
+	(*this).push_back( BoundaryEndPt(imgcoords[0],imgcoords[p+1],type) );
+      }
+    }
+    catch (std::exception& e) {
+      std::stringstream msg;
+      msg << __FILE__ << "::" << __LINE__ << "Error making BoundaryEndPts: " << e.what() << std::endl;
+      msg << " Input position (" << pos[0] << "," << pos[1] << "," << pos[2] << ")" << std::endl;
+      msg << " Imgcoords: (" << imgcoords[0] << "," << imgcoords[1] << "," << imgcoords[2] << "," << imgcoords[3] << ")" << std::endl;
+      throw std::runtime_error( msg.str() );
+    }
+    
     m_pos = pos;
     m_dir = dir;
     m_empty = false;
