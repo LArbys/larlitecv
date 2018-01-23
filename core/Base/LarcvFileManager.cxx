@@ -220,26 +220,26 @@ namespace larlitecv {
         finalrseset.push_back( rselist ); // this use to be a set....
       }
     }
-    std::vector< RSElist > finalrse_v;
+    std::set< RSElist > finalrse_v;
     for ( auto &rselist : finalrseset ) {
-      finalrse_v.push_back( rselist );
+      finalrse_v.insert( rselist );
     }
-    if ( isSorted() )
-      sort( finalrse_v.begin(), finalrse_v.end() );
 
     // make rse dictionaries
     int entrynum = 0;
+
     for ( auto &rselist : finalrse_v ) {
+      
       for ( auto &rse: rselist ) {
         rse2entry.insert( std::pair< RSE, int >( rse, entrynum ) );
         entry2rse.insert( std::pair< int, RSE >( entrynum, rse ) );
-	//std::cout << entrynum << " " << rse << std::endl;	
         entrynum++;
       }
       
       auto iter_rse2flist = rse_filelist.find( rselist );
       for ( auto &fpath : iter_rse2flist->second ) {
         finallist.push_back( fpath ); // we end up resorting
+	std::cout << "final list: " << fpath << " (ientry=" << entrynum << ",rse=" << rselist.run() << "," << rselist.subrun() << ")" << std::endl;
       }
       
     }
