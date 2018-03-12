@@ -324,6 +324,17 @@ namespace larlitecv {
     return _dE;
 
   }// loop over all hits
+
+  void TrackHitSorter::clear() {
+    for (int p=0; p<3; p++) {
+      path3d[p].clear();
+      dist3d[p].clear();
+      seg_v[p].clear();
+      segdist_v[p].clear();
+      pathordered[p].clear();
+      distordered[p].clear();
+    }
+  }
   
   void TrackHitSorter::dump() const {
     std::cout << "=========================================================" << std::endl;

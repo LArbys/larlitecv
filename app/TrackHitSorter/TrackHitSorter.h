@@ -54,6 +54,8 @@ namespace larlitecv {
     std::vector<HitOrder> pathordered[3]; // per plane. ordered by path length
     std::vector<HitOrder> distordered[3]; // per plane. ordered by distance from vertex
 
+    void clear();
+
     
   };
 
