@@ -241,10 +241,14 @@ namespace larlitecv {
 
     if ( readonlyvars.size()!=readonlyname.size() ) {
       std::cout << "ERROR: number of read-only data types and names are not the same." << std::endl;
+      std::cout << "readonlyvars sz= " << readonlyvars.size() << std::endl;
+      std::cout << "readonlyname sz= " << readonlyname.size() << std::endl;
       assert(false);
     }
     if ( writeonlyvars.size()!=writeonlyname.size() ) {
       std::cout << "ERROR: number of write-only data types and names are not the same." << std::endl;
+      std::cout << "writeonlyvars sz= " << writeonlyvars.size() << std::endl;
+      std::cout << "writeonlyname sz= " << writeonlyname.size() << std::endl;
       assert(false);
     }
 

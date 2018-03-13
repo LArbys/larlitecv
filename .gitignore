@@ -1,3 +1,9 @@
 *~
 *.pyc
 .depend
+build
+app/FlashMatchInterface
+app/LLCVProcessor
+app/TaggerTypes
+.#.*
+app/larlitecv_ff
