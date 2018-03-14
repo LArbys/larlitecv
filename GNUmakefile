@@ -25,8 +25,8 @@ CORE_SUBDIRS := Hashlib2plus Base
 #  CORE_SUBDIRS += CVUtil
 #endif
 
-APP_SUBDIRS := LLCVProcessor
-#APP_SUBDIRS := TaggerTypes FlashMatchInterface LLCVProcessor
+APP_SUBDIRS := TaggerTypes FlashMatchInterface TrackHitSorter LLCVProcessor
+#APP_SUBDIRS := LLCVProcessor
 
 .phony: all clean
 
