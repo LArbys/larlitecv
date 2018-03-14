@@ -161,7 +161,7 @@ namespace larlitecv {
     // these are in 3D, so we need to decide what s-values to collect for he projected hits
     const larutil::Geometry* geo = larutil::Geometry::GetME();
     //const larutil::LArProperties* larp = larutil::LArProperties::GetME();
-
+    
     for (int p=2; p<3; p++) {
 
       // get track segment information. both 3d and 2d projections
@@ -171,9 +171,7 @@ namespace larlitecv {
       //const std::vector< float >& pldist2d = segdist_v[p]; // coordinate
 
       // std::cout << "pldist2d.size()=" << pldist2d.size() << std::endl;
-      // std::cout << "pldist3d.size()=" << pldist3d.size() << std::endl;
-
-      bincenters_xyz[p].clear();
+      // std::cout << "pldist3d.size()=" << pldist3d.size() << std::endl;      
       
       float pathdist = 0.;
       for (auto const& d : pldist3d )
@@ -238,7 +236,7 @@ namespace larlitecv {
 	    //std::cout << "sbin_start update: " << segs1 << "+" << dels << " of " << segslen << std::endl;
 	  }
 	  
-	  if ( segd1<dend && dend<=segd2 ) {
+	  if ( segd1<dend && dend<segd2 ) {
 	    // straddles dend
 	    Double_t dend3d[3];
 	    for (int i=0; i<3; i++)
@@ -256,10 +254,9 @@ namespace larlitecv {
 	    sbin_end= s + dels;
 	  }
 
-	  if ( segd1<dcenter && dcenter<=segd2 ) {
+	  if ( segd1<dcenter && dcenter<segd2 ) {
 	    for (int i=0; i<3; i++)
 	      bincenter_xyz[i] = plpath3d[iseg][i] + segdir[i]*(dcenter-segd1);
-	    bincenters_xyz[p].push_back( bincenter_xyz );
 	  }
 
 	  // update
@@ -270,12 +267,9 @@ namespace larlitecv {
 	
 	// now we sum over hits in the srange we found
 	float q = 0;
-	int nhits = 0;
 	for ( auto const& hitho : pathordered[p] ) {
-	  if ( sbin_start < hitho.s && hitho.s < sbin_end ) {
+	  if ( sbin_start < hitho.s && hitho.s < sbin_end )
 	    q += hitho.phit->Integral();
-	    nhits++;
-	  }
 	}
 
 	float cm   = dend-dstart;
@@ -283,14 +277,13 @@ namespace larlitecv {
 	float dqdx = q/cm;
 	float dEdx = MeV/cm;
 
-	// std::cout << "bincenter:" << dcenter
-	// 	  << " centerxyz=(" << bincenter_xyz[0] << "," << bincenter_xyz[1] << "," << bincenter_xyz[2] << ") "
-	// 	  << "dbin=[" << dstart << "," << dend << "] "
-	// 	  << "sbin=[" << sbin_start << "," << sbin_end << "] "
-	// 	  << " nhits=" << nhits 
-	// 	  << " dqdx=" << dqdx
-	// 	  << " dEdx=" << dEdx
-	// 	  << std::endl;      
+	std::cout << "bincenter:" << dcenter
+		  << " centerxyz=(" << bincenter_xyz[0] << "," << bincenter_xyz[1] << "," << bincenter_xyz[2] << ") "
+		  << "dbin=[" << dstart << "," << dend << "] "
+		  << "sbin=[" << sbin_start << "," << sbin_end << "] "
+		  << " dqdx=" << dqdx
+		  << " dEdx=" << dEdx
+		  << std::endl;      
 	
 	dedx_per_plane[p].push_back( dEdx );
 	
@@ -340,7 +333,6 @@ namespace larlitecv {
       segdist_v[p].clear();
       pathordered[p].clear();
       distordered[p].clear();
-      bincenters_xyz[p].clear();
     }
   }
   
