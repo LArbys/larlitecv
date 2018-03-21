@@ -1,4 +1,6 @@
 import ROOT,os
+from ROOT import flashana
+flashana.LightPath()
 if not 'LARLITECV_BASEDIR' in os.environ:
     print '$LARLITECV_BASEDIR shell env. var. not found (run configure.sh)'
     raise ImportError
@@ -10,8 +12,6 @@ if 'LARCV_BASEDIR' in os.environ:
 larlitecv_dir = os.environ['LARLITECV_LIBDIR']
 for l in [x for x in os.listdir(larlitecv_dir) if x.endswith('.so')]:
     ROOT.gSystem.Load(l)
-from ROOT import flashana
-flashana.LightPath()
 from ROOT import larlitecv
 
 
