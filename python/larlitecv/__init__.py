@@ -10,5 +10,8 @@ if 'LARCV_BASEDIR' in os.environ:
 larlitecv_dir = os.environ['LARLITECV_LIBDIR']
 for l in [x for x in os.listdir(larlitecv_dir) if x.endswith('.so')]:
     ROOT.gSystem.Load(l)
+from ROOT import flashana
+flashana.LightPath()
 from ROOT import larlitecv
+
 
