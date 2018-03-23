@@ -11,7 +11,7 @@ namespace larlitecv {
 					   const std::vector<larlite::hit>& hit_v,
 					   const float max_radius,
 					   std::vector<int>& hitmask_v ) {
-
+    
     // geo utility
     const larutil::Geometry* geo = larutil::Geometry::GetME();
     const float driftv = larutil::LArProperties::GetME()->DriftVelocity();
@@ -24,7 +24,7 @@ namespace larlitecv {
       seg_v[p].clear();
       segdist_v[p].clear();
     }
-
+    
     // get plane position of vertex
     Double_t vtx_xyz[3];
     vertex.XYZ( vtx_xyz );
@@ -33,12 +33,14 @@ namespace larlitecv {
     std::vector<geo2d::Vector<float>> vtx_pt_v;
     for (int p=0; p<3; p++) {
       try {
-	vtx_w[p] = 0.3*geo->NearestWire( vtx_xyz, p );
-      } catch (const larutil::InvalidWireError& what) {
-	std::cout << "Could _not_ find nearest vtx_xyz wire @p=" << p 
-		  << " for (" << vtx_xyz[0] << "," << vtx_xyz[1] << "," << vtx_xyz[2] << ")" << std::endl;
-	vtx_w[p] = -1;
-      }
+	  vtx_w[p] = 0.3*geo->NearestWire( vtx_xyz, p );
+	} 
+      //catch (const larutil::InvalidWireError& err) 
+      catch (...)  {
+	  std::cout << "Could _not_ find nearest vtx_xyz wire @p=" << p 
+		    << " for (" << vtx_xyz[0] << "," << vtx_xyz[1] << "," << vtx_xyz[2] << ")" << std::endl;
+	  vtx_w[p] = -1;
+	}
       vtx_pt_v.push_back( geo2d::Vector<float>( vtx_w[p], vtx_x ) );
     }
 
@@ -61,7 +63,8 @@ namespace larlitecv {
 	try { 
 	  wire1 = geo->NearestWire( here, p );
 	} 
-	catch (const larutil::InvalidWireError& what) {
+	//catch (const larutil::InvalidWireError& err) {
+	catch (...) {
 	  std::cout << "Could _not_ find nearest wire1 @p=" << p 
 		    << " for (" << here[0] << "," << here[1] << "," << here[2] << ")" << std::endl;
 	}
@@ -69,7 +72,8 @@ namespace larlitecv {
 	try {
 	  wire2 = geo->NearestWire( next, p );
 	}
-	catch (const larutil::InvalidWireError& what) {
+	//catch (const larutil::InvalidWireError& err) {
+	catch (...) {
 	  std::cout << "Could _not_ find nearest wire2 @p=" << p 
 		    << " for (" << next[0] << "," << next[1] << "," << next[2] << ")" << std::endl;
 	}
