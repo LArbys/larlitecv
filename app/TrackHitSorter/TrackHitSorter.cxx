@@ -6,8 +6,11 @@
 
 namespace larlitecv {
 
-  void TrackHitSorter::buildSortedHitList( const larlite::vertex& vertex, const larlite::track& track, const std::vector<larlite::hit>& hit_v,
-					   const float max_radius, std::vector<int>& hitmask_v ) {
+  void TrackHitSorter::buildSortedHitList( const larlite::vertex& vertex,
+					   const larlite::track& track,
+					   const std::vector<larlite::hit>& hit_v,
+					   const float max_radius,
+					   std::vector<int>& hitmask_v ) {
 
     // geo utility
     const larutil::Geometry* geo = larutil::Geometry::GetME();
@@ -27,9 +30,15 @@ namespace larlitecv {
     vertex.XYZ( vtx_xyz );
     float vtx_x = vtx_xyz[0];
     std::vector<float> vtx_w(3);
-    std::vector< geo2d::Vector<float> > vtx_pt_v;
+    std::vector<geo2d::Vector<float>> vtx_pt_v;
     for (int p=0; p<3; p++) {
-      vtx_w[p] = 0.3*geo->NearestWire( vtx_xyz, p );
+      try {
+	vtx_w[p] = 0.3*geo->NearestWire( vtx_xyz, p );
+      } catch (const larutil::InvalidWireError& what) {
+	std::cout << "Could _not_ find nearest vtx_xyz wire @p=" << p 
+		  << " for (" << vtx_xyz[0] << "," << vtx_xyz[1] << "," << vtx_xyz[2] << ")" << std::endl;
+	vtx_w[p] = -1;
+      }
       vtx_pt_v.push_back( geo2d::Vector<float>( vtx_w[p], vtx_x ) );
     }
 
@@ -46,8 +55,34 @@ namespace larlitecv {
 
       std::cout << "[ipt" << ipt << "] ";
       for (int p=0; p<3; p++) {
-	float wire1 = geo->NearestWire( here, p );
-	float wire2 = geo->NearestWire( next, p );
+	
+	float wire1 = -1;
+	float wire2 = -1;
+	try { 
+	  wire1 = geo->NearestWire( here, p );
+	} 
+	catch (const larutil::InvalidWireError& what) {
+	  std::cout << "Could _not_ find nearest wire1 @p=" << p 
+		    << " for (" << here[0] << "," << here[1] << "," << here[2] << ")" << std::endl;
+	}
+
+	try {
+	  wire2 = geo->NearestWire( next, p );
+	}
+	catch (const larutil::InvalidWireError& what) {
+	  std::cout << "Could _not_ find nearest wire2 @p=" << p 
+		    << " for (" << next[0] << "," << next[1] << "," << next[2] << ")" << std::endl;
+	}
+	
+	if (wire1 < 0) {
+	  std::cout << "What are we supossed to do? wire1 < 0 continue" << std::endl;
+	  continue;
+	}
+	if (wire2 < 0) {
+	  std::cout << "What are we supossed to do? wire2 < 0 continue" << std::endl;
+	  continue;
+	}
+
 	geo2d::LineSegment<float> ls( wire1*0.3, here.X(), wire2*0.3, next.X() ); // tick and wire in cm units. we want the distance to be in cm.
 	std::cout << "p" << p << "=[ (" << wire1*0.3 << "," << here.X() << ") (" << wire2*0.3 << "," << next.X() << ") ] ";
 	if ( geo2d::length2(ls)>0 ) {
@@ -76,8 +111,10 @@ namespace larlitecv {
 	  }
 	  seglen3 = sqrt(seglen3);
 	  dist3d[p].push_back(seglen3);
-	}
-      }
+	} // end positive length
+
+      } // end plane
+
       std::cout << std::endl;
       ipt++;
     }
