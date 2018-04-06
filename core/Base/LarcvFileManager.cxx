@@ -10,6 +10,8 @@
 #include <algorithm>
 
 #include "larcv/core/DataFormat/EventBase.h"
+#include "larcv/core/DataFormat/DataProductFactory.h"
+#include "larcv/core/DataFormat/EventImage2D.h"
 //#include "larcv/core/DataFormat/EventROI.h"
 
 
@@ -28,6 +30,7 @@ namespace larlitecv {
   void LarcvFileManager::user_build_index( const std::vector<std::string>& input, 
 					   std::vector<std::string>& finallist,
 					   std::map< RSE, int >& rse2entry, std::map< int, RSE >& entry2rse ) {
+
     std::set<std::string> producers;
     std::set<std::string> datatypes;
     std::set<std::string> treeflavors;
@@ -72,7 +75,7 @@ namespace larlitecv {
           idtreename = keyname;
           idtreetype = dtype;
           idtreeproducer = producer;
-	  std::cout << "set idtreeproducer: " << idtreeproducer << " dtype=" << idtreetype << std::endl;
+	  std::cout << "set idtreeproducer: " << idtreeproducer << " dtype=" << idtreetype << " treename=" << idtreename << std::endl;
         }
         producers.insert( producer );
         datatypes.insert( dtype );
@@ -102,7 +105,7 @@ namespace larlitecv {
       TTree* idtree = (TTree*)rfile.Get( idtreename.c_str() );
       ULong_t run, subrun, event;
       larcv::EventBase* product_ptr = nullptr; 
-      product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(idtreeproducer));
+      product_ptr = (larcv::EventBase*)(larcv::DataProductFactory::get().create(idtreetype,idtreeproducer));
       if ( product_ptr==NULL ) {
         throw std::runtime_error( "could not find a LArCV tree to build an index with." );
       }
