@@ -356,10 +356,16 @@ namespace larlitecv {
     float _tick = xyz[0]/cm_per_tick; // from trigger (not abs scale)
     
     float _lifetime_corr = exp( _tick * _clocktick / _tau );
-    float _elec_gain     = 240; // data
-    //float _elec_gain     = 200; // MC
-    float _recomb_factor = 0.62;
 
+    float _elec_gain = -1.0;
+    
+    if(_ismc)
+      _elec_gain     = 200; // MC -- MCC 8.3 value
+    else
+      _elec_gain     = 240; // Data -- MCC 8.3 value
+    
+    float _recomb_factor = 0.62;
+    
     //double qcorr = ChargeCorrection(h.charge,h.w,h.t,resultShower.fDCosStart,resultShower.fXYZStart);
     double qcorr = 1.0*q; // skipping correction for now;
 
