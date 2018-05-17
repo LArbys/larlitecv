@@ -49,7 +49,7 @@ all: $(PROGRAMS)
 	@echo '<<compiling' $@'>>'
 	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(OBJS) $(LDFLAGS)
 	@rm -rf *.dSYM
-	@echo '<<copy to $LARLITECV_BASEDIR' $@'>>'
+	@echo '<<copy to LARLITECV_BASEDIR' $@'>>'
 	cp $@ $(LARLITECV_BASEDIR)/bin/
 
 clean:	

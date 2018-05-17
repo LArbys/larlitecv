@@ -33,6 +33,15 @@ int main( int nargs, char** argv ) {
   larlite::LEEPreCut  precutalgo;
   precutalgo.configure( precutcfg );
   precutalgo.initialize(); // actually does nothing
+
+  // Setup app output
+  bool make_precut_tree = pset.get<bool>("MakePreCutOutputTree",false);
+  std::string precut_tfile_outname = "";
+  if ( make_precut_tree )
+    precut_tfile_outname = pset.get<std::string>("PreCutOutputTFileName","");
+  TFile fout( precut_tfile_outname.c_str(), "recreate");
+  TTree tout( "dlprecut", "DL PMT Precut Output Tree");
+  precutalgo.bindOutputVariablesToTree( &tout );
   
   // Setup Input Data Coordindator
   larlitecv::DataCoordinator dataco;
@@ -82,6 +91,8 @@ int main( int nargs, char** argv ) {
     bool passes_precut = precutalgo.analyze( &(dataco.get_larlite_io()) );
     
     std::cout << "  PMT precut result: " << passes_precut << std::endl;
+    if ( make_precut_tree )
+      tout.Fill();
 
     if ( passes_precut ) {
       dataco.save_entry();      
@@ -90,6 +101,8 @@ int main( int nargs, char** argv ) {
   }
 
   dataco.finalize();
+  fout.Write();
+  fout.Close();
   
   return 0;
 }
