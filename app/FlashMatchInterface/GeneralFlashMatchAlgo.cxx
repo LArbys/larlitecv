@@ -1,3 +1,6 @@
+#ifndef __GENERALFLASHMATCHALGO_CXX__
+#define __GENERALFLASHMATCHALGO_CXX__
+
 // (All of the functions for flash matching from 'ContainedROI/TaggerFlashMatchAlgo.h' are included in "GeneralFlashMatchAlgo.h".
 #include "GeneralFlashMatchAlgo.h"
 
@@ -876,3 +879,5 @@ namespace larlitecv {
   }
   
 }
+
+#endif
