@@ -1,4 +1,3 @@
-
 import sys,os,commands
 
 dirs=[]
@@ -11,6 +10,11 @@ if 'LARLITE_BASEDIR' in os.environ:
     libs+= commands.getoutput('larlite-config --libs').split()
     libs+= ["-lBasicTool_FhiclLite","-lBasicTool_GeoAlgo","-lSelectionTool_OpT0FinderAna","-lSelectionTool_OpT0FinderApp",
             "-lSelectionTool_OpT0PhotonLibrary","-lSelectionTool_OpT0FinderAlgorithms","-lSelectionTool_OpT0FinderBase"]
+    lllibs = [x.replace("lib","-l").replace(".so","") for x in os.listdir(os.environ["LARLITE_LIBDIR"]) if x.endswith('.so') and "LArOpenCV" in x ]
+    #libs += ["-L%s"%(os.environ["LARLITE_LIBDIR"])]
+    libs += lllibs
+if 'GEO2D_BASEDIR' in os.environ:
+    libs+= commands.getoutput('geo2d-config --libs').split()
 if 'LARCV_BASEDIR' in os.environ:
     libs+= commands.getoutput('larcv-config --libs').split()
 if 'ANN_LIBDIR' in os.environ:
