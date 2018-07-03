@@ -255,13 +255,27 @@ namespace larlitecv {
     for ( size_t i=0; i<readonlyvars.size(); i++ ) {
       std::string rdvar  = readonlyvars.at(i);
       larlite::data::DataType_t datat = get_enum_fromstring( rdvar );
-      if ( datat!=larlite::data::kUndefined ) ioman.set_data_to_read( datat, readonlyname.at(i) );
+      if ( datat!=larlite::data::kUndefined ) {
+	ioman.set_data_to_read( datat, readonlyname.at(i) );
+      } else {
+	std::stringstream ss;
+	ss << "given rdvar=" << rdvar << " does not correspond to get_enum_fromstring" << std::endl;
+	throw std::runtime_error(ss.str());
+      }
     }
 
     for ( size_t i=0; i<writeonlyvars.size(); i++ ) {
       std::string rdvar  = writeonlyvars.at(i);
       larlite::data::DataType_t datat = get_enum_fromstring( rdvar );
-      if ( datat!=larlite::data::kUndefined ) ioman.set_data_to_write( datat, writeonlyname.at(i) );
+      std::cout << "datat=" << (int)datat << std::endl;
+      if ( datat!=larlite::data::kUndefined ) {
+	ioman.set_data_to_write( datat, writeonlyname.at(i) );
+      }
+      else {
+	std::stringstream ss;
+	ss << "given rdvar=" << rdvar << " does not correspond to get_enum_fromstring" << std::endl;
+	throw std::runtime_error(ss.str());
+      }
     }
 
   }
