@@ -7,3 +7,4 @@
 *.txt
 build
 bin/run_*
+bin/apply_pmtprecuts
