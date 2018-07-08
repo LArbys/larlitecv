@@ -1,3 +1,6 @@
+#ifndef __GENERALFLASHMATCHALGOCONFIG_CXX__
+#define __GENERALFLASHMATCHALGOCONFIG_CXX__
+
 #include "GeneralFlashMatchAlgoConfig.h"
 
 #include "LArUtil/Geometry.h"
@@ -65,3 +68,4 @@ namespace larlitecv {
   }
 }
 
+#endif

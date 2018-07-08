@@ -7,4 +7,6 @@
 *.txt
 build
 bin/run_*
+<<<<<<< HEAD
 bin/apply_pmtprecuts
+*.DS_Store
