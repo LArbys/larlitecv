@@ -5,6 +5,8 @@
 // larlite
 #include "DataFormat/mctrack.h"
 #include "DataFormat/mcshower.h"
+#include "larlite/UserDev/BasicTool/FhiclLite/PSet.h"
+#include "larlite/UserDev/SelectionTool/LEEPreCuts/LEEPreCut.h"
 
 // larcv
 #include "Base/PSet.h"
@@ -42,8 +44,8 @@ int main(int nargs, char** argv ) {
   
   // Print Statement
   std::cout << "Making the PSet into a Configuration file." << std::endl;
-
-  larlitecv::TaggerCROIAlgoConfig tagger_cfg = larlitecv::TaggerCROIAlgoConfig::makeConfigFromFile( cfg_file );
+  
+  // Configure application
   std::string larcv_image_producer = pset.get<std::string>("LArCVImageProducer");
   std::string larcv_chstatus_producer = pset.get<std::string>("LArCVChStatusProducer");  
   bool DeJebWires = pset.get<bool>("DeJebWires");
@@ -51,6 +53,7 @@ int main(int nargs, char** argv ) {
   std::vector<float> emptych_thresh = pset.get< std::vector<float> >("EmptyChannelThreshold");
   std::string chstatus_datatype = pset.get<std::string>("ChStatusDataType");
   std::vector<std::string> opflash_producers = pset.get< std::vector<std::string> >( "OpflashProducers" );
+  bool RunThruMu = pset.get<bool>("RunPreCuts");  
   bool RunThruMu = pset.get<bool>("RunThruMu");
   bool RunStopMu = pset.get<bool>("RunStopMu");
   bool RunCROI   = pset.get<bool>("RunCROI");
@@ -61,6 +64,17 @@ int main(int nargs, char** argv ) {
   bool skip_empty_events = pset.get<bool>("SkipEmptyEvents",false);
   bool apply_unipolar_hack = pset.get<bool>("ApplyUnipolarHack",false);
 
+  // Configure DL PMT PreCuts
+  larcv::PSet pset = cfg.get<larcv::PSet>("ApplyPMTPrecuts"); // get parameter set from cfg
+  fcllite::PSet tmp( "tmp",pset.get<larcv::PSet>("LEEPreCut").data_string() );  // convert to fcllite version of pset
+  fcllite::PSet precutcfg( tmp.get<fcllite::PSet>("LEEPreCut") );
+  larlite::LEEPreCut  precutalgo;
+  precutalgo.configure( precutcfg ); // setup the algo
+  precutalgo.initialize(); // actually does nothing  
+  
+  // Configure Tagger Algos
+  larlitecv::TaggerCROIAlgoConfig tagger_cfg = larlitecv::TaggerCROIAlgoConfig::makeConfigFromFile( cfg_file );
+  
   // Setup Input Data Coordindator
   larlitecv::DataCoordinator dataco;
   dataco.set_filelist( pset.get<std::string>("LArCVInputFilelist"),   "larcv"   );
@@ -68,12 +82,11 @@ int main(int nargs, char** argv ) {
   dataco.configure( cfg_file, "StorageManager", "IOManager", "TaggerCROI" );
   dataco.initialize();
 
-  //dataco.get_larlite_io().set_read_cache_size(0);
-
   // Output Data Coordinator
   larlitecv::DataCoordinator dataco_out;
   dataco_out.configure( cfg_file, "StorageManagerOut", "IOManagerOut", "TaggerCROI" );
   dataco_out.initialize();
+  
 
   // Get run entries
   int nentries = dataco.get_nentries("larcv");
@@ -125,6 +138,10 @@ int main(int nargs, char** argv ) {
     // -------------------------------------------------------------------------------------------//
     // RUN ALGOS
     std::cout << "[ RUN ALGOS ]" << std::endl;
+
+    if ( RunPMTPreCuts ) {
+
+    }
 
     if ( RunThruMu ) {
       larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
