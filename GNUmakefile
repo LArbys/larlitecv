@@ -36,7 +36,7 @@ APP_SUBDIRS += ThruMu StopMu UntaggedClustering ContainedROI TaggerCROI
 
 .phony: all clean
 
-all: obj lib bin
+all: obj lib
 
 clean: clean_app clean_core
 	@rm -f $(LARLITECV_LIBDIR)/liblarlitecv.so

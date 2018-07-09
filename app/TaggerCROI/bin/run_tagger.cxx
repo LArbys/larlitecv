@@ -5,6 +5,7 @@
 // larlite
 #include "DataFormat/mctrack.h"
 #include "DataFormat/mcshower.h"
+#include "DataFormat/user_info.h"
 #include "larlite/UserDev/BasicTool/FhiclLite/PSet.h"
 #include "larlite/UserDev/SelectionTool/LEEPreCuts/LEEPreCut.h"
 
@@ -53,10 +54,11 @@ int main(int nargs, char** argv ) {
   std::vector<float> emptych_thresh = pset.get< std::vector<float> >("EmptyChannelThreshold");
   std::string chstatus_datatype = pset.get<std::string>("ChStatusDataType");
   std::vector<std::string> opflash_producers = pset.get< std::vector<std::string> >( "OpflashProducers" );
-  bool RunThruMu = pset.get<bool>("RunPreCuts");  
-  bool RunThruMu = pset.get<bool>("RunThruMu");
-  bool RunStopMu = pset.get<bool>("RunStopMu");
-  bool RunCROI   = pset.get<bool>("RunCROI");
+  bool RunPreCuts   = pset.get<bool>("RunPrecuts");   // Run the algo
+  bool ApplyPrecuts = pset.get<bool>("ApplyPrecuts"); // Apply the cuts. If precuts fail, we do not produce CROIs.
+  bool RunThruMu  = pset.get<bool>("RunThruMu");
+  bool RunStopMu  = pset.get<bool>("RunStopMu");
+  bool RunCROI    = pset.get<bool>("RunCROI");
   bool save_thrumu_space = pset.get<bool>("SaveThruMuSpace", false);
   bool save_stopmu_space = pset.get<bool>("SaveStopMuSpace", false);
   bool save_croi_space   = pset.get<bool>("SaveCROISpace",   false);
@@ -65,7 +67,6 @@ int main(int nargs, char** argv ) {
   bool apply_unipolar_hack = pset.get<bool>("ApplyUnipolarHack",false);
 
   // Configure DL PMT PreCuts
-  larcv::PSet pset = cfg.get<larcv::PSet>("ApplyPMTPrecuts"); // get parameter set from cfg
   fcllite::PSet tmp( "tmp",pset.get<larcv::PSet>("LEEPreCut").data_string() );  // convert to fcllite version of pset
   fcllite::PSet precutcfg( tmp.get<fcllite::PSet>("LEEPreCut") );
   larlite::LEEPreCut  precutalgo;
@@ -139,9 +140,28 @@ int main(int nargs, char** argv ) {
     // RUN ALGOS
     std::cout << "[ RUN ALGOS ]" << std::endl;
 
-    if ( RunPMTPreCuts ) {
-
+    if ( RunPreCuts ) {
+      precutalgo.analyze( &(dataco.get_larlite_io()) );
+      // save data in larlite user data structure
+      larlite::event_user* ev_precutresults = (larlite::event_user*)dataco.get_larlite_data( larlite::data::kUserInfo, "precutresults" );
+      larlite::user_info precut_results;
+      precut_results.store( "pass",    precutalgo.passes() );
+      precut_results.store( "vetoPE",  precutalgo.vetoPE() );
+      precut_results.store( "beamPE",  precutalgo.beamPE() );
+      precut_results.store( "maxFrac", precutalgo.maxFrac() );
+      ev_precutresults->emplace_back( std::move(precut_results) );      
     }
+    else {
+      // create dummy values
+      larlite::event_user* ev_precutresults = (larlite::event_user*)dataco.get_larlite_data( larlite::data::kUserInfo, "precutresults" );
+      larlite::user_info precut_results;      
+      precut_results.store( "pass",     1   );
+      precut_results.store( "vetoPE",  -1.0 );
+      precut_results.store( "beamPE",  -1.0 );
+      precut_results.store( "maxFrac", -1.0 );
+      ev_precutresults->emplace_back( std::move(precut_results) );
+    }
+
 
     if ( RunThruMu ) {
       larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
