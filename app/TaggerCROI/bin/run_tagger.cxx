@@ -143,17 +143,17 @@ int main(int nargs, char** argv ) {
     if ( RunPreCuts ) {
       precutalgo.analyze( &(dataco.get_larlite_io()) );
       // save data in larlite user data structure
-      larlite::event_user* ev_precutresults = (larlite::event_user*)dataco.get_larlite_data( larlite::data::kUserInfo, "precutresults" );
+      larlite::event_user* ev_precutresults = (larlite::event_user*)dataco_out.get_larlite_data( larlite::data::kUserInfo, "precutresults" );
       larlite::user_info precut_results;
       precut_results.store( "pass",    precutalgo.passes() );
       precut_results.store( "vetoPE",  precutalgo.vetoPE() );
       precut_results.store( "beamPE",  precutalgo.beamPE() );
       precut_results.store( "maxFrac", precutalgo.maxFrac() );
-      ev_precutresults->emplace_back( std::move(precut_results) );      
+      ev_precutresults->emplace_back( std::move(precut_results) );
     }
     else {
       // create dummy values
-      larlite::event_user* ev_precutresults = (larlite::event_user*)dataco.get_larlite_data( larlite::data::kUserInfo, "precutresults" );
+      larlite::event_user* ev_precutresults = (larlite::event_user*)dataco_out.get_larlite_data( larlite::data::kUserInfo, "precutresults" );
       larlite::user_info precut_results;      
       precut_results.store( "pass",     1   );
       precut_results.store( "vetoPE",  -1.0 );
