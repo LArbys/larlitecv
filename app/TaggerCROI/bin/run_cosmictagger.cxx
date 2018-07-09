@@ -3,6 +3,11 @@
 
 #include "TaggerCROI/CosmicTagger.h"
 
+// This is still in development. But as you can see its trying to make things cleaner
+// Basically moving the code in run_tagger.cxx into its own class and trying to
+// make things modular so that it can be easily run in a notebook.
+// But official tagger is still run_tagger.cxx
+
 int main( int nargs, const char** argv ) {
 
   std::string cfg = argv[1];
