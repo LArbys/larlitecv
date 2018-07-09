@@ -54,8 +54,8 @@ int main(int nargs, char** argv ) {
   std::vector<float> emptych_thresh = pset.get< std::vector<float> >("EmptyChannelThreshold");
   std::string chstatus_datatype = pset.get<std::string>("ChStatusDataType");
   std::vector<std::string> opflash_producers = pset.get< std::vector<std::string> >( "OpflashProducers" );
-  bool RunPreCuts   = pset.get<bool>("RunPrecuts");   // Run the algo
-  bool ApplyPrecuts = pset.get<bool>("ApplyPrecuts"); // Apply the cuts. If precuts fail, we do not produce CROIs.
+  bool RunPreCuts   = pset.get<bool>("RunPreCuts");   // Run the algo
+  bool ApplyPreCuts = pset.get<bool>("ApplyPreCuts"); // Apply the cuts. If precuts fail, we do not produce CROIs.
   bool RunThruMu  = pset.get<bool>("RunThruMu");
   bool RunStopMu  = pset.get<bool>("RunStopMu");
   bool RunCROI    = pset.get<bool>("RunCROI");
@@ -162,37 +162,53 @@ int main(int nargs, char** argv ) {
       ev_precutresults->emplace_back( std::move(precut_results) );
     }
 
-
-    if ( RunThruMu ) {
-      larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
-      if ( save_thrumu_space )
-        thrumu_data.saveSpace();
-
-      if ( RunStopMu ) {
-        larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
-        // we skip stopmu. we mimic instead.
-        // larlitecv::StopMuPayload stopmu_data;
-        // // make empty tagged pixel images
-        // for ( auto const& img : input_data.img_v ) {
-        //   larcv::Image2D stopmu_fake( img.meta() );
-        //   stopmu_fake.paint(0);
-        //   stopmu_data.stopmu_v.emplace_back( std::move(stopmu_fake) );
-        // }
-
-        if ( save_stopmu_space )
-          stopmu_data.saveSpace();
-
-        if ( RunCROI ) {
-          larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
-          if ( save_croi_space )
-            croi_data.saveSpace();
-          WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out );
-        }
-        WriteStopMuPayload( stopmu_data, input_data, tagger_cfg, dataco_out );
-      }//end of if stopmu
-
-      WriteThruMuPayload( thrumu_data, input_data, tagger_cfg, dataco_out );
+    if ( ApplyPreCuts && precutalgo.passes()==0 ) {
+      // precuts failed.
+      // we want to create an empty entry still
+      larlitecv::ThruMuPayload thrumu_data;
+      larlitecv::StopMuPayload stopmu_data;
+      larlitecv::CROIPayload   croi_data;
+      WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out, fillempty=true );
+      WriteStopMuPayload( croi_data, input_data, tagger_cfg, dataco_out, fillempty=true );
+      WriteThruMuPayload( croi_data, input_data, tagger_cfg, dataco_out, fillempty=true );      
     }
+    else {
+
+      // if we are not applying the precuts (only running the algo)
+      // or if we passed the precuts (yay!)
+      // then run the rest of the tagger code
+      
+      if ( RunThruMu ) {
+	larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
+	if ( save_thrumu_space )
+	  thrumu_data.saveSpace();
+	
+	if ( RunStopMu ) {
+	  larlitecv::StopMuPayload stopmu_data = tagger_algo.runStopMu( input_data, thrumu_data );
+	  // we skip stopmu. we mimic instead.
+	  // larlitecv::StopMuPayload stopmu_data;
+	  // // make empty tagged pixel images
+	  // for ( auto const& img : input_data.img_v ) {
+	  //   larcv::Image2D stopmu_fake( img.meta() );
+	  //   stopmu_fake.paint(0);
+	  //   stopmu_data.stopmu_v.emplace_back( std::move(stopmu_fake) );
+	  // }
+	  
+	  if ( save_stopmu_space )
+	    stopmu_data.saveSpace();
+	  
+	  if ( RunCROI ) {
+	    larlitecv::CROIPayload croi_data = tagger_algo.runCROISelection( input_data, thrumu_data, stopmu_data );
+	    if ( save_croi_space )
+	      croi_data.saveSpace();
+	    WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out );
+	  }
+	  WriteStopMuPayload( stopmu_data, input_data, tagger_cfg, dataco_out );
+	}//end of if stopmu
+	
+	WriteThruMuPayload( thrumu_data, input_data, tagger_cfg, dataco_out );
+      }
+    }// if dont apply precuts or precuts pass
 
     // -------------------------------------------------------------------------------------------//
     // SAVE DATA
