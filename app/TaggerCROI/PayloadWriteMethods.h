@@ -14,13 +14,13 @@
 
 namespace larlitecv {
 
-	void WriteInputPayload( const InputPayload&, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco );
-
-	void WriteThruMuPayload( const ThruMuPayload& data, const InputPayload&, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco );
-
-	void WriteStopMuPayload( const StopMuPayload& data, const InputPayload&, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco );
-
-	void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco );
+  void WriteInputPayload( const InputPayload&, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco );
+  
+  void WriteThruMuPayload( const ThruMuPayload& data, const InputPayload&, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco, bool fillempty=false );
+  
+  void WriteStopMuPayload( const StopMuPayload& data, const InputPayload&, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco, bool fillempty=false );
+  
+  void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco, bool fillempty=false );
 
 }
 

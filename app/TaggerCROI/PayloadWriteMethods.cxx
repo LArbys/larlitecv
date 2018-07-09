@@ -29,7 +29,7 @@ namespace larlitecv {
     evout_opflash->clear();
     evout_badch->clear();
     evout_gapchs->clear();
-    
+
     // input
     if ( config.input_write_cfg.get<bool>("SaveInputTPC") ) {
       for ( auto const& img : data.img_v )
@@ -59,7 +59,7 @@ namespace larlitecv {
   }
 
 
-  void WriteThruMuPayload( const ThruMuPayload& data, const InputPayload& input, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
+  void WriteThruMuPayload( const ThruMuPayload& data, const InputPayload& input, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco, bool fillempty ) {
 
     // event containers
     larcv::EventImage2D* realspace_imgs = (larcv::EventImage2D*)dataco.get_larcv_data( larcv::kProductImage2D, "realspacehits" );
@@ -98,6 +98,9 @@ namespace larlitecv {
     ev_tracks->clear();
     event_markedimgs->clear();
 
+    if ( fillempty )
+      return;
+    
     // fill containers
     // ---------------
       
@@ -209,7 +212,7 @@ namespace larlitecv {
 
   }
 
-  void WriteStopMuPayload( const StopMuPayload& data, const InputPayload& input, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
+  void WriteStopMuPayload( const StopMuPayload& data, const InputPayload& input, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco, bool fillempty ) {
     
     // define containers
     larlite::event_track* ev_tracks = (larlite::event_track*)dataco.get_larlite_data( larlite::data::kTrack, "stopmu3d" );
@@ -220,6 +223,9 @@ namespace larlitecv {
     ev_tracks->clear();
     stopmu_eventimgs->clear();
     ev_stopmupixels->clear();
+
+    if ( fillempty )
+      return;
     
     // save 3D track object
     if ( config.stopmu_write_cfg.get<bool>("WriteStopMuTracks") ) {
@@ -256,7 +262,7 @@ namespace larlitecv {
     }
   }
 
-  void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco ) {
+  void WriteCROIPayload( const CROIPayload& data, const InputPayload& inputdata, const TaggerCROIAlgoConfig& config, DataCoordinator& dataco, bool fillempty ) {
 
     // CRITICAL OUTPUT: NO FLAGS
 
@@ -308,6 +314,10 @@ namespace larlitecv {
     track_opflash_out->clear();
     ev_user_info->clear();
 
+
+    if ( fillempty )
+      return;
+    
     // fill
     // ----
 

@@ -168,9 +168,10 @@ int main(int nargs, char** argv ) {
       larlitecv::ThruMuPayload thrumu_data;
       larlitecv::StopMuPayload stopmu_data;
       larlitecv::CROIPayload   croi_data;
-      WriteCROIPayload( croi_data, input_data, tagger_cfg, dataco_out, fillempty=true );
-      WriteStopMuPayload( croi_data, input_data, tagger_cfg, dataco_out, fillempty=true );
-      WriteThruMuPayload( croi_data, input_data, tagger_cfg, dataco_out, fillempty=true );      
+      bool fillempty = true;
+      WriteCROIPayload(   croi_data,   input_data, tagger_cfg, dataco_out, fillempty );
+      WriteStopMuPayload( stopmu_data, input_data, tagger_cfg, dataco_out, fillempty );
+      WriteThruMuPayload( thrumu_data, input_data, tagger_cfg, dataco_out, fillempty );      
     }
     else {
 
