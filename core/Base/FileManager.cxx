@@ -89,6 +89,11 @@ namespace larlitecv {
       std::cout << "Could not make cache folder .pylardcache" << std::endl;
       assert(false);
     }
+    err = system("chmod a+rwx .pylardcache");
+    if ( err!=0 ) {
+      std::cout << "Could not chmod .pylardcache" << std::endl;
+      assert(false);
+    }
     std::string cachefile = ".pylardcache/"+hash+".root";
     TFile rcache( cachefile.c_str(), "recreate" );
     TTree tcache("entry2rse","RSE to entry map");
@@ -112,6 +117,12 @@ namespace larlitecv {
     }
     //tcache.Write();
     rcache.Write();
+    std::string chmod_cachefile = "chmod a+rwx " + cachefile;
+    err = system(chmod_cachefile.c_str());
+    if ( err!=0 ) {
+       std::cout << "Could no chmod cachefile" << std::endl;
+       assert(false);
+    }
   }
 
   void FileManager::load_from_cache( std::string hash ) {
