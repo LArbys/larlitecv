@@ -8,3 +8,6 @@ app/TaggerTypes
 app/TrackHitSorter
 .#.*
 app/larlitecv_ff
+bin/apply_pmtprecuts
+bin/run_pixel_analysis
+bin/run_tagger

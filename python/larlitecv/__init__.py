@@ -1,4 +1,5 @@
-import ROOT,os
+import os
+import ROOT
 from ROOT import flashana
 flashana.LightPath()
 if not 'LARLITECV_BASEDIR' in os.environ:
