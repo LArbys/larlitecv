@@ -35,7 +35,6 @@ namespace larlitecv {
     bool extend_cosmics;
     bool use_fixed_croi;
     bool split_fixed_ycroi;
-    std::vector<int> beam_tick_range;
     std::vector<float> FVCutX;
     std::vector<float> FVCutY;
     std::vector<float> FVCutZ;

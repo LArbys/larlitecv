@@ -12,9 +12,6 @@ namespace larlitecv {
     MeV_per_cm = 2.3;
     fudge_factor = 33333.0;
     fudge_factor_cosmic = 16666.5;
-    beam_tick_range.resize(2);
-    beam_tick_range[0] = 150;
-    beam_tick_range[1] = 400;
     us_per_tick = 0.015625;
     pmtflash_thresh = 3;
     flashpe_thresh = 10.0;
