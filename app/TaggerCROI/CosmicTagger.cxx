@@ -554,9 +554,9 @@ namespace larlitecv {
     // invalidate downstream
     m_state.boundary_run = m_state.thrumu_run = m_state.stopmu_run = m_state.untagged_run = m_state.croi_run = false;
 
-    larlitecv::ThruMuPayload thrumu_data;
-    //try {
-    thrumu_data = m_taggercroialgo->runThruMu( m_input_data );
+    larlitecv::ThruMuPayload thrumu_data = m_taggercroialgo->runBoundaryPointFinder( m_input_data );
+    // try {
+    m_taggercroialgo->runThruMu( m_input_data, thrumu_data );
     // }
     // catch ( const std::exception& e ) {
     //   std::cerr << "Error Running ThruMu: " << e.what() << std::endl;

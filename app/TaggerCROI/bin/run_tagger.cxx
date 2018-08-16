@@ -56,6 +56,7 @@ int main(int nargs, char** argv ) {
   std::vector<std::string> opflash_producers = pset.get< std::vector<std::string> >( "OpflashProducers" );
   bool RunPreCuts   = pset.get<bool>("RunPreCuts");   // Run the algo
   bool ApplyPreCuts = pset.get<bool>("ApplyPreCuts"); // Apply the cuts. If precuts fail, we do not produce CROIs.
+  bool ApplyEndPointLimit = pset.get<bool>("ApplyEndPointLimit");
   bool RunThruMu  = pset.get<bool>("RunThruMu");
   bool RunStopMu  = pset.get<bool>("RunStopMu");
   bool RunCROI    = pset.get<bool>("RunCROI");
@@ -65,6 +66,7 @@ int main(int nargs, char** argv ) {
   bool save_mc           = pset.get<bool>("SaveMC",false);
   bool skip_empty_events = pset.get<bool>("SkipEmptyEvents",false);
   bool apply_unipolar_hack = pset.get<bool>("ApplyUnipolarHack",false);
+  int fEndPointLimit     = pset.get<int>("EndPointLimit");
 
   // Configure DL PMT PreCuts
   fcllite::PSet tmp( "tmp",pset.get<larcv::PSet>("LEEPreCut").data_string() );  // convert to fcllite version of pset
@@ -140,6 +142,7 @@ int main(int nargs, char** argv ) {
     // RUN ALGOS
     std::cout << "[ RUN ALGOS ]" << std::endl;
 
+    bool continue_tagger = true;
     if ( RunPreCuts ) {
       precutalgo.analyze( &(dataco.get_larlite_io()) );
       // save data in larlite user data structure
@@ -171,16 +174,51 @@ int main(int nargs, char** argv ) {
       bool fillempty = true;
       WriteCROIPayload(   croi_data,   input_data, tagger_cfg, dataco_out, fillempty );
       WriteStopMuPayload( stopmu_data, input_data, tagger_cfg, dataco_out, fillempty );
-      WriteThruMuPayload( thrumu_data, input_data, tagger_cfg, dataco_out, fillempty );      
+      WriteThruMuPayload( thrumu_data, input_data, tagger_cfg, dataco_out, fillempty );
+      continue_tagger = false;
     }
-    else {
 
-      // if we are not applying the precuts (only running the algo)
-      // or if we passed the precuts (yay!)
-      // then run the rest of the tagger code
+    // if we are not applying the precuts (only running the algo)
+    // or if we passed the precuts (yay!)
+    // then run the rest of the tagger code
+
+    // Boundary End Points
+    int num_boundary_points = 0;
+    larlitecv::ThruMuPayload thrumu_data;
+    if ( continue_tagger ) {
+
+      // first start off by findnig end points
+      larlitecv::ThruMuPayload endpoint_thrumu_data = tagger_algo.runBoundaryPointFinder( input_data );
+      int num_boundary_points = 0;
+      num_boundary_points += endpoint_thrumu_data.side_filtered_v.size();
+      num_boundary_points += endpoint_thrumu_data.anode_filtered_v.size();
+      num_boundary_points += endpoint_thrumu_data.cathode_filtered_v.size();
+      num_boundary_points += endpoint_thrumu_data.imgends_filtered_v.size();
+            
+      if ( ApplyEndPointLimit && num_boundary_points>=fEndPointLimit ) {
+	// we will stop the tagger here, so write empty data
+	larlitecv::StopMuPayload stopmu_data;
+	larlitecv::CROIPayload   croi_data;
+	bool fillempty = true;
+	WriteCROIPayload(   croi_data,   input_data, tagger_cfg, dataco_out, fillempty );
+	WriteStopMuPayload( stopmu_data, input_data, tagger_cfg, dataco_out, fillempty );
+	WriteThruMuPayload( thrumu_data, input_data, tagger_cfg, dataco_out, fillempty );
+	continue_tagger = false;
+      }
+
+      std::swap( thrumu_data, endpoint_thrumu_data ); // use swap to avoid a copy
+    }
+    
+    larlite::event_user* ev_endpointresults = (larlite::event_user*)dataco_out.get_larlite_data( larlite::data::kUserInfo, "endpointresults" );
+    larlite::user_info endpoint_results;
+    endpoint_results.store("numendpoints", num_boundary_points);
+    ev_endpointresults->emplace_back( std::move(endpoint_results) );
+    
+    // ThruMu Tracker/StopMu/Contained + FlashAnalysis
+    if ( continue_tagger ) {
       
       if ( RunThruMu ) {
-	larlitecv::ThruMuPayload thrumu_data = tagger_algo.runThruMu( input_data );
+	tagger_algo.runThruMu( input_data, thrumu_data );
 	if ( save_thrumu_space )
 	  thrumu_data.saveSpace();
 	
@@ -246,7 +284,7 @@ int main(int nargs, char** argv ) {
     }
     
     dataco_out.save_entry();
-
+    
     ann::ANNAlgo::cleanup();
   }
   

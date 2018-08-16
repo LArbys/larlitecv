@@ -236,19 +236,27 @@ namespace larlitecv {
 
     return input;
   }
-  
-  ThruMuPayload TaggerCROIAlgo::runThruMu( const InputPayload& input ) {
 
+  ThruMuPayload TaggerCROIAlgo::runBoundaryPointFinder( const InputPayload& input ) {
     if ( m_config.verbosity>0 )
-      std::cout << "== Run ThruMu ==================================" << std::endl;
+      std::cout << "== Run Boundary Points Finder  ==================================" << std::endl;
 
     ThruMuPayload output;
-
 
     if ( !m_config.use_truth_endpoints )
       runBoundaryTagger( input, output );
     else
       runTruthBoundaryTagger( input, output );  // end points using MC truth tracks      
+
+    return output;
+  }
+  
+  void TaggerCROIAlgo::runThruMu( const InputPayload& input, ThruMuPayload& output ) {
+    // Run ThruMu Trackers
+    // ThruMuPayload needs boundary points found by running TaggerCROIAlgo::runBoundaryPointFinder
+    
+    if ( m_config.verbosity>0 )
+      std::cout << "== Run ThruMu Tracker ==================================" << std::endl;
 
     if ( m_config.use_truth_muontracks ) {
       runTruthThruMu( input, output );
@@ -258,10 +266,8 @@ namespace larlitecv {
     }
 
     if ( m_config.verbosity>0 )
-      std::cout << "== End of ThruMu ===============================" << std::endl;
+      std::cout << "== End of ThruMu Tracker ===============================" << std::endl;
 
-    // return stage output
-    return output;
   }
 
   void TaggerCROIAlgo::runBoundaryTagger( const InputPayload& input, ThruMuPayload& output ) {

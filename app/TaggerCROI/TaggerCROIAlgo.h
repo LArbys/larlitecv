@@ -22,7 +22,8 @@ namespace larlitecv {
 
 
     InputPayload  loadInput( DataCoordinator& dataco );
-    ThruMuPayload runThruMu( const InputPayload& data );
+    ThruMuPayload runBoundaryPointFinder( const InputPayload& data );
+    void runThruMu( const InputPayload& data, ThruMuPayload& output );
     StopMuPayload runStopMu( const InputPayload& input, const ThruMuPayload& thrumu );
     CROIPayload   runCROISelection( const InputPayload& input, const ThruMuPayload& thrumu, const StopMuPayload& stopmu );    
 
