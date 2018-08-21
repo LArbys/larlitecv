@@ -161,7 +161,8 @@ int main( int nargs, char** argv ) {
   TFile* rfile                    = new TFile(outfname.c_str(), "recreate");
   TTree* tree                     = new TTree("pixanav2", "Pixel-level analysis (Tagger Version 2)");
   TTree* mcxingpt_tree            = new TTree("mcxingptana", "Info on MC Crossing Point");
-  TTree* mcxingpt_prefilter_tree  = new TTree("mcxingptana_prefilter", "Info on MC Crossing Point");      
+  TTree* mcxingpt_prefilter_tree  = new TTree("mcxingptana_prefilter", "Info on MC Crossing Point");
+  TTree* flashtree                = new TTree("flashtree", "Info about in-time flash and precuts");
 
   // Event Index
   int run, subrun, event;
@@ -187,6 +188,23 @@ int main( int nargs, char** argv ) {
   s_arr << "[" << (int)kNumStages << "][4]/I";
   const float cm_per_tick = larutil::LArProperties::GetME()->DriftVelocity()*0.5;
 
+  // FLASH+PRECUT VARIABLES
+  float flash_tick;
+  float flash_pe;
+  float flash_posy;
+  float flash_posz;  
+  int   precut_pass;
+  float precut_vetoPE;
+  float precut_maxFrac;
+  flashtree->Branch("flash_intime_tick", &flash_tick, "flash_intime_tick/F");
+  flashtree->Branch("flash_pe",   &flash_pe,   "flash_pe/F");
+  flashtree->Branch("flash_posy", &flash_posy, "flash_posy/F");
+  flashtree->Branch("flash_posz", &flash_posz, "flash_posz/F");
+  flashtree->Branch("precut_pass",    &precut_pass,    "precut_pass/I" );
+  flashtree->Branch("precut_vetoPE",  &precut_vetoPE,  "precut_vetoPE/F" );
+  flashtree->Branch("precut_maxFrac", &precut_maxFrac, "precut_maxFrac/I" );
+  flashtree->Branch("precut_pass",    &precut_pass,    "precut_pass/I" );  
+
   // ==================================================================================================
   // DEFINE OUTPUT VARIABLES AND TREES
   
@@ -198,6 +216,7 @@ int main( int nargs, char** argv ) {
   int vertex_in_croi_2planeY; // is vertex in an CROI (numplanes>=2 && vtx in y croi )
   float closest_dist_to_vertex;
   int closest_dist_stage;
+  int hascroiresult; // flag for events where precuts probably failed
 
   // Crossing Point data
   larlitecv::CrossingPointAnaData_t xingptdata; // after all selections
@@ -207,6 +226,7 @@ int main( int nargs, char** argv ) {
   tree->Branch("run",&run,"run/I");
   tree->Branch("subrun",&subrun,"subrun/I");
   tree->Branch("event",&event,"event/I");
+  tree->Branch("hascroiresult",&hascroiresult,"hascroiresult/I");
 
   // Truth
   truthdata.bindToTree( tree );
@@ -562,7 +582,17 @@ int main( int nargs, char** argv ) {
     // get user info
     larlite::event_user* ev_user_info = NULL;
     ev_user_info = (larlite::event_user*) dataco[kCROIfile].get_larlite_data( larlite::data::kUserInfo, "croicutresults" );
-      
+    if ( ev_user_info==NULL ) {
+      std::cout << "No croicutresults object!" << std::endl;
+      return -1;
+    }
+    if ( ev_user_info->size()==0 ) {
+      std::cout << "Empty croicutresults object. This means tagger did not run!" << std::endl;
+      hascroiresult = 0;
+      tree->Fill();
+      continue;
+    }
+    hascroiresult = 1;
 
     // =======================================================================
     // MC INFO ANALYSIS

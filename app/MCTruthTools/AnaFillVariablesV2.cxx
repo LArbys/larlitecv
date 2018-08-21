@@ -67,8 +67,6 @@ namespace larlitecv {
     
     fillCROIPixArea( ev_img, ev_roi );
     fillIntimeFlashInfo( ev_user_info );
-    //m_ev_tree->Fill(); // user will do this herself
-    
     fillTrackInfo( ev_user_info, ev_track, xingptdata, ev_segment, ev_allpixels_v );
   }
   
@@ -129,6 +127,15 @@ namespace larlitecv {
   }
   
   void AnaFillVariablesV2::fillIntimeFlashInfo( larlite::event_user* ev_user_info ) {
+    if ( ev_user_info==NULL ) {
+      ev_meanz = -1.0;
+      ev_fwhm  = -1.0;
+      ev_maxpe = -1.0;
+      return;
+    }
+
+    // debug
+    std::cout << "number of user info objects: " << ev_user_info->size() << std::endl;
     larlite::user_info& info = ev_user_info->front();
     if ( info.exist_darray("flash_meanz") )
       ev_meanz     = info.get_darray( "flash_meanz" )->front();
