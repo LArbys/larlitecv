@@ -26,6 +26,9 @@ namespace larlitecv {
     fManagerList.push_back("larcv");
     larcv_unused = true;
     larlite_unused = true;
+    _current_run = -1;
+    _current_subrun = -1;
+    _current_event = -1;
   }
 
   DataCoordinator::~DataCoordinator() {
@@ -66,17 +69,17 @@ namespace larlitecv {
     prepfilelists();
 
     if ( user_filelists.find("larlite")==user_filelists.end() ) {
-      std::cout << "larlite filelists has not been prepared" << std::endl;
+      std::cout << "larlite filelists have not been prepared" << std::endl;
       return;
     }
     if ( user_filelists.find("larcv")==user_filelists.end() ) {
-      std::cout << "larcv filelists has not been prepared" << std::endl;
+      std::cout << "larcv filelists have not been prepared" << std::endl;
       return;
     }
 
     // create manager instances
     LarliteFileManager* flarlite = new LarliteFileManager( user_filelists["larlite"] );
-    LarcvFileManager*     flarcv = new LarcvFileManager( user_filelists["larcv"] );
+    LarcvFileManager*     flarcv = new LarcvFileManager(   user_filelists["larcv"] );
     
     // pass the filelists to the managers
     fManagers.insert( std::pair< std::string, FileManager* >( "larlite", flarlite ) );
@@ -92,7 +95,7 @@ namespace larlitecv {
     // now we setup the iomanagers
 
     // configure them
-    larcv_io.configure( larcv_pset );  // we use the configure function
+    larcv_io.configure( larcv_pset );              // we use the configure function
     do_larlite_config( larlite_io, larlite_pset ); // we have to add one for larlite
     
     // user may have override output file (for larcv...)
@@ -104,8 +107,8 @@ namespace larlitecv {
     }
 
     // get the iomode for larcv/larlite
-    fIOmodes["larcv"]   = (int)larcv_pset.get<int>("IOMode",0);
-    fIOmodes["larlite"] = (int)larlite_pset.get<int>("IOMode",0);
+    fIOmodes["larcv"]   = (int)larcv_pset.get<int>("IOMode",-1);
+    fIOmodes["larlite"] = (int)larlite_pset.get<int>("IOMode",-1);
 
     // determine if any of the inputs are unused
     larcv_unused = false;
@@ -116,7 +119,7 @@ namespace larlitecv {
     if ( fIOmodes["larlite"] == -1) larlite_unused = true;
      
     // other way is if iomode is read-only, but there are no events provided
-    if ( fIOmodes["larcv"]==0  && fManagers["larcv"]->get_final_filelist().empty()  ) larcv_unused = true;
+    if ( fIOmodes["larcv"]==0   && fManagers["larcv"]->get_final_filelist().empty()  ) larcv_unused = true;
     if ( fIOmodes["larlite"]==0 && fManagers["larlite"]->get_final_filelist().empty()) larlite_unused = true;
 
     //
@@ -262,7 +265,6 @@ namespace larlitecv {
 
   void DataCoordinator::goto_entry( int entry, std::string ftype_driver ) {
     int run, subrun, event, other_entry;
-    fLastDriver = ftype_driver;
     if ( ftype_driver=="larlite" ) {
       if ( larlite_unused ) {
 	std::cout << "[larlite unused. goto_entry driven by larlite stopped.]" << std::endl;
@@ -277,6 +279,7 @@ namespace larlitecv {
 	// 	  << " corresponds to larcv entry=" << other_entry << std::endl;
 	larcv_io.read_entry( other_entry );
       }
+      fLastDriver = "larlite";
     }
     else if ( ftype_driver=="larcv" ) {
       if ( larcv_unused ) {
@@ -292,6 +295,7 @@ namespace larlitecv {
 	// 	  << " corresponds to larlite entry=" << other_entry << std::endl;
 	larlite_io.go_to( other_entry, false );
       }
+      fLastDriver = "larcv";
     }
     else {
       std::cout << "not a filetype: " << ftype_driver << std::endl;
@@ -347,21 +351,15 @@ namespace larlitecv {
   }
 
   int DataCoordinator::run() {
-    if ( fLastDriver=="larlite" ) return larlite_io.run_id();
-    else if ( fLastDriver=="larcv" ) return larcv_io.event_id().run();
-    return -1;
+    return _current_run;
   }
 
   int DataCoordinator::subrun() {
-    if ( fLastDriver=="larlite" ) return larlite_io.subrun_id();
-    else if ( fLastDriver=="larcv" ) return larcv_io.event_id().subrun();
-    return -1;
+    return _current_subrun;
   }
 
   int DataCoordinator::event() {
-    if ( fLastDriver=="larlite" ) return larlite_io.event_id();
-    else if ( fLastDriver=="larcv" ) return larcv_io.event_id().event();
-    return -1;
+    return _current_event;
   }
 
   larlite::event_base* DataCoordinator::get_larlite_data( const larlite::data::DataType_t type, const std::string& name) {

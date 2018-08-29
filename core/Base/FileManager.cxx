@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdexcept>
 #include <sstream>
+#include <sys/stat.h>
 #include "TFile.h"
 #include "TTree.h"
 
@@ -26,24 +27,27 @@ namespace larlitecv {
 
     sortRSE( false );
 
+    // create a hash using the filelist contents
     fFilelistHash = get_filelisthash();
-    std::cout << "Hash: " << fFilelistHash << std::endl;
-
-    //if ( fUseCache && cacheExists(fFilelistHash) ) {
-    if ( fUseCache && false ) {
+    std::cout << "Hash for " << fFilelist << ": " << fFilelistHash << std::endl;
+    
+    if ( fUseCache && cacheExists(fFilelistHash) ) {
       // not implemented yet
+      std::cout << "Load RSE table from cache" << std::endl;
       load_from_cache(fFilelistHash);
+      ffinallist.clear();
+      parse_filelist(ffinallist);
     }
     else {
       // we need to build this instance up
       std::vector<std::string> files;
       parse_filelist(files);   ///< get a vector of string with the filelist
       if ( files.size()>0 ) {
-	      user_build_index(files,ffinallist,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
-	      cache_index( fFilelistHash );
+	user_build_index(files,ffinallist,frse2entry,fentry2rse); ///< goes to concrete class function to build event index
+	cache_index( fFilelistHash );
       }
       else {
-        throw std::runtime_error("FileManager::initialize[error]. File list is empty.");
+	throw std::runtime_error("FileManager::initialize[error]. File list is empty.");
       }
     }
 
@@ -122,7 +126,7 @@ namespace larlitecv {
     tcache->SetBranchAddress("run",&run);
     tcache->SetBranchAddress("subrun",&subrun);
     tcache->SetBranchAddress("event",&event);
-    ULong_t entry=0;
+    size_t entry=0;
     long bytes = tcache->GetEntry(entry);
     while (bytes>0) {
       frse2entry.insert( std::pair< RSE, int>( RSE(run, subrun, event), (int)entry ) );
@@ -130,7 +134,6 @@ namespace larlitecv {
       bytes = tcache->GetEntry(entry);
       entry++;
     }
-    tcache->Write();
     rcache.Close();
   }
 
@@ -149,6 +152,7 @@ namespace larlitecv {
       run    = iter->second.run;
       subrun = iter->second.subrun;
       event  = iter->second.event;
+      //std::cout << __PRETTY_FUNCTION__ << " found rse for " << entry << " (" << run << "," << subrun << "," << event << ")" << std::endl; // for debug
     }
   }
 
@@ -159,6 +163,12 @@ namespace larlitecv {
     if ( iter!=frse2entry.end() ) {
       entry = iter->second;
     }
+  }
+
+  bool FileManager::cacheExists( std::string hash ) {
+    std::string cachefile = ".pylardcache/"+hash+".root";
+    struct stat buffer;
+    return (stat (cachefile.c_str(), &buffer) == 0); 
   }
     
   
