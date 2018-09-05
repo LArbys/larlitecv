@@ -25,7 +25,7 @@ namespace larlitecv {
     void getRSE( int entry, int& run, int& subrun, int& event ) const;
     void getEntry( int run, int subrun, int event, int& entry ) const;
     const std::vector<std::string>& get_final_filelist() const { return ffinallist; };
-    int nentries() const { return frse2entry.size(); };
+    int nentries() const { return fentry2rse.size(); };
     void sortRSE( bool doit ) { m_sort_rse = doit; };
     bool isSorted() { return m_sort_rse; };
 
