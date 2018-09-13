@@ -76,11 +76,11 @@ namespace larlitecv {
     
     std::cout << "Flash List ------ -------------------------------------" << std::endl;
     for ( size_t iflash=0; iflash<data_flashana.size(); iflash++) {
-      float usec = data_flashana[iflash].time;
+      //float usec = data_flashana[iflash].time;
       std::cout << "  #" << iflash<< ": idx= " << data_flashana[iflash].idx << " pe=" << data_flashana[iflash].TotalPE() << " time=" << data_flashana[iflash].time << std::endl;
     }
     for ( size_t iflash=0; iflash<cosmicdata_flashana.size(); iflash++) {
-      float usec = cosmicdata_flashana[iflash].time;
+      //float usec = cosmicdata_flashana[iflash].time;
       std::cout << "  #" << iflash<< ": idx= " << cosmicdata_flashana[iflash].idx << " pe=" << cosmicdata_flashana[iflash].TotalPE() << " time=" << cosmicdata_flashana[iflash].time << std::endl;
     }
     std::cout << "-------------------------------------------------------" << std::endl;
