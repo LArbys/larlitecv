@@ -152,6 +152,8 @@ int main(int nargs, char** argv ) {
       precut_results.store( "vetoPE",  precutalgo.vetoPE() );
       precut_results.store( "beamPE",  precutalgo.beamPE() );
       precut_results.store( "maxFrac", precutalgo.maxFrac() );
+      precut_results.store( "beamFirstTick", precutalgo.beamFirstTick() );
+      precut_results.store( "vetoFirstTick", precutalgo.vetoFirstTick() );      
       ev_precutresults->emplace_back( std::move(precut_results) );
     }
     else {
@@ -162,6 +164,8 @@ int main(int nargs, char** argv ) {
       precut_results.store( "vetoPE",  -1.0 );
       precut_results.store( "beamPE",  -1.0 );
       precut_results.store( "maxFrac", -1.0 );
+      precut_results.store( "beamFirstTick", -1 );
+      precut_results.store( "vetoFirstTick", -1 );
       ev_precutresults->emplace_back( std::move(precut_results) );
     }
 
