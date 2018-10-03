@@ -74,9 +74,26 @@ namespace larlitecv {
       flashdata_selected.resize( inputdata.size(), 0 );
     }
 
+    std::cout << "Number of input opflashes = " << opflashes_v.size() << "." << std::endl;
+
     // get the in-beam flashes
     std::vector<flashana::Flash_t> data_flashana       = m_genflashmatch.GetInTimeFlashana( opflashes_v );
-    std::vector<flashana::Flash_t> cosmicdata_flashana = m_genflashmatch.GetCosmicFlashana( opflashes_v ); 
+    std::vector<flashana::Flash_t> cosmicdata_flashana = m_genflashmatch.GetCosmicFlashana( opflashes_v );
+
+    // Print out the number of In-Time/Cosmic flashes.
+    std::cout << "The number of in-time flashes = " << data_flashana.size() << "." << std::endl;
+    std::cout << "The number of cosmic flashes = " << cosmicdata_flashana.size() << "." << std::endl;
+
+    // Print out the information for the 'cosmicdata_flashana' up here.
+    //std::cout << "The number of PMTs in the data for 'cosmicdata_flashana[0]' = " << cosmicdata_flashana[0].pe_v.size() << "." << std::endl;
+
+    // Print out the number of PEs in each of the PMTs.
+    //for ( size_t pmt_iter = 0; pmt_iter < cosmicdata_flashana[0].pe_v.size(); pmt_iter++ ) {
+
+    //  std::cout << "Number of PEs in OpDet #" << pmt_iter << " = " << cosmicdata_flashana[0].pe_v.at( pmt_iter ) << " PEs." << std::endl;
+
+    //}
+    
     if ( data_flashana.size()==0 ) {
       return roi_v;
     }
@@ -165,6 +182,17 @@ namespace larlitecv {
     // --------------------------------------------------------------------------------
     // out-of-time flash tests: load out-of-time flash(es) and extended tracks
     bool extend_tracks = true;
+
+    // Print out the information for the 'cosmicdata_flashana' up here.
+    //std::cout << "The number of PMTs in the data for 'cosmicdata_flashana[0]' = " << cosmicdata_flashana[0].pe_v.size() << "." << std::endl;
+
+    // Print out the number of PEs in each of the PMTs.
+    //for ( size_t pmt_iter = 0; pmt_iter < cosmicdata_flashana[0].pe_v.size(); pmt_iter++ ) {
+
+    //std::cout << "Number of PEs in OpDet #" << pmt_iter << " = " << cosmicdata_flashana[0].pe_v.at( pmt_iter ) << " PEs." << std::endl;
+
+    //}
+    
     setupFlashMatchInterface( data_flashana, cosmicdata_flashana, extend_tracks );
     std::vector<flashana::FlashMatch_t> results_outoftime = m_genflashmatch.getFlashMatchManager().Match();
     // print results and make flash-hypothesis
@@ -199,6 +227,8 @@ namespace larlitecv {
     m_num_matchable_flashes = 0; // we get mctrackid from track, check flashes if that mctrackid exists
     m_num_matched_flashes   = 0; // mctrackid of track and flash match
     // --------------------------------------
+
+    std::cout << "Size of 'inputdata' = " << inputdata.size() << "." << std::endl;
     
     // choose contained candidates    
     for ( size_t i=0; i<inputdata.size(); i++ ) {
@@ -233,32 +263,43 @@ namespace larlitecv {
 	std::cout << " TOT=" << data_flashana.front().TotalPE() << " CHI2=" << "XXX" << std::endl;
     
 	std::cout << "  [ cosmic ] ";
-	for ( int ich=0; ich<32; ich++ ) {
-	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
-	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
-	  float data_pe = cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].pe_v[ich];
-	  if ( norm_hypothesis )
-	    data_pe *= (100.0/cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].TotalPE());
-	  std::cout << std::setw(5) << (int)data_pe;
-	}
-	std::cout << " TOT=" << cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].TotalPE()
-		  << " IDX=" << m_cosmic_bestflash_idx_v[i]
-		  << std::endl;
 
-	std::cout << "  [besthypo] ";
-	for ( int ich=0; ich<32; ich++ ) {
-	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
-	  //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
-	  float hypo_pe = m_cosmic_bestflash_hypo_v[i].pe_v[ich];
-	  if ( norm_hypothesis )
-	    hypo_pe *= 100;
-	  std::cout << std::setw(5) << (int)hypo_pe;
-	}
-	std::cout << " TOT=" << m_cosmic_bestflash_hypo_v[i].TotalPE()
-		  << " BestCHI2=" << m_cosmic_bestflash_chi2_v[i] << std::endl;
+	// Print out the information that could have led to this segfault.
+	std::cout << "Number of entries in 'm_cosmic_bestflash_idx_v' = " << m_cosmic_bestflash_idx_v.size() << "." << std::endl;
+	std::cout << "The value of 'm_cosmic_bestflash_idx_v' at idx i = " << m_cosmic_bestflash_idx_v[i] << "." << std::endl;
+	//std::cout << "The size of 'cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].pe_v' = " << cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].pe_v.size() << "." << std::endl;
 
-	// result line
-        std::cout << "  ";
+	// Only enter into this loop if the number of cosmic flashes is greater than 0.
+	if ( cosmicdata_flashana.size() > 0 ) {
+	
+	  for ( int ich=0; ich<32; ich++ ) {
+	    //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
+	    //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
+	    float data_pe = cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].pe_v[ich];
+	    if ( norm_hypothesis )
+	      data_pe *= (100.0/cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].TotalPE());
+	    std::cout << std::setw(5) << (int)data_pe;
+	  }
+	  std::cout << " TOT=" << cosmicdata_flashana[m_cosmic_bestflash_idx_v[i]].TotalPE()
+		    << " IDX=" << m_cosmic_bestflash_idx_v[i]
+		    << std::endl;
+
+	  std::cout << "  [besthypo] ";
+	  for ( int ich=0; ich<32; ich++ ) {
+	    //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at(  geo->OpDetFromOpChannel(ich) )*m_config.fudge_factor);
+	    //std::cout << std::setw(5) << (int)(opflash_hypo.pe_v.at( ich )*m_config.fudge_factor);
+	    float hypo_pe = m_cosmic_bestflash_hypo_v[i].pe_v[ich];
+	    if ( norm_hypothesis )
+	      hypo_pe *= 100;
+	    std::cout << std::setw(5) << (int)hypo_pe;
+	  }
+	  std::cout << " TOT=" << m_cosmic_bestflash_hypo_v[i].TotalPE()
+		    << " BestCHI2=" << m_cosmic_bestflash_chi2_v[i] << std::endl;
+
+	  // result line
+	  std::cout << "  ";
+	  
+	}
 
       	if ( m_passes_containment[i] )
           std::cout << " {contained}";
@@ -299,7 +340,8 @@ namespace larlitecv {
 	}
 
 	// FINAL RESULT
-	flashdata_selected[i] = m_passes_finalresult[i] = (m_passes_intimepos[i] & m_passes_containment[i] & m_passes_cosmic_flashmatch[i]);
+	// Take out the cut on passing the cosmic flashmatch for now.
+	flashdata_selected[i] = m_passes_finalresult[i] = (m_passes_intimepos[i] & m_passes_containment[i]); // & m_passes_cosmic_flashmatch[i]);
 
 	if ( m_passes_finalresult[i] )
           std::cout << " **PASSES**";
@@ -322,12 +364,15 @@ namespace larlitecv {
 	const larlite::track& track3d = inputdata.at(itrack).m_track3d;
 	if ( flashdata_selected.at(itrack)==0 || track3d.NumberTrajectoryPoints()==0)
 	  continue;
-	
+
+	std::cout << "Making a fixed ROI from the data." << std::endl;
 	larcv::ROI croi = inputdata.at(itrack).MakeROI( img_v, m_config.bbox_pad , true );	
 	roi_v.emplace_back( std::move(croi) );
       }
     }
     else {
+
+      std::cout << "Making two ROIs." << std::endl;
       // we make 2 ROIs. z-center is the flash pe center.
       // x-center splits the drift region
       float croi_xcenters[2]  = {  65.0, 190.0 };
