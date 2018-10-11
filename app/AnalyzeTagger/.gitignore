@@ -7,3 +7,4 @@ run_v2_analysis
 run_pixel_analysis_old_version
 plot_flash_timing
 run_flashmatch_analysis
+run_pixelscale_analysis

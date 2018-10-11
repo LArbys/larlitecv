@@ -6,6 +6,7 @@
 #include "DataFormat/mctrack.h"
 #include "DataFormat/mcshower.h"
 #include "DataFormat/user_info.h"
+#include "DataFormat/ophit.h"
 #include "larlite/UserDev/BasicTool/FhiclLite/PSet.h"
 #include "larlite/UserDev/SelectionTool/LEEPreCuts/LEEPreCut.h"
 
@@ -67,6 +68,11 @@ int main(int nargs, char** argv ) {
   bool skip_empty_events = pset.get<bool>("SkipEmptyEvents",false);
   bool apply_unipolar_hack = pset.get<bool>("ApplyUnipolarHack",false);
   int fEndPointLimit     = pset.get<int>("EndPointLimit");
+  bool isMCC9            = pset.get<bool>("IsMCC9",false);
+  std::vector<float> mcc9scale_factors(3,1.0/200.0);
+  if ( isMCC9 ) {
+    mcc9scale_factors = pset.get< std::vector<float> >("MCC9ScaleFactors");
+  }
 
   // Configure DL PMT PreCuts
   fcllite::PSet tmp( "tmp",pset.get<larcv::PSet>("LEEPreCut").data_string() );  // convert to fcllite version of pset
@@ -139,8 +145,28 @@ int main(int nargs, char** argv ) {
     larlitecv::InputPayload input_data = tagger_algo.loadInput( dataco );
 
     // -------------------------------------------------------------------------------------------//
+    // MCC9 Beta Hack
+    if ( isMCC9 ) {
+      // we need to scale the image down;
+      for ( auto& img : input_data.img_v ) {
+	float mcc9scale = mcc9scale_factors[ img.meta().plane() ];
+	for (int r=0; r<(int)img.meta().rows(); r++) {
+	  for (int c=0; c<(int)img.meta().cols(); c++) {
+	    float pixval = img.pixel(r,c)*mcc9scale;
+	    img.set_pixel(r,c,pixval);
+	  }
+	}
+      }
+    }
+    
+    // -------------------------------------------------------------------------------------------//
     // RUN ALGOS
     std::cout << "[ RUN ALGOS ]" << std::endl;
+
+    larlite::event_ophit* ophit_v = (larlite::event_ophit*)dataco.get_larlite_data( larlite::data::kOpHit, "ophitBeam" );
+    std::cout << "ophit: " << ophit_v << std::endl;
+    if ( ophit_v )
+      std::cout << "ophit entries: " << ophit_v->size() << std::endl;
 
     bool continue_tagger = true;
     if ( RunPreCuts ) {
