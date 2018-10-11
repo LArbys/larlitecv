@@ -174,6 +174,15 @@ int main(int nargs, char** argv ) {
       // save data in larlite user data structure
       larlite::event_user* ev_precutresults = (larlite::event_user*)dataco_out.get_larlite_data( larlite::data::kUserInfo, "precutresults" );
       larlite::user_info precut_results;
+      std::cout << "==== PRECUT RESULTS ===============" << std::endl;
+      std::cout << " PASS: "   << precutalgo.passes() << std::endl;
+      std::cout << " vetope:   " << precutalgo.vetoPE() << std::endl;
+      std::cout << " beampe:   " << precutalgo.beamPE() << std::endl;
+      std::cout << " maxfrac:  " << precutalgo.maxFrac() << std::endl;
+      std::cout << " beamTick: " << precutalgo.beamFirstTick() << std::endl;
+      std::cout << " vetoTick: " << precutalgo.vetoFirstTick() << std::endl;
+      std::cout << "===================================" << std::endl;
+	
       precut_results.store( "pass",    precutalgo.passes() );
       precut_results.store( "vetoPE",  precutalgo.vetoPE() );
       precut_results.store( "beamPE",  precutalgo.beamPE() );
