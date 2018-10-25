@@ -16,7 +16,7 @@ namespace larlitecv {
     FileManager();
     
   public:
-    FileManager( std::string filelist, bool use_cache=true );
+    FileManager( std::string filelist, bool use_cache=false );
     virtual ~FileManager() {};
 
     void setFilelist( std::string flist ) { fFilelist = flist; };
