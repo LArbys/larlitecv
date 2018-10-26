@@ -72,6 +72,8 @@ namespace larlitecv {
     void finalize();
     void close();
 
+    void set_temp_filelistname( std::string tmpfilename ) { _tmpflistname = tmpfilename; };
+
     // larlite get data command
     larlite::event_base* get_larlite_data( const larlite::data::DataType_t type, const std::string& name);
     larcv::EventBase*    get_larcv_data(   const std::string& datatypename, const std::string& producer );
@@ -93,6 +95,7 @@ namespace larlitecv {
     std::map< std::string, std::string > user_ioconfig;
     std::map< std::string, int > fIOmodes;
     std::string fLastDriver;
+    std::string _tmpflistname;
     bool larcv_unused;
     bool larlite_unused;
     int _current_run;
