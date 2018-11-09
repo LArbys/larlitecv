@@ -29,6 +29,7 @@ namespace larlitecv {
     _current_run = -1;
     _current_subrun = -1;
     _current_event = -1;
+    _tmpflistname = "last_filelist";
   }
 
   DataCoordinator::~DataCoordinator() {
@@ -170,7 +171,7 @@ namespace larlitecv {
 	// no file list. has files been specified?
 	if ( user_filepaths.find( ftype )!=user_filepaths.end() ) {
 	  // files specified. we make a filelist from these paths
-	  std::string tempfilename = "last_filelist_"+ftype+".txt";
+	  std::string tempfilename = _tmpflistname+"_"+ftype+".txt";
 	  std::ofstream infile( tempfilename.c_str() );
 	  for ( auto &fpath : user_filepaths[ftype] ) {
 	    infile << fpath << '\n';
