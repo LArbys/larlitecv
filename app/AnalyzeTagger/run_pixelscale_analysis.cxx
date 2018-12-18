@@ -6,6 +6,7 @@
 #include "TH2D.h"
 #include "TCanvas.h"
 #include "TStyle.h"
+#include "TGraph.h"
 
 // larlite
 #include "DataFormat/storage_manager.h"
@@ -24,6 +25,7 @@ int main( int nargs, char** argv ) {
   std::string input_reco2d = argv[2];
   std::string output_hist = argv[3];
   std::string mccversion = argv[4];
+  bool make_image = false;
 
   larcv::IOManager iolarcv( larcv::IOManager::kREAD );
   iolarcv.add_in_file( input_larcv );
@@ -64,19 +66,28 @@ int main( int nargs, char** argv ) {
     std::cout << "  number of hits = " << ev_hit->size() << std::endl;
     std::cout << "  number of images = " << ev_img->Image2DArray().size() << std::endl;
 
-    // auto const& p2meta = ev_img->Image2DArray().at(2).meta();
-    // TH2D hp2("p2","",p2meta.cols(),p2meta.min_x(),p2meta.max_x(),p2meta.rows(),p2meta.min_y(),p2meta.max_y());
-    // for (int r=0; r<p2meta.rows(); r++) {
-    //   for (int c=0; c<p2meta.cols(); c++) {
-    // 	hp2.SetBinContent( c+1, p2meta.rows()-1-r+1, ev_img->Image2DArray().at(2).pixel(r,c) );
-    //   }
-    // }
     
-    // TCanvas c("c","c",1200,600);
-    // hp2.Draw("colz");
-    // c.Update();
-    // c.SaveAs("test_nohits.png");
-    
+    auto const& p2meta = ev_img->Image2DArray().at(2).meta();
+    TH2D* hp2 = nullptr;
+    if ( make_image ) {
+      hp2 = new TH2D("p2","",p2meta.cols(),p2meta.min_x(),p2meta.max_x(),p2meta.rows(),p2meta.min_y(),p2meta.max_y());
+
+      for (int r=0; r<p2meta.rows(); r++) {
+	for (int c=0; c<p2meta.cols(); c++) {
+	  hp2->SetBinContent( c+1, p2meta.rows()-1-r+1, ev_img->Image2DArray().at(2).pixel(r,c) );
+	}
+      }
+      
+      TCanvas c("c","c",1200,600);
+      hp2->Draw("colz");
+      c.Update();
+      c.SaveAs("test_nohits.png");
+    }
+
+    TGraph ghit( ev_hit->size() );
+    ghit.SetMarkerStyle(20);
+    ghit.SetMarkerSize(0.3);
+    int ihit=0;
     for ( auto const& hit : *ev_hit ) {
       // for each hit, we get its pixel value at the peak amplitude
       planeid = (int)hit.WireID().Plane;
@@ -101,17 +112,28 @@ int main( int nargs, char** argv ) {
       int row = meta.row( tick );
       int col = meta.col( wireid );
       pixamp = img.pixel( row, col );
-      
-      // if ( planeid==2 ) {
-      // 	hp2.SetBinContent( col+1, p2meta.rows()-1-row+1, 1e5 );
-      // }
+
+      if ( make_image ) {
+	if ( planeid==2 ) {
+	  ghit.SetPoint( ihit, wireid, tick );
+	  ihit++;
+	}
+      }
       
       tpix.Fill();
     }
-    
-    // hp2.Draw("colz");
-    // c.Update();
-    // c.SaveAs("test.png");
+    if ( make_image )
+      ghit.Set(ihit);
+
+    if ( make_image ) {
+      TCanvas c("c","c",1200,600);
+      hp2->Draw("colz");
+      ghit.Draw("P");
+      c.Update();
+      c.SaveAs("test.png");
+      delete hp2;
+      break;
+    }
     
   }//end of entry loop
 

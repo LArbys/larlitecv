@@ -145,7 +145,9 @@ int main(int nargs, char** argv ) {
     larlitecv::InputPayload input_data = tagger_algo.loadInput( dataco );
 
     // -------------------------------------------------------------------------------------------//
-    // MCC9 Beta Hack
+    // MCC9 Beta Hack(s)
+
+    bool image_empty=false;
     if ( isMCC9 ) {
       // we need to scale the image down;
       for ( auto& img : input_data.img_v ) {
@@ -157,6 +159,19 @@ int main(int nargs, char** argv ) {
 	  }
 	}
       }
+
+      // check if image is empty
+      int abovethreshpix = 0;
+      for ( auto& img : input_data.img_v ) {
+	for ( size_t r=0; r<img.meta().rows(); r++ ) {
+	  for ( size_t c=0; c<img.meta().cols(); c++ ) {
+	    if ( img.pixel(r,c)>10.0 ) abovethreshpix++;
+	  }
+	}
+      }
+      
+      if ( abovethreshpix<10 )
+	image_empty = true;
     }
     
     // -------------------------------------------------------------------------------------------//
@@ -169,6 +184,7 @@ int main(int nargs, char** argv ) {
       std::cout << "ophit entries: " << ophit_v->size() << std::endl;
 
     bool continue_tagger = true;
+    
     if ( RunPreCuts ) {
       precutalgo.analyze( &(dataco.get_larlite_io()) );
       // save data in larlite user data structure
@@ -204,7 +220,10 @@ int main(int nargs, char** argv ) {
       ev_precutresults->emplace_back( std::move(precut_results) );
     }
 
-    if ( ApplyPreCuts && precutalgo.passes()==0 ) {
+    if ( (ApplyPreCuts && precutalgo.passes()==0) || image_empty ) {
+
+      std::cout << "[PRECUTS FAILED (or) IMAGE IS EMPTY]" << std::endl;
+      
       // precuts failed.
       // we want to create an empty entry still
       larlitecv::ThruMuPayload thrumu_data;
