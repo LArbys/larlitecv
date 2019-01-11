@@ -1,23 +1,40 @@
+#
+# This is an example GNUmakefile for my packages
+#
+PACKAGE_NAME = Hashlib2plus
+
 CXX      =  g++
 
 CFLAGS   = -g -fPIC
 LDFLAGS  = -shared
-INCLUDES = -I.
+INCFLAGS = -I.
 
-MODULE  = Hashlib2plus
-LIB     = ${LARLITECV_LIBDIR}/libLArliteCV${MODULE}.so
-SRCS    = $(wildcard *.cxx)
-OBJS    = $(addprefix ${LARLITECV_BUILDDIR}/${MODULE}/, $(SRCS:.cxx=.o) )
-HEADERS = $(wildcard *.h)
+LIB     = ${LARLITECV_LIBDIR}/libLArliteCV${PACKAGE_NAME}.so
+SOURCES = $(wildcard *.cxx)
+FMWK_HEADERS = LinkDef.h
+HEADERS = $(filter-out LinkDef.h, $(wildcard *.h))
+OBJS    = $(addprefix ${LARLITECV_BUILDDIR}/${PACKAGE_NAME}/, $(SRCS:.cxx=.o) )
 
-all: $(LIB)
+# platform-specific options
+OSNAME          = $(shell uname -s)
+HOST            = $(shell uname -n)
+OSNAMEMODE      = $(OSNAME)
 
-${LARLITECV_BUILDDIR}/${MODULE}/%.o : %.cxx %.h
-	@mkdir -p ${LARLITECV_BUILDDIR}/${MODULE}
-	$(CXX) $(CFLAGS) $(INCLUDES) -c $< -o $@
+include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
-$(LIB): $(OBJS)
-	$(CXX) $(LDFLAGS) -o $@ $^
+# call the common GNUmakefile
+include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE
 
-clean:
-	@rm $(LIB) ${LARLITECV_BUILDDIR}/${MODULE}/*.o
+#all: $(LIB)
+#
+#${LARLITECV_BUILDDIR}/${PACKAGE_NAME}/%.o : %.cxx %.h
+#	@mkdir -p ${LARLITECV_BUILDDIR}/${PACKAGE_NAME}
+#	$(CXX) $(CFLAGS) $(INCFLAGS) -c $< -o $@
+#
+#$(LIB): $(OBJS)
+#	$(CXX) $(LDFLAGS) -o $@ $^
+
+pkg_build: # nothing extra to do in this package
+
+pkg_clean: # nothing extra to do in this package
+	@rm $(LIB) ${LARLITECV_BUILDDIR}/${PACKAGE_NAME}/*.o

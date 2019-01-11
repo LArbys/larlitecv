@@ -7,9 +7,6 @@ PACKAGE_NAME = Base
 SOURCES = $(wildcard *.cxx)
 FMWK_HEADERS = LinkDef.h
 HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
-#IMPS = $(wildcard *.inl)
-
-#USE_OPENCV=$(LARLITECV_OPENCV)
 
 # include options for this package
 INCFLAGS  = -I. $(shell larlite-config --includes) $(shell larcv-config --includes) $(shell larlitecv-config --includes)  #Include itself
