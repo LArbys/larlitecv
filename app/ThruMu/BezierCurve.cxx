@@ -1,4 +1,5 @@
 #include "BezierCurve.h"
+#include <stdexcept>
 
 namespace larlitecv {
 
