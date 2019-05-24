@@ -12,7 +12,6 @@ CXXFLAGS += $(shell larlitecv-config --includes)/../app
 # Include your shared object lib location
 LDFLAGS += $(shell larlitecv-config --libs)
 LDFLAGS += $(shell larcv-config --libs)
-LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
 LDFLAGS += $(shell larlite-config --libs) -lBasicTool_FhiclLite
 LDFLAGS += $(shell larlite-config --libs) -lSelectionTool_OpT0FinderAna -lSelectionTool_OpT0FinderApp \
 	-lSelectionTool_OpT0PhotonLibrary -lSelectionTool_OpT0FinderAlgorithms -lSelectionTool_OpT0FinderBase 

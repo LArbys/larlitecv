@@ -8,7 +8,7 @@ libs=[x for x in commands.getoutput('larlitecv-config --libs').split() if not x.
 libs+= commands.getoutput('root-config --libs').split()
 if 'LARLITE_BASEDIR' in os.environ:
     libs+= commands.getoutput('larlite-config --libs').split()
-    libs+= ["-lBasicTool_FhiclLite","-lBasicTool_GeoAlgo","-lSelectionTool_OpT0FinderAna","-lSelectionTool_OpT0FinderApp",
+    libs+= ["-lBasicTool_FhiclLite","-lSelectionTool_OpT0FinderAna","-lSelectionTool_OpT0FinderApp",
             "-lSelectionTool_OpT0PhotonLibrary","-lSelectionTool_OpT0FinderAlgorithms","-lSelectionTool_OpT0FinderBase"]
     lllibs = [x.replace("lib","-l").replace(".so","") for x in os.listdir(os.environ["LARLITE_LIBDIR"]) if x.endswith('.so') and "LArOpenCV" in x ]
     #libs += ["-L%s"%(os.environ["LARLITE_LIBDIR"])]

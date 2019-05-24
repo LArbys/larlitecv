@@ -15,7 +15,7 @@ INCFLAGS  = -g -I./
 INCFLAGS += $(shell larcv-config --includes) 
 INCFLAGS += $(shell larcv-config --includes)/../app
 INCFLAGS += $(shell larlite-config --includes) 
-INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool/GeoAlgo
+#INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool/GeoAlgo
 INCFLAGS += $(shell larlitecv-config --includes)
 INCFLAGS += -I$(LARCV_BASEDIR)/app/ann_1.1.2/include
 
@@ -36,7 +36,7 @@ ifeq ($(LARCV_OPENCV),1)
 LDFLAGS += -L$(OPENCV_LIBDIR) -lopencv_core -lopencv_highgui -lopencv_imgcodecs -lopencv_imgproc
 endif
 LDFLAGS += $(shell larcv-config --libs)
-LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
+#LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
 # call the common GNUmakefile
 include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE
 

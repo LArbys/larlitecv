@@ -33,7 +33,7 @@ OSNAMEMODE      = $(OSNAME)
 include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 LDFLAGS += $(shell larcv-config --libs)
-LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo -lSelectionTool_OpT0FinderBase -lSelectionTool_OpT0FinderAlgorithms # Added the last two for the SelectionTool infrastructure.
+LDFLAGS += $(shell larlite-config --libs) -lSelectionTool_OpT0FinderBase -lSelectionTool_OpT0FinderAlgorithms # Added the last two for the SelectionTool infrastructure.
 # call the common GNUmakefile
 include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE
 
