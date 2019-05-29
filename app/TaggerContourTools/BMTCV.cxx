@@ -15,6 +15,11 @@
 
 namespace larlitecv {
 
+  BMTCV::BMTCV() 
+  {
+    clear();
+  }
+
   std::vector<larlitecv::BoundarySpacePoint> BMTCV::findBoundarySpacePoints( const std::vector<larcv::Image2D>& img_v, const std::vector<larcv::Image2D>& badch_v ) {
     
     std::vector<larlitecv::BoundarySpacePoint> sp_v;
@@ -135,7 +140,7 @@ namespace larlitecv {
       for ( auto& contour : contour_v ) {
 	larocv::data::TrackClusterCompound atomics = defectb.BreakContour( contour ); // returns a vector<AtomicContour>
 	for ( auto& ctr : atomics ) {
-	  if ( ctr.size()<3 )
+	  if ( ctr.size()<4 )
 	    continue;
 	  //larlitecv::ContourShapeMeta ctrinfo( ctr, img_v[p].meta() );
 	  larlitecv::ContourShapeMeta ctrinfo( ctr, img_v[p] );	  

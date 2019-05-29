@@ -29,7 +29,7 @@ namespace larlitecv {
 
   class BMTCV {
   public:
-    BMTCV(){};
+    BMTCV();
     virtual ~BMTCV() {};
 
 

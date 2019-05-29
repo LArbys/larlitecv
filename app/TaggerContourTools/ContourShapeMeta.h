@@ -41,6 +41,7 @@ namespace larlitecv {
    float getMinY() const { return ybounds[0]; };
    float getMaxY() const { return ybounds[1]; };
 
+   bool hasValidPCA() const { return m_valid_pca; };
    std::vector<float> getPCAdir( int axis=0 ) const;
    std::vector<float> getPCAStartdir() const;
    std::vector<float> getPCAEnddir() const;
@@ -70,6 +71,7 @@ namespace larlitecv {
 
    // Charge core PCA
    void _charge_core_pca( const larcv::Image2D& img );
+   bool m_valid_pca;
    cv::Point center;
    std::vector<cv::Point2d> eigen_vecs;
    std::vector<double> eigen_val;

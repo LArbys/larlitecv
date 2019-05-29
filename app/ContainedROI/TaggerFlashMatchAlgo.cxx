@@ -16,7 +16,7 @@ namespace larlitecv {
     throw std::runtime_error(msg.str());
   }
 
-  TaggerFlashMatchAlgo::TaggerFlashMatchAlgo( TaggerFlashMatchAlgoConfig& config )
+  TaggerFlashMatchAlgo::TaggerFlashMatchAlgo( const TaggerFlashMatchAlgoConfig& config )
     : m_config(config),m_genflashmatch(config.genflashmatch_cfg) {
     // set verbosity
     setVerbosity( m_config.verbosity );

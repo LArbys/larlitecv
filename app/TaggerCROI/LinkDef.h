@@ -10,6 +10,8 @@
 #pragma link off all functions;
 
 #pragma link C++ namespace larlitecv;
+#pragma link C++ class larlitecv::TaggerCROIAlgo+;
+#pragma link C++ class larlitecv::TaggerCROIAlgoConfig+;
 #pragma link C++ class larlitecv::CosmicTagger+;
 #pragma link C++ class larlitecv::CosmicRetagger+;
 

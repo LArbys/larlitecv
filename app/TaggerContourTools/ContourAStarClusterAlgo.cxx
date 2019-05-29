@@ -88,8 +88,8 @@ namespace larlitecv {
       ss << __FILE__ << ":" << __LINE__ << "Adding a NULL contour shape meta";
       throw std::runtime_error( ss.str() );
     }
-    m_plane_contours[plane].push_back( ctr );
-    if ( idx>=0 ) {
+    if ( ctr!=NULL && idx>=0 ){
+      m_plane_contours[plane].push_back( ctr );
       m_bmtcv_indices[plane].insert( idx );
     }
   }
@@ -483,7 +483,9 @@ namespace larlitecv {
       
       
       int goalhit = 0;
+      //std::cout << "ContourAStarClusterAlgo:: start find path" << std::endl;
       path = algo.findpath( img_v, badch_v, badch_v, timerange[0], timerange[1], start_cols, end_cols, goalhit );
+      //std::cout << "ContourAStarClusterAlgo:: end find path" << std::endl;
 
       if ( m_verbosity>0 )
 	std::cout << "Goal hit: " << goalhit << " pathsize=" << path.size() << std::endl;
@@ -515,10 +517,13 @@ namespace larlitecv {
 	v3d.push_back( v3 );
       }
 
+      //std::cout << __FILE__ << ":" << __LINE__ << ":: extend cluster" << std::endl;
       std::vector< std::set<int> > plane_overlapping_clusters = extendClusterUsingAStarPath( cluster, v3d, img_v, plane_contours_v, 20.0, 10.0, 1.0 );
+      //std::cout << __FILE__ << ":" << __LINE__ << ":: fill image" << std::endl;
       fillInClusterImage( cluster, v3d, img_v, badch_v, plane_overlapping_clusters, plane_contours_v, 0.3, 10.0, 2 );
 
       // we reset the start and end points
+      //std::cout << __FILE__ << ":" << __LINE__ << ":: project min and max" << std::endl;
       min_imgcoords = larcv::UBWireTool::getProjectedImagePixel( v3d.front(), meta, img_v.size() );
       max_imgcoords = larcv::UBWireTool::getProjectedImagePixel( v3d.back(),  meta, img_v.size() );
 
@@ -542,15 +547,19 @@ namespace larlitecv {
       // min_imgcoords[0] = timerange[0];
       // max_imgcoords[0] = timerange[1];
 
+      //std::cout << __FILE__ << ":" << __LINE__ << ":: swap" << std::endl;
       std::swap( cluster.m_path3d, v3d );
 
+      //std::cout << __FILE__ << ":" << __LINE__ << ":: calc 3d dist" << std::endl;
       float dist = 0.;
       for (int i=0; i<3; i++) {
 	dist += ( min_pos3d[i]-max_pos3d[i] )*(min_pos3d[i]-max_pos3d[i]);
       }
       // stop: path is good enough
       if ( dist>20.0 )
+	//if ( goalhit==1 )
 	break;
+      //std::cout << __FILE__ << ":" << __LINE__ << ":: too short, restart loop" << std::endl;
     }
     
   }
@@ -592,23 +601,28 @@ namespace larlitecv {
     int nplanes_found = 0;
     std::vector<int> seed_idx(3,-1);
     size_t nplanes = plane_contours_v.size();
+    if ( nplanes!=3 ) {
+      std::cout << __FILE__ << ":" << __LINE__ << "nplanes!=3" << std::endl;
+    }
+
     for (size_t p=0; p<nplanes; p++) {
       
       bool contains = false;
       int containing_idx = -1;
       float closest_dist = -1;
-      for (size_t idx=0; idx<plane_contours_v[p].size(); idx++) {
+      for (size_t idx=0; idx<plane_contours_v.at(p).size(); idx++) {
 	// test imgpt
-	const ContourShapeMeta& ctr = plane_contours_v[p][idx];
+	const ContourShapeMeta& ctr = plane_contours_v.at(p).at(idx);
 	
 	// fast test
-	if ( imgpt[p].y<ctr.getMinY() || imgpt[p].y>ctr.getMaxY() )
+	float pty = imgpt.at(p).y;
+	if ( pty<ctr.getMinY() || pty>ctr.getMaxY() )
 	  continue;
 	
 	// more detailed test
 	clock_t begin_pointpoly = clock();	
 	double dist = cv::pointPolygonTest( ctr, imgpt[p], true );
-	//std::cout << " contour (" << p << "," << idx << ") dist=" << dist << std::endl;
+	//std::cout << " contour (plane=" << p << ",idx=" << idx << ") dist=" << dist << std::endl;
 	if ( dist>=max_dist2cluster && (closest_dist<0 || closest_dist>fabs(dist) ) ) {
 	  contains       = true;
 	  containing_idx = (int)idx;
@@ -643,7 +657,7 @@ namespace larlitecv {
     // make the seed cluster
     clock_t begin_addcontours = clock();
     for (int p=0; p<3; p++) {
-      if ( seed_idx[p]>=0 ) {
+      if ( seed_idx[p]>=0 && plane_seedcontours[p]!=NULL ) {
 	seed.addContour(p, plane_seedcontours[p], seed_idx[p] );
       }
     }

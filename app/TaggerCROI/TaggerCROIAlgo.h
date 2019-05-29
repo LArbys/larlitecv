@@ -13,12 +13,11 @@ namespace larlitecv {
 
   class TaggerCROIAlgo {
 
-    TaggerCROIAlgo() {};
-
   public:
 
+    TaggerCROIAlgo();
     TaggerCROIAlgo( const TaggerCROIAlgoConfig& config );
-    virtual ~TaggerCROIAlgo() {};
+    virtual ~TaggerCROIAlgo();
 
 
     InputPayload  loadInput( DataCoordinator& dataco );
@@ -37,20 +36,22 @@ namespace larlitecv {
     void runTruthBoundaryTagger( const InputPayload& input, ThruMuPayload& output );
     void runTruthThruMu( const InputPayload& input, ThruMuPayload& output );
 
+    const TaggerCROIAlgoConfig& config() const { return *m_config; };
+
   protected:
 
 
-    TaggerCROIAlgoConfig m_config;
+    const TaggerCROIAlgoConfig* m_config;
     std::vector<float> m_time_tracker;
     enum Stages_t { kThruMuConfig = 0, kThruMuContour, kThruMuBMT, kThruMuFlash, kThruMuFilter, kThruMuTracker, kStopMuTracker, kRecluster, kUntagged, kPCAmerge, kCROI, kNumStages };
     
     // Contour tool
-    larlitecv::BMTCV m_bmtcv_algo;
+    larlitecv::BMTCV* m_bmtcv_algo;
 
     // Truth data (if used)
     CrossingPointAnaData_t m_truthxingdata;
 
-    SpaceChargeMicroBooNE m_sce;
+    SpaceChargeMicroBooNE* m_sce;
 
   };
   

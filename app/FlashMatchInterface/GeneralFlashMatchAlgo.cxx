@@ -12,7 +12,7 @@ namespace larlitecv {
     : m_pmtweights("geoinfo.root")
   {}
 
-  GeneralFlashMatchAlgo::GeneralFlashMatchAlgo( GeneralFlashMatchAlgoConfig& config )
+  GeneralFlashMatchAlgo::GeneralFlashMatchAlgo( const GeneralFlashMatchAlgoConfig& config )
     : m_config(config), m_pmtweights("geoinfo.root") {
     
     setVerbosity( m_config.verbosity );
@@ -871,7 +871,7 @@ namespace larlitecv {
     return _global_instance;
   }
 
-  GeneralFlashMatchAlgo* GeneralFlashMatchAlgo::GetME( larlitecv::GeneralFlashMatchAlgoConfig& config ) {
+  GeneralFlashMatchAlgo* GeneralFlashMatchAlgo::GetME( const larlitecv::GeneralFlashMatchAlgoConfig& config ) {
     if ( _global_instance==NULL ) {
       _global_instance = new GeneralFlashMatchAlgo( config );
     }

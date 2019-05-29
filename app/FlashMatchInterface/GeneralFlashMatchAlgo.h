@@ -43,7 +43,7 @@ namespace larlitecv {
   class GeneralFlashMatchAlgo {
   public:
     GeneralFlashMatchAlgo();
-    GeneralFlashMatchAlgo( GeneralFlashMatchAlgoConfig& config );
+    GeneralFlashMatchAlgo( const GeneralFlashMatchAlgoConfig& config );
     virtual ~GeneralFlashMatchAlgo() {};
 
     // This might need more information based on the needs of converting a flash to an opflash.
@@ -105,7 +105,7 @@ namespace larlitecv {
     void setVerbosity( int v ) { m_verbosity = v; };
 
     static GeneralFlashMatchAlgo* GetME();
-    static GeneralFlashMatchAlgo* GetME( larlitecv::GeneralFlashMatchAlgoConfig& config );
+    static GeneralFlashMatchAlgo* GetME( const larlitecv::GeneralFlashMatchAlgoConfig& config );
 
     flashana::FlashMatchManager& getFlashMatchManager() { return m_flash_matcher; }; //< convenience function
 
