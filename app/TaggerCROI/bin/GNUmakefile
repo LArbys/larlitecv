@@ -22,10 +22,11 @@ endif
 # Include your shared object lib location
 LDFLAGS += $(shell larcv-config --libs)
 LDFLAGS += $(shell larlitecv-config --libs)
-LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
 LDFLAGS += $(shell larlite-config --libs) -lBasicTool_FhiclLite
-LDFLAGS += $(shell larlite-config --libs) -lSelectionTool_OpT0FinderAna -lSelectionTool_OpT0FinderApp \
+LDFLAGS += -lBasicTool_GeoAlgo
+LDFLAGS += -lSelectionTool_OpT0FinderAna -lSelectionTool_OpT0FinderApp \
 	-lSelectionTool_OpT0PhotonLibrary -lSelectionTool_OpT0FinderAlgorithms -lSelectionTool_OpT0FinderBase  -lSelectionTool_LEEPreCuts
+LDFLAGS += $(shell geo2d-config --libs)
 LDFLAGS += $(shell root-config --libs) -lPhysics -lMatrix -g
 #LDFLAGS += -L$(ANN_LIBDIR) -lANN
 #LDFLAGS += -lprofiler
@@ -45,7 +46,7 @@ all: $(PROGRAMS)
 
 %: %.cxx
 	@echo '<<compiling' $@'>>'
-	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS)
+	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS) -std=c++17
 	@rm -rf *.dSYM
 clean:	
 	rm -f $(PROGRAMS)

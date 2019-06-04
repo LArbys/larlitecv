@@ -15,7 +15,7 @@ INCFLAGS  = -g -I.                       #Include itself
 INCFLAGS += $(shell larcv-config --includes) 
 INCFLAGS += $(shell larcv-config --includes)/../app
 INCFLAGS += $(shell larlite-config --includes) 
-INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool/GeoAlgo
+#INCFLAGS += $(shell larlite-config --includes)/../UserDev/BasicTool/GeoAlgo
 INCFLAGS += $(shell larlitecv-config --includes)
 INCFLAGS += -I$(KALMAN_INCDIR)
 
@@ -27,7 +27,8 @@ OSNAMEMODE      = $(OSNAME)
 include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 LDFLAGS += $(shell larcv-config --libs)
-LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo $(KALMAN_LIBDIR)/libkalman.a
+#LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo 
+LDFLAGS += $(KALMAN_LIBDIR)/libkalman.a
 # call the common GNUmakefile
 include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE
 

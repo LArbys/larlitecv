@@ -18,7 +18,7 @@ namespace larlitecv {
 
   // Add additional arguments: 
   //                           
-  void ThruMuTracker::makeTrackClusters3D( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector<larcv::Image2D>& img_v,  
+  void ThruMuTracker::makeTrackClusters3D( const GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector<larcv::Image2D>& img_v,  
 					   const std::vector<larcv::Image2D>& badchimg_v, const std::vector< const BoundarySpacePoint* >& spacepts,
 					   std::vector< larlitecv::BMTrackCluster3D >& trackclusters,
 					   std::vector< larcv::Image2D >& tagged_v, std::vector<int>& used_endpoints_indices, const std::vector< larlite::event_opflash* >& opflashsets ) {
@@ -601,7 +601,7 @@ namespace larlitecv {
   // track_endpoint_flash_idx_v: This vector contains information for which flash (if any) determined the endpoint for a track.  This is now a vector of vectors.
   // track_endpoint_boundary_type_idx_v: This vector contains information for the flash producer used to generate the flash that produced the endpoint.  This is now a vector of vectors. 
   // anode_and_cathode_only: This only compares the endpoints for anode-piercing/cathode-piercing tracks, for which one flash is matched to the track.
-  void ThruMuTracker::flashMatchTracks( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< const BoundarySpacePoint* >& spacepts,
+  void ThruMuTracker::flashMatchTracks( const GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< const BoundarySpacePoint* >& spacepts,
 					const std::vector< larlite::event_opflash* >& opflash_v, std::vector< BMTrackCluster3D >& trackclusters,
 					std::set< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, std::set< BoundaryFlashIndex >& already_matched_flash_v,
 					std::vector< int >& well_matched_tracks_idx_v, const int& num_of_tracks_added_in_pass,
@@ -730,7 +730,7 @@ namespace larlitecv {
   // 'impossible_match_endpoints': This is a set of the endpoints that cannot form a valid track based on the information shown here.
   //                               This will be added to based on the information in this function.
   // 'already_matched_flash_v': This is a set of 'BoundaryFlashIndex' objects that correspond to the flashes that have already been well-matched to an anode-piercing/cathode-piercing track.
-  void ThruMuTracker::flashMatchAC( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< flashana::QCluster_t >& qcluster_vector, 
+  void ThruMuTracker::flashMatchAC( const GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< flashana::QCluster_t >& qcluster_vector, 
 				    const std::vector< BoundaryFlashIndex >& boundary_flash_index_vector, const std::vector< std::vector< BoundaryFlashIndex > >& track_endpoint_flash_v_from_pass, 
 				    const std::vector< std::vector< BoundaryEnd_t > >& track_endpoint_boundary_type_idx_v_from_pass, 
 				    std::set< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v, const std::vector< std::vector< BoundarySpacePoint > > & track_endpoint_v_from_pass, 
@@ -835,7 +835,7 @@ namespace larlitecv {
   //        'well_matched_tracks_idx' - This vector contains the information from the tracks in the event that are well-matched already to a single flash.
   //        'already_matched_flash_idx_v' - This vector contains the indices of the flashes that are already well-matched to a track in the event, meaning that they can be passed over.
   //        'entire_event' - This boolean indicator asks if we want to loop through all of the information contained in the event or in a pass after the 'ACflashMatch'.
-  void ThruMuTracker::flashMatchYZFaceTracks( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< larlitecv::BMTrackCluster3D >& trackclusters,
+  void ThruMuTracker::flashMatchYZFaceTracks( const GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< larlitecv::BMTrackCluster3D >& trackclusters,
 					      const std::vector < flashana::QCluster_t >& qcluster_vector, const std::vector< BoundaryFlashIndex >& boundary_flash_index_vector,
 					      std::set< std::vector< BoundarySpacePoint > >& impossible_match_endpoint_v,
 					      const std::vector< std::vector< BoundarySpacePoint > > & track_endpoint_v_from_pass,
@@ -944,7 +944,11 @@ namespace larlitecv {
   //         'opflash' - This is the opflash product for which we are making the list.
   //         'opflash_producer' - This is the producer of the opflash, meaning either 'simpleFlashCosmic' or 'simpleFlashBeam', for which the flash was collected.
   //         'opflash_track_match_list' - This is the vector of the objects of struct 'FlashMatchCandidate' that is being constructed from the flash in question.
-  void ThruMuTracker::rankTrackFlashMatches( GeneralFlashMatchAlgoConfig& flash_match_config, const std::vector< flashana::QCluster_t >& qclusters_being_checked, const std::vector< int >& well_matched_tracks_idx_v, larlite::opflash opflash, int opflash_producer, std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list ) {
+  void ThruMuTracker::rankTrackFlashMatches( const GeneralFlashMatchAlgoConfig& flash_match_config, 
+					     const std::vector< flashana::QCluster_t >& qclusters_being_checked, 
+					     const std::vector< int >& well_matched_tracks_idx_v, 
+					     larlite::opflash opflash, int opflash_producer, 
+					     std::vector< ThruMuTracker::FlashMatchCandidate >& opflash_track_match_list ) {
 
     // Declare an object of type 'GeneralFlashMatchAlgo' using the configuration object from 'GeneralFlashMatchAlgoConfig'.                                                                           
     larlitecv::GeneralFlashMatchAlgo flash_match_obj( flash_match_config );

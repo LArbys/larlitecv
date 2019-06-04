@@ -6,7 +6,6 @@ CXXFLAGS += $(shell larlite-config --includes)
 CXXFLAGS += -I$(LARLITE_BASEDIR)/../
 CXXFLAGS += -I$(LARLITE_BASEDIR)/UserDev
 CXXFLAGS += -I$(LARLITE_BASEDIR)/UserDev/SelectionTool
-CXXFLAGS += -I$(LARLITE_BASEDIR)/UserDev/BasicTool
 CXXFLAGS += $(shell larcv-config --includes)
 CXXFLAGS += -I$(LARCV_BASEDIR)/app/Supera/APILArLite
 CXXFLAGS += -I$(LARCV_BASEDIR)/app
@@ -20,7 +19,6 @@ endif
 # Include your shared object lib location
 LDFLAGS += $(shell larlitecv-config --libs)
 LDFLAGS += $(shell larcv-config --libs)
-LDFLAGS += $(shell larlite-config --libs) -lBasicTool_GeoAlgo
 LDFLAGS += $(shell larlite-config --libs) -lBasicTool_FhiclLite
 LDFLAGS += $(shell larlite-config --libs) -lSelectionTool_OpT0FinderAna -lSelectionTool_OpT0FinderApp \
 	-lSelectionTool_OpT0PhotonLibrary -lSelectionTool_OpT0FinderAlgorithms -lSelectionTool_OpT0FinderBase 

@@ -44,7 +44,7 @@ namespace larlitecv {
     TaggerFlashMatchAlgoV2(); //< default declared for ROOT dict. Do not use.
 
   public:
-    TaggerFlashMatchAlgoV2( TaggerFlashMatchAlgoConfig& config ); // Use this constructor.
+    TaggerFlashMatchAlgoV2( const TaggerFlashMatchAlgoConfig& config ); // Use this constructor.
     virtual ~TaggerFlashMatchAlgoV2() {};
 
 

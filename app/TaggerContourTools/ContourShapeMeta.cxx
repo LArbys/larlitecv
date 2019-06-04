@@ -3,7 +3,9 @@
 
 namespace larlitecv {
 
-  ContourShapeMeta::ContourShapeMeta() {
+  ContourShapeMeta::ContourShapeMeta() 
+    : m_valid_pca(false) 
+  {
     std::stringstream msg;
     msg << __FILE__ << ":" << __LINE__ << ": Default construct should not be used. Only defined for dictionary purposes." << std::endl;
     throw std::runtime_error(msg.str());
@@ -13,7 +15,9 @@ namespace larlitecv {
     : std::vector<cv::Point>(contour),
       m_meta(img.meta()),
       m_start( cv::Point(0,0) ),
-      m_end( cv::Point(0,0) )  {
+      m_end( cv::Point(0,0) ),
+      m_valid_pca(false)
+  {
 
     eigen_vecs.clear();
     eigen_val.clear();
@@ -145,44 +149,54 @@ namespace larlitecv {
     eigen_vecs.resize(2);
     eigen_val.resize(2);
       
-    for (int i = 0; i < 2; ++i)
-      {
-	eigen_vecs[i] = cv::Point2d(pca_analysis.eigenvectors.at<double>(i, 0),
-				    pca_analysis.eigenvectors.at<double>(i, 1));
-	eigen_val[i] = pca_analysis.eigenvalues.at<double>(0, i);
-      }
-
-    // determine start and end points
-    float max_r_pos = 0;
-    float max_r_neg = 0;
-    m_pca_startpt.resize(2);
-    m_pca_endpt.resize(2);
-    m_pca_startpt[0] = m_pca_endpt[0] = center.x;
-    m_pca_startpt[1] = m_pca_endpt[1] = center.y;    
-    for ( auto const& pix : qpixels ) {
-
-      std::vector<float> dir(2);
-      dir[0] = pix.x - center.x;
-      dir[1] = pix.y - center.y;
-      float dist = sqrt( dir[0]*dir[0] + dir[1]*dir[1] );
-
-      float cospca1 = dir[0]*eigen_vecs[0].x + dir[1]*eigen_vecs[0].y;
-
-      if ( cospca1 <= 0 ) {
-	if ( dist > max_r_neg ) {
-	  max_r_neg = dist;
-	  m_pca_startpt[0] = pix.x;
-	  m_pca_startpt[1] = pix.y;
+    if ( pca_analysis.eigenvectors.rows<1 ) {
+      std::cout << "pca vec rows=" << pca_analysis.eigenvectors.rows 
+		<< " cols=" << pca_analysis.eigenvectors.cols 
+		<< std::endl;
+      m_valid_pca = false;
+    }
+    else {
+      // for valid PCA dim (at least one)
+      m_valid_pca = true;
+      for (int i = 0; i < (int)pca_analysis.eigenvectors.rows; ++i)
+	{
+	  eigen_vecs[i] = cv::Point2d(pca_analysis.eigenvectors.at<double>(i, 0),
+				      pca_analysis.eigenvectors.at<double>(i, 1));
+	  eigen_val[i] = pca_analysis.eigenvalues.at<double>(0, i);
 	}
-      }
-      else {
-	if( dist > max_r_pos ) {
-	  max_r_pos = dist;
-	  m_pca_endpt[0] = pix.x;
-	  m_pca_endpt[1] = pix.y;
-	}
-      }
       
+      // determine start and end points
+      float max_r_pos = 0;
+      float max_r_neg = 0;
+      m_pca_startpt.resize(2);
+      m_pca_endpt.resize(2);
+      m_pca_startpt[0] = m_pca_endpt[0] = center.x;
+      m_pca_startpt[1] = m_pca_endpt[1] = center.y;    
+      for ( auto const& pix : qpixels ) {
+	
+	std::vector<float> dir(2);
+	dir[0] = pix.x - center.x;
+	dir[1] = pix.y - center.y;
+	float dist = sqrt( dir[0]*dir[0] + dir[1]*dir[1] );
+	
+	float cospca1 = dir[0]*eigen_vecs[0].x + dir[1]*eigen_vecs[0].y;
+	
+	if ( cospca1 <= 0 ) {
+	  if ( dist > max_r_neg ) {
+	    max_r_neg = dist;
+	    m_pca_startpt[0] = pix.x;
+	    m_pca_startpt[1] = pix.y;
+	  }
+	}
+	else {
+	  if( dist > max_r_pos ) {
+	    max_r_pos = dist;
+	    m_pca_endpt[0] = pix.x;
+	    m_pca_endpt[1] = pix.y;
+	  }
+	}
+	
+      }
     }
     
   }

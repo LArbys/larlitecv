@@ -40,7 +40,7 @@ namespace larlitecv {
 
   public:
     
-    void configure( BoundaryMuonTaggerAlgoConfig& cfg ) { _config = cfg; };
+    void configure( const BoundaryMuonTaggerAlgoConfig& cfg ) { _config = cfg; };
 
     void run();
 

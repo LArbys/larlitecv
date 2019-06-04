@@ -49,8 +49,7 @@ PACKAGE_NAME = Hashlib2plus
 # specific names for this package
 SOURCES = $(wildcard *.cxx)
 FMWK_HEADERS = LinkDef.h
-#HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
-HEADERS = 
+HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 
 # include options for this package
 INCFLAGS  = -I.                       #Include itself
