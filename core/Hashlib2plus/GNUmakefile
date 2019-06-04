@@ -67,3 +67,4 @@ include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE
 pkg_build: # nothing extra to do in this package
 pkg_clean: # nothing extra to do in this package
 
+main_build: .depend pre_build $(OBJECTS) install_header
