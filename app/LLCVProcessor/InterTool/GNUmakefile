@@ -1,4 +1,4 @@
-SUBDIRS :=  Base DLHandshake RecoTruthMatch DetachedShower InterTool # Play
+SUBDIRS :=  Util Core App Sel
 
 .phony: all clean
 

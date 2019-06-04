@@ -1,4 +1,4 @@
-SUBDIRS :=  Base DLHandshake RecoTruthMatch DetachedShower InterTool # Play
+SUBDIRS := Toy NueID TriangleStudy TrackScatter MichelFlash TrackDir MichelStudy SSNetStudy CosmicID Example FlashMatch
 
 .phony: all clean
 

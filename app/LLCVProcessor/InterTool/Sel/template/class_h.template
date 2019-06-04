@@ -1,0 +1,29 @@
+#ifndef __BBB_H__
+#define __BBB_H__
+
+#include "InterTool_Core/InterSelBase.h"
+
+namespace llcv {
+  
+  class AAA : public InterSelBase { 
+
+  public:
+
+  AAA(std::string name="AAA") : InterSelBase(name) {}
+    ~AAA(){}
+    
+    void Configure (const larcv::PSet &pset);
+    void Initialize() {}
+    double Select();
+    void Finalize();
+    
+    
+  protected:
+    
+    
+  };
+
+}
+
+
+#endif
