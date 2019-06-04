@@ -27,6 +27,7 @@ CORE_SUBDIRS := Hashlib2plus Base
 
 APP_SUBDIRS := TaggerTypes Combinator FlashMatchInterface GapChs UnipolarHack ChargeSegmentAlgos T3DMerge SCE 
 APP_SUBDIRS += MCTruthTools
+APP_SUBDIRS += LLCVProcessor
 ifeq ($(LARLITECV_OPENCV),1)
   APP_SUBDIRS += TaggerContourTools
 endif
