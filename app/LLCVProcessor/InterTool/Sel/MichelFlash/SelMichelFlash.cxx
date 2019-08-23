@@ -7,6 +7,7 @@
 #include <cmath>
 #include <sstream>
 #include <numeric>
+#include <iomanip>
 
 #include "TGraph.h"
 #include "TF1.h"

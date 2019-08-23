@@ -5,12 +5,8 @@
 
 #include <cassert>
 
-#ifndef __CLING__
-#ifndef __CINT__
-#include <opencv2/opencv.hpp>
-#endif
-#endif
-#include <opencv2/core/core.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include "Geo2D/Core/Geo2D.h"
 

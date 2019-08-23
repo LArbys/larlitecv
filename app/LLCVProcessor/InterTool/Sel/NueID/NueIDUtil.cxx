@@ -3,6 +3,10 @@
 
 #include "NueIDUtil.h"
 
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/imgcodecs.hpp>
+
 namespace llcv {
 
   size_t FindClosestContour(const larocv::GEO2D_ContourArray_t& ctor_v,

@@ -14,8 +14,9 @@
 #include "TaggerTypes/BoundarySpacePoint.h"
 
 #ifdef USE_OPENCV
-#include <opencv2/opencv.hpp>
-#include <opencv2/core/core.hpp>
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/imgcodecs.hpp>
 #endif
 
 #include "ContourShapeMeta.h"
