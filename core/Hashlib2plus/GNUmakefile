@@ -46,14 +46,6 @@
 #
 PACKAGE_NAME = Hashlib2plus
 
-# specific names for this package
-SOURCES = $(wildcard *.cxx)
-FMWK_HEADERS = LinkDef.h
-HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
-
-# include options for this package
-INCFLAGS  = -I.                       #Include itself
-
 # platform-specific options
 OSNAME          = $(shell uname -s)
 HOST            = $(shell uname -n)
@@ -61,10 +53,135 @@ OSNAMEMODE      = $(OSNAME)
 
 include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
-# call the common GNUmakefile
-include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE
+#-----------------------------------------------------------------------
+# BELOW IS FROM Original Makefile
+#----------------------------------------------------------------------- 
+#all header-files
 
-pkg_build: # nothing extra to do in this package
-pkg_clean: # nothing extra to do in this package
+HEADER = 	hl_hashwrapper.h \
+		hl_wrapperfactory.h \
+		hl_exception.h \
+		hl_md5.h hl_md5wrapper.h \
+		hl_sha1.h hl_sha1wrapper.h \
+		hl_sha2mac.h \
+		hl_sha256.h hl_sha256wrapper.h \
+		hl_sha2ext.h hl_sha384wrapper.h  hl_sha512wrapper.h \
+		hl_types.h \
+		hashlibpp.h
+
+SOURCES = $(wildcard *.cxx)
+OBJS    = $(SOURCES:.cxx=.o)
+
+#-----------------------------------------------------------------------
+
+.phony: clean all LIB CORE MD5 SHA1 SHA256 SHA2EXT
+
+all: LIB
+
+#-----------------------------------------------------------------------
+%.o: %.cxx %.h
+	$(CXX) $(CXXFLAGS) -c $< $@
+
+#----------------------------------------------------------------------- 
+CORE = 	hl_wrapperfactory.o
+CORE:	hl_wrapperfactory.o
+
+hl_wrapperfactory.o:	hl_wrapperfactory.cxx hl_wrapperfactory.h
+	$(CXX) $(CXXFLAGS) -c hl_wrapperfactory.cxx -o $@
+
+#----------------------------------------------------------------------- 
+# MD5 Targets
+
+MD5 = hl_md5.o hl_md5wrapper.o
+
+MD5: hl_md5.o hl_md5wrapper.o
+
+hl_md5.o: hl_md5.cxx hl_md5.h
+	$(CXX) $(CXXFLAGS) -c hl_md5.cxx
+
+hl_md5wrapper.o:	hl_md5wrapper.cxx hl_md5wrapper.h
+	$(CXX) $(CXXFLAGS) -c hl_md5wrapper.cxx
+
+#----------------------------------------------------------------------- 
+# SHA1 Targets
+
+SHA1 = 		hl_sha1.o hl_sha1wrapper.o
+
+SHA1:		hl_sha1.o hl_sha1wrapper.o
+
+hl_sha1.o:	hl_sha1.cxx hl_sha1.h
+	$(CXX) $(CXXFLAGS) -c hl_sha1.cxx
+
+hl_sha1wrapper.o:	hl_sha1wrapper.cxx hl_sha1wrapper.h
+	$(CXX) $(CXXFLAGS) -c hl_sha1wrapper.cxx
+
+#----------------------------------------------------------------------- 
+# SHA256 Targets
+
+SHA256 = 	hl_sha256.o hl_sha256wrapper.o
+
+SHA256:		hl_sha256.o hl_sha256wrapper.o
+
+hl_sha256.o:	hl_sha256.cxx hl_sha256.h hl_sha2mac.h
+	$(CXX) $(CXXFLAGS) -c hl_sha256.cxx
+
+hl_sha256wrapper.o:	hl_sha256wrapper.cxx hl_sha256wrapper.h
+	$(CXX) $(CXXFLAGS) -c hl_sha256wrapper.cxx
+
+#----------------------------------------------------------------------- 
+# SHA2-ext Targets
+
+SHA2EXT = 	hl_sha2ext.o \
+		hl_sha384wrapper.o \
+		hl_sha512wrapper.o 
+
+SHA2EXT:	hl_sha2ext.o hl_sha384wrapper.o hl_sha512wrapper.o
+
+hl_sha2ext.o:	hl_sha2ext.cxx hl_sha2ext.h hl_sha2mac.h
+	$(CXX) $(CXXFLAGS) -c hl_sha2ext.cxx
+
+hl_sha384wrapper.o:	hl_sha384wrapper.cxx hl_sha384wrapper.h
+	$(CXX) $(CXXFLAGS) -c hl_sha384wrapper.cxx
+
+hl_sha512wrapper.o:	hl_sha512wrapper.cxx hl_sha512wrapper.h
+	$(CXX) $(CXXFLAGS) -c hl_sha512wrapper.cxx
+
+#----------------------------------------------------------------------- 
+# Creating a static lib using ar
+
+LIB: CORE MD5 SHA1 SHA256 SHA2EXT
+	ar rs libhl++.a $(MD5) $(SHA1) $(SHA256) $(SHA2EXT) $(CORE)
+	cp libhl++.a $(LARLITECV_LIBDIR)/
+	@mkdir -p $(LARLITECV_BUILDDIR)/include/Hashlib2plus
+	cp $(HEADER) $(LARLITECV_BUILDDIR)/include/Hashlib2plus/
+
+# specific names for this package
+#SOURCES = $(wildcard *.cxx)
+#FMWK_HEADERS = LinkDef.h
+#HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
+
+
+# platform-specific options
+#OSNAME          = $(shell uname -s)
+#HOST            = $(shell uname -n)
+#OSNAMEMODE      = $(OSNAME)
+
+#include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
+
+# call the common GNUmakefile
+#include $(LARLITECV_BASEDIR)/Makefile/GNUmakefile.CORE
+
+# include options for this package
+#INCFLAGS  = -I.                       #Include itself
+
+#pkg_build: # nothing extra to do in this package
+#pkg_clean: # nothing extra to do in this package
+
+
+clean:
+	rm -f *.o
+	-@ echo "cleaned up "
+	-@ echo ""
+
 
 main_build: .depend pre_build $(OBJECTS) install_header

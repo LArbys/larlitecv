@@ -19,6 +19,8 @@ OSNAME          = $(shell uname -s)
 HOST            = $(shell uname -n)
 OSNAMEMODE      = $(OSNAME)
 
+LIBS += $(LARLITECV_BASEDIR) -lhl++
+
 include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 # call the common GNUmakefile

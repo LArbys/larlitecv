@@ -58,7 +58,7 @@ lib: obj
 	@ echo
 	@ if [ `python ${LARLITECV_BASEDIR}/bin/libarg.py build` ]; then \
 	    echo Linking library...; \
-	    $(SOMAKER) $(SOFLAGS) $(shell python $(LARLITECV_BASEDIR)/bin/libarg.py); \
+	    $(SOMAKER) $(SOFLAGS) $(shell python $(LARLITECV_BASEDIR)/bin/libarg.py) -lhl++; \
 	  else \
 	   echo Nothing to be done for lib...; \
 	fi
