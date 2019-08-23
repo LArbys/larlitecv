@@ -46,7 +46,7 @@ all: $(PROGRAMS)
 
 %: %.cxx
 	@echo '<<compiling' $@'>>'
-	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS) -std=c++17
+	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS) -std=c++14
 	@rm -rf *.dSYM
 clean:	
 	rm -f $(PROGRAMS)
