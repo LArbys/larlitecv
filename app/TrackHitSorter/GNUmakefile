@@ -14,7 +14,7 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 INCFLAGS  = -g -I.                       #Include itself
 INCFLAGS += $(shell larcv-config --includes) 
 INCFLAGS += $(shell larcv-config --includes)/../app
-INCFLAGS += $(shell larlite-config --includes) 
+INCFLAGS += $(shell larlite-config --includes) -I$(LARLITE_BASEDIR)/../
 INCFLAGS += $(shell geo2d-config --includes)
 INCFLAGS += $(shell larlitecv-config --includes)
 

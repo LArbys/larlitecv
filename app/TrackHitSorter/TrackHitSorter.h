@@ -4,9 +4,9 @@
 #include <vector>
 
 // larlite
-#include "DataFormat/vertex.h"
-#include "DataFormat/track.h"
-#include "DataFormat/hit.h"
+#include "larlite/core/DataFormat/vertex.h"
+#include "larlite/core/DataFormat/track.h"
+#include "larlite/core/DataFormat/hit.h"
 
 // Geo2D
 #include "Geo2D/Core/Geo2D.h"

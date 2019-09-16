@@ -8,7 +8,7 @@ HEADERS = $(filter-out $(FMWK_HEADERS), $(wildcard *.h))
 # include options for this package
 INCFLAGS  = -I.      
 INCFLAGS += $(shell larlite-config --includes)
-INCFLAGS += -I$(LARLITE_USERDEVDIR)
+INCFLAGS += -I$(LARLITE_USERDEVDIR) -I$(LARLITE_BASEDIR)/../
 
 INCFLAGS += $(shell larcv-config --includes)
 INCFLAGS += $(shell geo2d-config --includes)
@@ -16,7 +16,7 @@ INCFLAGS += -I$(LAROPENCV_BASEDIR)
 INCFLAGS += -I$(LARCV_BASEDIR)/app/LArOpenCVHandle
 INCFLAGS += $(shell larlitecv-config --includes)
 
-LDFLAGS += $(shell larlite-config --libs)
+LDFLAGS += $(shell larlite-config --libs) 
 LDFLAGS += -lBasicTool_FhiclLite
 LDFLAGS += $(shell larcv-config --libs)
 LDFLAGS += $(shell geo2d-config --libs)
