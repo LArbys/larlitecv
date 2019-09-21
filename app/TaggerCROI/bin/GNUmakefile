@@ -28,6 +28,7 @@ LDFLAGS += -lSelectionTool_OpT0FinderAna -lSelectionTool_OpT0FinderApp \
 	-lSelectionTool_OpT0PhotonLibrary -lSelectionTool_OpT0FinderAlgorithms -lSelectionTool_OpT0FinderBase  -lSelectionTool_LEEPreCuts
 LDFLAGS += $(shell geo2d-config --libs)
 LDFLAGS += $(shell root-config --libs) -lPhysics -lMatrix -g
+LDFLAGS += $(shell larcv-config --libs)
 #LDFLAGS += -L$(ANN_LIBDIR) -lANN
 #LDFLAGS += -lprofiler
 ifeq ($(LARLITECV_OPENCV),1)
@@ -46,7 +47,7 @@ all: $(PROGRAMS)
 
 %: %.cxx
 	@echo '<<compiling' $@'>>'
-	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS) -std=c++14
+	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS) -std=c++17
 	@rm -rf *.dSYM
 clean:	
 	rm -f $(PROGRAMS)
