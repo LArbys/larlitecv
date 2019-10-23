@@ -1,11 +1,16 @@
+from __future__ import print_function
 import os,sys
 import ROOT
 from larlite import larlite as fmwk
 from recotool import showerreco
 from ROOT import protoshower
 
-def getShowerRecoAlgModular(is_mc):
+def getShowerRecoAlgModular(is_mc,shower_dqds_table=None):
     
+    if shower_dqds_table is None:
+        #'/usr/local/share/dllee_unified/larlite/UserDev/RecoTool/ShowerReco3D/dqds_mc_xyz.txt
+        raise ValueError("shower dqds table not specified!")
+
     alg = showerreco.ShowerRecoAlgModular()
     alg.SetDebug(False)
     alg.SetVerbose(False)
@@ -26,7 +31,7 @@ def getShowerRecoAlgModular(is_mc):
     # implement position-dependent calibration
     energy.CreateResponseMap(20)
     dQdsAVG = 248.
-    fin = open('/usr/local/share/dllee_unified/larlite/UserDev/RecoTool/ShowerReco3D/dqds_mc_xyz.txt','r')
+    fin = open(shower_dqds_table,'r')
     #fin = open('/home/vgenty/dqds_mc_xyz.txt','r')
     for line in fin:
         words = line.split()
@@ -44,7 +49,7 @@ def getShowerRecoAlgModular(is_mc):
     elif is_mc == 0:
         energy.SetElecGain(240.) # MCC8.3 value
     else:
-        print "BAD IS_MC=%s" % str(is_mc)
+        print("BAD IS_MC=%s" % str(is_mc))
         sys.exit(1)
 
     energy.setVerbosity(False)
@@ -68,7 +73,7 @@ def getShowerRecoAlgModular(is_mc):
     
     return alg
 
-def DefaultShowerReco3D(req_pdg,is_mc):
+def DefaultShowerReco3D(req_pdg,is_mc,shower_table):
     
     # Create analysis unit
     ana_unit = fmwk.ShowerReco3D()
@@ -77,16 +82,16 @@ def DefaultShowerReco3D(req_pdg,is_mc):
     ana_unit.SetRequirePDG11(req_pdg)
     
     # Attach shower reco alg
-    sralg = getShowerRecoAlgModular(is_mc)
+    sralg = getShowerRecoAlgModular(is_mc,shower_dqds_table=shower_table)
     ana_unit.AddShowerAlgo(sralg)
 
     return ana_unit
 
-def DLShowerReco3D(req_pdg,is_mc=1):
+def DLShowerReco3D(req_pdg,is_mc=1,shower_table=None):
 
-    shower_ana_unit=DefaultShowerReco3D(req_pdg,is_mc)
-    print "Load DefaultShowerReco3D @ ",shower_ana_unit
-    print "... with req_pdg=%d" % int(req_pdg)
+    shower_ana_unit=DefaultShowerReco3D(req_pdg,is_mc,shower_table)
+    print("Load DefaultShowerReco3D @ ",shower_ana_unit)
+    print("... with req_pdg=%d" % int(req_pdg))
 
     # set ProtoShower Algo to go from data-products to a ProtoShower object
     protoshoweralg = protoshower.ProtoShowerAlgDL()
