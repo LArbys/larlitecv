@@ -59,15 +59,15 @@ namespace larlitecv {
     //float dist2realline( std::vector<double>& image_pt );
     
     // we'll use the larlite geoalgo functions
-    geoalgo::Line image_line3d; ///< line according to the image
-    geoalgo::Line real_line3d;  ///< line in real-space, after spacecharge correction
+    ::larlite::geoalgo::Line image_line3d; ///< line according to the image
+    ::larlite::geoalgo::Line real_line3d;  ///< line in real-space, after spacecharge correction
     std::vector<double> m_realdir;
     double m_shiftx;
 
 
     larlitecv::ReverseSCE m_sce; // get the offsets
     larlitecv::SpaceChargeMicroBooNE m_sce_forward;
-    geoalgo::GeoAlgo m_geoalgo;
+    ::larlite::geoalgo::GeoAlgo m_geoalgo;
   };
 
   class ThruMuFoxTrot {
@@ -102,7 +102,7 @@ namespace larlitecv {
     
     std::vector< T3DCluster > m_real_paths;  //< paths of segments that have been sce-corrected, and broken into straight line segments
     std::vector< T3DCluster > m_image_paths; //< paths of segments based on points in the images, points correspond to partner segments in m_real_paths
-    geoalgo::GeoAlgo m_geoalgo;    
+    ::larlite::geoalgo::GeoAlgo m_geoalgo;    
     
   };
   

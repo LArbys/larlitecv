@@ -11,7 +11,7 @@ namespace larlitecv {
 
 	std::vector< BMTrackCluster3D > Linear3DPostProcessor::process( std::vector< BMTrackCluster3D >& tracks_v ) {
 
-		geoalgo::GeoAlgo algo;
+		::larlite::geoalgo::GeoAlgo algo;
 
 		// we pair-wise check for subsets
 		const size_t ntracks = tracks_v.size();
@@ -21,14 +21,14 @@ namespace larlitecv {
 			if ( track_excluded.at(itrack_a) ) continue;
 
 			BMTrackCluster3D& track_a = tracks_v.at(itrack_a);
-			geoalgo::LineSegment seg_a( track_a.path3d.front()[0], track_a.path3d.front()[1], track_a.path3d.front()[2],
+			::larlite::geoalgo::LineSegment seg_a( track_a.path3d.front()[0], track_a.path3d.front()[1], track_a.path3d.front()[2],
 																	track_a.path3d.back()[0],  track_a.path3d.back()[1],  track_a.path3d.back()[2] );
 
 			for (size_t itrack_b=itrack_a+1; itrack_b<ntracks; itrack_b++ ) {
 				if ( track_excluded.at(itrack_b) ) continue;
 
 				BMTrackCluster3D& track_b = tracks_v.at(itrack_b);
-				geoalgo::LineSegment seg_b( track_b.path3d.front()[0], track_b.path3d.front()[1], track_b.path3d.front()[2],
+				::larlite::geoalgo::LineSegment seg_b( track_b.path3d.front()[0], track_b.path3d.front()[1], track_b.path3d.front()[2],
 																		track_b.path3d.back()[0],  track_b.path3d.back()[1],  track_b.path3d.back()[2] );
 
 				// same start or end point
@@ -70,8 +70,8 @@ namespace larlitecv {
 				// neither end point is the same
 
 				// if end points of shortest track is close to longest track, it's a duplicate
-				geoalgo::LineSegment* shorter_lineseg = &seg_b;
-				geoalgo::LineSegment* longer_lineseg  = &seg_a;
+				::larlite::geoalgo::LineSegment* shorter_lineseg = &seg_b;
+				::larlite::geoalgo::LineSegment* longer_lineseg  = &seg_a;
 				size_t shorter_seg_idx = itrack_b;
 				//size_t longer_seg_idx  = itrack_a;
 				if ( seg_a.Dir().Length()<seg_b.Dir().Length() ) {
@@ -81,7 +81,7 @@ namespace larlitecv {
 					shorter_seg_idx = itrack_a;
 					//longer_seg_idx = itrack_b;
 				}
-				geoalgo::Line longer_line( longer_lineseg->Start(), longer_lineseg->End() );
+				::larlite::geoalgo::Line longer_line( longer_lineseg->Start(), longer_lineseg->End() );
 				float start_dist = algo.SqDist( shorter_lineseg->Start(), longer_line );
 				float end_dist   = algo.SqDist( shorter_lineseg->End(),   longer_line );
 

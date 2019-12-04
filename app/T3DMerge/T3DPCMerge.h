@@ -39,7 +39,7 @@ namespace larlitecv {
     double m_min_pcacos;
     int m_max_iterations;
     int m_verbose;
-    geoalgo::GeoAlgo m_geoalgo;
+    ::larlite::geoalgo::GeoAlgo m_geoalgo;
 
   };
 

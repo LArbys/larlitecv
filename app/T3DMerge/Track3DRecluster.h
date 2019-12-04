@@ -39,7 +39,7 @@ namespace larlitecv {
     bool ReclusterPair( const T3DCluster& tracka, const T3DCluster& trackb, std::vector<T3DCluster>& tracks_v );
     std::vector< SegmentOverlap_t > getOverlapSegmentsOfBonA( const T3DCluster& tracka, const T3DCluster& trackb, std::vector<int>& overlap_info );    
 
-    geoalgo::GeoAlgo m_geoalgo;
+    ::larlite::geoalgo::GeoAlgo m_geoalgo;
 
     TRandom3 m_rand;
     int m_verbosity;

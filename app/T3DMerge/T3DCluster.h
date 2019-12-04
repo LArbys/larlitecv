@@ -39,7 +39,7 @@ namespace larlitecv {
     std::vector< std::vector<double> > m_pc_v; // principle component vectors
     std::vector< std::vector<double> > m_pc_bounds; // values of start and end on PCA axes
     std::vector< double > m_mean; // mean from PCA calculation
-    geoalgo::AABox m_bbox;
+    ::larlite::geoalgo::AABox m_bbox;
     float m_ave_stepsize;
 
     // support a graph structure
@@ -49,7 +49,7 @@ namespace larlitecv {
     
   public:
     T3DCluster( const std::vector<Point_t>& path );
-    T3DCluster( const std::vector<Point_t>& path, const std::vector< std::vector<double> >& pathdir, const geoalgo::AABox& bbox );
+    T3DCluster( const std::vector<Point_t>& path, const std::vector< std::vector<double> >& pathdir, const ::larlite::geoalgo::AABox& bbox );
     virtual ~T3DCluster() {};
 
     bool overlaps( const T3DCluster& rhs ) const;
@@ -60,7 +60,7 @@ namespace larlitecv {
     const std::vector<double>& getPCABounds(int ipca) const { return m_pc_bounds.at(ipca); };
     const std::vector<double>& getMean() const { return m_mean; };
     double getPCvalue( const std::vector<double>& pt, int ipca) const;
-    const geoalgo::AABox& getBBox() const { return m_bbox; };
+    const ::larlite::geoalgo::AABox& getBBox() const { return m_bbox; };
     void reverse();
     void append( const T3DCluster& end );
     void makePathDir();

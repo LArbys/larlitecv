@@ -80,7 +80,7 @@ namespace larlitecv {
     void ExpandQClusterNearBoundaryFromLarliteTrack( flashana::QCluster_t& qcluster, const larlite::track& larlite_track,
 						     const double extension, const double boundarydist );
 
-    bool isNearActiveVolumeEdge( ::geoalgo::Vector pt, double d );
+    bool isNearActiveVolumeEdge( ::larlite::geoalgo::Vector pt, double d );
     
     void GetFlashCenterAndRange( const larlite::opflash& flash, float& zmean, std::vector<float>& zrange );
 

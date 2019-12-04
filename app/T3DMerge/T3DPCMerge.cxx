@@ -181,8 +181,8 @@ namespace larlitecv {
       return false;
     }
     
-    geoalgo::Line_t linea( staa, enda );
-    geoalgo::Line_t lineb( stab, endb );
+    ::larlite::geoalgo::Line_t linea( staa, enda );
+    ::larlite::geoalgo::Line_t lineb( stab, endb );
 
     // Distance between end points
     double enddist[4] = {0};
@@ -211,7 +211,7 @@ namespace larlitecv {
     whichends.resize(2);
 
     // set which ends. also calculate the mid point between the two ends
-    geoalgo::Point_t midpt(3);
+    ::larlite::geoalgo::Point_t midpt(3);
     for (int i=0; i<3; i++) {
       switch (endtype) {
       case kStartStart:

@@ -101,8 +101,8 @@ namespace larlitecv {
     // (2) likewise for the reverse
 
     
-    const geoalgo::AABox& boxa = tracka.getBBox();
-    const geoalgo::AABox& boxb = trackb.getBBox();
+    const larlite::geoalgo::AABox& boxa = tracka.getBBox();
+    const larlite::geoalgo::AABox& boxb = trackb.getBBox();
 
     // bool bbox_intersect = false;
     // if ( boxa.Contain( boxb.Min() ) || boxa.Contain(boxb.Max() )
@@ -240,7 +240,7 @@ namespace larlitecv {
       std::vector< std::vector<int> > insert_idx_core( core->getPath().size()+1 ); // additional 0-index is the underflow
       
       // we make a trajectory out of the segment
-      geoalgo::Trajectory seg_traj;
+      ::larlite::geoalgo::Trajectory seg_traj;
       //i=0; 
       for ( auto const& pt_core : core->getPath() ) {
 	//std::cout << "core pt [" << i << "]: " << pt_core[0] << ", " << pt_core[1] << ", " << pt_core[2] << std::endl;
@@ -250,10 +250,10 @@ namespace larlitecv {
       
       // we loop over overlaping points in track b
       for (auto const& idx_trans : indices_transfer ) {
-	geoalgo::Point_t pt_trans = transfer->getPath()[idx_trans];
+	::larlite::geoalgo::Point_t pt_trans = transfer->getPath()[idx_trans];
 	int idx_core = -1;
 	float min_dist2 = 0;
-	//geoalgo::Point_t traj_pt = m_geoalgo.ClosestPt( seg_traj, pt_trans, idx_core ); // this is not what we need, the trajectory returns the wrong segment!
+	//::larlite::geoalgo::Point_t traj_pt = m_geoalgo.ClosestPt( seg_traj, pt_trans, idx_core ); // this is not what we need, the trajectory returns the wrong segment!
 	
 	for ( int ipt=0; ipt<(int)core->getPath().size(); ipt++ ) {
 	  float dist2 = 0;
@@ -265,7 +265,7 @@ namespace larlitecv {
 	    min_dist2 = dist2;
 	  }
 	}
-	geoalgo::Point_t traj_pt = core->getPath()[idx_core];
+	::larlite::geoalgo::Point_t traj_pt = core->getPath()[idx_core];
 	
 	std::vector<double> dir_b2a(3);
 	float dist_b2a = 0.;
