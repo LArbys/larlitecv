@@ -4,6 +4,7 @@
 #pragma link off all functions;
 
 #pragma link C++ namespace llcv+;
+#pragma link C++ class llcv::llcv_base+;
 #pragma link C++ class llcv::Processor+;
 
 #endif
