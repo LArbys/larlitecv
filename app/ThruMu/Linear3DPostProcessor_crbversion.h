@@ -36,7 +36,7 @@ namespace larlitecv {
 
     std::vector < BMTrackCluster3D > process( std::vector< BMTrackCluster3D >& tracks_v );
 
-    bool pointProximity(geoalgo::Line long_line, geoalgo::LineSegment* short_linesegment, int resolution, double maximum_dist);
+    bool pointProximity(::larlite::geoalgo::Line long_line, ::larlite::geoalgo::LineSegment* short_linesegment, int resolution, double maximum_dist);
 
     int longestDimFinder(const std::vector <double> point_one_coords, const std::vector <double> point_two_coords);
 

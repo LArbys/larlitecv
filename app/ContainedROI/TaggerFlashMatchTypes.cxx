@@ -81,7 +81,8 @@ namespace larlitecv {
 
     if ( ( min_tick < meta.min_y() || min_tick>meta.max_y() )
 	 && ( max_tick < meta.min_y() || max_tick>meta.max_y() ) ) {
-      std::cout << "[TaggerFlashMatchTypes::MakeROI] min (" << min_tick << ") and max (" << max_tick << ") tick out of range" << std::endl;
+      std::cout << "[TaggerFlashMatchTypes::MakeROI] min (" << min_tick << ") and max (" << max_tick << ") tick out of range." << std::endl;
+      std::cout << " verus meta: " << meta.dump() << std::endl;
       return roi;
     }
 

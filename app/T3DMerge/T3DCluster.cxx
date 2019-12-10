@@ -11,7 +11,7 @@ namespace larlitecv {
   // =============================================================================
   // T3DCluster class
   
-  T3DCluster::T3DCluster( const std::vector<T3DCluster::Point_t>& p, const std::vector< std::vector<double> >& pathdir, const geoalgo::AABox& bbox )
+  T3DCluster::T3DCluster( const std::vector<T3DCluster::Point_t>& p, const std::vector< std::vector<double> >& pathdir, const ::larlite::geoalgo::AABox& bbox )
     : m_path(p), m_dir(pathdir), m_bbox(bbox), m_parent(NULL), m_is_primary(false)  {
     updatePCA();
   }

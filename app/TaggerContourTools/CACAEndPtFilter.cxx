@@ -597,6 +597,11 @@ namespace larlitecv {
     
     for ( auto const& pastinfo : m_past_info ) {
       std::cout << __PRETTY_FUNCTION__ << ": (" << pastinfo.pos[0] << "," << pastinfo.pos[1] << "," << pastinfo.pos[2] << ")" << std::endl;
+      if ( pastinfo.pos[0]==0 && pastinfo.pos[1]==0 && pastinfo.pos[2]==0 ) {
+	std::cout << __PRETTY_FUNCTION__ << ": skip empty point @ (0,0,0)" << std::endl;
+	continue;
+      }
+
       larlitecv::BoundarySpacePoint sp( (larlitecv::BoundaryEnd_t)pastinfo.type, pastinfo.pos, pastinfo.dir, img_v.front().meta() );
       sp.setFlashIndex( pastinfo.vecindex, pastinfo.flashindex, pastinfo.popflash );
 

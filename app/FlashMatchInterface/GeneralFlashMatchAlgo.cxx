@@ -403,8 +403,8 @@ namespace larlitecv {
     qcluster.clear();
     
     // Declare the two points that will be used in the function.
-    ::geoalgo::Vector pt0(0.,0.,0.);
-    ::geoalgo::Vector pt1(0.,0.,0.);
+    ::larlite::geoalgo::Vector pt0(0.,0.,0.);
+    ::larlite::geoalgo::Vector pt1(0.,0.,0.);
 
     // Declare an object for 'lightpath', which will extend the qcluster.
     flashana::LightPath lightpath;
@@ -506,8 +506,8 @@ namespace larlitecv {
     if ( larlite_track.NumberTrajectoryPoints() < 2 ) return;
     
     // Declare the two points that will be used in the function.
-    ::geoalgo::Vector pt0(0.,0.,0.);
-    ::geoalgo::Vector pt1(0.,0.,0.);
+    ::larlite::geoalgo::Vector pt0(0.,0.,0.);
+    ::larlite::geoalgo::Vector pt1(0.,0.,0.);
 
     // Initialize the first point on the track's trajectory.
     pt0[0] = larlite_track.LocationAtPoint(0)[0];
@@ -536,9 +536,9 @@ namespace larlitecv {
   }
   
   // A function that will tell if a track is located a distance 'd' from the edge of the active volume of the TPC.
-  // Inputs: pt - the object of type '::geoalgo::Vector' that is being checked for being within a distance 'd' of a detector boundary.
+  // Inputs: pt - the object of type '::larlite::geoalgo::Vector' that is being checked for being within a distance 'd' of a detector boundary.
   //         d  - the distance from the detector boundary for which the input point is being checked.
-  bool GeneralFlashMatchAlgo::isNearActiveVolumeEdge( ::geoalgo::Vector pt, double d ) {
+  bool GeneralFlashMatchAlgo::isNearActiveVolumeEdge( ::larlite::geoalgo::Vector pt, double d ) {
 
     // Return 'true' if the input point is near one of the edges of the detector.
     if ( pt[0] <= (0.0 + d ) || pt[0] >= (256.35 - d ) || pt[1] <= (-116.5 + d) || pt[1] >= (116.5 - d) || pt[2] <= (0.0 + d) || pt[2] >= (1036.8 - d) ) {

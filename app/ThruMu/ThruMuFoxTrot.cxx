@@ -501,7 +501,7 @@ namespace larlitecv {
     T3DCluster& image_path = paths[0];
     T3DCluster& real_path  = paths[1];
 
-    geoalgo::Line start2end( real_path.getPath().front(), real_path.getPath().back() );
+    ::larlite::geoalgo::Line start2end( real_path.getPath().front(), real_path.getPath().back() );
 
     double maxdist = 0;
     int max_istep = 0;
