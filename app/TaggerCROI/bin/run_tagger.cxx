@@ -21,6 +21,7 @@
 #include "DataFormat/Image2D.h"
 #include "DataFormat/ImageMeta.h"
 #include "ANN/ANNAlgo.h"
+#include "PurityMonitorMask/PurityMonitorMask.h"
 
 // larlitecv
 #include "GapChs/EmptyChannelAlgo.h"
@@ -222,6 +223,37 @@ int main(int nargs, char** argv ) {
       ev_precutresults->emplace_back( std::move(precut_results) );
     }
 
+    // =================================================================
+    // Purity Monitor Mask
+
+    // copy original ADC image
+    std::vector<larcv::Image2D> masked_v;
+    for ( auto const& img : input_data.img_v ) {
+      larcv::Image2D newimg( img );
+      masked_v.emplace_back( std::move(newimg) );
+    }
+    std::vector<larcv::Pixel2DCluster> pixel_v(masked_v.size());
+
+    // run masker
+    larcv::PurityMonitorMask ppm("ppm");
+    ppm.process( input_data.img_v, masked_v, pixel_v, 10.0 );
+
+    // save masked pixel-rows
+    larcv::EventPixel2D* ev_pixout = (larcv::EventPixel2D*)dataco_out.get_larcv_io().get_data(larcv::kProductPixel2D, "pmmask" );
+    for ( size_t p=0; p<masked_v.size(); p++ ) {
+      ev_pixout->Emplace( input_data.img_v[p].meta().plane(), std::move(pixel_v[p]), input_data.img_v[p].meta() );
+    }
+
+    // copy mask into input_data
+    input_data.img_v.clear();    
+    for ( size_t p=0; p<3; p++ ) {
+      input_data.img_v.push_back( masked_v[p] );
+    }
+    
+    // save masekd image
+    larcv::EventImage2D* ev_out = (larcv::EventImage2D*)dataco_out.get_larcv_io().get_data( larcv::kProductImage2D, "pmmask" );
+    ev_out->Emplace( std::move(masked_v) );
+
     if ( (ApplyPreCuts && precutalgo.passes()==0) || image_empty ) {
 
       std::cout << "[PRECUTS FAILED (or) IMAGE IS EMPTY]" << std::endl;
@@ -237,6 +269,9 @@ int main(int nargs, char** argv ) {
       WriteThruMuPayload( thrumu_data, input_data, tagger_cfg, dataco_out, fillempty );
       continue_tagger = false;
     }
+
+
+    
 
     // if we are not applying the precuts (only running the algo)
     // or if we passed the precuts (yay!)
