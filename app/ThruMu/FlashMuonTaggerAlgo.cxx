@@ -117,6 +117,11 @@ namespace larlitecv {
           z_weighted /= qtot;
         }
 
+        if ( qtot==0 ) {
+          std::cout << "Flash has ZERO Charge !!! Nonsense. Moving on." << std::endl;
+          continue;
+        }
+        
         // to set the range, we find the first hit above threshold from the mean
         float min_dist_z = 1e9;
         float max_dist_z = 0;
@@ -161,7 +166,7 @@ namespace larlitecv {
           if ( z_range[1]>980.0 ) z_range[1] = 1100;
         }
 	
-        int row_target = meta.row( tick_target );
+        int row_target = meta.row( tick_target, __FILE__, __LINE__ );
         
         if ( fConfig.verbosity>0 ) {
           std::cout << "============================================================================================" << std::endl;
@@ -180,12 +185,18 @@ namespace larlitecv {
         }
 
 	// Flash search method: we use the charge clusters at a given time
-	if ( fConfig.endpoint_clustering_algo=="cluster" )
-	  FindFlashesByChargeClusters( row_target, point_type, tpc_imgs, badch_imgs, z_range, y_range, trackendpts );
-	else if ( fConfig.endpoint_clustering_algo=="segment" ) // This is the one that we will be using.
-	  FindFlashesBy3DSegments( row_target, point_type, tpc_imgs, badch_imgs, z_max, z_range, trackendpts );
-	else
-	  throw std::runtime_error("FlashMuonTaggerAlgo:: end point clustering strategy not recognized. options: \"cluster\" or \"segment\"");
+        try {
+          if ( fConfig.endpoint_clustering_algo=="cluster" )
+            FindFlashesByChargeClusters( row_target, point_type, tpc_imgs, badch_imgs, z_range, y_range, trackendpts );
+          else if ( fConfig.endpoint_clustering_algo=="segment" ) // This is the one that we will be using.
+            FindFlashesBy3DSegments( row_target, point_type, tpc_imgs, badch_imgs, z_max, z_range, trackendpts );
+          else
+            throw std::runtime_error("FlashMuonTaggerAlgo:: end point clustering strategy not recognized. options: \"cluster\" or \"segment\"");
+        }
+        catch ( std::exception& e ) {
+          std::cout << "[ERROR FINDING COMPATIBLE FLASH SEGMENTS] FlashMuonTaggerAlgo.cxx:L" << __LINE__ << std::endl;
+          continue;
+        }
 
 
 	// // add the unrolled flash index to the end point
