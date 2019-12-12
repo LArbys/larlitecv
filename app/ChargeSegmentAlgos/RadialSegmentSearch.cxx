@@ -128,7 +128,10 @@ namespace larlitecv {
       wirebounds[p][0] = larutil::Geometry::GetME()->WireCoordinate( upstreampt, (larcv::PlaneID_t)p );
       wirebounds[p][1] = larutil::Geometry::GetME()->WireCoordinate( dnstreampt, (larcv::PlaneID_t)p );
       if ( wirebounds[p][0]<meta.min_x()  ) wirebounds[p][0] = 0;
+      if ( wirebounds[p][0]>=meta.max_x() ) wirebounds[p][0] = meta.max_x()-1;
+      if ( wirebounds[p][1]<meta.min_x()  ) wirebounds[p][1] = 0;            
       if ( wirebounds[p][1]>=meta.max_x() ) wirebounds[p][1] = meta.max_x()-1;
+
     }
     int colbounds[3][2] = {0};
     for (size_t p=0; p<3; p++) {
