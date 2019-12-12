@@ -163,7 +163,7 @@ namespace larlitecv {
 	
         int row_target = meta.row( tick_target );
         
-        if ( fConfig.verbosity>0 ) {
+        if ( fConfig.verbosity>=0 ) {
           std::cout << "============================================================================================" << std::endl;
           std::cout << "[Opflash search] " << modename << " mode" << std::endl;
           std::cout << "  opflash: "
@@ -481,9 +481,13 @@ namespace larlitecv {
             int otherwire;
             larcv::UBWireTool::getMissingWireAndPlane( p1, wid1, p2, wid2, otherplane, otherwire, poszy, crosses );
 
+
+	    if ( otherwire<0 ) otherwire = 0;
+
             int badch_state = 0;
             if ( crosses>0 && otherwire>=0 && otherplane>=0 && otherwire<img_v.at(otherplane).meta().max_x() )
-              badch_state = badch_v.at(otherplane).pixel( cluster_info[p1][endpt1].row, img_v.at(otherplane).meta().col(otherwire) );
+              badch_state = badch_v.at(otherplane).pixel( cluster_info[p1][endpt1].row, 
+							  img_v.at(otherplane).meta().col(otherwire)  );
 
             if (fConfig.verbosity>1 ) {
               std::cout << "p1=" << p1 << " wid1=" << wid1
