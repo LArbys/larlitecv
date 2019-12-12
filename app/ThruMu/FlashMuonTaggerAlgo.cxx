@@ -109,16 +109,21 @@ namespace larlitecv {
         // first find the weighted mean and total q     
         float qtot = 0;
         float z_weighted = 0.;
-        for (int ipmt=0; ipmt<32; ipmt++) {
-          z_weighted += opflash.PE( ipmt )*pmtpos[ipmt][2];
-          qtot += opflash.PE( ipmt );
+        for (int ipmt=0; ipmt<opflash.nOpDets(); ipmt++) {
+	  if ( opflash.PE(ipmt)==0 ) continue;
+	  int opch = ipmt%100;
+	  if ( opch>=0 && opch<32 ) {
+	    z_weighted += opflash.PE( ipmt )*pmtpos[opch][2];
+	    qtot += opflash.PE( ipmt );
+	  }
         }
         if ( qtot>0 ) {
           z_weighted /= qtot;
         }
 
-        if ( qtot==0 ) {
-          std::cout << "Flash has ZERO Charge !!! Nonsense. Moving on." << std::endl;
+        if ( qtot==0 && fSearchMode!=kOutOfImage) {
+          std::cout << "Flash has ZERO Charge !!! NOptDets=" << opflash.nOpDets() << " Nonsense?!? Moving on." << std::endl;
+	  
           continue;
         }
         
@@ -127,17 +132,21 @@ namespace larlitecv {
         float max_dist_z = 0;
 	float z_max = 0;
 	float q_max = -1;
-        for (int ipmt=0; ipmt<32; ipmt++) {
-          float pe = opflash.PE(ipmt);
-          float dist = pmtpos[ipmt][2]-z_weighted;
-          if ( pe>5.0 ) {
-            if ( dist<0 && min_dist_z>dist ) min_dist_z = dist;
-            else if ( dist>0 && max_dist_z<dist ) max_dist_z = dist;
-	    if ( pe>q_max ) {
-	      z_max = pmtpos[ipmt][2];
-	      q_max = pe;
+        for (int ipmt=0; ipmt<opflash.nOpDets(); ipmt++) {
+	  if ( opflash.PE(ipmt)==0 ) continue;
+	  int opch = ipmt%100;
+	  if ( opch>=0 && opch<32 ) {
+	    float pe = opflash.PE(ipmt);
+	    float dist = pmtpos[opch][2]-z_weighted;
+	    if ( pe>5.0 ) {
+	      if ( dist<0 && min_dist_z>dist ) min_dist_z = dist;
+	      else if ( dist>0 && max_dist_z<dist ) max_dist_z = dist;
+	      if ( pe>q_max ) {
+		z_max = pmtpos[opch][2];
+		q_max = pe;
+	      }
 	    }
-          }
+	  }
         }
 
         // extend by some factor (example 10%). This is to ensure acceptance of tracks.
