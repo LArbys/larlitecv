@@ -12,6 +12,21 @@ namespace larlitecv {
 namespace ssnetshowerreco {
 
   /**
+   * constructor.
+   *
+   */
+  SSNetShowerReco::SSNetShowerReco() {
+
+    _adc_tree_name = "wire";
+    _ssnet_shower_image_stem = "uburn"; // sometimes ubspurn (when files made at FNAL)
+    _vertex_tree_name = "test";
+    _track_tree_name  = "trackReco";
+    _Qcut = 10;
+    _SSNET_SHOWER_THRESHOLD = 0.05;
+    
+  }
+  
+  /**
    * use triple product to get area of triangle
    *
    */
@@ -257,29 +272,29 @@ namespace ssnetshowerreco {
     // store in root ana tree, store in json file
 
     // parameters for later
-    std::string adc_tree_name = "wire";
-    std::string ssnet_shower_image_stem = "uburn"; // sometimes ubspurn (when files made at FNAL)
-    std::string vertex_tree_name = "test";
-    std::string track_tree_name  = "trackReco";
-    float Qcut = 10;
-    float Scut = 0.05;
-    float SSNET_SHOWER_THRESHOLD = 0.5;
+    // std::string adc_tree_name = "wire";
+    // std::string ssnet_shower_image_stem = "uburn"; // sometimes ubspurn (when files made at FNAL)
+    // std::string vertex_tree_name = "test";
+    // std::string track_tree_name  = "trackReco";
+    // float Qcut = 10;
+    // float Scut = 0.05;
+    // float SSNET_SHOWER_THRESHOLD = 0.5;
     _shower_energy_vv.clear();
 
     larcv::EventImage2D* ev_adc
-      = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, adc_tree_name );
+      = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _adc_tree_name );
     const std::vector<larcv::Image2D>& adc_v = ev_adc->Image2DArray();
 
     larcv::EventImage2D* ev_shower_score[3] = { nullptr };
     for ( size_t p=0; p<3; p++ ) {
       char treename[50];
-      sprintf( treename, "%s_plane%d", ssnet_shower_image_stem.c_str(), (int)p );
+      sprintf( treename, "%s_plane%d", _ssnet_shower_image_stem.c_str(), (int)p );
       ev_shower_score[p] = 
         (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, treename );
     }
 
     larcv::EventPGraph* ev_vtx
-      = (larcv::EventPGraph*)iolcv.get_data( larcv::kProductPGraph, vertex_tree_name );
+      = (larcv::EventPGraph*)iolcv.get_data( larcv::kProductPGraph, _vertex_tree_name );
 
     
     // get candidate vertices, make crops around said vertex
@@ -342,9 +357,9 @@ namespace ssnetshowerreco {
         // mask the ADC image using ssnet
         for ( size_t r=0; r<crop.meta().rows(); r++ ) {
           for ( size_t c=0; c<crop.meta().cols(); c++ ) {
-            if ( crop.pixel(r,c)<0 )
+            if ( crop.pixel(r,c)<_Qcut )
               crop.set_pixel(r,c,0.0);
-            if ( sscrop.pixel(r,c)<SSNET_SHOWER_THRESHOLD ) {
+            if ( sscrop.pixel(r,c)<_SSNET_SHOWER_THRESHOLD ) {
               crop.set_pixel(r,c,0.0);
             }
           }

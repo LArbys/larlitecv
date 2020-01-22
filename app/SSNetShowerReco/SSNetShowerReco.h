@@ -2,6 +2,7 @@
 #define __LLCV_SSNET_SHOWER_RECO_H__
 
 #include <vector>
+#include <string>
 #include "DataFormat/Image2D.h"
 #include "DataFormat/IOManager.h"
 #include "DataFormat/storage_manager.h"
@@ -15,7 +16,7 @@ namespace ssnetshowerreco {
 
     typedef std::vector< std::vector<float> > triangle_t;
     
-    SSNetShowerReco() {};
+    SSNetShowerReco();
     virtual ~SSNetShowerReco() {};
 
     bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll );
@@ -70,9 +71,29 @@ namespace ssnetshowerreco {
                      float length,
                      int vtx_col=255, int vtx_row=255 );
 
+    // parameters
+    // -----------
+    std::string _adc_tree_name;
+    std::string _ssnet_shower_image_stem; // sometimes ubspurn (when files made at FNAL)
+    std::string _vertex_tree_name;
+    std::string _track_tree_name;
+    float _Qcut;
+    float _SSNET_SHOWER_THRESHOLD;
     
+  public:
+    // set methods
+    // ------------
+    void set_adc_treename( std::string name )          { _adc_tree_name = name; };
+    void set_ssnet_shower_stemname( std::string name ) { _ssnet_shower_image_stem = name; };
+    void set_vertex_treename( std::string name )       { _vertex_tree_name = name; };
+    void set_track_treename( std::string name )        { _track_tree_name = name; };
+    void set_Qcut( float cut )                         { _Qcut = cut; };
+    void set_SSNet_threshold( float threshold )        { _SSNET_SHOWER_THRESHOLD = threshold; };
     
-    
+
+  protected:
+    // variables filled
+    // -----------------
     std::vector< std::vector<float> >  _shower_energy_vv;
     std::vector< std::vector<double> > _vtx_pos_vv;
     
