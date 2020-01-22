@@ -1,4 +1,5 @@
 import os,sys,json,argparse
+from math import sqrt
 
 parser = argparse.ArgumentParser( description="Run shower reco and save to json file" )
 parser.add_argument( "-ilcv", "--input-larcv",   type=str, required=True, help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
@@ -11,8 +12,11 @@ args = parser.parse_args()
 import ROOT as rt
 from ROOT import std
 from larlite import larlite
+from ROOT import larutil
+larutil.SpaceChargeMicroBooNE
 from larcv import larcv
 from larlitecv import larlitecv
+
 
 iolcv = larcv.IOManager( larcv.IOManager.kREAD, "lcvio" )
 iolcv.add_in_file( args.input_larcv )
@@ -26,6 +30,7 @@ nentries = iolcv.get_n_entries()
 
 showerreco = larlitecv.ssnetshowerreco.SSNetShowerReco()
 mcpg = larlitecv.mctruthtools.MCPixelPGraph()
+sce  = larutil.SpaceChargeMicroBooNE() # larutil.SpaceChargeMicroBooNE.kMCC9_Forward )
 
 data = {"entries":[]}
 
@@ -49,9 +54,12 @@ for ientry in xrange(nentries):
 
     # save vertex truth information
     if args.has_mc:
+        # build graph and get primary particles
         mcpg.buildgraph( iolcv, ioll )
         mcpg.printGraph()
         node_v = mcpg.getPrimaryParticles()
+
+        # determine topology, get electron energy if available
         nelectrons = 0
         nprotons   = 0
         nother     = 0
@@ -59,12 +67,12 @@ for ientry in xrange(nentries):
         pidOther = []
         for inode in xrange(node_v.size()):
             node = node_v.at(inode)
-            print "node[",inode,"] pid=",node.pid," E=",node.E_MeV
+            #print "node[",inode,"] pid=",node.pid," E=",node.E_MeV
             if abs(node.pid)==11:
                 entrydata["true_electron_energy"] = node.E_MeV
                 nelectrons += 1
             elif node.pid==2212:
-                print "found proton: ",node.E_MeV
+                #print "found proton: ",node.E_MeV
                 if node.E_MeV>60.0:
                     nprotons += 1
             else:
@@ -76,7 +84,24 @@ for ientry in xrange(nentries):
                     pidX.append(node.pid)
         entrydata["true_topology"] = "%de%dp%dX"%(nelectrons,nprotons,nother)
         print "topology",entrydata["true_topology"]
-        print "unknown PID: ",pidX
+        #print "unknown PID: ",pidX
+
+        # determine distance of reco vertices from true
+        vtx_v = mcpg.findTrackID(-1).start
+        entrydata["true_vertex"] = [ vtx_v[i] for i in xrange(3) ] # get the ROOT node
+        offset_v = sce.GetPosOffsets( vtx_v[0], vtx_v[1], vtx_v[2] )
+        vtx_sce_v = [ vtx_v[0]-offset_v[0]+0.7,
+                      vtx_v[1]+offset_v[1],
+                      vtx_v[2]+offset_v[2] ]
+        entrydata["true_vertex_sce"] = vtx_sce_v
+
+        entrydata["vertex_dist_from_truth"] = []
+        for pos in entrydata["vertex_pos"]:
+            d = 0.0
+            for i in xrange(3):
+                d += (pos[i]-vtx_sce_v[i])*(pos[i]-vtx_sce_v[i])
+            d = sqrt(d)
+            entrydata["vertex_dist_from_truth"].append(d)
                 
 
     data["entries"].append( entrydata )
