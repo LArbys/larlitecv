@@ -30,11 +30,20 @@ namespace ssnetshowerreco {
                  float x2, float y2,
                  float x3, float y3 );
 
+    float _sign( float x1, float y1,
+                 float x2, float y2,
+                 float x3, float y3 );
+    
     bool _isInside(float x1, float y1,
                    float x2, float y2,
                    float x3, float y3,
                    float x, float y );
 
+    bool _isInside2(float x1, float y1,
+                    float x2, float y2,
+                    float x3, float y3,
+                    float x, float y );
+    
     void _enclosedCharge( const larcv::Image2D& chargeMap,
                           float theta,
                           float& sumIn,

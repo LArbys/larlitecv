@@ -45,9 +45,9 @@ for ientry in xrange(nentries):
 
     data["entries"].append( entrydata )
 
-    if ientry>=2:
-        print "break"
-        break
+    #if ientry>=0:
+    #    print "break"
+    #    break
     
 print "output json"
 fout = open(args.output_json, 'w' )
