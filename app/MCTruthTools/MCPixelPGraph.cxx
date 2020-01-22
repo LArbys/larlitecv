@@ -451,7 +451,7 @@ namespace mctruthtools {
     for ( auto& node : node_v ) {
       if ( node.mother==rootnode ) {
         // primary
-        if ( !exclude_neutrons || node.pid!=2212 ) {
+        if ( !exclude_neutrons || node.pid!=2112 ) {
           nodelist.push_back( &node );
         }
       }
