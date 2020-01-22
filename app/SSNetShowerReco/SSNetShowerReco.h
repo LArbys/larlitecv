@@ -23,6 +23,7 @@ namespace ssnetshowerreco {
     ::std::vector< std::vector<float> > getVertexShowerEnergies() const { return _shower_energy_vv; };
     int   numVertices() const { return _shower_energy_vv.size(); };
     float getVertexShowerEnergy( int vtxid, int plane ) const { return _shower_energy_vv[vtxid][plane]; };
+    ::std::vector<double> getVertexPos( int vtxid ) const { return _vtx_pos_vv[vtxid]; };
 
   protected:
     
@@ -72,8 +73,8 @@ namespace ssnetshowerreco {
     
     
     
-    std::vector< std::vector<float> > _shower_energy_vv;
-    
+    std::vector< std::vector<float> >  _shower_energy_vv;
+    std::vector< std::vector<double> > _vtx_pos_vv;
     
 
   };

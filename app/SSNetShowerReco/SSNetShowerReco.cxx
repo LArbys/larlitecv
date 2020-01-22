@@ -286,14 +286,14 @@ namespace ssnetshowerreco {
     std::vector< std::vector<larcv::Image2D> > adc_vtxcrop_vv;
     std::vector< std::vector<larcv::Image2D> > shower_vtxcrop_vv;
     std::vector< std::vector<int> >            vtx_incrop_vv;
-    std::vector< std::vector<double> >         vtx_pos_vv;
+    _vtx_pos_vv.clear();
     for ( auto const& pgraph : ev_vtx->PGraphArray() ) {
       if ( pgraph.ParticleArray().size()==0 ) continue; // dont expect this
       auto const& roi = pgraph.ParticleArray().front();
       std::vector<double> vtx3d = { roi.X(), roi.Y(), roi.Z() };
       //std::cout << "Vertex Pos (" << vtx3d[0] << "," << vtx3d[1] << "," << vtx3d[2] << ")" << std::endl;
 
-      vtx_pos_vv.push_back( vtx3d );
+      _vtx_pos_vv.push_back( vtx3d );
       
       std::vector<int> imgcoord_v(4);  // (U,V,Y,tick)
       imgcoord_v[3] = 3200 + vtx3d[0]/larutil::LArProperties::GetME()->DriftVelocity()/0.5;      
@@ -370,7 +370,7 @@ namespace ssnetshowerreco {
       auto& imgcoord_v = vtx_incrop_vv[ivtx];
 
       std::cout << "[SSNetShowerReco] Reconstruct vertex[" << ivtx << "] "
-                << "pos=(" << vtx_pos_vv[ivtx][0] << "," << vtx_pos_vv[ivtx][1] << "," << vtx_pos_vv[ivtx][2] << ")"
+                << "pos=(" << _vtx_pos_vv[ivtx][0] << "," << _vtx_pos_vv[ivtx][1] << "," << _vtx_pos_vv[ivtx][2] << ")"
                 << std::endl;
 
       std::vector<float> shower_energy_v(3,0);

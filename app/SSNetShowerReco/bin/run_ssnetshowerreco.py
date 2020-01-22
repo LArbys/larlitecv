@@ -38,10 +38,12 @@ for ientry in xrange(nentries):
     entrydata = { "run":iolcv.event_id().run(),
                   "subrun":iolcv.event_id().subrun(),
                   "event":iolcv.event_id().event(),
-                  "vertices":[] }
+                  "shower_energies":[],
+                  "vertex_pos":[]}
     
     for ivtx in xrange(showerreco.numVertices()):
-        entrydata["vertices"].append( [ showerreco.getVertexShowerEnergy(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_energies"].append( [ showerreco.getVertexShowerEnergy(ivtx,p) for p in xrange(3) ] )
+        entrydata["vertex_pos"].append( [ showerreco.getVertexPos(ivtx).at(p) for p in xrange(3) ] )
 
     data["entries"].append( entrydata )
 
