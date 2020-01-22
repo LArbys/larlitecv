@@ -18,7 +18,7 @@ namespace ssnetshowerreco {
     SSNetShowerReco() {};
     virtual ~SSNetShowerReco() {};
 
-    void process( larcv::IOManager& iocv, larlite::storage_manager& ioll );
+    bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll );
 
   protected:
     
