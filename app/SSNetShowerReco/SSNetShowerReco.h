@@ -20,6 +20,10 @@ namespace ssnetshowerreco {
 
     bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll );
 
+    ::std::vector< std::vector<float> > getVertexShowerEnergies() const { return _shower_energy_vv; };
+    int   numVertices() const { return _shower_energy_vv.size(); };
+    float getVertexShowerEnergy( int vtxid, int plane ) const { return _shower_energy_vv[vtxid][plane]; };
+
   protected:
     
     float _area( float x1, float y1,
@@ -59,7 +63,7 @@ namespace ssnetshowerreco {
     
     
     
-
+    std::vector< std::vector<float> > _shower_energy_vv;
     
     
 

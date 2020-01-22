@@ -213,12 +213,13 @@ namespace ssnetshowerreco {
 
     // parameters for later
     std::string adc_tree_name = "wire";
-    std::string ssnet_shower_image_stem = "ubspurn"; // sometimes uburn (when files made at FNAL)
+    std::string ssnet_shower_image_stem = "uburn"; // sometimes ubspurn (when files made at FNAL)
     std::string vertex_tree_name = "test";
     std::string track_tree_name  = "trackReco";
     float Qcut = 10;
     float Scut = 0.05;
     float SSNET_SHOWER_THRESHOLD = 0.5;
+    _shower_energy_vv.clear();
 
     larcv::EventImage2D* ev_adc
       = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, adc_tree_name );
@@ -263,19 +264,19 @@ namespace ssnetshowerreco {
         
         // correct bounds
         if ( tbounds[0]<=meta.min_y() ) {
-          tbounds[0] = meta.min_y();
+          tbounds[0] = meta.min_y()+meta.pixel_height();
           tbounds[1] = tbounds[0] + 512*meta.pixel_height();
         }
         if ( tbounds[1]>=meta.max_y() ) {
-          tbounds[1] = meta.max_y();
+          tbounds[1] = meta.max_y() - meta.pixel_height();
           tbounds[0] = tbounds[1] - 512*meta.pixel_height();
         }
         if ( wbounds[0]<=meta.min_x() ) {
-          wbounds[0] = meta.min_x();
+          wbounds[0] = meta.min_x()+meta.pixel_width();
           wbounds[1] = wbounds[0] + 512*meta.pixel_width();
         }
         if ( wbounds[1]>=meta.max_x() ) {
-          wbounds[1] = meta.max_x();
+          wbounds[1] = meta.max_x()-meta.pixel_width();
           wbounds[0] = wbounds[1] - 512*meta.pixel_width();
         }
 
@@ -284,8 +285,10 @@ namespace ssnetshowerreco {
         larcv::ImageMeta cropmeta( 512*meta.pixel_width(), 512*meta.pixel_height(),
                                    512, 512, wbounds[0], tbounds[1],
                                    meta.plane() );
-        larcv::Image2D crop = adc_v[p].crop(cropmeta);
-        larcv::Image2D sscrop = ev_shower_score[p]->Image2DArray()[p].crop(cropmeta);
+        std::cout << "[SSNetShowerReco] Crop around vertex: " << cropmeta.dump();
+
+        larcv::Image2D crop   = adc_v[p].crop(cropmeta);
+        larcv::Image2D sscrop = ev_shower_score[p]->Image2DArray()[0].crop(cropmeta);
 
         // mask the ADC image using ssnet
         for ( size_t r=0; r<crop.meta().rows(); r++ ) {
@@ -311,7 +314,6 @@ namespace ssnetshowerreco {
     
     // now get shower energy per vertex, per plane
 
-    std::vector< std::vector<float> > shower_energy_vv;
     for ( size_t ivtx=0; ivtx<adc_vtxcrop_vv.size(); ivtx++ ) {
       auto& crop_v     = adc_vtxcrop_vv[ivtx];
       auto& imgcoord_v = vtx_incrop_vv[ivtx];
@@ -331,7 +333,7 @@ namespace ssnetshowerreco {
         shower_energy_v[p] = reco_energy;
       }
       
-      shower_energy_vv.push_back( shower_energy_v );
+      _shower_energy_vv.push_back( shower_energy_v );
       
     }
 
