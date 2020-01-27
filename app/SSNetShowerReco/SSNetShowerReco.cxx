@@ -18,6 +18,7 @@ namespace ssnetshowerreco {
   SSNetShowerReco::SSNetShowerReco() {
 
     _adc_tree_name = "wire";
+    _calib_adc_tree_name = "calibrated";
     _ssnet_shower_image_stem = "uburn"; // sometimes ubspurn (when files made at FNAL)
     _vertex_tree_name = "test";
     _track_tree_name  = "trackReco";
@@ -263,7 +264,7 @@ namespace ssnetshowerreco {
   }
 
 
-  bool SSNetShowerReco::process( larcv::IOManager& iolcv, larlite::storage_manager& ioll ) {
+  bool SSNetShowerReco::process( larcv::IOManager& iolcv, larlite::storage_manager& ioll, larcv::IOManager& ioimgs ) {
 
     // get adc image (larcv)
     // get ssnet image (larcv)
@@ -280,9 +281,11 @@ namespace ssnetshowerreco {
     // float Scut = 0.05;
     // float SSNET_SHOWER_THRESHOLD = 0.5;
     _shower_energy_vv.clear();
+    _shower_sumQ_vv.clear();
+    _shower_shlength_vv.clear();
 
     larcv::EventImage2D* ev_adc
-      = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _adc_tree_name );
+      = (larcv::EventImage2D*)ioimgs.get_data( larcv::kProductImage2D, _calib_adc_tree_name );
     const std::vector<larcv::Image2D>& adc_v = ev_adc->Image2DArray();
 
     larcv::EventImage2D* ev_shower_score[3] = { nullptr };
@@ -397,6 +400,8 @@ namespace ssnetshowerreco {
                 << std::endl;
 
       std::vector<float> shower_energy_v(3,0);
+      std::vector<float> shower_sumQ_v(3,0);
+      std::vector<float> shower_shlength_v(3,0);
       for ( size_t p=0; p<3; p++ ) {
         //std::cout << "[SSNetShowerReco]   Plane [" << p << "]" << std::endl;
         int vtx_pix[2] = { crop_v[p].meta().col( imgcoord_v[p] ),
@@ -411,14 +416,21 @@ namespace ssnetshowerreco {
         float sumQ;
         triangle_t tri;
         _enclosedCharge( crop_v[p], shangle, sumQ, tri, vtx_pix[0], vtx_pix[1], shlength, shopen );
-        float reco_energy = sumQ*0.0115 + 50.0;
+        //Uncalibrated Images
+				//float reco_energy = sumQ*0.013456 + 2.06955;
+        //Calibrated Images 
+				float reco_energy = sumQ*0.01324 + 37.83337;
 
         std::cout << "[SSNetShowerReco] plane[" << p << "] final sumQ=" << sumQ << " reco=" << reco_energy << std::endl;
 
         shower_energy_v[p] = reco_energy;
+				shower_sumQ_v[p] = sumQ;
+        shower_shlength_v[p] = shlength;
       }
 
       _shower_energy_vv.push_back( shower_energy_v );
+      _shower_sumQ_vv.push_back( shower_sumQ_v );
+      _shower_shlength_vv.push_back( shower_shlength_v );
 
     }
 

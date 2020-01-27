@@ -19,11 +19,13 @@ namespace ssnetshowerreco {
     SSNetShowerReco();
     virtual ~SSNetShowerReco() {};
 
-    bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll );
+    bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll, larcv::IOManager& ioimgs );
 
     ::std::vector< std::vector<float> > getVertexShowerEnergies() const { return _shower_energy_vv; };
     int   numVertices() const { return _shower_energy_vv.size(); };
     float getVertexShowerEnergy( int vtxid, int plane ) const { return _shower_energy_vv[vtxid][plane]; };
+    float getVertexShowerSumQ( int vtxid, int plane ) const { return _shower_sumQ_vv[vtxid][plane]; };
+    float getVertexShowerShlength( int vtxid, int plane ) const { return _shower_shlength_vv[vtxid][plane]; };
     ::std::vector<double> getVertexPos( int vtxid ) const { return _vtx_pos_vv[vtxid]; };
 
   protected:
@@ -74,6 +76,7 @@ namespace ssnetshowerreco {
     // parameters
     // -----------
     std::string _adc_tree_name;
+    std::string _calib_adc_tree_name;
     std::string _ssnet_shower_image_stem; // sometimes ubspurn (when files made at FNAL)
     std::string _vertex_tree_name;
     std::string _track_tree_name;
@@ -95,6 +98,8 @@ namespace ssnetshowerreco {
     // variables filled
     // -----------------
     std::vector< std::vector<float> >  _shower_energy_vv;
+    std::vector< std::vector<float> >  _shower_sumQ_vv;
+    std::vector< std::vector<float> >  _shower_shlength_vv;
     std::vector< std::vector<double> > _vtx_pos_vv;
     
 

@@ -3,6 +3,7 @@ from math import sqrt
 
 parser = argparse.ArgumentParser( description="Run shower reco and save to json file" )
 parser.add_argument( "-ilcv", "--input-larcv",   type=str, required=True, help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
+parser.add_argument( "-iimgs", "--input-images",   type=str, required=True, help="Input image file. Should be a dlmerged file for uncalibrated images or a calibrated* file in stage1")
 parser.add_argument( "-ill",  "--input-larlite", type=str, required=True, help="Input larlite file. Should have tracker trees")
 parser.add_argument( "-o",    "--output-json",   type=str, required=True, help="Output JSON file" )
 parser.add_argument( "-mc",   "--has-mc", default=False, action='store_true', help="Indicate input files have MC truth information" )
@@ -22,6 +23,10 @@ iolcv = larcv.IOManager( larcv.IOManager.kREAD, "lcvio" )
 iolcv.add_in_file( args.input_larcv )
 iolcv.initialize()
 
+ioimgs = larcv.IOManager( larcv.IOManager.kREAD, "imgsio" )
+ioimgs.add_in_file( args.input_images )
+ioimgs.initialize()
+
 ioll = larlite.storage_manager( larlite.storage_manager.kREAD )
 ioll.add_in_filename( args.input_larlite )
 ioll.open()
@@ -40,16 +45,20 @@ for ientry in xrange(nentries):
     iolcv.read_entry(ientry)
     ioll.go_to(ientry)
 
-    ok = showerreco.process( iolcv, ioll )
+    ok = showerreco.process( iolcv, ioll, ioimgs )
 
     entrydata = { "run":iolcv.event_id().run(),
                   "subrun":iolcv.event_id().subrun(),
                   "event":iolcv.event_id().event(),
                   "shower_energies":[],
+                  "shower_sumQs":[],
+                  "shower_shlengths":[],
                   "vertex_pos":[]}
     
     for ivtx in xrange(showerreco.numVertices()):
         entrydata["shower_energies"].append( [ showerreco.getVertexShowerEnergy(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_sumQs"].append( [ showerreco.getVertexShowerSumQ(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_shlengths"].append( [ showerreco.getVertexShowerShlength(ivtx,p) for p in xrange(3) ] )
         entrydata["vertex_pos"].append( [ showerreco.getVertexPos(ivtx).at(p) for p in xrange(3) ] )
 
     # save vertex truth information
