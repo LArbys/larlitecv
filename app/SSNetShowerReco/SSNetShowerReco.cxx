@@ -25,6 +25,7 @@ namespace ssnetshowerreco {
     _track_tree_name  = "trackReco";
     _Qcut = 10;
     _SSNET_SHOWER_THRESHOLD = 0.05;
+    _use_calibrated_pixelsum2mev = false;
     clear();
   }
 
@@ -344,7 +345,7 @@ namespace ssnetshowerreco {
    * @param[in]  ioimgs larcv input:   needs to contain charge images
    * @return            true if processing ok, false if not
    */      
-  bool SSNetShowerReco::process( larcv::IOManager& iolcv, larlite::storage_manager& ioll, larcv::IOManager& ioimgs ) {
+  bool SSNetShowerReco::process( larcv::IOManager& iolcv, larlite::storage_manager& ioll ) {//, larcv::IOManager& ioimgs ) {
 
     // get adc image (larcv)
     // get ssnet image (larcv)
@@ -365,7 +366,7 @@ namespace ssnetshowerreco {
     clear();
 
     larcv::EventImage2D* ev_adc
-      = (larcv::EventImage2D*)ioimgs.get_data( larcv::kProductImage2D, _calib_adc_tree_name );
+      = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _adc_tree_name );
     const std::vector<larcv::Image2D>& adc_v = ev_adc->Image2DArray();
 
     larcv::EventImage2D* ev_shower_score[3] = { nullptr };
@@ -500,10 +501,11 @@ namespace ssnetshowerreco {
         std::vector< std::vector<int> > pixlist_v =
           _enclosedCharge( crop_v[p], shangle, sumQ, tri, vtx_pix[0], vtx_pix[1], shlength, shopen );
 
-        //Uncalibrated Images
-        //float reco_energy = sumQ*0.013456 + 2.06955;
-        //Calibrated Images 
-        float reco_energy = sumQ*0.01324 + 37.83337;
+        float reco_energy = 0;
+        if ( _use_calibrated_pixelsum2mev )
+          reco_energy = sumQ*0.01324 + 37.83337; // calibrated images
+        else
+          reco_energy = sumQ*0.013456 + 2.06955; // uncalibrated images
 
         std::cout << "[SSNetShowerReco] plane[" << p << "] final sumQ=" << sumQ << " reco=" << reco_energy << std::endl;
 

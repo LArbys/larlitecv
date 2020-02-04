@@ -2,11 +2,12 @@ import os,sys,json,argparse
 from math import sqrt
 
 parser = argparse.ArgumentParser( description="Run shower reco and save to json file" )
-parser.add_argument( "-ilcv",  "--input-larcv",   type=str, required=True, help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
-parser.add_argument( "-iimgs", "--input-images",  type=str, required=True, help="Input image file. Should be a dlmerged file for uncalibrated images or a calibrated* file in stage1")
-parser.add_argument( "-ill",   "--input-larlite", type=str, required=True, help="Input larlite file. Should have tracker trees")
+parser.add_argument( "-ilcv",  "--input-larcv",   type=str, required=True,  help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
+parser.add_argument( "-iimgs", "--input-images",  type=str, default=None,   help="Input image file. Should be a dlmerged file for uncalibrated images or a calibrated* file in stage1")
+parser.add_argument( "-ill",   "--input-larlite", type=str, default=None,   help="Input larlite file. Should have tracker trees and MC.")
 parser.add_argument( "-f",     "--output-format", type=str, default="json", help="Set output format. Options={'json','larlite','both'}")
-parser.add_argument( "-o",     "--output",        type=str, required=True, help="Output file name. if both, the stem for both." )
+parser.add_argument( "-o",     "--output",        type=str, required=True,  help="Output file name. if both, the stem for both." )
+parser.add_argument( "-adc",   "--adc-tree",      type=str, default="wire", help="Name of tree containing ADC images. [ Default: 'wire' ]")
 parser.add_argument( "-mc",    "--has-mc", default=False, action='store_true', help="Indicate input files have MC truth information" )
 
 args = parser.parse_args()
@@ -26,15 +27,19 @@ from larlitecv import larlitecv
 
 iolcv = larcv.IOManager( larcv.IOManager.kREAD, "lcvio" )
 iolcv.add_in_file( args.input_larcv )
+if args.input_images is not None:
+    ilcv.add_in_file( args.input_images )
 iolcv.initialize()
 
-ioimgs = larcv.IOManager( larcv.IOManager.kREAD, "imgsio" )
-ioimgs.add_in_file( args.input_images )
-ioimgs.initialize()
+# deprecated
+#ioimgs = larcv.IOManager( larcv.IOManager.kREAD, "imgsio" )
+#ioimgs.add_in_file( args.input_images )
+#ioimgs.initialize()
 
 ioll = larlite.storage_manager( larlite.storage_manager.kREAD )
-ioll.add_in_filename( args.input_larlite )
-ioll.open()
+if args.input_larlite is not None:
+    ioll.add_in_filename( args.input_larlite )
+    ioll.open()
 
 # larlite output
 llout_name = args.output
@@ -45,6 +50,7 @@ if args.output_format in ['larlite','both']:
     
     outll = larlite.storage_manager( larlite.storage_manager.kWRITE )
     outll.set_out_filename( llout_name )
+    outll.open()
 else:
     outll = None
 
@@ -57,7 +63,9 @@ nentries = iolcv.get_n_entries()
 
 showerreco = larlitecv.ssnetshowerreco.SSNetShowerReco()
 mcpg = larlitecv.mctruthtools.MCPixelPGraph()
-sce  = larutil.SpaceChargeMicroBooNE() # larutil.SpaceChargeMicroBooNE.kMCC9_Forward )
+sce  = larutil.SpaceChargeMicroBooNE() # larutil.SpaceChargeMicroBooNE.kMCC9_Forward
+
+showerreco.set_adc_treename( args.adc_tree )
 
 data = {"entries":[]}
 
@@ -65,12 +73,13 @@ for ientry in xrange(nentries):
     print "[ENTRY ",ientry,"]"
     
     iolcv.read_entry(ientry)
-    ioll.go_to(ientry)
+    if args.input_larlite is not None:
+        ioll.go_to(ientry)
 
-    ok = showerreco.process( iolcv, ioll, ioimgs )
-    if outll:
+    ok = showerreco.process( iolcv, ioll )
+    if outll is not None:
         showerreco.store_in_larlite( outll )
-        outll.set_id( iolcv.event_id().run(), iolcv.event_id().subrun(), io.lcv.event_id().event() )
+        outll.set_id( iolcv.event_id().run(), iolcv.event_id().subrun(), iolcv.event_id().event() )
         outll.next_event()
 
 
@@ -155,6 +164,7 @@ if args.output_format in ['json','both']:
 print "close out"
 outll.close()
 iolcv.finalize()
-ioll.close()
+if args.input_larlite is not None:
+    ioll.close()
 
 

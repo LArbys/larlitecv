@@ -25,7 +25,7 @@ namespace ssnetshowerreco {
     SSNetShowerReco();
     virtual ~SSNetShowerReco() {};
 
-    bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll, larcv::IOManager& ioimgs );
+    bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll );//, larcv::IOManager& ioimgs );
 
     // get functions
     // -------------
@@ -41,6 +41,7 @@ namespace ssnetshowerreco {
     larlite::larflowcluster& getShowerPixelList( int vtxid, int plane ) { return _shower_pixcluster_v.at( 3*vtxid+plane ); };
 
     void store_in_larlite( larlite::storage_manager& ioll );
+    void use_calibrated_pixsum2mev( bool use=true ) { _use_calibrated_pixelsum2mev = use; };
 
   protected:
     
@@ -96,6 +97,7 @@ namespace ssnetshowerreco {
     std::string _track_tree_name;
     float _Qcut;
     float _SSNET_SHOWER_THRESHOLD;
+    bool  _use_calibrated_pixelsum2mev;
     
   public:
     // set methods
