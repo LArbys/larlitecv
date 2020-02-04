@@ -14,6 +14,7 @@ namespace ssnetshowerreco {
   /**
    * constructor.
    *
+   * sets some defaults for parameters
    */
   SSNetShowerReco::SSNetShowerReco() {
 
@@ -24,11 +25,24 @@ namespace ssnetshowerreco {
     _track_tree_name  = "trackReco";
     _Qcut = 10;
     _SSNET_SHOWER_THRESHOLD = 0.05;
-
+    clear();
   }
 
   /**
-   * use triple product to get area of triangle
+   * clear result containers
+   *
+   */
+  void SSNetShowerReco::clear() {
+    _shower_energy_vv.clear();
+    _shower_sumQ_vv.clear();
+    _shower_shlength_vv.clear();
+    _vtx_pos_vv.clear();
+    _shower_ll_v.clear();
+    _shower_pixcluster_v.clear();
+  }
+  
+  /**
+   * use triple product to get area of triangle defined by (x_i,y_i)
    *
    */
   float SSNetShowerReco::_area( float x1, float y1,
@@ -40,6 +54,7 @@ namespace ssnetshowerreco {
   /**
    * check is inside the triangle, using sum of partitions
    *
+   * this was original test. deprecated.
    */
   bool SSNetShowerReco::_isInside(float x1, float y1,
                                   float x2, float y2,
@@ -57,6 +72,9 @@ namespace ssnetshowerreco {
       return false;
   }
 
+  /**
+   * is test point (x3,y3) above(+),below(-1) the line defined by (x1,y1) and (x2,y2)
+   */
   float SSNetShowerReco::_sign( float x1, float y1,
                                 float x2, float y2,
                                 float x3, float y3 ) {
@@ -64,6 +82,15 @@ namespace ssnetshowerreco {
     return (x1 - x3) * (y2 - y3) - (x2 - x3) * (y1 - y3);
   }
 
+  /**
+   * check if test point (x,y) is inside triangel defined by (x_i,y_i)
+   *
+   * verified to behave monotonically in contrast to _isInside1.
+   * this is the default triangle containment test.
+   *
+   * @param[in] x test point x
+   * @param[in] y test point y
+   */
   bool SSNetShowerReco::_isInside2( float x1, float y1,
                                     float x2, float y2,
                                     float x3, float y3,
@@ -84,17 +111,29 @@ namespace ssnetshowerreco {
   }
 
   /**
-   * get the enclosed charge inside the image.
+   * get the enclosed charge inside a triangle.
+   *
+   * @param[in]  chargeMap Image with charge info
+   * @param[in]  theta     Angle in radians in (col,row) coordinates that defines shower 2D direction
+   * @param[out] sumIn     total pixel sum of pixels inside triangle
+   * @param[out] triangle  set of 3 points that defines triangle used
+   * @param[in]  vtx_col   start point of triangle
+   * @param[in]  vtx_row   start point of triangle
+   * @param[in]  shLen     length of triangle to use, radial line from vertex
+   * @param[in]  shOpen    shower opening angle
+   *
    */
-  void SSNetShowerReco::_enclosedCharge( const larcv::Image2D& chargeMap,
-                                         float theta,
-                                         float& sumIn,
-                                         std::vector< std::vector<float> >& triangle,
-                                         int vtx_col,
-                                         int vtx_row,
-                                         float shLen,
-                                         float shOpen ) {
+  std::vector< std::vector<int> >  SSNetShowerReco::_enclosedCharge( const larcv::Image2D& chargeMap,
+                                                                     float theta,
+                                                                     float& sumIn,
+                                                                     std::vector< std::vector<float> >& triangle,
+                                                                     int vtx_col,
+                                                                     int vtx_row,
+                                                                     float shLen,
+                                                                     float shOpen ) {
 
+    std::vector< std::vector<int> > pix_v;
+    
     sumIn = 0.;
     triangle.resize(3);
     for (int i=0; i<3; i++ ) {
@@ -118,22 +157,35 @@ namespace ssnetshowerreco {
     if ( shLen==0.0 ) {
       // weird things when we have zero area triangle
       sumIn = chargeMap.pixel( vtx_row, vtx_col );
-      return;
+      return pix_v;
     }
-
+    
     sumIn = 0;
     for ( size_t r=0; r<chargeMap.meta().rows(); r++ ) {
+      int tick = chargeMap.meta().pos_y( r );
       for ( size_t c=0; c<chargeMap.meta().cols(); c++ ) {
-        if ( _isInside2(t1X,t1Y,t2X,t2Y,t3X,t3Y,(float)c,(float)r) )
+        if ( _isInside2(t1X,t1Y,t2X,t2Y,t3X,t3Y,(float)c,(float)r) ) {
           sumIn += chargeMap.pixel(r,c);
+          std::vector<int> pix = { (int)tick, (int)c };
+          pix_v.push_back( pix );
+        }
       }
     }
 
 
-    return;
+    return pix_v;
   }
 
-
+  /*
+   * vary direction (viz. angle) of shower at vertex to collect maximum charge
+   *
+   * @param[in]  chargeMap  Image with charge pixels
+   * @param[in]  vtx_col    vertex in image
+   * @param[in]  vtx_row    vertex in image
+   * @param[in]  scanLen    fixed triangle length used to scan
+   * @param[in]  scanOpen   fixed triangle opening angle used to scan
+   * @return                best angle found; -9999 if no angle found charge
+   */
   float SSNetShowerReco::_findDir( const larcv::Image2D& chargeMap,
                                    int vtx_col,
                                    int vtx_row,
@@ -185,6 +237,16 @@ namespace ssnetshowerreco {
   }
 
 
+  /*
+   * vary length of shower at vertex to collect maximum charge
+   *
+   * @param[in]  chargeMap  Image with charge pixels
+   * @param[in]  theta      fixed triangle direction used in scan
+   * @param[in]  vtx_col    vertex in image
+   * @param[in]  vtx_row    vertex in image
+   * @param[in]  scanOpen   fixed triangle opening angle used to scan
+   * @return                best angle found
+   */  
   float SSNetShowerReco::_findLen( const larcv::Image2D& chargeMap,
                                    float theta,
                                    int vtx_col, int vtx_row,
@@ -229,6 +291,16 @@ namespace ssnetshowerreco {
     return (shStop+1)*step;
   }
 
+  /*
+   * vary opening angle of shower at vertex to collect maximum charge
+   *
+   * @param[in]  chargeMap  Image with charge pixels
+   * @param[in]  theta      fixed triangle direction used in scan
+   * @param[in]  length     fixed triangle length used to scan
+   * @param[in]  vtx_col    vertex in image
+   * @param[in]  vtx_row    vertex in image
+   * @return                best angle found
+   */    
   float SSNetShowerReco::_findOpen( const larcv::Image2D& chargeMap,
                                     float theta,
                                     float length,
@@ -264,6 +336,14 @@ namespace ssnetshowerreco {
   }
 
 
+  /*
+   * process one event using data from larcv and larlite IO managers
+   *
+   * @param[in]  iolcv  larcv input:   needs to contain ssnet images and pgraph with vertex information
+   * @param[in]  ioll   larlite input: not used
+   * @param[in]  ioimgs larcv input:   needs to contain charge images
+   * @return            true if processing ok, false if not
+   */      
   bool SSNetShowerReco::process( larcv::IOManager& iolcv, larlite::storage_manager& ioll, larcv::IOManager& ioimgs ) {
 
     // get adc image (larcv)
@@ -280,9 +360,9 @@ namespace ssnetshowerreco {
     // float Qcut = 10;
     // float Scut = 0.05;
     // float SSNET_SHOWER_THRESHOLD = 0.5;
-    _shower_energy_vv.clear();
-    _shower_sumQ_vv.clear();
-    _shower_shlength_vv.clear();
+
+    // clear result container
+    clear();
 
     larcv::EventImage2D* ev_adc
       = (larcv::EventImage2D*)ioimgs.get_data( larcv::kProductImage2D, _calib_adc_tree_name );
@@ -399,13 +479,15 @@ namespace ssnetshowerreco {
                 << "pos=(" << _vtx_pos_vv[ivtx][0] << "," << _vtx_pos_vv[ivtx][1] << "," << _vtx_pos_vv[ivtx][2] << ")"
                 << std::endl;
 
+
       std::vector<float> shower_energy_v(3,0);
       std::vector<float> shower_sumQ_v(3,0);
       std::vector<float> shower_shlength_v(3,0);
+
       for ( size_t p=0; p<3; p++ ) {
         //std::cout << "[SSNetShowerReco]   Plane [" << p << "]" << std::endl;
-        int vtx_pix[2] = { crop_v[p].meta().col( imgcoord_v[p] ),
-                           crop_v[p].meta().row( imgcoord_v[3] ) };
+        int vtx_pix[2] = { (int)crop_v[p].meta().col( imgcoord_v[p] ),
+                           (int)crop_v[p].meta().row( imgcoord_v[3] ) };
         //std::cout << "[SSNetShowerReco]     vertex pixel: (" << vtx_pix[0] << "," << vtx_pix[1] << ")" << std::endl;
         float shangle  = _findDir( crop_v[p], vtx_pix[0], vtx_pix[1] );
         //std::cout << "[SSNetShowerReco]     shower angle: " << shangle << std::endl;
@@ -415,29 +497,99 @@ namespace ssnetshowerreco {
         //std::cout << "[SSNetShowerReco]     open angle: " << shopen << std::endl;
         float sumQ;
         triangle_t tri;
-        _enclosedCharge( crop_v[p], shangle, sumQ, tri, vtx_pix[0], vtx_pix[1], shlength, shopen );
+        std::vector< std::vector<int> > pixlist_v =
+          _enclosedCharge( crop_v[p], shangle, sumQ, tri, vtx_pix[0], vtx_pix[1], shlength, shopen );
+
         //Uncalibrated Images
-				//float reco_energy = sumQ*0.013456 + 2.06955;
+        //float reco_energy = sumQ*0.013456 + 2.06955;
         //Calibrated Images 
-				float reco_energy = sumQ*0.01324 + 37.83337;
+        float reco_energy = sumQ*0.01324 + 37.83337;
 
         std::cout << "[SSNetShowerReco] plane[" << p << "] final sumQ=" << sumQ << " reco=" << reco_energy << std::endl;
 
         shower_energy_v[p] = reco_energy;
-				shower_sumQ_v[p] = sumQ;
+        shower_sumQ_v[p] = sumQ;
         shower_shlength_v[p] = shlength;
+
+        // make larlite
+        // -------------
+        larlite::shower shr;  // stores shower parameters
+        larlite::larflowcluster pixcluster; // stores pixels
+
+        // store vertex index
+        shr.set_id( ivtx );
+
+        // store vertex
+        TVector3 vtx3 = { _vtx_pos_vv[ivtx][0], _vtx_pos_vv[ivtx][1], _vtx_pos_vv[ivtx][2] };
+        shr.set_start_point( vtx3 );
+
+        // store plane
+        shr.set_total_best_plane( p );
+
+        // set energy 
+        shr.set_total_energy( reco_energy );
+
+        // set sumq
+        shr.set_total_energy_err( sumQ );
+
+        // set length
+        shr.set_length( shlength );
+
+        // opening angle
+        shr.set_opening_angle( shopen );
+
+        // for direction store 3 vector
+        // (x,y) are the wire and tick angle. (z) is the angle itself
+        TVector3 pseudo_dir = { cos( shangle ), sin( shangle ), shangle };
+        shr.set_direction( pseudo_dir );
+
+        _shower_ll_v.emplace_back( std::move(shr) );
+
+        pixcluster.reserve( pixlist_v.size() );
+        for ( auto& pix : pixlist_v ) {
+          larlite::larflow3dhit lfpix;
+          lfpix.resize(2,0);
+          lfpix[0] = pix[0];
+          lfpix[1] = pix[1];
+          pixcluster.emplace_back( std::move(lfpix) );
+        }
+        _shower_pixcluster_v.emplace_back( std::move(pixcluster) );
       }
 
+      // store floats
       _shower_energy_vv.push_back( shower_energy_v );
       _shower_sumQ_vv.push_back( shower_sumQ_v );
       _shower_shlength_vv.push_back( shower_shlength_v );
 
     }
 
-
-    // ok now store
-
     return true;
+  }
+
+  /*
+   * store larlite objects
+   *
+   * store shower info in _shower_ll_v and _shower_pixcluster_v data members.
+   *
+   * @param[in]  ioll   larlite for output
+   *
+   */  
+  void SSNetShowerReco::store_in_larlite( larlite::storage_manager& ioll ) {
+
+    larlite::event_shower* evout_shower
+      = (larlite::event_shower*)ioll.get_data( larlite::data::kShower, "ssnetshowerreco" );
+    larlite::event_larflowcluster* evout_lfcluster
+      = (larlite::event_larflowcluster*)ioll.get_data( larlite::data::kLArFlowCluster, "ssnetshowerreco" );
+
+    if ( _shower_ll_v.size()!=_shower_pixcluster_v.size() ) {
+      throw std::runtime_error("[SSNetShwerReco::store_in_larlite] number of larlite shower objects and pixcluster not the same");
+    }
+    
+    for ( size_t i=0; i<_shower_ll_v.size(); i++ ) {
+      evout_shower->push_back(    _shower_ll_v[i] );
+      evout_lfcluster->push_back( _shower_pixcluster_v[i] );
+    }
+    
   }
 
 }

@@ -3,9 +3,15 @@
 
 #include <vector>
 #include <string>
+
+// larcv
 #include "DataFormat/Image2D.h"
 #include "DataFormat/IOManager.h"
+
+// larlite
 #include "DataFormat/storage_manager.h"
+#include "DataFormat/shower.h"
+#include "DataFormat/larflowcluster.h"
 
 namespace larlitecv {
 namespace ssnetshowerreco {
@@ -21,12 +27,20 @@ namespace ssnetshowerreco {
 
     bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll, larcv::IOManager& ioimgs );
 
+    // get functions
+    // -------------
+    
     ::std::vector< std::vector<float> > getVertexShowerEnergies() const { return _shower_energy_vv; };
     int   numVertices() const { return _shower_energy_vv.size(); };
     float getVertexShowerEnergy( int vtxid, int plane ) const { return _shower_energy_vv[vtxid][plane]; };
     float getVertexShowerSumQ( int vtxid, int plane ) const { return _shower_sumQ_vv[vtxid][plane]; };
     float getVertexShowerShlength( int vtxid, int plane ) const { return _shower_shlength_vv[vtxid][plane]; };
     ::std::vector<double> getVertexPos( int vtxid ) const { return _vtx_pos_vv[vtxid]; };
+
+    larlite::shower& getShowerObject( int vtxid, int plane ) { return _shower_ll_v.at( 3*vtxid+plane ); };
+    larlite::larflowcluster& getShowerPixelList( int vtxid, int plane ) { return _shower_pixcluster_v.at( 3*vtxid+plane ); };
+
+    void store_in_larlite( larlite::storage_manager& ioll );
 
   protected:
     
@@ -48,14 +62,14 @@ namespace ssnetshowerreco {
                     float x3, float y3,
                     float x, float y );
     
-    void _enclosedCharge( const larcv::Image2D& chargeMap,
-                          float theta,
-                          float& sumIn,
-                          std::vector< std::vector<float> >& triangle,
-                          int vtx_col=255,
-                          int vtx_row=255,
-                          float shLen = 100.0,
-                          float shOpen = 0.2);
+    std::vector< std::vector<int> > _enclosedCharge( const larcv::Image2D& chargeMap,
+                                                     float theta,
+                                                     float& sumIn,
+                                                     std::vector< std::vector<float> >& triangle,
+                                                     int vtx_col=255,
+                                                     int vtx_row=255,
+                                                     float shLen = 100.0,
+                                                     float shOpen = 0.2);
 
     float _findDir( const larcv::Image2D& chargeMap,
                     int vtx_col=255,
@@ -92,7 +106,7 @@ namespace ssnetshowerreco {
     void set_track_treename( std::string name )        { _track_tree_name = name; };
     void set_Qcut( float cut )                         { _Qcut = cut; };
     void set_SSNet_threshold( float threshold )        { _SSNET_SHOWER_THRESHOLD = threshold; };
-    
+
 
   protected:
     // variables filled
@@ -101,6 +115,10 @@ namespace ssnetshowerreco {
     std::vector< std::vector<float> >  _shower_sumQ_vv;
     std::vector< std::vector<float> >  _shower_shlength_vv;
     std::vector< std::vector<double> > _vtx_pos_vv;
+    std::vector< larlite::shower >         _shower_ll_v;
+    std::vector< larlite::larflowcluster > _shower_pixcluster_v;
+  public:
+    void clear();
     
 
   };
