@@ -3,7 +3,7 @@ from math import sqrt
 
 parser = argparse.ArgumentParser( description="Run shower reco and save to json file" )
 parser.add_argument( "-ilcv",  "--input-larcv",   type=str,  required=True,  help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
-parser.add_argument( "-iimgs", "--input-images",  type=str,  default=None,   help="Input image file. Should be a dlmerged file for uncalibrated images or a calibrated* file in stage1")
+parser.add_argument( "-iimgs", "--input-images",  type=str,  default=None,   help="Input image file. Should be empty uncalibrated images or a calibrated* file in stage1")
 parser.add_argument( "-ill",   "--input-larlite", type=str,  default=None,   help="Input larlite file. Should have tracker trees and MC.")
 parser.add_argument( "-f",     "--output-format", type=str,  default="json", help="Set output format. Options={'json','larlite','both'}")
 parser.add_argument( "-o",     "--output",        type=str,  required=True,  help="Output file name. if both, the stem for both." )
@@ -29,7 +29,7 @@ from larlitecv import larlitecv
 iolcv = larcv.IOManager( larcv.IOManager.kREAD, "lcvio" )
 iolcv.add_in_file( args.input_larcv )
 if args.input_images is not None:
-    ilcv.add_in_file( args.input_images )
+    iolcv.add_in_file( args.input_images )
 iolcv.initialize()
 
 # deprecated
@@ -165,7 +165,7 @@ if args.output_format in ['json','both']:
     fout.close()
 
 print "close out"
-outll.close()
+if outll is not None: outll.close()
 iolcv.finalize()
 if args.input_larlite is not None:
     ioll.close()
