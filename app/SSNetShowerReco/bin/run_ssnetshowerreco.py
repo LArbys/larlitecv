@@ -2,13 +2,18 @@ import os,sys,json,argparse
 from math import sqrt
 
 parser = argparse.ArgumentParser( description="Run shower reco and save to json file" )
-parser.add_argument( "-ilcv", "--input-larcv",   type=str, required=True, help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
-parser.add_argument( "-iimgs", "--input-images",   type=str, required=True, help="Input image file. Should be a dlmerged file for uncalibrated images or a calibrated* file in stage1")
-parser.add_argument( "-ill",  "--input-larlite", type=str, required=True, help="Input larlite file. Should have tracker trees")
-parser.add_argument( "-o",    "--output-json",   type=str, required=True, help="Output JSON file" )
-parser.add_argument( "-mc",   "--has-mc", default=False, action='store_true', help="Indicate input files have MC truth information" )
+parser.add_argument( "-ilcv",  "--input-larcv",   type=str, required=True, help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
+parser.add_argument( "-iimgs", "--input-images",  type=str, required=True, help="Input image file. Should be a dlmerged file for uncalibrated images or a calibrated* file in stage1")
+parser.add_argument( "-ill",   "--input-larlite", type=str, required=True, help="Input larlite file. Should have tracker trees")
+parser.add_argument( "-f",     "--output-format", type=str, default="json", help="Set output format. Options={'json','larlite','both'}")
+parser.add_argument( "-o",     "--output",        type=str, required=True, help="Output file name. if both, the stem for both." )
+parser.add_argument( "-mc",    "--has-mc", default=False, action='store_true', help="Indicate input files have MC truth information" )
 
 args = parser.parse_args()
+
+output_formats = ['json','larlite','both']
+if args.output_format not in output_formats:
+    raise ValueError("invalid output format specified. options: {}".format(output_formats))
 
 import ROOT as rt
 from ROOT import std
@@ -31,6 +36,23 @@ ioll = larlite.storage_manager( larlite.storage_manager.kREAD )
 ioll.add_in_filename( args.input_larlite )
 ioll.open()
 
+# larlite output
+llout_name = args.output
+if args.output_format in ['larlite','both']:
+
+    if args.output_format=='both':
+        llout_name += "_larlite.root"
+    
+    outll = larlite.storage_manager( larlite.storage_manager.kWRITE )
+    outll.set_out_filename( llout_name )
+else:
+    outll = None
+
+# json output
+jout_name = args.output
+if args.output_format=='both':
+    jout_name += ".json"
+
 nentries = iolcv.get_n_entries()
 
 showerreco = larlitecv.ssnetshowerreco.SSNetShowerReco()
@@ -46,6 +68,11 @@ for ientry in xrange(nentries):
     ioll.go_to(ientry)
 
     ok = showerreco.process( iolcv, ioll, ioimgs )
+    if outll:
+        showerreco.store_in_larlite( outll )
+        outll.set_id( iolcv.event_id().run(), iolcv.event_id().subrun(), io.lcv.event_id().event() )
+        outll.next_event()
+
 
     entrydata = { "run":iolcv.event_id().run(),
                   "subrun":iolcv.event_id().subrun(),
@@ -120,11 +147,13 @@ for ientry in xrange(nentries):
     #    break
     
 print "output json"
-fout = open(args.output_json, 'w' )
-json.dump( data, fout )
-fout.close()
+if args.output_format in ['json','both']:
+    fout = open(jout_name, 'w' )
+    json.dump( data, fout )
+    fout.close()
 
 print "close out"
+outll.close()
 iolcv.finalize()
 ioll.close()
 
