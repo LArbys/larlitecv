@@ -2,12 +2,13 @@ import os,sys,json,argparse
 from math import sqrt
 
 parser = argparse.ArgumentParser( description="Run shower reco and save to json file" )
-parser.add_argument( "-ilcv",  "--input-larcv",   type=str,  required=True,  help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
-parser.add_argument( "-iimgs", "--input-images",  type=str,  default=None,   help="Input image file. Should be empty uncalibrated images or a calibrated* file in stage1")
-parser.add_argument( "-ill",   "--input-larlite", type=str,  default=None,   help="Input larlite file. Should have tracker trees and MC.")
-parser.add_argument( "-f",     "--output-format", type=str,  default="json", help="Set output format. Options={'json','larlite','both'}")
-parser.add_argument( "-o",     "--output",        type=str,  required=True,  help="Output file name. if both, the stem for both." )
-parser.add_argument( "-adc",   "--adc-tree",      type=str,  default="wire", help="Name of tree containing ADC images. [ Default: 'wire' ]")
+parser.add_argument( "-ilcv",  "--input-larcv",   type=str,  required=True,   help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
+parser.add_argument( "-iimgs", "--input-images",  type=str,  default=None,    help="Input image file. Should be a dlmerged file for uncalibrated images or a calibrated* file in stage1")
+parser.add_argument( "-ill",   "--input-larlite", type=str,  default=None,    help="Input larlite file. Should have tracker trees and MC.")
+parser.add_argument( "-f",     "--output-format", type=str,  default="json",  help="Set output format. Options={'json','larlite','both'}")
+parser.add_argument( "-o",     "--output",        type=str,  required=True,   help="Output file name. if both, the stem for both." )
+parser.add_argument( "-adc",   "--adc-tree",      type=str,  default="wire",  help="Name of tree containing ADC images. [ Default: 'wire' ]")
+parser.add_argument( "-ssn",   "--ssnet-tree",    type=str,  default="uburn", help="Stem name of tree containing SSNet images. [ Default: 'uburn' ]")
 parser.add_argument( "-cal",   "--use-calib", default=False, action='store_true', help="Use calibrated conversions")
 parser.add_argument( "-mc",    "--has-mc", default=False, action='store_true', help="Indicate input files have MC truth information" )
 
@@ -29,7 +30,7 @@ from larlitecv import larlitecv
 iolcv = larcv.IOManager( larcv.IOManager.kREAD, "lcvio" )
 iolcv.add_in_file( args.input_larcv )
 if args.input_images is not None:
-    iolcv.add_in_file( args.input_images )
+    ilcv.add_in_file( args.input_images )
 iolcv.initialize()
 
 # deprecated
@@ -67,6 +68,7 @@ mcpg = larlitecv.mctruthtools.MCPixelPGraph()
 sce  = larutil.SpaceChargeMicroBooNE() # larutil.SpaceChargeMicroBooNE.kMCC9_Forward
 
 showerreco.set_adc_treename( args.adc_tree )
+showerreco.set_ssnet_shower_stemname( args.ssnet_tree )
 if args.use_calib:
     showerreco.use_calibrated_pixsum2mev( True )
 
@@ -165,7 +167,7 @@ if args.output_format in ['json','both']:
     fout.close()
 
 print "close out"
-if outll is not None: outll.close()
+outll.close()
 iolcv.finalize()
 if args.input_larlite is not None:
     ioll.close()
