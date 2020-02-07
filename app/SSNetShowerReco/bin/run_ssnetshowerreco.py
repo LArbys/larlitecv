@@ -48,7 +48,7 @@ if args.output_format in ['larlite','both']:
 
     if args.output_format=='both':
         llout_name += "_larlite.root"
-    
+
     outll = larlite.storage_manager( larlite.storage_manager.kWRITE )
     outll.set_out_filename( llout_name )
     outll.open()
@@ -74,12 +74,12 @@ data = {"entries":[]}
 
 for ientry in xrange(nentries):
     print "[ENTRY ",ientry,"]"
-    
+
     iolcv.read_entry(ientry)
     if args.input_larlite is not None:
         ioll.go_to(ientry)
 
-    ok = showerreco.process( iolcv, ioll )
+    ok = showerreco.process( iolcv, ioll, ientry )
     if outll is not None:
         showerreco.store_in_larlite( outll )
         outll.set_id( iolcv.event_id().run(), iolcv.event_id().subrun(), iolcv.event_id().event() )
@@ -93,7 +93,7 @@ for ientry in xrange(nentries):
                   "shower_sumQs":[],
                   "shower_shlengths":[],
                   "vertex_pos":[]}
-    
+
     for ivtx in xrange(showerreco.numVertices()):
         entrydata["shower_energies"].append( [ showerreco.getVertexShowerEnergy(ivtx,p) for p in xrange(3) ] )
         entrydata["shower_sumQs"].append( [ showerreco.getVertexShowerSumQ(ivtx,p) for p in xrange(3) ] )
@@ -150,14 +150,14 @@ for ientry in xrange(nentries):
                 d += (pos[i]-vtx_sce_v[i])*(pos[i]-vtx_sce_v[i])
             d = sqrt(d)
             entrydata["vertex_dist_from_truth"].append(d)
-                
+
 
     data["entries"].append( entrydata )
 
     #if ientry>=0:
     #    print "break"
     #    break
-    
+
 print "output json"
 if args.output_format in ['json','both']:
     fout = open(jout_name, 'w' )
@@ -169,5 +169,3 @@ outll.close()
 iolcv.finalize()
 if args.input_larlite is not None:
     ioll.close()
-
-

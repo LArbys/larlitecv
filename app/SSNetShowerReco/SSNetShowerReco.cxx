@@ -41,7 +41,7 @@ namespace ssnetshowerreco {
     _shower_ll_v.clear();
     _shower_pixcluster_v.clear();
   }
-  
+
   /**
    * use triple product to get area of triangle defined by (x_i,y_i)
    *
@@ -124,7 +124,7 @@ namespace ssnetshowerreco {
    * @param[in]  shOpen    shower opening angle
    *
    */
-  std::vector< std::vector<int> >  SSNetShowerReco::_enclosedCharge( const larcv::Image2D& chargeMap,
+  std::vector< std::vector<int> >  SSNetShowerReco::_enclosedCharge( std::vector<std::vector<float>> chargeMap,
                                                                      float theta,
                                                                      float& sumIn,
                                                                      std::vector< std::vector<float> >& triangle,
@@ -134,7 +134,7 @@ namespace ssnetshowerreco {
                                                                      float shOpen ) {
 
     std::vector< std::vector<int> > pix_v;
-    
+
     sumIn = 0.;
     triangle.resize(3);
     for (int i=0; i<3; i++ ) {
@@ -157,23 +157,28 @@ namespace ssnetshowerreco {
 
     if ( shLen==0.0 ) {
       // weird things when we have zero area triangle
-      sumIn = chargeMap.pixel( vtx_row, vtx_col );
-      return pix_v;
-    }
-    
-    sumIn = 0;
-    for ( size_t r=0; r<chargeMap.meta().rows(); r++ ) {
-      int tick = chargeMap.meta().pos_y( r );
-      for ( size_t c=0; c<chargeMap.meta().cols(); c++ ) {
-        if ( _isInside2(t1X,t1Y,t2X,t2Y,t3X,t3Y,(float)c,(float)r) ) {
-          sumIn += chargeMap.pixel(r,c);
-          std::vector<int> pix = { (int)tick, (int)c };
-          pix_v.push_back( pix );
+      bool hasCharge = false;
+      // std::cout<<"------"<<vtx_row<<","<<vtx_col<<"------------"<<std::endl;
+      for (int ii =0;ii<chargeMap.size();ii++){
+        // std::cout<<chargeMap[ii][0]<<","<<chargeMap[ii][1]<<std::endl;
+        if(chargeMap[ii][0]==vtx_row&&chargeMap[ii][1]==vtx_col){
+          sumIn = chargeMap[ii][2];
+          hasCharge =true;
         }
       }
+      //default to fall back on
+      if (!hasCharge) sumIn = 10.0;
+      return pix_v;
     }
 
-
+    sumIn = 0;
+    for (int ii =0;ii<chargeMap.size();ii++){
+      if ( _isInside2(t1X,t1Y,t2X,t2Y,t3X,t3Y,chargeMap[ii][1],chargeMap[ii][0])){
+        sumIn+=chargeMap[ii][2];
+        std::vector<int> pix = { (int)chargeMap[ii][0], (int)chargeMap[ii][1] };
+        pix_v.push_back( pix );
+      }
+    }
     return pix_v;
   }
 
@@ -187,7 +192,7 @@ namespace ssnetshowerreco {
    * @param[in]  scanOpen   fixed triangle opening angle used to scan
    * @return                best angle found; -9999 if no angle found charge
    */
-  float SSNetShowerReco::_findDir( const larcv::Image2D& chargeMap,
+  float SSNetShowerReco::_findDir( std::vector<std::vector<float>> chargeMap,
                                    int vtx_col,
                                    int vtx_row,
                                    float scanLen,
@@ -247,8 +252,8 @@ namespace ssnetshowerreco {
    * @param[in]  vtx_row    vertex in image
    * @param[in]  scanOpen   fixed triangle opening angle used to scan
    * @return                best angle found
-   */  
-  float SSNetShowerReco::_findLen( const larcv::Image2D& chargeMap,
+   */
+  float SSNetShowerReco::_findLen( std::vector<std::vector<float>> chargeMap,
                                    float theta,
                                    int vtx_col, int vtx_row,
                                    float scanOpen ) {
@@ -301,8 +306,8 @@ namespace ssnetshowerreco {
    * @param[in]  vtx_col    vertex in image
    * @param[in]  vtx_row    vertex in image
    * @return                best angle found
-   */    
-  float SSNetShowerReco::_findOpen( const larcv::Image2D& chargeMap,
+   */
+  float SSNetShowerReco::_findOpen( std::vector<std::vector<float>> chargeMap,
                                     float theta,
                                     float length,
                                     int vtx_col, int vtx_row ) {
@@ -344,8 +349,25 @@ namespace ssnetshowerreco {
    * @param[in]  ioll   larlite input: not used
    * @param[in]  ioimgs larcv input:   needs to contain charge images
    * @return            true if processing ok, false if not
-   */      
-  bool SSNetShowerReco::process( larcv::IOManager& iolcv, larlite::storage_manager& ioll ) {//, larcv::IOManager& ioimgs ) {
+   */
+   std::vector<std::vector<float>> SSNetShowerReco::MakeImage2dSparse(const larcv::Image2D& input_img,
+            float threshold ){
+     //function to make sparse objects from the larcv Image2d
+     //output: vector of (row,col, value)
+     std::vector<std::vector<float>> output_vv;
+     for (int r = 0; r<input_img.meta().rows();r++){
+       for (int c= 0; c<input_img.meta().cols();c++){
+         float pix_value = input_img.pixel(r,c);
+         if (pix_value > threshold){
+           std::vector<float> tmp_v = {(float) r, (float) c, pix_value};
+           output_vv.push_back(tmp_v);
+         }
+       }//end of col loop
+     }//end of row loop
+     return output_vv;
+   }// end of function
+
+  bool SSNetShowerReco::process( larcv::IOManager& iolcv, larlite::storage_manager& ioll, int entry ) {//, larcv::IOManager& ioimgs ) {
 
     // get adc image (larcv)
     // get ssnet image (larcv)
@@ -369,6 +391,12 @@ namespace ssnetshowerreco {
       = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _adc_tree_name );
     const std::vector<larcv::Image2D>& adc_v = ev_adc->Image2DArray();
 
+    std::vector<std::vector<float>> adc_u_sparse = MakeImage2dSparse(adc_v[0],10.0);
+    std::vector<std::vector<float>> adc_v_sparse = MakeImage2dSparse(adc_v[1],10.0);
+    std::vector<std::vector<float>> adc_y_sparse = MakeImage2dSparse(adc_v[2],10.0);
+    std::vector<std::vector<std::vector<float>>> adc_sparse_vvv = {adc_u_sparse,adc_v_sparse,adc_y_sparse};
+    std::vector<larcv::ImageMeta> wire_meta = {adc_v[0].meta(),adc_v[1].meta(),adc_v[2].meta()};
+
     larcv::EventImage2D* ev_shower_score[3] = { nullptr };
     for ( size_t p=0; p<3; p++ ) {
       char treename[50];
@@ -376,15 +404,38 @@ namespace ssnetshowerreco {
       ev_shower_score[p] =
         (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, treename );
     }
-
+    std::vector<std::vector<float>> ssnet_u_shower_sparse = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
+    std::vector<std::vector<float>> ssnet_v_shower_sparse = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
+    std::vector<std::vector<float>> ssnet_y_shower_sparse = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
+    std::vector<std::vector<std::vector<float>>> ssnet_sparse_vvv = {ssnet_u_shower_sparse,ssnet_v_shower_sparse,ssnet_y_shower_sparse};
     larcv::EventPGraph* ev_vtx
       = (larcv::EventPGraph*)iolcv.get_data( larcv::kProductPGraph, _vertex_tree_name );
 
+    std::vector<std::vector<std::vector<float>>> masked_adc_vvv;
 
-    // get candidate vertices, make crops around said vertex
-    std::vector< std::vector<larcv::Image2D> > adc_vtxcrop_vv;
-    std::vector< std::vector<larcv::Image2D> > shower_vtxcrop_vv;
-    std::vector< std::vector<int> >            vtx_incrop_vv;
+    std::cout<<"Size of input sparse vectors: \n";
+    std::cout<<"ADC: "<<adc_sparse_vvv[0].size()<<","<<adc_sparse_vvv[1].size()<<","<<adc_sparse_vvv[2].size()<<"\n";
+    std::cout<<"SSNET: "<<ssnet_sparse_vvv[0].size()<<","<<ssnet_sparse_vvv[1].size()<<","<<ssnet_sparse_vvv[2].size()<<"\n";
+    for ( size_t p=0; p<3; p++ ) {
+      // mask the ADC image using ssnet
+      int npixels_adc = adc_sparse_vvv[p].size();
+      int npixels_ssnet = ssnet_sparse_vvv[p].size();
+      std::vector<std::vector<float>> masked_plane_v;
+      for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
+        for ( int ssnet_i =0;ssnet_i<npixels_ssnet;ssnet_i++){
+          if (ssnet_sparse_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
+              masked_plane_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
+          }//end of if statements
+        }//end of loop through ssnet
+      }//end of loop throug adc
+      masked_adc_vvv.push_back(masked_plane_v);
+    }//end of plane loop
+    std::cout<<"Size of masked adc sparse vectors: \n";
+    std::cout<<"Masked ADC: "<<masked_adc_vvv[0].size()<<","<<masked_adc_vvv[1].size()<<","<<masked_adc_vvv[2].size()<<"\n";
+    // for(int ii =0;ii<masked_adc_vvv[0].size();ii++){
+    //   std::cout<<masked_adc_vvv[0][ii][0]<<","<<masked_adc_vvv[0][ii][1]<<std::endl;
+    // }
+    // get candidate vertices, if in fiducial volume, keep
     _vtx_pos_vv.clear();
     for ( auto const& pgraph : ev_vtx->PGraphArray() ) {
       if ( pgraph.ParticleArray().size()==0 ) continue; // dont expect this
@@ -396,90 +447,26 @@ namespace ssnetshowerreco {
 
         _vtx_pos_vv.push_back( vtx3d );
 
-        std::vector<int> imgcoord_v(4);  // (U,V,Y,tick)
-        imgcoord_v[3] = 3200 + vtx3d[0]/larutil::LArProperties::GetME()->DriftVelocity()/0.5;
-        for ( size_t p=0; p<3; p++ ) {
-          imgcoord_v[p] = larutil::Geometry::GetME()->NearestWire( vtx3d, (int)p );
-        }
-
-        // define crop
-        std::vector<larcv::Image2D> crop_v;
-        std::vector<larcv::Image2D> sscrop_v;
-        for ( size_t p=0; p<3; p++ ) {
-          auto const& meta = adc_v[p].meta();
-          int tbounds[2] = { (int)(imgcoord_v[3]-256*meta.pixel_height()),
-                             (int)(imgcoord_v[3]+256*meta.pixel_height()) };
-          int wbounds[2] = { (int)(imgcoord_v[p]-256*meta.pixel_width()),
-                             (int)(imgcoord_v[p]+256*meta.pixel_width()) };
-
-          // correct bounds
-          if ( tbounds[0]<=meta.min_y() ) {
-            tbounds[0] = meta.min_y()+meta.pixel_height();
-            tbounds[1] = tbounds[0] + 512*meta.pixel_height();
-          }
-          if ( tbounds[1]>=meta.max_y() ) {
-            tbounds[1] = meta.max_y() - meta.pixel_height();
-            tbounds[0] = tbounds[1] - 512*meta.pixel_height();
-          }
-          if ( wbounds[0]<=meta.min_x() ) {
-            wbounds[0] = meta.min_x()+meta.pixel_width();
-            wbounds[1] = wbounds[0] + 512*meta.pixel_width();
-          }
-          if ( wbounds[1]>=meta.max_x() ) {
-            wbounds[1] = meta.max_x()-meta.pixel_width();
-            wbounds[0] = wbounds[1] - 512*meta.pixel_width();
-          }
-
-
-          // define meta for crop
-          larcv::ImageMeta cropmeta( 512*meta.pixel_width(), 512*meta.pixel_height(),
-                                     512, 512, wbounds[0], tbounds[1],
-                                     meta.plane() );
-          //std::cout << "[SSNetShowerReco] Crop around vertex: " << cropmeta.dump();
-
-          larcv::Image2D crop   = adc_v[p].crop(cropmeta);
-          larcv::Image2D sscrop = ev_shower_score[p]->Image2DArray()[0].crop(cropmeta);
-
-          // mask the ADC image using ssnet
-          for ( size_t r=0; r<crop.meta().rows(); r++ ) {
-            for ( size_t c=0; c<crop.meta().cols(); c++ ) {
-              if ( crop.pixel(r,c)<_Qcut )
-                crop.set_pixel(r,c,0.0);
-              if ( sscrop.pixel(r,c)<_SSNET_SHOWER_THRESHOLD ) {
-                crop.set_pixel(r,c,0.0);
-              }
-            }
-          }
-
-          crop_v.emplace_back( std::move(crop) );
-          sscrop_v.emplace_back( std::move(sscrop) );
-
-        }//end of plane loop
-
-
-        adc_vtxcrop_vv.emplace_back( std::move(crop_v) );
-        shower_vtxcrop_vv.emplace_back( std::move(sscrop_v) );
-        vtx_incrop_vv.push_back( imgcoord_v );
 
       }//end of if statement
-
       else std::cout<<"Outside fiducial volume!"<<std::endl;
-
-
     }//end of loop over vertices/pgraph
-
-    //
 
     // now get shower energy per vertex, per plane
 
-    for ( size_t ivtx=0; ivtx<adc_vtxcrop_vv.size(); ivtx++ ) {
-      auto& crop_v     = adc_vtxcrop_vv[ivtx];
-      auto& imgcoord_v = vtx_incrop_vv[ivtx];
+    for ( size_t ivtx=0; ivtx<_vtx_pos_vv.size(); ivtx++ ) {
+
 
       std::cout << "[SSNetShowerReco] Reconstruct vertex[" << ivtx << "] "
                 << "pos=(" << _vtx_pos_vv[ivtx][0] << "," << _vtx_pos_vv[ivtx][1] << "," << _vtx_pos_vv[ivtx][2] << ")"
                 << std::endl;
 
+      //get 2d vertex position
+      std::vector<int> imgcoord_v(4);  // (U,V,Y,tick)
+      imgcoord_v[3] = 3200 + _vtx_pos_vv[ivtx][0]/larutil::LArProperties::GetME()->DriftVelocity()/0.5;
+      for ( size_t p=0; p<3; p++ ) {
+        imgcoord_v[p] = larutil::Geometry::GetME()->NearestWire( _vtx_pos_vv[ivtx], (int)p );
+      }
 
       std::vector<float> shower_energy_v(3,0);
       std::vector<float> shower_sumQ_v(3,0);
@@ -487,19 +474,18 @@ namespace ssnetshowerreco {
 
       for ( size_t p=0; p<3; p++ ) {
         //std::cout << "[SSNetShowerReco]   Plane [" << p << "]" << std::endl;
-        int vtx_pix[2] = { (int)crop_v[p].meta().col( imgcoord_v[p] ),
-                           (int)crop_v[p].meta().row( imgcoord_v[3] ) };
+        int vtx_pix[2] = { (int)wire_meta[p].col(imgcoord_v[p]) , (int)wire_meta[p].row(imgcoord_v[3])};
         //std::cout << "[SSNetShowerReco]     vertex pixel: (" << vtx_pix[0] << "," << vtx_pix[1] << ")" << std::endl;
-        float shangle  = _findDir( crop_v[p], vtx_pix[0], vtx_pix[1] );
+        float shangle  = _findDir( masked_adc_vvv[p], vtx_pix[0], vtx_pix[1] );
         //std::cout << "[SSNetShowerReco]     shower angle: " << shangle << std::endl;
-        float shlength = _findLen( crop_v[p],  shangle, vtx_pix[0], vtx_pix[1] );
+        float shlength = _findLen( masked_adc_vvv[p],  shangle, vtx_pix[0], vtx_pix[1] );
         //std::cout << "[SSNetShowerReco]     shower length: " << shlength << std::endl;
-        float shopen   = _findOpen( crop_v[p], shangle, shlength, vtx_pix[0], vtx_pix[1] );
+        float shopen   = _findOpen( masked_adc_vvv[p], shangle, shlength, vtx_pix[0], vtx_pix[1] );
         //std::cout << "[SSNetShowerReco]     open angle: " << shopen << std::endl;
         float sumQ;
         triangle_t tri;
         std::vector< std::vector<int> > pixlist_v =
-          _enclosedCharge( crop_v[p], shangle, sumQ, tri, vtx_pix[0], vtx_pix[1], shlength, shopen );
+          _enclosedCharge( masked_adc_vvv[p], shangle, sumQ, tri, vtx_pix[0], vtx_pix[1], shlength, shopen );
 
         float reco_energy = 0;
         if ( _use_calibrated_pixelsum2mev )
@@ -528,7 +514,7 @@ namespace ssnetshowerreco {
         // store plane
         shr.set_total_best_plane( p );
 
-        // set energy 
+        // set energy
         shr.set_total_energy( reco_energy );
 
         // set sumq
@@ -556,14 +542,49 @@ namespace ssnetshowerreco {
           pixcluster.emplace_back( std::move(lfpix) );
         }
         _shower_pixcluster_v.emplace_back( std::move(pixcluster) );
-      }
+      }//end of plane loop
 
       // store floats
       _shower_energy_vv.push_back( shower_energy_v );
       _shower_sumQ_vv.push_back( shower_sumQ_v );
       _shower_shlength_vv.push_back( shower_shlength_v );
 
+    }//end of loop through vertices
+
+    TH2F* YPlaneADC_h = new TH2F("yplaneadc","yplaneadc",3456,0,3456.,1008,0,1008.);
+    TH2F* YPlaneSSNet_h = new TH2F("yplanessnet","yplanessnet",3456,0,3456.,1008,0,1008.);
+    TH2F* YPlaneMasked_h = new TH2F("yplanemasked","yplanemasked",3456,0,3456.,1008,0,1008.);
+
+
+    // for (int ii =0;ii<adc_sparse_vvv[2].size();ii++){
+    //   YPlaneADC_h->Fill(adc_sparse_vvv[2][ii][1],adc_sparse_vvv[2][ii][0],adc_sparse_vvv[2][ii][2]);
+    // }
+    // for (int ii =0;ii<ssnet_sparse_vvv[2].size();ii++){
+    //   YPlaneSSNet_h->Fill(ssnet_sparse_vvv[2][ii][1],ssnet_sparse_vvv[2][ii][0],ssnet_sparse_vvv[2][ii][2]);
+    // }
+    // for (int ii =0;ii<masked_adc_vvv[2].size();ii++){
+    //   YPlaneMasked_h->Fill(masked_adc_vvv[2][ii][1],masked_adc_vvv[2][ii][0],masked_adc_vvv[2][ii][2]);
+    // }
+
+    for (int r =0;r<adc_v[2].meta().rows();r++){
+      for (int c =0;c<adc_v[2].meta().cols();c++){
+        YPlaneADC_h->Fill((float)c,(float)r, adc_v[2].pixel(r,c));
+      }
     }
+
+    gStyle->SetOptStat(0);
+
+    TCanvas can1("can", "histograms ", 3456, 1008);
+    YPlaneADC_h->Draw("colz");
+    can1.SaveAs(Form("sparsetest_comb_adc_%d.png",(int)entry));
+    //
+    // TCanvas can2("can", "histograms ", 3456, 1008);
+    // YPlaneSSNet_h->Draw("colz");
+    // can2.SaveAs(Form("sparsetest_comb_ssnet_%d.png",(int)entry));
+    //
+    // TCanvas can3("can", "histograms ", 3456, 1008);
+    // YPlaneMasked_h->Draw("colz");
+    // can3.SaveAs(Form("sparsetest_comb_masked_%d.png",(int)entry));
 
     return true;
   }
@@ -575,7 +596,7 @@ namespace ssnetshowerreco {
    *
    * @param[in]  ioll   larlite for output
    *
-   */  
+   */
   void SSNetShowerReco::store_in_larlite( larlite::storage_manager& ioll ) {
 
     larlite::event_shower* evout_shower
@@ -586,12 +607,12 @@ namespace ssnetshowerreco {
     if ( _shower_ll_v.size()!=_shower_pixcluster_v.size() ) {
       throw std::runtime_error("[SSNetShwerReco::store_in_larlite] number of larlite shower objects and pixcluster not the same");
     }
-    
+
     for ( size_t i=0; i<_shower_ll_v.size(); i++ ) {
       evout_shower->push_back(    _shower_ll_v[i] );
       evout_lfcluster->push_back( _shower_pixcluster_v[i] );
     }
-    
+
   }
 
 }

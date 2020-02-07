@@ -13,6 +13,20 @@
 #include "DataFormat/shower.h"
 #include "DataFormat/larflowcluster.h"
 
+// ROOT
+#include "TFile.h"
+#include "TTree.h"
+#include "TH1.h"
+#include "TH2D.h"
+#include "TH3D.h"
+#include "TH3F.h"
+#include "TCanvas.h"
+#include "TStyle.h"
+#include "TGraph.h"
+#include "TLegend.h"
+#include "TVector3.h"
+#include "TLine.h"
+
 namespace larlitecv {
 namespace ssnetshowerreco {
 
@@ -21,15 +35,15 @@ namespace ssnetshowerreco {
   public:
 
     typedef std::vector< std::vector<float> > triangle_t;
-    
+
     SSNetShowerReco();
     virtual ~SSNetShowerReco() {};
 
-    bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll );//, larcv::IOManager& ioimgs );
+    bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll, int entry );//, larcv::IOManager& ioimgs );
 
     // get functions
     // -------------
-    
+
     ::std::vector< std::vector<float> > getVertexShowerEnergies() const { return _shower_energy_vv; };
     int   numVertices() const { return _shower_energy_vv.size(); };
     float getVertexShowerEnergy( int vtxid, int plane ) const { return _shower_energy_vv[vtxid][plane]; };
@@ -44,7 +58,7 @@ namespace ssnetshowerreco {
     void use_calibrated_pixsum2mev( bool use=true ) { _use_calibrated_pixelsum2mev = use; };
 
   protected:
-    
+
     float _area( float x1, float y1,
                  float x2, float y2,
                  float x3, float y3 );
@@ -52,7 +66,7 @@ namespace ssnetshowerreco {
     float _sign( float x1, float y1,
                  float x2, float y2,
                  float x3, float y3 );
-    
+
     bool _isInside(float x1, float y1,
                    float x2, float y2,
                    float x3, float y3,
@@ -62,8 +76,8 @@ namespace ssnetshowerreco {
                     float x2, float y2,
                     float x3, float y3,
                     float x, float y );
-    
-    std::vector< std::vector<int> > _enclosedCharge( const larcv::Image2D& chargeMap,
+
+    std::vector< std::vector<int> > _enclosedCharge( std::vector<std::vector<float>> chargeMap,
                                                      float theta,
                                                      float& sumIn,
                                                      std::vector< std::vector<float> >& triangle,
@@ -72,21 +86,25 @@ namespace ssnetshowerreco {
                                                      float shLen = 100.0,
                                                      float shOpen = 0.2);
 
-    float _findDir( const larcv::Image2D& chargeMap,
+    float _findDir( std::vector<std::vector<float>> chargeMap,
                     int vtx_col=255,
                     int vtx_row=255,
                     float scanLen = 50,
                     float scanOpen=0.05 );
 
-    float _findLen( const larcv::Image2D& chargeMap,
+    float _findLen( std::vector<std::vector<float>> chargeMap,
                     float theta,
                     int vtx_col=255, int vtx_row=255,
                     float scanOpen=0.2);
 
-    float _findOpen( const larcv::Image2D& chargeMap,
+    float _findOpen( std::vector<std::vector<float>> chargeMap,
                      float theta,
                      float length,
                      int vtx_col=255, int vtx_row=255 );
+
+     std::vector<std::vector<float>> MakeImage2dSparse(const larcv::Image2D& input_img,
+              float threshold = 0 );
+
 
     // parameters
     // -----------
@@ -98,7 +116,7 @@ namespace ssnetshowerreco {
     float _Qcut;
     float _SSNET_SHOWER_THRESHOLD;
     bool  _use_calibrated_pixelsum2mev;
-    
+
   public:
     // set methods
     // ------------
@@ -121,11 +139,11 @@ namespace ssnetshowerreco {
     std::vector< larlite::larflowcluster > _shower_pixcluster_v;
   public:
     void clear();
-    
+
 
   };
-  
-  
+
+
 }
 }
 
