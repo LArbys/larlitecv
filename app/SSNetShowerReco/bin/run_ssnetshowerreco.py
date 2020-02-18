@@ -3,6 +3,7 @@ from math import sqrt
 
 parser = argparse.ArgumentParser( description="Run shower reco and save to json file" )
 parser.add_argument( "-ilcv",  "--input-larcv",   type=str,  required=True,  help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
+parser.add_argument( "-ilcvtruth",  "--input-larcvtruth",   type=str,  required=False,  help="Input larcv file. Should have segment images")
 parser.add_argument( "-iimgs", "--input-images",  type=str,  default=None,   help="Input image file. Should be a dlmerged file for uncalibrated images or a calibrated* file in stage1")
 parser.add_argument( "-ill",   "--input-larlite", type=str,  default=None,   help="Input larlite file. Should have tracker trees and MC.")
 parser.add_argument( "-f",     "--output-format", type=str,  default="json", help="Set output format. Options={'json','larlite','both'}")
@@ -10,7 +11,9 @@ parser.add_argument( "-o",     "--output",        type=str,  required=True,  hel
 parser.add_argument( "-adc",   "--adc-tree",      type=str,  default="wire", help="Name of tree containing ADC images. [ Default: 'wire' ]")
 parser.add_argument( "-cal",   "--use-calib", default=False, action='store_true', help="Use calibrated conversions")
 parser.add_argument( "-mc",    "--has-mc", default=False, action='store_true', help="Indicate input files have MC truth information" )
-
+parser.add_argument( "-sec",   "--second-shower", default=False, action='store_true', help="Run second shower search")
+parser.add_argument( "-ncpi0",   "--use-ncpi0", default=False, action='store_true', help="Using NCPi0 true info")
+parser.add_argument( "-nueint",   "--use-nueint", default=False, action='store_true', help="Using Nueint true info")
 args = parser.parse_args()
 
 output_formats = ['json','larlite','both']
@@ -28,6 +31,8 @@ from larlitecv import larlitecv
 
 iolcv = larcv.IOManager( larcv.IOManager.kREAD, "lcvio" )
 iolcv.add_in_file( args.input_larcv )
+if args.input_larcvtruth is not None:
+    iolcv.add_in_file( args.input_larcvtruth)
 if args.input_images is not None:
     ilcv.add_in_file( args.input_images )
 iolcv.initialize()
@@ -69,6 +74,12 @@ sce  = larutil.SpaceChargeMicroBooNE() # larutil.SpaceChargeMicroBooNE.kMCC9_For
 showerreco.set_adc_treename( args.adc_tree )
 if args.use_calib:
     showerreco.use_calibrated_pixsum2mev( True )
+if args.second_shower:
+    showerreco.use_second_shower( True )
+if args.use_ncpi0:
+    showerreco.use_ncpi0( True )
+if args.use_nueint:
+    showerreco.use_nueint( True )
 
 data = {"entries":[]}
 
@@ -85,7 +96,7 @@ for ientry in xrange(nentries):
         outll.set_id( iolcv.event_id().run(), iolcv.event_id().subrun(), iolcv.event_id().event() )
         outll.next_event()
 
-
+    print (iolcv.event_id().event())
     entrydata = { "run":iolcv.event_id().run(),
                   "subrun":iolcv.event_id().subrun(),
                   "event":iolcv.event_id().event(),
@@ -151,12 +162,54 @@ for ientry in xrange(nentries):
             d = sqrt(d)
             entrydata["vertex_dist_from_truth"].append(d)
 
+    if args.second_shower:
+        entrydata["secondshower_energies"] = []
+        entrydata["secondshower_sumQs"] = []
+        entrydata["secondshower_shlengths"] = []
 
-    data["entries"].append( entrydata )
+        for ivtx in xrange(showerreco.numVertices()):
+            entrydata["secondshower_energies"].append( [ showerreco.getVertexSecondShowerEnergy(ivtx,p) for p in xrange(3) ] )
+            entrydata["secondshower_sumQs"].append( [ showerreco.getVertexSecondShowerSumQ(ivtx,p) for p in xrange(3) ] )
+            entrydata["secondshower_shlengths"].append( [ showerreco.getVertexSecondShowerShlength(ivtx,p) for p in xrange(3) ] )
+
+    if args.use_ncpi0:
+        entrydata["true_shower_energies"] = []
+        entrydata["true_shower_starts"] = []
+        entrydata["remaining_adc"] = []
+        entrydata["overlap_fraction1"] = []
+        entrydata["overlap_fraction2"] = []
+        entrydata["truth_match"] = []
+
+
+
+
+        for ivtx in xrange(showerreco.numShowers()):
+            entrydata["truth_match"].append( [showerreco.getShowerTruthMatch(shower) for shower in xrange(6)])
+            entrydata["true_shower_energies"].append( [ showerreco.getTrueShowerEnergy(ivtx) for shower in xrange(2) ] )
+            entrydata["true_shower_starts"].append( [ showerreco.getTrueShowerStarts(ivtx).at(p) for p in xrange(3) ] )
+            entrydata["remaining_adc"].append( [showerreco.getRemainingADC()])
+            entrydata["overlap_fraction1"].append( [showerreco.getOverlapFraction1(plane,0) for plane in xrange(2) ] )
+            entrydata["overlap_fraction1"].append( [showerreco.getOverlapFraction1(plane,1) for plane in xrange(2) ] )
+            entrydata["overlap_fraction2"].append( [showerreco.getOverlapFraction2(plane,0) for plane in xrange(2) ] )
+            entrydata["overlap_fraction2"].append( [showerreco.getOverlapFraction2(plane,1) for plane in xrange(2) ] )
+
+    if args.use_nueint:
+        entrydata["uplane_profile"] = []
+        entrydata["vplane_profile"] = []
+        entrydata["yplane_profile"] = []
+
+        for ii in xrange(showerreco.numpointsU()):
+            entrydata["uplane_profile"].append( [ showerreco.getUPlaneShowerProfile(ii,index) for index in xrange(2) ] )
+        for ii in xrange(showerreco.numpointsV()):
+            entrydata["vplane_profile"].append( [ showerreco.getVPlaneShowerProfile(ii,index) for index in xrange(2) ] )
+        for ii in xrange(showerreco.numpointsY()):
+            entrydata["yplane_profile"].append( [ showerreco.getYPlaneShowerProfile(ii,index) for index in xrange(2) ] )
 
     #if ientry>=0:
     #    print "break"
     #    break
+
+    data["entries"].append( entrydata )
 
 print "output json"
 if args.output_format in ['json','both']:

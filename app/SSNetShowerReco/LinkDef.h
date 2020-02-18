@@ -14,31 +14,9 @@
 #pragma link C++ namespace std;
 #pragma link C++ class std::vector<float>+;
 #pragma link C++ class std::vector< std::vector<float> >+;
+#pragma link C++ class larlitecv::ssnetshowerreco::Utils+;
+#pragma link C++ class larlitecv::ssnetshowerreco::SecondShower+;
 #pragma link C++ class larlitecv::ssnetshowerreco::SSNetShowerReco+;
 
 //ADD_NEW_CLASS ... do not change this line
 #endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
