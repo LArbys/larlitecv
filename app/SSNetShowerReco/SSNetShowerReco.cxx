@@ -402,8 +402,8 @@ namespace ssnetshowerreco {
     SecondShower SecondShower;
     Utils Utils;
     bool allowGap = true;
-    bool makeDisp = true;
-    bool useTrueVtx = true;
+    bool makeDisp = false;
+    bool useTrueVtx = false;
 
     std::vector<int> vtx2d_true;
 
