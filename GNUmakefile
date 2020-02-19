@@ -33,7 +33,7 @@ ifeq ($(LARLITECV_OPENCV),1)
 endif
 # TAGGER CHAIN
 APP_SUBDIRS += ThruMu StopMu UntaggedClustering ContainedROI TaggerCROI
-APP_SUBDIRS += SSNetShowerReco dllee
+APP_SUBDIRS += SSNetShowerReco dllee dllee/bin
 
 
 .phony: all clean
