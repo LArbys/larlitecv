@@ -151,7 +151,7 @@ int main( int nargs, char** argv ) {
     iolcv.read_entry(ientry);    
     larcv::EventImage2D* ev_wire = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, "wire" );
 
-    std::tuple<int,int,int> rse = { ev_wire->run(), ev_wire->subrun(), ev_wire->event() };
+    std::tuple<int,int,int> rse = std::make_tuple( (int)ev_wire->run(), (int)ev_wire->subrun(), (int)ev_wire->event() );
     
     auto it = rse_filter.find( rse );
 
