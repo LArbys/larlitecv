@@ -17,37 +17,42 @@ int main( int nargs, char** argv ) {
 
   std::cout << "Run filter" << std::endl;
 
+  std::string dlmerged_input   = argv[1];
+  std::string filterana_output = argv[2];
+  std::string larcv_output     = argv[3];
+  std::string larlite_output   = argv[4];
 
-  int beamwin_tick_start = 190; // BNB:190; overlay:215; EXTBNB:210; MC-only: 190
-  beamwin_tick_start = std::atoi(argv[3]);
+  // BNB:190; overlay:215; EXTBNB:210; MC-only: 190  
+  int beamwin_tick_start = std::atoi(argv[5]);
   
   // get filter results
   std::map<std::tuple<int,int,int>,bool>     rse_filter;
   std::map<std::tuple<int,int,int,int>,bool> rsev_filter;
   std::vector< std::vector<float> >          cutvars;
-  larlitecv::dllee::NumuFilter::ReturnFilteredDictionary( argv[1], rse_filter, rsev_filter, cutvars, 1 );
+  larlitecv::dllee::NumuFilter::ReturnFilteredDictionary( dlmerged_input, rse_filter, rsev_filter, cutvars, 1 );
   
-  TFile* inputfile  = new TFile( argv[1], "open" );
+  TFile* inputfile  = new TFile( dlmerged_input.c_str(), "open" );
   TTree* input_tracker_tree  = (TTree*)inputfile->Get("_recoTree_SCEadded");
   TTree* input_vertex_tree   = (TTree*)inputfile->Get("VertexTree");
   TTree* input_eventvtx_tree = (TTree*)inputfile->Get("EventVertexTree");  
   TTree* input_shape_tree    = (TTree*)inputfile->Get("ShapeAnalysis");
   TTree* input_mc_tree       = (TTree*)inputfile->Get("MCTree");
   TTree* input_nufilter_tree = (TTree*)inputfile->Get("NuFilterTree");
-  TTree* input_pgraph_tree   = (TTree*)inputfile->Get("PGraphTruthMatch");  
+  TTree* input_pgraph_tree   = (TTree*)inputfile->Get("PGraphTruthMatch");
+  TTree* input_pot_tree      = (TTree*)inputfile->Get("potsummary_generator_tree");
   
   int nentries = input_tracker_tree->GetEntries();
   std::cout << "number of entries: " << nentries << std::endl;
 
   larcv::IOManager iolcv( larcv::IOManager::kBOTH, "larcv" );
-  iolcv.add_in_file( argv[1] );
-  iolcv.set_out_file( "test_larcv.root" );
+  iolcv.add_in_file( dlmerged_input );
+  iolcv.set_out_file( larcv_output );
   iolcv.set_verbosity((larcv::msg::Level_t)2);
   iolcv.initialize();
   
   larlite::storage_manager ioll( larlite::storage_manager::kBOTH );
-  ioll.add_in_filename( argv[1] );
-  ioll.set_out_filename( "test_larlite.root" );
+  ioll.add_in_filename( dlmerged_input );
+  ioll.set_out_filename( larlite_output );
   ioll.set_verbosity((larlite::msg::Level)2);
 
   ioll.set_data_to_read( larlite::data::kDAQHeaderTimeUBooNE, "daq" );
@@ -107,7 +112,7 @@ int main( int nargs, char** argv ) {
   ioll.set_data_to_read( larlite::data::kSWTrigger,   "swtrigger" );      
   ioll.open();
 
-  TFile* outputfile = new TFile( argv[2], "new");  
+  TFile* outputfile = new TFile( filterana_output.c_str(), "new");  
 
   TTree* output_tracker_tree  = (TTree*)input_tracker_tree->CloneTree(0);
   TTree* output_vertex_tree   = (TTree*)input_vertex_tree->CloneTree(0);
@@ -116,6 +121,7 @@ int main( int nargs, char** argv ) {
   TTree* output_mc_tree       = (TTree*)input_mc_tree->CloneTree(0);
   TTree* output_nufilter_tree = (TTree*)input_nufilter_tree->CloneTree(0);
   TTree* output_pgraph_tree   = (TTree*)input_pgraph_tree->CloneTree(0);
+  TTree* output_pot_tree      = (TTree*)input_pot_tree->CloneTree(0);
 
   // CUT VARIABLE TREE
   TTree* output_filter_vars = new TTree("filtervars","Filter Variables");
@@ -312,6 +318,11 @@ int main( int nargs, char** argv ) {
     }
   }
 
+  // POT TREE
+  for (int ientry=0; ientry<input_pot_tree->GetEntries(); ientry++ ) {
+    input_pot_tree->GetEntry(ientry);
+    output_pot_tree->Fill();
+  }
   
   std::cout << "write and close" << std::endl;
   output_op_tree->Write();
@@ -322,7 +333,8 @@ int main( int nargs, char** argv ) {
   output_tracker_tree->Write();
   output_vertex_tree->Write();
   output_shape_tree->Write();
-  output_pgraph_tree->Write();      
+  output_pgraph_tree->Write();
+  output_pot_tree->Write();
 
   outputfile->Close();
   
