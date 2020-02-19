@@ -8,6 +8,8 @@
 #include "DataFormat/IOManager.h"
 #include "DataFormat/EventImage2D.h"
 #include "DataFormat/storage_manager.h"
+#include "DataFormat/opflash.h"
+#include "DataFormat/user_info.h"
 
 #include "dllee/NumuFilter.h"
 
@@ -16,6 +18,9 @@ int main( int nargs, char** argv ) {
   std::cout << "Run filter" << std::endl;
 
 
+  int beamwin_tick_start = 190; // BNB:190; overlay:215; EXTBNB:210; MC-only: 190
+  beamwin_tick_start = std::atoi(argv[3]);
+  
   // get filter results
   std::map<std::tuple<int,int,int>,bool>     rse_filter;
   std::map<std::tuple<int,int,int,int>,bool> rsev_filter;
@@ -143,7 +148,29 @@ int main( int nargs, char** argv ) {
   }
   
 
-  // LARCV/LARLITE TREES
+  // LARCV/LARLITE TREES + OPFLASH TREE
+  float opflash_usec;
+  float opflash_pe;
+  std::vector<float> opflash_usec_v;
+  std::vector<float>* p_opflash_usec_v = &opflash_usec_v;
+  float precut_vetope;
+  float precut_maxfrac;
+  float precut_beampe;
+  int   precut_pass;
+  int   filter_pass;
+  TTree* output_op_tree = new TTree("optree","Optical cut tree");
+  output_op_tree->Branch("run",&run,"run/I");
+  output_op_tree->Branch("subrun",&subrun,"subrun/I");
+  output_op_tree->Branch("event",&event,"event/I");
+  output_op_tree->Branch("precut_vetope",  &precut_vetope,  "precut_vetope/F");
+  output_op_tree->Branch("precut_beampe",  &precut_beampe,  "precut_beampe/F");  
+  output_op_tree->Branch("precut_maxfrac", &precut_maxfrac, "precut_maxfrac/F");
+  output_op_tree->Branch("precut_pass",    &precut_pass,    "precut_pass/I" );
+  output_op_tree->Branch("opflash_usec",   &opflash_usec,   "opflash_usec/F");
+  output_op_tree->Branch("opflash_pe",     &opflash_pe,     "opflash_pe/F" );
+  output_op_tree->Branch("opflash_usec_v", "std::vector<float>", &p_opflash_usec_v );
+  output_op_tree->Branch("filter_pass",    &filter_pass,    "filter_pass/I" );
+  
   int npass = 0;
   ioll.next_event();  
   for ( int ientry=0; ientry<(int)iolcv.get_n_entries(); ientry++ ) {
@@ -151,16 +178,45 @@ int main( int nargs, char** argv ) {
     iolcv.read_entry(ientry);    
     larcv::EventImage2D* ev_wire = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, "wire" );
 
+    run    = ev_wire->run();
+    subrun = ev_wire->subrun();
+    event  = ev_wire->event();
+
+    larlite::event_user* ev_precut = (larlite::event_user*)ioll.get_data(larlite::data::kUserInfo,"precutresults");
+    precut_beampe  = ev_precut->front().get_double("beamPE");
+    precut_vetope  = ev_precut->front().get_double("vetoPE");
+    precut_maxfrac = ev_precut->front().get_double("maxFrac");
+    precut_pass    = ev_precut->front().get_int("pass");
+
+    opflash_usec = -1000;
+    opflash_pe   = -1000;
+    opflash_usec_v.clear();
+    larlite::event_opflash* ev_opflash = (larlite::event_opflash*)ioll.get_data(larlite::data::kOpFlash,"simpleFlashBeam");
+    for ( auto const& flash : *ev_opflash ) {
+      opflash_usec_v.push_back( flash.Time() );
+      float usec = flash.Time();
+      if ( usec>=beamwin_tick_start*0.015625 && usec<=(beamwin_tick_start+130)*0.015625 && opflash_usec<=-1000) {
+        opflash_usec = usec;
+        opflash_pe   = flash.TotalPE();
+      }
+    }
+    
     std::tuple<int,int,int> rse = std::make_tuple( (int)ev_wire->run(), (int)ev_wire->subrun(), (int)ev_wire->event() );
     
     auto it = rse_filter.find( rse );
 
     if ( it==rse_filter.end() || !it->second )  {
       // skip this entry
+      filter_pass = 0;
       ioll.next_event(false);
+      output_op_tree->Fill();      
       continue;
     }
-    
+    else {
+      filter_pass = 1;
+    }
+
+    output_op_tree->Fill();    
     iolcv.set_id( ev_wire->run(), ev_wire->subrun(), ev_wire->event() );
     iolcv.save_entry();
     ioll.next_event();
@@ -258,6 +314,7 @@ int main( int nargs, char** argv ) {
 
   
   std::cout << "write and close" << std::endl;
+  output_op_tree->Write();
   output_filter_vars->Write();
   output_eventvtx_tree->Write();
   output_mc_tree->Write();
