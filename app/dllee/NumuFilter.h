@@ -4,6 +4,7 @@
 #include <map>
 #include <tuple>
 #include <string>
+#include <vector>
 
 namespace larlitecv {
 namespace dllee {
@@ -19,7 +20,9 @@ namespace dllee {
 
     static void ReturnFilteredDictionary(std::string inputfile,
                                          std::map<std::tuple<int,int,int>,bool>& rse,
-                                         std::map<std::tuple<int,int,int,int>,bool>& rsev );
+                                         std::map<std::tuple<int,int,int,int>,bool>& rsev,
+                                         std::vector< std::vector<float> >& cutvars,
+                                         int verbosity );
 
   };
   

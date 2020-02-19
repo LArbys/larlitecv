@@ -19,21 +19,8 @@ int main( int nargs, char** argv ) {
   // get filter results
   std::map<std::tuple<int,int,int>,bool>     rse_filter;
   std::map<std::tuple<int,int,int,int>,bool> rsev_filter;
-  larlitecv::dllee::NumuFilter::ReturnFilteredDictionary( argv[1], rse_filter, rsev_filter );
-
-  std::cout << "[ RSE ] ================" << std::endl;
-  for ( auto result=rse_filter.begin(); result!=rse_filter.end(); result++ ) {
-    std::cout << "[" << std::get<0>(result->first) << "," << std::get<1>(result->first) << ","
-              << std::get<2>(result->first) << "]: "
-              << "result=" << result->second << std::endl;
-  }
-  std::cout << std::endl;
-  std::cout << "[ RSE-VERTEXID ] ================" << std::endl;  
-  for ( auto result=rsev_filter.begin(); result!=rsev_filter.end(); result++ ) {
-    std::cout << "[" << std::get<0>(result->first) << "," << std::get<1>(result->first) << ","
-              << std::get<2>(result->first) << "," << std::get<3>(result->first) << "]: "
-              << "result=" << result->second << std::endl;
-  }
+  std::vector< std::vector<float> >          cutvars;
+  larlitecv::dllee::NumuFilter::ReturnFilteredDictionary( argv[1], rse_filter, rsev_filter, cutvars, 1 );
   
   TFile* inputfile  = new TFile( argv[1], "open" );
   TTree* input_tracker_tree  = (TTree*)inputfile->Get("_recoTree_SCEadded");
@@ -124,6 +111,36 @@ int main( int nargs, char** argv ) {
   TTree* output_mc_tree       = (TTree*)input_mc_tree->CloneTree(0);
   TTree* output_nufilter_tree = (TTree*)input_nufilter_tree->CloneTree(0);
   TTree* output_pgraph_tree   = (TTree*)input_pgraph_tree->CloneTree(0);
+
+  // CUT VARIABLE TREE
+  TTree* output_filter_vars = new TTree("filtervars","Filter Variables");
+  int run, subrun, event, vtxid;
+  float pos[3];
+  float shrmaxfrac;
+  float minwalld;
+  int ntrks;
+  int n5trks;
+  output_filter_vars->Branch("run",&run,"run/I");
+  output_filter_vars->Branch("subrun",&subrun,"subrun/I");
+  output_filter_vars->Branch("event",&event,"event/I");
+  output_filter_vars->Branch("vtxid",&vtxid,"vtxid/I");
+  output_filter_vars->Branch("ntrks",&ntrks,"ntrks/I");
+  output_filter_vars->Branch("n5trks",&n5trks,"n5trks/I");
+  output_filter_vars->Branch("pos", pos, "pos[3]/F");
+  output_filter_vars->Branch("shrmaxfrac",&shrmaxfrac,"shrmaxfrac/F");
+  output_filter_vars->Branch("minwalld",&minwalld,"minwalld/F");
+  for ( auto const& vars : cutvars ) {
+    run = (int)vars[0];
+    subrun = (int)vars[1];
+    event = (int)vars[2];
+    vtxid = (int)vars[3];
+    for ( size_t v=0; v<3; v++ ) pos[v] = vars[4+v];
+    shrmaxfrac = vars[7];
+    ntrks = (int)vars[8];
+    n5trks = (int)vars[9];
+    minwalld = vars[10];
+    output_filter_vars->Fill();
+  }
   
 
   // LARCV/LARLITE TREES
@@ -151,7 +168,6 @@ int main( int nargs, char** argv ) {
   }
   std::cout << "larcv/larlite entries saved: " << npass << std::endl;
 
-  int run, subrun, event, vtxid;
   // VERTEX TREE
   input_vertex_tree->SetBranchAddress("run",    &run);
   input_vertex_tree->SetBranchAddress("subrun", &subrun);
@@ -242,6 +258,7 @@ int main( int nargs, char** argv ) {
 
   
   std::cout << "write and close" << std::endl;
+  output_filter_vars->Write();
   output_eventvtx_tree->Write();
   output_mc_tree->Write();
   output_nufilter_tree->Write();    

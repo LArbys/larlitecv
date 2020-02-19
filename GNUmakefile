@@ -33,7 +33,7 @@ ifeq ($(LARLITECV_OPENCV),1)
 endif
 # TAGGER CHAIN
 APP_SUBDIRS += ThruMu StopMu UntaggedClustering ContainedROI TaggerCROI
-APP_SUBDIRS += SSNetShowerReco dllee dllee/bin
+APP_SUBDIRS += SSNetShowerReco dllee
 
 
 .phony: all clean
@@ -70,6 +70,7 @@ bin: obj lib
 	@echo Building run_tagger bin
 	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin clean
 	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin
+	@make --directory=$(LARLITECV_BASEDIR)/app/dllee/bin
 	@ln -fs $(LARLITECV_BASEDIR)/app/TaggerCROI/bin/run_tagger $(LARLITECV_BASEDIR)/bin/run_tagger
 	@echo Building analysis routines
 	@make --directory=$(LARLITECV_BASEDIR)/app/AnalyzeTagger
