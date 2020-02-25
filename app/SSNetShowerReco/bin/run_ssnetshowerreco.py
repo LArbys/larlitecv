@@ -8,6 +8,7 @@ parser.add_argument( "-ill",   "--input-larlite", type=str,  default=None,   hel
 parser.add_argument( "-f",     "--output-format", type=str,  default="json", help="Set output format. Options={'json','larlite','both'}")
 parser.add_argument( "-o",     "--output",        type=str,  required=True,  help="Output file name. if both, the stem for both." )
 parser.add_argument( "-adc",   "--adc-tree",      type=str,  default="wire", help="Name of tree containing ADC images. [ Default: 'wire' ]")
+parser.add_argument( "-ssnet",   "--ssnet-tree",      type=str,  default="uburn", help="Name of tree containing SSNet images. [ Default: 'uburn' ]")
 parser.add_argument( "-cal",   "--use-calib", default=False, action='store_true', help="Use calibrated conversions")
 parser.add_argument( "-mc",    "--has-mc", default=False, action='store_true', help="Indicate input files have MC truth information" )
 
@@ -67,7 +68,9 @@ mcpg = larlitecv.mctruthtools.MCPixelPGraph()
 sce  = larutil.SpaceChargeMicroBooNE() # larutil.SpaceChargeMicroBooNE.kMCC9_Forward
 
 showerreco.set_adc_treename( args.adc_tree )
+showerreco.set_ssnet_shower_stemname( args.ssnet_tree )
 if args.use_calib:
+    print('USING CALIB')
     showerreco.use_calibrated_pixsum2mev( True )
 
 data = {"entries":[]}
@@ -80,6 +83,7 @@ for ientry in xrange(nentries):
         ioll.go_to(ientry)
 
     ok = showerreco.process( iolcv, ioll )
+    print(ok)
     if outll is not None:
         showerreco.store_in_larlite( outll )
         outll.set_id( iolcv.event_id().run(), iolcv.event_id().subrun(), iolcv.event_id().event() )
@@ -91,12 +95,20 @@ for ientry in xrange(nentries):
                   "event":iolcv.event_id().event(),
                   "shower_energies":[],
                   "shower_sumQs":[],
+                  "shower_fullSumQs":[],
+                  "shower_smallSumQs":[],
+                  "shower_triAreas":[],
                   "shower_shlengths":[],
                   "vertex_pos":[]}
     
     for ivtx in xrange(showerreco.numVertices()):
         entrydata["shower_energies"].append( [ showerreco.getVertexShowerEnergy(ivtx,p) for p in xrange(3) ] )
         entrydata["shower_sumQs"].append( [ showerreco.getVertexShowerSumQ(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_fullSumQs"].append( [ showerreco.getVertexShowerFullSumQ(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_smallSumQs"].append( [ showerreco.getVertexShowerSmallSumQ(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_triAreas"].append( [ showerreco.getVertexShowerTriArea(ivtx,p) for p in xrange(3) ] )
+        for p in xrange(3):
+          print 'Python full sum:',showerreco.getVertexShowerFullSumQ(ivtx,p)
         entrydata["shower_shlengths"].append( [ showerreco.getVertexShowerShlength(ivtx,p) for p in xrange(3) ] )
         entrydata["vertex_pos"].append( [ showerreco.getVertexPos(ivtx).at(p) for p in xrange(3) ] )
 

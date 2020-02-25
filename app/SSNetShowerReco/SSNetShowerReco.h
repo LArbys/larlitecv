@@ -34,6 +34,9 @@ namespace ssnetshowerreco {
     int   numVertices() const { return _shower_energy_vv.size(); };
     float getVertexShowerEnergy( int vtxid, int plane ) const { return _shower_energy_vv[vtxid][plane]; };
     float getVertexShowerSumQ( int vtxid, int plane ) const { return _shower_sumQ_vv[vtxid][plane]; };
+    float getVertexShowerFullSumQ( int vtxid, int plane ) const { return _shower_fullSumQ_vv[vtxid][plane]; };
+    float getVertexShowerSmallSumQ( int vtxid, int plane ) const { return _shower_smallSumQ_vv[vtxid][plane]; };
+    float getVertexShowerTriArea( int vtxid, int plane ) const { return _shower_triArea_vv[vtxid][plane]; };
     float getVertexShowerShlength( int vtxid, int plane ) const { return _shower_shlength_vv[vtxid][plane]; };
     ::std::vector<double> getVertexPos( int vtxid ) const { return _vtx_pos_vv[vtxid]; };
 
@@ -102,7 +105,7 @@ namespace ssnetshowerreco {
   public:
     // set methods
     // ------------
-    void set_adc_treename( std::string name )          { _adc_tree_name = name; };
+		void set_adc_treename( std::string name )          { _adc_tree_name = name; };
     void set_ssnet_shower_stemname( std::string name ) { _ssnet_shower_image_stem = name; };
     void set_vertex_treename( std::string name )       { _vertex_tree_name = name; };
     void set_track_treename( std::string name )        { _track_tree_name = name; };
@@ -115,6 +118,9 @@ namespace ssnetshowerreco {
     // -----------------
     std::vector< std::vector<float> >  _shower_energy_vv;
     std::vector< std::vector<float> >  _shower_sumQ_vv;
+    std::vector< std::vector<float> >  _shower_fullSumQ_vv;
+    std::vector< std::vector<float> >  _shower_smallSumQ_vv;
+    std::vector< std::vector<float> >  _shower_triArea_vv;
     std::vector< std::vector<float> >  _shower_shlength_vv;
     std::vector< std::vector<double> > _vtx_pos_vv;
     std::vector< larlite::shower >         _shower_ll_v;

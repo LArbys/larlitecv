@@ -20,7 +20,7 @@ namespace ssnetshowerreco {
 
     _adc_tree_name = "wire";
     _calib_adc_tree_name = "calibrated";
-    _ssnet_shower_image_stem = "uburn"; // sometimes ubspurn (when files made at FNAL)
+    _ssnet_shower_image_stem = "uburn"; // ubspurn at FNAL, uburn at Tufts
     _vertex_tree_name = "test";
     _track_tree_name  = "trackReco";
     _Qcut = 10;
@@ -36,6 +36,9 @@ namespace ssnetshowerreco {
   void SSNetShowerReco::clear() {
     _shower_energy_vv.clear();
     _shower_sumQ_vv.clear();
+    _shower_fullSumQ_vv.clear();
+    _shower_smallSumQ_vv.clear();
+    _shower_triArea_vv.clear();
     _shower_shlength_vv.clear();
     _vtx_pos_vv.clear();
     _shower_ll_v.clear();
@@ -386,8 +389,10 @@ namespace ssnetshowerreco {
     std::vector< std::vector<larcv::Image2D> > shower_vtxcrop_vv;
     std::vector< std::vector<int> >            vtx_incrop_vv;
     _vtx_pos_vv.clear();
+
     for ( auto const& pgraph : ev_vtx->PGraphArray() ) {
-      if ( pgraph.ParticleArray().size()==0 ) continue; // dont expect this
+      //std::cout << pgraph.ParticleArray().size() << std::endl;
+			if ( pgraph.ParticleArray().size()==0 ) continue; // dont expect this
       auto const& roi = pgraph.ParticleArray().front();
       std::vector<double> vtx3d = { roi.X(), roi.Y(), roi.Z() };
       std::cout << "Vertex Pos (" << vtx3d[0] << "," << vtx3d[1] << "," << vtx3d[2] << ")" << std::endl;
@@ -405,7 +410,11 @@ namespace ssnetshowerreco {
         // define crop
         std::vector<larcv::Image2D> crop_v;
         std::vector<larcv::Image2D> sscrop_v;
-        for ( size_t p=0; p<3; p++ ) {
+      	
+				std::vector<float> shower_fullSumQ_v(3,0);
+				std::vector<float> shower_smallSumQ_v(3,0);
+        
+				for ( size_t p=0; p<3; p++ ) {
           auto const& meta = adc_v[p].meta();
           int tbounds[2] = { (int)(imgcoord_v[3]-256*meta.pixel_height()),
                              (int)(imgcoord_v[3]+256*meta.pixel_height()) };
@@ -441,25 +450,42 @@ namespace ssnetshowerreco {
           larcv::Image2D sscrop = ev_shower_score[p]->Image2DArray()[0].crop(cropmeta);
 
           // mask the ADC image using ssnet
-          for ( size_t r=0; r<crop.meta().rows(); r++ ) {
+    			float smallSum = 0;
+					for ( size_t r=0; r<crop.meta().rows(); r++ ) {
             for ( size_t c=0; c<crop.meta().cols(); c++ ) {
               if ( crop.pixel(r,c)<_Qcut )
                 crop.set_pixel(r,c,0.0);
               if ( sscrop.pixel(r,c)<_SSNET_SHOWER_THRESHOLD ) {
                 crop.set_pixel(r,c,0.0);
               }
+							smallSum += crop.pixel(r,c);
             }
           }
+         	shower_smallSumQ_v[p] = smallSum;
+
+					// mask the full ADC image using ssnet
+					float fullSum = 0;
+					for ( size_t r=0; r<adc_v[p].meta().rows(); r++ ) {
+            for ( size_t c=0; c<adc_v[p].meta().cols(); c++ ) {
+              if ( adc_v[p].pixel(r,c)<_Qcut ) continue;
+              if ( adc_v[p].pixel(r,c)<_SSNET_SHOWER_THRESHOLD ) continue;
+              fullSum += adc_v[p].pixel(r,c);
+            }
+          }
+					std::cout << "Full Sum: " << fullSum << std::endl;
+					shower_fullSumQ_v[p] = fullSum;
 
           crop_v.emplace_back( std::move(crop) );
           sscrop_v.emplace_back( std::move(sscrop) );
 
         }//end of plane loop
 
-
+				_shower_fullSumQ_vv.emplace_back( shower_fullSumQ_v );
+				_shower_smallSumQ_vv.emplace_back( shower_smallSumQ_v );
         adc_vtxcrop_vv.emplace_back( std::move(crop_v) );
         shower_vtxcrop_vv.emplace_back( std::move(sscrop_v) );
         vtx_incrop_vv.push_back( imgcoord_v );
+
 
       }//end of if statement
 
@@ -483,6 +509,7 @@ namespace ssnetshowerreco {
 
       std::vector<float> shower_energy_v(3,0);
       std::vector<float> shower_sumQ_v(3,0);
+			std::vector<float> shower_triArea_v(3,0);
       std::vector<float> shower_shlength_v(3,0);
 
       for ( size_t p=0; p<3; p++ ) {
@@ -496,21 +523,26 @@ namespace ssnetshowerreco {
         //std::cout << "[SSNetShowerReco]     shower length: " << shlength << std::endl;
         float shopen   = _findOpen( crop_v[p], shangle, shlength, vtx_pix[0], vtx_pix[1] );
         //std::cout << "[SSNetShowerReco]     open angle: " << shopen << std::endl;
-        float sumQ;
+        float triArea = (1./2.)*shlength*shlength*tan(shopen / 2.);
+				float sumQ;
         triangle_t tri;
         std::vector< std::vector<int> > pixlist_v =
           _enclosedCharge( crop_v[p], shangle, sumQ, tri, vtx_pix[0], vtx_pix[1], shlength, shopen );
 
         float reco_energy = 0;
-        if ( _use_calibrated_pixelsum2mev )
-          reco_energy = sumQ*0.01324 + 37.83337; // calibrated images
-        else
+        if ( _use_calibrated_pixelsum2mev ) {
+          std::cout << "USING CALIB CALIB\n";
+					reco_energy = sumQ*0.01324 + 37.83337; // calibrated images
+        }
+				else {
           reco_energy = sumQ*0.013456 + 2.06955; // uncalibrated images
+				}
 
         std::cout << "[SSNetShowerReco] plane[" << p << "] final sumQ=" << sumQ << " reco=" << reco_energy << std::endl;
 
         shower_energy_v[p] = reco_energy;
         shower_sumQ_v[p] = sumQ;
+        shower_triArea_v[p] = triArea;
         shower_shlength_v[p] = shlength;
 
         // make larlite
@@ -561,6 +593,7 @@ namespace ssnetshowerreco {
       // store floats
       _shower_energy_vv.push_back( shower_energy_v );
       _shower_sumQ_vv.push_back( shower_sumQ_v );
+      _shower_triArea_vv.push_back( shower_triArea_v );
       _shower_shlength_vv.push_back( shower_shlength_v );
 
     }
