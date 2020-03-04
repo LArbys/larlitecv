@@ -14,6 +14,7 @@ parser.add_argument( "-mc",    "--has-mc", default=False, action='store_true', h
 parser.add_argument( "-sec",   "--second-shower", default=False, action='store_true', help="Run second shower search")
 parser.add_argument( "-ncpi0",   "--use-ncpi0", default=False, action='store_true', help="Using NCPi0 true info")
 parser.add_argument( "-nueint",   "--use-nueint", default=False, action='store_true', help="Using Nueint true info")
+parser.add_argument( "-bnb",   "--use-bnb", default=False, action='store_true', help="Using Bnb Overlay info")
 args = parser.parse_args()
 
 output_formats = ['json','larlite','both']
@@ -80,6 +81,8 @@ if args.use_ncpi0:
     showerreco.use_ncpi0( True )
 if args.use_nueint:
     showerreco.use_nueint( True )
+if args.use_bnb:
+    showerreco.use_bnb( True )
 
 data = {"entries":[]}
 
@@ -96,7 +99,7 @@ for ientry in xrange(nentries):
         outll.set_id( iolcv.event_id().run(), iolcv.event_id().subrun(), iolcv.event_id().event() )
         outll.next_event()
 
-    print (iolcv.event_id().event())
+    # print (iolcv.event_id().event())
     entrydata = { "run":iolcv.event_id().run(),
                   "subrun":iolcv.event_id().subrun(),
                   "event":iolcv.event_id().event(),
@@ -178,13 +181,17 @@ for ientry in xrange(nentries):
         entrydata["remaining_adc"] = []
         entrydata["overlap_fraction1"] = []
         entrydata["overlap_fraction2"] = []
-        entrydata["truth_match"] = []
+        entrydata["purity"] = []
+        entrydata["efficiency"] = []
+        entrydata["useformass"] = showerreco.getUseForMass()
+        entrydata["pi0mass"] = showerreco.getPi0Mass()
 
 
 
 
         for ivtx in xrange(showerreco.numShowers()):
-            entrydata["truth_match"].append( [showerreco.getShowerTruthMatch(shower) for shower in xrange(6)])
+            entrydata["purity"].append( [showerreco.getShowerTruthMatchPur(shower) for shower in xrange(6)])
+            entrydata["efficiency"].append( [showerreco.getShowerTruthMatchEff(shower) for shower in xrange(6)])
             entrydata["true_shower_energies"].append( [ showerreco.getTrueShowerEnergy(ivtx) for shower in xrange(2) ] )
             entrydata["true_shower_starts"].append( [ showerreco.getTrueShowerStarts(ivtx).at(p) for p in xrange(3) ] )
             entrydata["remaining_adc"].append( [showerreco.getRemainingADC()])
@@ -197,6 +204,11 @@ for ientry in xrange(nentries):
         entrydata["uplane_profile"] = []
         entrydata["vplane_profile"] = []
         entrydata["yplane_profile"] = []
+        entrydata["purity"] = []
+        entrydata["efficiency"] = []
+
+        entrydata["purity"].append( [showerreco.getShowerTruthMatchPur(shower) for shower in xrange(3)])
+        entrydata["efficiency"].append( [showerreco.getShowerTruthMatchEff(shower) for shower in xrange(3)])
 
         for ii in xrange(showerreco.numpointsU()):
             entrydata["uplane_profile"].append( [ showerreco.getUPlaneShowerProfile(ii,index) for index in xrange(2) ] )

@@ -22,10 +22,11 @@ std::vector< std::vector<int> >  SecondShower::_enclosedCharge( std::vector<std:
                                                                    float theta,
                                                                    float& sumIn,
                                                                    std::vector< std::vector<float> >& triangle,
+                                                                   bool calcE,
                                                                    int vtx_col,
                                                                    int vtx_row,
                                                                    float shLen,
-                                                                   float shOpen ) {
+                                                                   float shOpen) {
 
   std::vector< std::vector<int> > pix_v;
 
@@ -68,7 +69,8 @@ std::vector< std::vector<int> >  SecondShower::_enclosedCharge( std::vector<std:
   sumIn = 0;
   for (int ii =0;ii<chargeMap.size();ii++){
     if ( _isInside2(t1X,t1Y,t2X,t2Y,t3X,t3Y,chargeMap[ii][1],chargeMap[ii][0])){
-      sumIn+=chargeMap[ii][2];
+      if (calcE) sumIn+=chargeMap[ii][2];
+      else sumIn+=1;
       std::vector<int> pix = { (int)chargeMap[ii][0], (int)chargeMap[ii][1] };
       pix_v.push_back( pix );
     }
@@ -125,7 +127,7 @@ int SecondShower::ChooseGapSize(int vtx_col,int vtx_row,float shangle,
     float ypos = vtx_row + (step * sin(shangle));
     float tmpQ;
     triangle_t tmptri;
-    _enclosedCharge( crop_v, shangle, tmpQ, tmptri, xpos, ypos );
+    _enclosedCharge( crop_v, shangle, tmpQ, tmptri,false, xpos, ypos );
     enclosedCharge_v.push_back(tmpQ);
   }
   //get max -rough for now
@@ -234,7 +236,7 @@ std::vector<std::vector<float>> SecondShower::Match_3D(std::vector<std::vector<f
     //is it inside the shower?
     bool yinside = _isInside2( y_points_v[0], y_points_v[1],y_points_v[2], y_points_v[3],
                                       y_points_v[4], y_points_v[5],img_vvv[2][ypix][1], img_vvv[2][ypix][0]);
-    if (yinside) ytimes_v.push_back(img_vvv[2][ypix][1]);
+    if (yinside) ytimes_v.push_back(img_vvv[2][ypix][0]);
   }//end of loop through y sparse
 
   //loop through u and v planes
@@ -252,7 +254,7 @@ std::vector<std::vector<float>> SecondShower::Match_3D(std::vector<std::vector<f
       if (inside_shower1){
         tot_in_shower1++;
         bool addone = false;
-        float time = img_vvv[p][pix][1];
+        float time = img_vvv[p][pix][0];
         //loop through times in yshower
         for (int ytime = 0; ytime<(int)ytimes_v.size();ytime++){
           if (ytimes_v[ytime] == time) addone =true;
@@ -266,7 +268,7 @@ std::vector<std::vector<float>> SecondShower::Match_3D(std::vector<std::vector<f
       if (inside_shower2){
         tot_in_shower2++;
         bool addone = false;
-        float time = img_vvv[p][pix][1];
+        float time = img_vvv[p][pix][0];
         //loop through times in yshower
         for (int ytime = 0; ytime<(int)ytimes_v.size();ytime++){
           if (ytimes_v[ytime] == time) addone =true;
@@ -287,19 +289,30 @@ std::vector<std::vector<float>> SecondShower::Match_3D(std::vector<std::vector<f
 }//end of function
 
 //------------------------------------------------------------------------------
+
 std::vector<std::vector<int>> SecondShower::ChooseBestMatch(std::vector<std::vector<float>> match_vv){
-  //function to choose the highest fraction. Returns 1 in the index of best
+  //function to choose the highest fraction. Returns 1 in the index of any good,
+  //returns 2 in index of best.
   std::vector<std::vector<int>> best_vv(2,std::vector<int>(2,0));
-  if (match_vv[0][0]>match_vv[0][1]&& match_vv[0][0]>match_vv[1][0]&& match_vv[0][0] >match_vv[1][1])
-    best_vv[0][0] = 1;
-  else if (match_vv[0][1]>match_vv[1][0]&& match_vv[0][1] >match_vv[1][1])
-    best_vv[0][1] = 1;
-  else if (match_vv[1][0] >match_vv[1][1]) best_vv[1][0] =1;
-  else if (match_vv[1][1] > 0) best_vv[1][1] =1;
+  float cutoff = .5;
+
+  for(int plane = 0;plane<match_vv.size(); plane++){
+    for (int shower = 0; shower<match_vv[plane].size();shower++){
+        if (match_vv[plane][shower] > cutoff) best_vv[plane][shower] = 1;
+    }
+  }
+
+  if (match_vv[0][0]>match_vv[0][1]&& match_vv[0][0]>match_vv[1][0]&& match_vv[0][0] >match_vv[1][1] &&match_vv[0][0] > cutoff)
+    best_vv[0][0] = 2;
+  else if (match_vv[0][1]>match_vv[1][0]&& match_vv[0][1] >match_vv[1][1]&&match_vv[0][1] > cutoff)
+    best_vv[0][1] = 2;
+  else if (match_vv[1][0] >match_vv[1][1]&&match_vv[1][0] > cutoff) best_vv[1][0] =2;
+  else if (match_vv[1][1] > 0 &&match_vv[1][1] > cutoff) best_vv[1][1] =2;
 
   return best_vv;
 }
 //------------------------------------------------------------------------------
+
 std::vector<std::vector<float>> SecondShower::SaveTrueProfile(int plane,
       larcv::EventImage2D* ev_segment, larcv::EventImage2D* ev_instance,
       larlite::event_mcshower* ev_mcshower, std::vector<std::vector<std::vector<float>>> img_vvv){
@@ -308,29 +321,27 @@ std::vector<std::vector<float>> SecondShower::SaveTrueProfile(int plane,
   std::vector<std::vector<float>> profile_vv;
   Utils Utils;
   //get shower start and 2d direction
-  float shower_row;
-  float shower_col;
+
   larlite::mcstep start = ev_mcshower->at(0).DetProfile();
   std::vector<double> showerstart3D ={start.X(),start.Y(),start.Z()};
   std::vector<int> showerstart2D = Utils.getProjectedPixel(showerstart3D, ev_segment->Image2DArray()[2].meta(), 3);
-  shower_row = showerstart2D[0];
-  shower_col = showerstart2D[3];
+
   std::vector<double> direction3D = {ev_mcshower->at(0).StartDir().X(),ev_mcshower->at(0).StartDir().Y(),ev_mcshower->at(0).StartDir().Z()};
   std::vector<double> secondpoint3D = {direction3D[0]*10+showerstart3D[0],direction3D[1]*10+showerstart3D[1],direction3D[2]*10+showerstart3D[2]};
   std::vector<int> secondpoint2D = Utils.getProjectedPixel(secondpoint3D, ev_segment->Image2DArray()[2].meta(), 3);
 
   float shangle =0;
-  float x2 = secondpoint2D[plane+1];
-  float x1 = showerstart2D[plane+1];
-  float y2 = secondpoint2D[0];
-  float y1 = showerstart2D[0];
+  float x2 = float(secondpoint2D[plane+1])*.3;
+  float x1 = float(showerstart2D[plane+1])*.3;
+  float y2 = float(secondpoint2D[0])*6*.5*.1098;
+  float y1 = float(showerstart2D[0])*6*.5*.1098;
   float a = (y2-y1)/(x2-x1);
   float b = y1- a*x1;
 
   std::vector<std::vector<float>> img_sparse = img_vvv[plane];
   for (int pixid =0;pixid<(int)img_sparse.size();pixid++){
-    float ynew = img_sparse[pixid][0];
-    float xnew = img_sparse[pixid][1];
+    float ynew = float(img_sparse[pixid][0])*6*.5*.1098;
+    float xnew = float(img_sparse[pixid][1])*.3;
     float segpix = ev_segment->Image2DArray()[plane].pixel(ynew,xnew);
     float instpix = ev_instance->Image2DArray()[plane].pixel(ynew,xnew);
 
@@ -342,28 +353,39 @@ std::vector<std::vector<float>> SecondShower::SaveTrueProfile(int plane,
       float d = sqrt(xint*xint + yint*yint);
 
       profile_vv.push_back({d,r});
+
     }
   }//end of loop through sparse image
+
   return profile_vv;
 }//end of function
 //------------------------------------------------------------------------------
 
-float SecondShower::TruthMatchNCPi0(std::vector<float> triangle_v,
+std::vector<float> SecondShower::TruthMatchNCPi0(std::vector<float> triangle_v,
         std::vector<std::vector<float>> img_vv, larcv::EventImage2D* ev_segment,
         larcv::EventImage2D* ev_instance, int plane){
+
+
   //function to see if a ncpi0 shower is "good"
+  //(purity,efficiency)
+  std::vector<float> metrics(2,0);
+  float total_gamma = 0.0;
+  float efficiency =0.0;
   float fraction_good = 0.0;
   float total_in = 0.0;
   float total_good = 0.0;
+
   //loop through sparse image, see if in shower
   for (int pix = 0; pix<(int)img_vv.size();pix++){
+    float segpix = ev_segment->Image2DArray()[plane].pixel(img_vv[pix][0],img_vv[pix][1]);
+    float instpix = ev_instance->Image2DArray()[plane].pixel(img_vv[pix][0],img_vv[pix][1]);
+
+    if (segpix ==4 && instpix > 0 ) total_gamma++;
     bool inside_shower = _isInside2(triangle_v[0],triangle_v[1],triangle_v[2],
                                       triangle_v[3],triangle_v[4],triangle_v[5],
                                       img_vv[pix][1],img_vv[pix][0]);
     //if good, get segment and instance value
     if (inside_shower){
-      float segpix = ev_segment->Image2DArray()[plane].pixel(img_vv[pix][0],img_vv[pix][1]);
-      float instpix = ev_instance->Image2DArray()[plane].pixel(img_vv[pix][0],img_vv[pix][1]);
       total_in++;
       //check if true gamma pixel
       if (segpix ==4 && instpix > 0) total_good++;
@@ -371,10 +393,198 @@ float SecondShower::TruthMatchNCPi0(std::vector<float> triangle_v,
   }
 
   if (total_in > 0.0) fraction_good = (float)total_good/(float)total_in;
-  return fraction_good;
+  if (total_gamma >0.0) efficiency = (float)total_good/(float)total_gamma;
+
+  metrics[0]=fraction_good;
+  metrics[1]=efficiency;
+
+  return metrics;
 
 }//end of function
 //------------------------------------------------------------------------------
+
+
+std::vector<float> SecondShower::TruthMatchNueint(std::vector<float> triangle_v,
+        std::vector<std::vector<float>> img_vv, larcv::EventImage2D* ev_segment,
+        larcv::EventImage2D* ev_instance, int plane){
+
+
+  //function to see if a ncpi0 shower is "good"
+  //(purity,efficiency)
+  std::vector<float> metrics(2,0);
+  float total_electron = 0.0;
+  float efficiency =0.0;
+  float fraction_good = 0.0;
+  float total_in = 0.0;
+  float total_good = 0.0;
+
+
+  //loop through sparse image, see if in shower
+  for (int pix = 0; pix<(int)img_vv.size();pix++){
+    float segpix = ev_segment->Image2DArray()[plane].pixel(img_vv[pix][0],img_vv[pix][1]);
+    float instpix = ev_instance->Image2DArray()[plane].pixel(img_vv[pix][0],img_vv[pix][1]);
+
+    if (segpix ==3 && instpix > 0) total_electron++;
+    bool inside_shower = _isInside2(triangle_v[0],triangle_v[1],triangle_v[2],
+                                      triangle_v[3],triangle_v[4],triangle_v[5],
+                                      img_vv[pix][1],img_vv[pix][0]);
+    //if good, get segment and instance value
+    if (inside_shower){
+      total_in++;
+      //check if true gamma pixel
+      if (segpix ==3 && instpix > 0) total_good++;
+    }
+  }
+  // std::cout<<"total good: "<<total_good<<std::endl;
+  // std::cout<<"total_in: "<<total_in<<std::endl;
+  // std::cout<<"total_in: "<<total_electron<<std::endl;
+
+  if (total_in > 0.0) fraction_good = (float)total_good/(float)total_in;
+  if (total_electron >0.0) efficiency = (float)total_good/(float)total_electron;
+
+  metrics[0]=fraction_good;
+  metrics[1]=efficiency;
+
+  return metrics;
+
+}//end of function
+//------------------------------------------------------------------------------
+
+bool SecondShower::RunMassCalc(std::vector<std::vector<float>> _match_y1_vv,
+      std::vector<std::vector<float>>_match_y2_vv,
+      std::vector< std::vector<float> > _shower_energy_vv,
+      std::vector< std::vector<float> >_secondshower_energy_vv){
+  //function that runs checks to determined if this event should be used for
+  // determining a pi0 mass peak. 1) are both reco showers >35MeV? 2) for each shower
+  // is there an overlap >.2 3) do they match to different showers
+  bool useevent = false;
+  //check shower energies
+  bool goodenergy = false;
+  for( int vtx = 0;vtx<_shower_energy_vv.size(); vtx++){
+    // std::cout<<"energies: "<< _shower_energy_vv.at(vtx)[2]<<" "<<_secondshower_energy_vv.at(vtx)[2]<<std::endl;
+    if (_shower_energy_vv.at(vtx)[2] > 35 &&_secondshower_energy_vv.at(vtx)[2] > 35){
+      goodenergy = true;
+    }
+  }
+  // if (goodenergy) std::cout<<"Passes energy cut"<<std::endl;
+  //check overlap
+  bool hasoverlap1= false;
+  bool hasoverlap2= false;
+
+  for(int plane = 0;plane<_match_y1_vv.size(); plane++){
+    for (int shower = 0; shower<_match_y1_vv[plane].size();shower++){
+      if (_match_y1_vv[plane][shower]> .5){
+        hasoverlap1 = true;
+      }
+      if (_match_y2_vv[plane][shower]> .5){
+        hasoverlap2 = true;
+      }
+    }//end of showerloop
+  }//end of plane loop
+
+
+  //use this?
+  if(goodenergy&& hasoverlap1 && hasoverlap2) useevent=true;
+  return useevent;
+}//end of function
+
+//------------------------------------------------------------------------------
+
+std::vector<std::vector<float>> SecondShower::Get3DPoints(std::vector<float> shower_points1,
+        std::vector<float> shower_points2, std::vector<std::vector<std::vector<float>>> masked_adc_vvv,
+        int planeofmatch, larcv::ImageMeta wire_meta){
+
+  //function that returns the 3d positions for all points that overlap between the two showers
+  std::vector<std::vector<float>> position_3d_v;
+  std::vector<std::vector<float>> position_2d_v;
+  std::vector<std::vector<float>> yinside_v;
+  //loop through adc sparse image
+
+  for (int ypix = 0; ypix<int(masked_adc_vvv[2].size());ypix++){
+    //is it inside the shower?
+    bool yinside = _isInside2( shower_points2[0], shower_points2[1], shower_points2[2],
+            shower_points2[3], shower_points2[4], shower_points2[5], masked_adc_vvv[2][ypix][1],
+            masked_adc_vvv[2][ypix][0]);
+    // std::cout<<masked_adc_vvv[2][ypix][1]<<std::endl;
+    if (yinside) yinside_v.push_back(masked_adc_vvv[2][ypix]);
+  }//end of loop through y sparse
+
+  //loop through other plane
+  for (int pix = 0; pix<int(masked_adc_vvv[planeofmatch].size());pix++){
+    bool isinside = _isInside2( shower_points1[0], shower_points1[1], shower_points1[2],
+            shower_points1[3], shower_points1[4], shower_points1[5], masked_adc_vvv[planeofmatch][pix][1],
+            masked_adc_vvv[planeofmatch][pix][0]);
+
+    int ypixmatch = -1;
+    for (int ypix = 0; ypix<int(yinside_v.size());ypix++){
+      if (yinside_v[ypix][0] == masked_adc_vvv[planeofmatch][pix][0]) ypixmatch = ypix;
+    }//end of loop through ypoints
+    if (isinside && ypixmatch >= 0){
+      //get 2d position - things I'll need for intersection point
+      std::vector<float> position2d =  {yinside_v[ypixmatch][1], masked_adc_vvv[planeofmatch][pix][1], yinside_v[ypixmatch][0]};
+      position_2d_v.push_back(position2d);
+    }
+  }//end of loop through other points
+
+  //loop through 2d points.
+  for(int pt = 0;pt<position_2d_v.size();pt++){
+    double x,y,z;
+    double tick = wire_meta.pos_y(position_2d_v[pt][2]);
+    x = (tick -3200)*larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+    larutil::Geometry::GetME()->IntersectionPoint( position_2d_v[pt][0], position_2d_v[pt][1], (UChar_t)2, (UChar_t)planeofmatch, y, z );
+    // std::cout<<"x: "<<x<<", y: "<<y<<", z:"<<z<<std::endl;
+    std::vector<float> position_3d = {(float)x,(float)y,(float)z};
+    position_3d_v.push_back(position_3d);
+  }
+
+  return position_3d_v;
+}//end of function
+
+//------------------------------------------------------------------------------
+float SecondShower::GetOpeningAngle(std::vector<std::vector<float>> firstshower,
+        std::vector<std::vector<float>> secondshower){
+  //function to get the opening angle of 2 clusters of 3d points
+  float alpha = -1;
+  //first calculate direction of showers
+  std::vector<float> firstdirection = GetDirection(firstshower);
+  std::vector<float> seconddirection = GetDirection(secondshower);
+
+  //cos(alpha) = (u dot v)/(mag(u)*mag(v))
+  float dotprod = (firstdirection[0]*seconddirection[0])+(firstdirection[1]*
+                    seconddirection[1])+(firstdirection[2]*seconddirection[2]);
+
+  //mag should be 1 because eigen vectors
+
+  alpha = acos(dotprod);
+
+  return alpha;
+}//end of function
+//------------------------------------------------------------------------------
+std::vector<float> SecondShower::GetDirection(std::vector<std::vector<float>> shower){
+  //function to calculate direction of 3d points using PCA
+  std::vector<float> direction_v (3,0); //x,y,z
+  TPrincipal* principal = new TPrincipal(3,"ND");
+  //add data points to root object
+  for (int ii = 0; ii<shower.size(); ii++){
+    Double_t* data = new Double_t[3];
+    for (int iii = 0; iii<shower[ii].size();iii++){
+      data[iii] = (double) shower[ii][iii];
+    }
+    principal->AddRow(data);
+  }
+  //run PCA
+  principal->MakePrincipals();
+  // principal->Print("MSEV");
+  const TMatrixD* eigenvectors = principal->GetEigenVectors();
+
+  direction_v[0] = (float) (*eigenvectors)(0,0);
+  direction_v[1] = (float) (*eigenvectors)(1,0);
+  direction_v[2] = (float) (*eigenvectors)(2,0);
+
+  return direction_v;
+}//end of function
+//------------------------------------------------------------------------------
+
 
 
 }//end of ssnetshowerreco namespace

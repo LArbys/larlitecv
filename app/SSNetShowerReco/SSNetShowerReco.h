@@ -68,7 +68,10 @@ namespace ssnetshowerreco {
     float getUPlaneShowerProfile( int pt, int ii ) const { return _uplane_profile_vv[pt][ii]; };
     float getVPlaneShowerProfile( int pt, int ii ) const { return _vplane_profile_vv[pt][ii]; };
     float getYPlaneShowerProfile( int pt, int ii ) const { return _yplane_profile_vv[pt][ii]; };
-    float getShowerTruthMatch (int shower) const {return _ShowerTruthMatch_v[shower]; };
+    float getShowerTruthMatchPur (int shower) const {return _ShowerTruthMatch_pur_v[shower]; };
+    float getShowerTruthMatchEff (int shower) const {return _ShowerTruthMatch_eff_v[shower]; };
+    int getUseForMass() const {return _useformass;};
+    float getPi0Mass() const {return _pi0mass;};
 
     larlite::shower& getShowerObject( int vtxid, int plane ) { return _shower_ll_v.at( 3*vtxid+plane ); };
     larlite::larflowcluster& getShowerPixelList( int vtxid, int plane ) { return _shower_pixcluster_v.at( 3*vtxid+plane ); };
@@ -78,6 +81,8 @@ namespace ssnetshowerreco {
     void use_second_shower( bool use=true ) { _second_shower = use; };
     void use_ncpi0( bool use=true ) { _use_ncpi0 = use; };
     void use_nueint( bool use=true ) { _use_nueint = use; };
+    void use_bnb( bool use=true ) { _use_bnb = use; };
+
 
   protected:
 
@@ -103,6 +108,7 @@ namespace ssnetshowerreco {
                                                      float theta,
                                                      float& sumIn,
                                                      std::vector< std::vector<float> >& triangle,
+                                                     bool calcE,
                                                      int vtx_col=255,
                                                      int vtx_row=255,
                                                      float shLen = 100.0,
@@ -111,13 +117,13 @@ namespace ssnetshowerreco {
     float _findDir( std::vector<std::vector<float>> chargeMap,
                     int vtx_col=255,
                     int vtx_row=255,
-                    float scanLen = 50,
-                    float scanOpen=0.05 );
+                    float scanLen = 200,
+                    float scanOpen=0.1 );
 
     float _findLen( std::vector<std::vector<float>> chargeMap,
                     float theta,
                     int vtx_col=255, int vtx_row=255,
-                    float scanOpen=0.2);
+                    float scanOpen=0.3);
 
     float _findOpen( std::vector<std::vector<float>> chargeMap,
                      float theta,
@@ -139,12 +145,14 @@ namespace ssnetshowerreco {
     std::string _mcshower_tree_name;
     std::string _instance_tree_name;
     std::string _segment_tree_name;
+    std::string _mctruth_name;
 
     float _Qcut;
     float _SSNET_SHOWER_THRESHOLD;
     bool  _use_calibrated_pixelsum2mev;
     bool _use_ncpi0;
     bool _use_nueint;
+    bool _use_bnb;
     bool _second_shower;
     float _second_shower_adc_threshold;
 
@@ -181,7 +189,12 @@ namespace ssnetshowerreco {
     std::vector<std::vector<float>> _uplane_profile_vv;
     std::vector<std::vector<float>> _vplane_profile_vv;
     std::vector<std::vector<float>> _yplane_profile_vv;
-    std::vector<float> _ShowerTruthMatch_v;
+    std::vector<float> _ShowerTruthMatch_pur_v;
+    std::vector<float> _ShowerTruthMatch_eff_v;
+    int _useformass;
+    float _pi0mass;
+    int _haspi0;
+    int _ccnc;
   public:
     void clear();
 

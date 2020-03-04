@@ -20,18 +20,21 @@ namespace ssnetshowerreco {
 
     _adc_tree_name = "wire";
     _calib_adc_tree_name = "calibrated";
-    _ssnet_shower_image_stem = "uburn"; // sometimes ubspurn (when files made at FNAL)
+    _ssnet_shower_image_stem = "ubspurn"; // sometimes ubspurn (when files made at FNAL)
     _vertex_tree_name = "test";
     _track_tree_name  = "trackReco";
     _partroi_tree_name = "segment";
     _mcshower_tree_name = "mcreco";
     _segment_tree_name = "segment";
     _instance_tree_name = "instance";
+    _mctruth_name = "generator";
+
     _Qcut = 10;
-    _SSNET_SHOWER_THRESHOLD = 0.05;
+    _SSNET_SHOWER_THRESHOLD = 0.5;
     _use_calibrated_pixelsum2mev = false;
     _use_ncpi0 = false;
     _use_nueint = false;
+    _use_bnb = false;
     _second_shower = false;
     _second_shower_adc_threshold = 5000;
     clear();
@@ -45,6 +48,9 @@ namespace ssnetshowerreco {
     _shower_energy_vv.clear();
     _shower_sumQ_vv.clear();
     _shower_shlength_vv.clear();
+    _secondshower_energy_vv.clear();
+    _secondshower_sumQ_vv.clear();
+    _secondshower_shlength_vv.clear();
     _vtx_pos_vv.clear();
     _shower_ll_v.clear();
     _shower_pixcluster_v.clear();
@@ -137,10 +143,11 @@ namespace ssnetshowerreco {
                                                                      float theta,
                                                                      float& sumIn,
                                                                      std::vector< std::vector<float> >& triangle,
+                                                                     bool calcE,
                                                                      int vtx_col,
                                                                      int vtx_row,
                                                                      float shLen,
-                                                                     float shOpen ) {
+                                                                     float shOpen) {
 
     std::vector< std::vector<int> > pix_v;
 
@@ -183,7 +190,8 @@ namespace ssnetshowerreco {
     sumIn = 0;
     for (int ii =0;ii<chargeMap.size();ii++){
       if ( _isInside2(t1X,t1Y,t2X,t2Y,t3X,t3Y,chargeMap[ii][1],chargeMap[ii][0])){
-        sumIn+=chargeMap[ii][2];
+        if (calcE) sumIn+=chargeMap[ii][2];
+        else sumIn+=1;
         std::vector<int> pix = { (int)chargeMap[ii][0], (int)chargeMap[ii][1] };
         pix_v.push_back( pix );
       }
@@ -220,9 +228,9 @@ namespace ssnetshowerreco {
       float ang = coarseAngs[i];
       float sumQ;
       std::vector< std::vector<float> > triangle;
-      _enclosedCharge( chargeMap, ang, sumQ, triangle,
+      _enclosedCharge( chargeMap, ang, sumQ, triangle, false,
                        vtx_col,vtx_row,scanLen,scanOpen);
-      //std::cout << " find-dir ang=" << ang*180.0/TMath::Pi() << " deg; =" << ang << " rad;  sumQ=" << sumQ << std::endl;
+      // std::cout << " find-dir ang=" << ang*180.0/TMath::Pi() << " deg; =" << ang << " rad;  sumQ=" << sumQ << std::endl;
       if ( sumQ > maxCharge ) {
         maxCharge = sumQ;
         bestDir   = ang;
@@ -239,7 +247,7 @@ namespace ssnetshowerreco {
       float ang = bestDir + TMath::Pi()/180.0*(float)i;
       float sumQ;
       std::vector< std::vector<float> > triangle;
-      _enclosedCharge( chargeMap, ang, sumQ, triangle,
+      _enclosedCharge( chargeMap, ang, sumQ, triangle, false,
                        vtx_col, vtx_row, scanLen, scanOpen);
       if ( sumQ > maxCharge ) {
         maxCharge = sumQ;
@@ -279,7 +287,7 @@ namespace ssnetshowerreco {
       float sumQ;
       triangle_t triangle;
       _enclosedCharge(chargeMap,theta,
-                      sumQ, triangle,
+                      sumQ, triangle, false,
                       vtx_col, vtx_row,
                       length,scanOpen);
 
@@ -332,7 +340,7 @@ namespace ssnetshowerreco {
     for (auto const& op : opens ) {
       float sumQ;
       std::vector< std::vector<float> > triangle;
-      _enclosedCharge(chargeMap,theta,sumQ,triangle,
+      _enclosedCharge(chargeMap,theta,sumQ,triangle, false,
                       vtx_col, vtx_row, length, op);
       charge.push_back(sumQ);
     }
@@ -406,6 +414,7 @@ namespace ssnetshowerreco {
     bool useTrueVtx = false;
 
     std::vector<int> vtx2d_true;
+    _pi0mass = 0;
 
     //load in inputs
     larcv::EventImage2D* ev_adc
@@ -425,16 +434,23 @@ namespace ssnetshowerreco {
       ev_shower_score[p] =
         (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, treename );
     }
+
     std::vector<std::vector<float>> ssnet_u_shower_sparse = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
     std::vector<std::vector<float>> ssnet_v_shower_sparse = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
     std::vector<std::vector<float>> ssnet_y_shower_sparse = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
     std::vector<std::vector<std::vector<float>>> ssnet_sparse_vvv = {ssnet_u_shower_sparse,ssnet_v_shower_sparse,ssnet_y_shower_sparse};
+    std::vector<std::vector<float>> ssnet_u_shower_sparse_high = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],.5);
+    std::vector<std::vector<float>> ssnet_v_shower_sparse_high = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],.5);
+    std::vector<std::vector<float>> ssnet_y_shower_sparse_high = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],.5);
+    std::vector<std::vector<std::vector<float>>> ssnet_sparse_high_vvv = {ssnet_u_shower_sparse,ssnet_v_shower_sparse,ssnet_y_shower_sparse};
+
     larcv::EventPGraph* ev_vtx
       = (larcv::EventPGraph*)iolcv.get_data( larcv::kProductPGraph, _vertex_tree_name );
     larcv::EventROI* ev_partroi;
     larlite::event_mcshower* ev_mcshower;
     larcv::EventImage2D* ev_segment;
     larcv::EventImage2D* ev_instance;
+    larlite::event_mctruth* ev_mctruth;
 
     if (useTrueVtx){
       ev_partroi = (larcv::EventROI*)(iolcv.get_data( larcv::kProductROI, _partroi_tree_name));
@@ -445,10 +461,27 @@ namespace ssnetshowerreco {
       ev_segment = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _segment_tree_name );
       ev_instance = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _instance_tree_name );
     }
+    if (_use_bnb){
+      ev_mctruth        = (larlite::event_mctruth*)ioll.get_data(larlite::data::kMCTruth,  _mctruth_name );
+    }
+
+    _haspi0 = 0;
+    _ccnc = 0;
+    if (_use_bnb){
+      for(int part =0;part<ev_mctruth->at(0).GetParticles().size();part++){
+
+        if (ev_mctruth->at(0).GetParticles().at(part).PdgCode() == 111) _haspi0 = 1;
+        if (ev_mctruth->at(0).GetNeutrino().CCNC() == 1) _ccnc = 1;
+
+      }
+      if (_haspi0 ==1) std::cout<<"HAS PI0!"<<std::endl;
+    }
 
 
     //mask out non shower pixels from adc
     std::vector<std::vector<std::vector<float>>> masked_adc_vvv;
+    std::vector<std::vector<std::vector<float>>> masked_adc_high_vvv;
+
 
     //make object to save triangles of showers to fill later.
     //for each u1,u2,v1,v2,y1,y2: save (x1,y1,x2,y2,x3,y3)
@@ -460,7 +493,7 @@ namespace ssnetshowerreco {
       std::vector<int> vtx2d_true;
 
 
-      // mask the ADC image using ssnet
+      // mask the ADC image using ssnet - low threshold
       int npixels_adc = adc_sparse_vvv[p].size();
       int npixels_ssnet = ssnet_sparse_vvv[p].size();
       std::vector<std::vector<float>> masked_plane_v;
@@ -472,6 +505,19 @@ namespace ssnetshowerreco {
         }//end of loop through ssnet
       }//end of loop throug adc
       masked_adc_vvv.push_back(masked_plane_v);
+
+
+      // mask the ADC image using ssnet - high threshold
+      int npixels_ssnet_high = ssnet_sparse_high_vvv[p].size();
+      std::vector<std::vector<float>> masked_plane_high_v;
+      for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
+        for ( int ssnet_i =0;ssnet_i<npixels_ssnet_high;ssnet_i++){
+          if (ssnet_sparse_high_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_high_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
+              masked_plane_high_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
+          }//end of if statements
+        }//end of loop through ssnet
+      }//end of loop throug adc
+      masked_adc_high_vvv.push_back(masked_plane_high_v);
     }//end of plane loop
 
     if (_use_nueint){
@@ -579,7 +625,7 @@ namespace ssnetshowerreco {
           vtx_pix[0] = vtx_pix[0] + (step * cos(shangle));
           vtx_pix[1] = vtx_pix[1] + (step * sin(shangle));
         }
-        std::cout << "[SSNetShowerReco]     shower angle: " << shangle << std::endl;
+        // std::cout << "[SSNetShowerReco]     shower angle: " << shangle << std::endl;
         float shlength = _findLen( masked_adc_vvv[p],  shangle, vtx_pix[0], vtx_pix[1] );
         float shlength2 = -1;
         // std::cout << "[SSNetShowerReco]     shower length: " << shlength << std::endl;
@@ -590,7 +636,7 @@ namespace ssnetshowerreco {
         float sumQ2 = -1 ;
         triangle_t tri;
         std::vector< std::vector<int> > pixlist_v =
-          _enclosedCharge( masked_adc_vvv[p], shangle, sumQ, tri, vtx_pix[0], vtx_pix[1], shlength, shopen );
+          _enclosedCharge( masked_adc_vvv[p], shangle, sumQ, tri, true, vtx_pix[0], vtx_pix[1], shlength, shopen );
 
         float reco_energy = 0;
         float reco_energy2 = -1;
@@ -647,14 +693,14 @@ namespace ssnetshowerreco {
             vtx_pix2[0] = vtx_pix2[0] + (step2 * cos(shangle2));
             vtx_pix2[1] = vtx_pix2[1] + (step2 * sin(shangle2));
 
-            std::cout << "[SSNetShowerReco]    second shower angle: " << shangle2 << std::endl;
+            // std::cout << "[SSNetShowerReco]    second shower angle: " << shangle2 << std::endl;
             shlength2 = _findLen( secondshower_adc_vv,  shangle2, vtx_pix2[0], vtx_pix2[1] );
             // std::cout << "[SSNetShowerReco]    second shower length: " << shlength2 << std::endl;
             shopen2   = _findOpen( secondshower_adc_vv, shangle2, shlength2, vtx_pix2[0], vtx_pix2[1] );
             // std::cout << "[SSNetShowerReco]    second open angle: " << shopen2 << std::endl;
             triangle_t tri2;
             std::vector< std::vector<int> > pixlist2_v =
-              _enclosedCharge( secondshower_adc_vv, shangle2, sumQ2, tri2, vtx_pix2[0], vtx_pix2[1], shlength2, shopen2 );
+              _enclosedCharge( secondshower_adc_vv, shangle2, sumQ2, tri2, true, vtx_pix2[0], vtx_pix2[1], shlength2, shopen2 );
 
             if ( _use_calibrated_pixelsum2mev )
               reco_energy2 = sumQ2*0.01324 + 37.83337; // calibrated images
@@ -662,7 +708,7 @@ namespace ssnetshowerreco {
               reco_energy2 = sumQ2*0.013456 + 2.06955; // uncalibrated images
 
             if (shangle2 < shangle+(shopen/2.0)&&shangle2 > shangle-(shopen/2.0)){
-              std::cout<<"MATCHING ANGLE!"<<std::endl;
+              // std::cout<<"MATCHING ANGLE!"<<std::endl;
               //make 1st one == second
               shangle = shangle2;
               shopen = shopen2;
@@ -695,12 +741,12 @@ namespace ssnetshowerreco {
               vtx_pix2[0] = vtx_pix_original[0] + (step2 * cos(shangle2));
               vtx_pix2[1] = vtx_pix_original[1] + (step2 * sin(shangle2));
 
-              std::cout << "[SSNetShowerReco]    redo second shower angle: " << shangle2 << std::endl;
+              // std::cout << "[SSNetShowerReco]    redo second shower angle: " << shangle2 << std::endl;
               shlength2 = _findLen( secondshower_adc_vv,  shangle2, vtx_pix2[0], vtx_pix2[1] );
               // std::cout << "[SSNetShowerReco]    second shower length: " << shlength2 << std::endl;
               shopen2   = _findOpen( secondshower_adc_vv, shangle2, shlength2, vtx_pix2[0], vtx_pix2[1] );
               // std::cout << "[SSNetShowerReco]    second open angle: " << shopen2 << std::endl;
-              pixlist2_v =  _enclosedCharge( secondshower_adc_vv, shangle2, sumQ2, tri2, vtx_pix2[0], vtx_pix2[1], shlength2, shopen2 );
+              pixlist2_v =  _enclosedCharge( secondshower_adc_vv, shangle2, sumQ2, tri2, true, vtx_pix2[0], vtx_pix2[1], shlength2, shopen2 );
               reco_energy2 = 0;
               if ( _use_calibrated_pixelsum2mev )
                 reco_energy2 = sumQ2*0.01324 + 37.83337; // calibrated images
@@ -767,120 +813,174 @@ namespace ssnetshowerreco {
         }
         _shower_pixcluster_v.emplace_back( std::move(pixcluster) );
 
-      if (makeDisp&&p==2){
+        if (makeDisp&&p==2){
 
-        TH2F* YPlaneADC_h = new TH2F("yplaneadc","yplaneadc",3456,0,3456.,1008,0,1008.);
-        TH2F* vtx_h = new TH2F("vtx_h","vtx_h",3456,0,3456.,1008,0,1008.);
-        TH2F* triangle1_h = new TH2F("triangle1","triangle1",3456,0,3456.,1008,0,1008.);
-        TH2F* triangle2_h = new TH2F("triangle2","triangle2",3456,0,3456.,1008,0,1008.);
-        // for (int r  = 0; r< ;r++){
-        //   for (int c =0; c< ;c++)
-        // }
-        for (int ii =0;ii<(int)adc_sparse_vvv[p].size();ii++){
-          YPlaneADC_h->Fill(adc_sparse_vvv[p][ii][1],adc_sparse_vvv[p][ii][0],adc_sparse_vvv[p][ii][2]);
+          TH2F* YPlaneADC_h = new TH2F("yplaneadc","yplaneadc",3456,0,3456.,1008,0,1008.);
+          TH2F* YPlaneSSNet_h = new TH2F("yplanessnet","yplanessnet",3456,0,3456.,1008,0,1008.);
+          TH2F* YPlaneSeg_h = new TH2F("yplaneseg","yplaneseg",3456,0,3456.,1008,0,1008.);
+          TH2F* YPlaneMasked_h = new TH2F("yplanemask","yplanemask",3456,0,3456.,1008,0,1008.);
+          TH2F* vtx_h = new TH2F("vtx_h","vtx_h",3456,0,3456.,1008,0,1008.);
+          TH2F* triangle1_h = new TH2F("triangle1","triangle1",3456,0,3456.,1008,0,1008.);
+          TH2F* triangle2_h = new TH2F("triangle2","triangle2",3456,0,3456.,1008,0,1008.);
+
+          for (int ii =0;ii<(int)masked_adc_vvv[p].size();ii++){
+            YPlaneSeg_h->Fill(masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0],ev_segment->Image2DArray()[2].pixel(masked_adc_vvv[p][ii][0],masked_adc_vvv[p][ii][1]));
+          }
+
+          for (int ii =0;ii<(int)adc_sparse_vvv[p].size();ii++){
+            YPlaneADC_h->Fill(adc_sparse_vvv[p][ii][1],adc_sparse_vvv[p][ii][0],adc_sparse_vvv[p][ii][2]);
+          }
+          for (int ii =0;ii<(int)masked_adc_vvv[p].size();ii++){
+            YPlaneMasked_h->Fill(masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0],masked_adc_vvv[p][ii][2]);
+          }
+          // for (int r = 0; r<ev_adc->Image2DArray()[2].meta().rows();r++){
+          //   for (int c = 0; c<ev_adc->Image2DArray()[2].meta().cols();c++){
+          //
+          //       bool insideshower = false;
+          //       insideshower =  _isInside2(vtx_pix[0],vtx_pix[1],vtx_pix[0] + shlength*cos(shangle+shopen),
+          //                                 vtx_pix[1] + shlength*sin(shangle+shopen),
+          //                                 vtx_pix[0] + shlength*cos(shangle-shopen),
+          //                                 vtx_pix[1] + shlength*sin(shangle-shopen),
+          //                                 c,r);
+          //       bool insideshower2 = false;
+          //       insideshower2 =  _isInside2(vtx_pix2[0],vtx_pix2[1],vtx_pix2[0] + shlength2*cos(shangle2+shopen2),
+          //                                 vtx_pix2[1] + shlength2*sin(shangle2+shopen2),
+          //                                 vtx_pix2[0] + shlength2*cos(shangle2-shopen2),
+          //                                 vtx_pix2[1] + shlength2*sin(shangle2-shopen2),
+          //                                 c,r);
+          //
+          //
+          //       if (insideshower || insideshower2) YPlaneMasked_h->Fill(c,r,1);
+          //
+          //   }
+          // }
+          for (int ii =0;ii<(int)ssnet_sparse_vvv[p].size();ii++){
+            YPlaneSSNet_h->Fill(ssnet_sparse_vvv[p][ii][1],ssnet_sparse_vvv[p][ii][0],ssnet_sparse_vvv[p][ii][2]);
+          }
+
+
+          gStyle->SetOptStat(0);
+
+          vtx_h->Fill(vtx2d_true[3],vtx2d_true[0]);
+          triangle1_h->Fill(vtx_pix[0],vtx_pix[1]);
+          triangle1_h->Fill(vtx_pix[0] + shlength*cos(shangle+shopen),vtx_pix[1] + shlength*sin(shangle+shopen));
+          triangle1_h->Fill(vtx_pix[0] + shlength*cos(shangle-shopen),vtx_pix[1] + shlength*sin(shangle-shopen));
+          triangle2_h->Fill(vtx_pix2[0],vtx_pix2[1]);
+          triangle2_h->Fill(vtx_pix2[0] + shlength2*cos(shangle2+shopen2),vtx_pix2[1] + shlength2*sin(shangle2+shopen2));
+          triangle2_h->Fill(vtx_pix2[0] + shlength2*cos(shangle2-shopen2),vtx_pix2[1] + shlength2*sin(shangle2-shopen2));
+
+          triangle1_h->SetMarkerStyle(kFullCircle);
+          triangle1_h->SetMarkerColor(kRed);
+          triangle2_h->SetMarkerStyle(kFullCircle);
+          triangle2_h->SetMarkerColor(kRed);
+          vtx_h->SetMarkerStyle(kStar);
+          vtx_h->SetMarkerColor(kGreen);
+          TLine* line1_1 = new TLine(vtx_pix[0],vtx_pix[1],vtx_pix[0] + shlength*cos(shangle+shopen),vtx_pix[1] + shlength*sin(shangle+shopen));
+          TLine* line1_2 = new TLine(vtx_pix[0],vtx_pix[1],vtx_pix[0] + shlength*cos(shangle-shopen),vtx_pix[1] + shlength*sin(shangle-shopen));
+          TLine* line1_3 = new TLine(vtx_pix[0] + shlength*cos(shangle+shopen),vtx_pix[1] + shlength*sin(shangle+shopen),vtx_pix[0] + shlength*cos(shangle-shopen),vtx_pix[1] + shlength*sin(shangle-shopen));
+          TLine* line2_1 = new TLine(vtx_pix2[0],vtx_pix2[1],vtx_pix2[0] + shlength2*cos(shangle2+shopen2),vtx_pix2[1] + shlength2*sin(shangle2+shopen2));
+          TLine* line2_2 = new TLine(vtx_pix2[0],vtx_pix2[1],vtx_pix2[0] + shlength2*cos(shangle2-shopen2),vtx_pix2[1] + shlength2*sin(shangle2-shopen2));
+          TLine* line2_3 = new TLine(vtx_pix2[0] + shlength2*cos(shangle2+shopen2),vtx_pix2[1] + shlength2*sin(shangle2+shopen2),vtx_pix2[0] + shlength2*cos(shangle2-shopen2),vtx_pix2[1] + shlength2*sin(shangle2-shopen2));
+          line1_1->SetLineColor(kRed);
+          line1_2->SetLineColor(kRed);
+          line1_3->SetLineColor(kRed);
+          line2_1->SetLineColor(kMagenta - 3);
+          line2_2->SetLineColor(kMagenta - 3);
+          line2_3->SetLineColor(kMagenta - 3);
+
+          TCanvas can1("can", "histograms ", 3456, 1008);
+          YPlaneADC_h->Draw("colz");
+          vtx_h->Draw("SAME");
+          triangle1_h->Draw("SAME");
+          line1_1->Draw("SAME");
+          line1_2->Draw("SAME");
+          line1_3->Draw("SAME");
+          triangle2_h->Draw("SAME");
+          line2_1->Draw("SAME");
+          line2_2->Draw("SAME");
+          line2_3->Draw("SAME");
+          can1.SaveAs(Form("ncpi0_adc_%d.png",(int)entry));
+
+          TCanvas can2("can", "histograms ", 3456, 1008);
+          YPlaneMasked_h->Draw("colz");
+          vtx_h->Draw("SAME");
+          triangle1_h->Draw("SAME");
+          line1_1->Draw("SAME");
+          line1_2->Draw("SAME");
+          line1_3->Draw("SAME");
+          triangle2_h->Draw("SAME");
+          line2_1->Draw("SAME");
+          line2_2->Draw("SAME");
+          line2_3->Draw("SAME");
+          can2.SaveAs(Form("ncpi0_masked_%d.png",(int)entry));
+
+          TCanvas can3("can", "histograms ", 3456, 1008);
+          YPlaneSSNet_h->Draw("colz");
+          vtx_h->Draw("SAME");
+          triangle1_h->Draw("SAME");
+          line1_1->Draw("SAME");
+          line1_2->Draw("SAME");
+          line1_3->Draw("SAME");
+          triangle2_h->Draw("SAME");
+          line2_1->Draw("SAME");
+          line2_2->Draw("SAME");
+          line2_3->Draw("SAME");
+          can3.SaveAs(Form("ncpi0_ssnet_%d.png",(int)entry));
+
+          TCanvas can4("can", "histograms ", 3456, 1008);
+          YPlaneSeg_h->Draw("colz");
+          vtx_h->Draw("SAME");
+          triangle1_h->Draw("SAME");
+          line1_1->Draw("SAME");
+          line1_2->Draw("SAME");
+          line1_3->Draw("SAME");
+          triangle2_h->Draw("SAME");
+          line2_1->Draw("SAME");
+          line2_2->Draw("SAME");
+          line2_3->Draw("SAME");
+          can4.SaveAs(Form("ncpi0_seg_%d.png",(int)entry));
+
+          delete vtx_h;
+          delete triangle1_h;
+          delete triangle2_h;
+          delete YPlaneADC_h;
+          delete YPlaneSeg_h;
+          delete YPlaneSSNet_h;
+          delete YPlaneMasked_h;
+          delete line1_1;
+          delete line1_2;
+          delete line1_3;
+          delete line2_1;
+          delete line2_2;
+          delete line2_3;
+
+        }
+
+        //fill triangle points vector
+
+        if (shlength>0){
+          std::vector<float> tmp_triangle_v (6,-1);
+          tmp_triangle_v[0]=vtx_pix[0];
+          tmp_triangle_v[1]=vtx_pix[1];
+          tmp_triangle_v[2]=vtx_pix[0] + shlength*cos(shangle+shopen);
+          tmp_triangle_v[3]=vtx_pix[1] + shlength*sin(shangle+shopen);
+          tmp_triangle_v[4]=vtx_pix[0] + shlength*cos(shangle-shopen);
+          tmp_triangle_v[5]=vtx_pix[1] + shlength*sin(shangle-shopen);
+          shower_points_vv[p*2] = tmp_triangle_v;
+        }
+        if (shlength2>0){
+          std::vector<float> tmp_triangle_v (6,-1);
+          tmp_triangle_v[0]=vtx_pix2[0];
+          tmp_triangle_v[1]=vtx_pix2[1];
+          tmp_triangle_v[2]=vtx_pix2[0] + shlength2*cos(shangle2+shopen2);
+          tmp_triangle_v[3]=vtx_pix2[1] + shlength2*sin(shangle2+shopen2);
+          tmp_triangle_v[4]=vtx_pix2[0] + shlength2*cos(shangle2-shopen2);
+          tmp_triangle_v[5]=vtx_pix2[1] + shlength2*sin(shangle2-shopen2);
+          shower_points_vv[(p*2)+1] = tmp_triangle_v;
         }
 
 
-        gStyle->SetOptStat(0);
-
-        vtx_h->Fill(vtx2d_true[3],vtx2d_true[0]);
-        triangle1_h->Fill(vtx_pix[0],vtx_pix[1]);
-        triangle1_h->Fill(vtx_pix[0] + shlength*cos(shangle+shopen),vtx_pix[1] + shlength*sin(shangle+shopen));
-        triangle1_h->Fill(vtx_pix[0] + shlength*cos(shangle-shopen),vtx_pix[1] + shlength*sin(shangle-shopen));
-        triangle2_h->Fill(vtx_pix2[0],vtx_pix2[1]);
-        triangle2_h->Fill(vtx_pix2[0] + shlength2*cos(shangle2+shopen2),vtx_pix2[1] + shlength2*sin(shangle2+shopen2));
-        triangle2_h->Fill(vtx_pix2[0] + shlength2*cos(shangle2-shopen2),vtx_pix2[1] + shlength2*sin(shangle2-shopen2));
-
-        TCanvas can1("can", "histograms ", 3456, 1008);
-        triangle1_h->SetMarkerStyle(kFullCircle);
-        triangle1_h->SetMarkerColor(kRed);
-        triangle2_h->SetMarkerStyle(kFullCircle);
-        triangle2_h->SetMarkerColor(kRed);
-        vtx_h->SetMarkerStyle(kStar);
-        vtx_h->SetMarkerColor(kGreen);
-        TLine* line1_1 = new TLine(vtx_pix[0],vtx_pix[1],vtx_pix[0] + shlength*cos(shangle+shopen),vtx_pix[1] + shlength*sin(shangle+shopen));
-        TLine* line1_2 = new TLine(vtx_pix[0],vtx_pix[1],vtx_pix[0] + shlength*cos(shangle-shopen),vtx_pix[1] + shlength*sin(shangle-shopen));
-        TLine* line1_3 = new TLine(vtx_pix[0] + shlength*cos(shangle+shopen),vtx_pix[1] + shlength*sin(shangle+shopen),vtx_pix[0] + shlength*cos(shangle-shopen),vtx_pix[1] + shlength*sin(shangle-shopen));
-        TLine* line2_1 = new TLine(vtx_pix2[0],vtx_pix2[1],vtx_pix2[0] + shlength2*cos(shangle2+shopen2),vtx_pix2[1] + shlength2*sin(shangle2+shopen2));
-        TLine* line2_2 = new TLine(vtx_pix2[0],vtx_pix2[1],vtx_pix2[0] + shlength2*cos(shangle2-shopen2),vtx_pix2[1] + shlength2*sin(shangle2-shopen2));
-        TLine* line2_3 = new TLine(vtx_pix2[0] + shlength2*cos(shangle2+shopen2),vtx_pix2[1] + shlength2*sin(shangle2+shopen2),vtx_pix2[0] + shlength2*cos(shangle2-shopen2),vtx_pix2[1] + shlength2*sin(shangle2-shopen2));
-        line1_1->SetLineColor(kRed);
-        line1_2->SetLineColor(kRed);
-        line1_3->SetLineColor(kRed);
-        line2_1->SetLineColor(kMagenta - 3);
-        line2_2->SetLineColor(kMagenta - 3);
-        line2_3->SetLineColor(kMagenta - 3);
-        YPlaneADC_h->Draw("colz");
-        vtx_h->Draw("SAME");
-        triangle1_h->Draw("SAME");
-        line1_1->Draw("SAME");
-        line1_2->Draw("SAME");
-        line1_3->Draw("SAME");
-        triangle2_h->Draw("SAME");
-        line2_1->Draw("SAME");
-        line2_2->Draw("SAME");
-        line2_3->Draw("SAME");
-        can1.SaveAs(Form("ncpi0_truetest_comb_%d.png",(int)entry));
-
-        delete vtx_h;
-        delete triangle1_h;
-        delete triangle2_h;
-        delete YPlaneADC_h;
-        delete line1_1;
-        delete line1_2;
-        delete line1_3;
-        delete line2_1;
-        delete line2_2;
-        delete line2_3;
-
-      }
-
-      //fill triangle points vector
-      if (shlength>0){
-        std::vector<float> tmp_triangle_v (6,-1);
-        tmp_triangle_v[0]=vtx_pix[0];
-        tmp_triangle_v[1]=vtx_pix[2];
-        tmp_triangle_v[2]=vtx_pix[0] + shlength*cos(shangle+shopen);
-        tmp_triangle_v[3]=vtx_pix[1] + shlength*sin(shangle+shopen);
-        tmp_triangle_v[4]=vtx_pix[0] + shlength*cos(shangle-shopen);
-        tmp_triangle_v[5]=vtx_pix[1] + shlength*sin(shangle-shopen);
-        shower_points_vv[p*2] = tmp_triangle_v;
-      }
-      if (shlength2>0){
-        std::vector<float> tmp_triangle_v (6,-1);
-        tmp_triangle_v[0]=vtx_pix2[0];
-        tmp_triangle_v[1]=vtx_pix2[2];
-        tmp_triangle_v[2]=vtx_pix2[0] + shlength2*cos(shangle2+shopen2);
-        tmp_triangle_v[3]=vtx_pix2[1] + shlength2*sin(shangle2+shopen2);
-        tmp_triangle_v[4]=vtx_pix2[0] + shlength2*cos(shangle2-shopen2);
-        tmp_triangle_v[5]=vtx_pix2[1] + shlength2*sin(shangle2-shopen2);
-        shower_points_vv[(p*2)+1] = tmp_triangle_v;
-      }
-
-
       }//end of plane loop
-
-      // //test stored triangle
-      // std::cout<<"--------------------------------------"<<std::endl;
-      // std::cout<<"U plane shower 1: ["<<shower_points_vv[0][0]<<","<<shower_points_vv[0][1]<<",";
-      // std::cout<<shower_points_vv[0][2]<<","<<shower_points_vv[0][3]<<","<<shower_points_vv[0][4]<<",";
-      // std::cout<<shower_points_vv[0][5]<<"]\n";
-      // std::cout<<"U plane shower 2: ["<<shower_points_vv[1][0]<<","<<shower_points_vv[1][1]<<",";
-      // std::cout<<shower_points_vv[1][2]<<","<<shower_points_vv[1][3]<<","<<shower_points_vv[1][4]<<",";
-      // std::cout<<shower_points_vv[1][5]<<"]\n";
-      // std::cout<<"V plane shower 1: ["<<shower_points_vv[2][0]<<","<<shower_points_vv[2][1]<<",";
-      // std::cout<<shower_points_vv[2][2]<<","<<shower_points_vv[2][3]<<","<<shower_points_vv[2][4]<<",";
-      // std::cout<<shower_points_vv[2][5]<<"]\n";
-      // std::cout<<"V plane shower 2: ["<<shower_points_vv[3][0]<<","<<shower_points_vv[3][1]<<",";
-      // std::cout<<shower_points_vv[3][2]<<","<<shower_points_vv[3][3]<<","<<shower_points_vv[3][4]<<",";
-      // std::cout<<shower_points_vv[3][5]<<"]\n";
-      // std::cout<<"Y plane shower 1: ["<<shower_points_vv[4][0]<<","<<shower_points_vv[4][1]<<",";
-      // std::cout<<shower_points_vv[4][2]<<","<<shower_points_vv[4][3]<<","<<shower_points_vv[4][4]<<",";
-      // std::cout<<shower_points_vv[4][5]<<"]\n";
-      // std::cout<<"Y plane shower 2: ["<<shower_points_vv[5][0]<<","<<shower_points_vv[5][1]<<",";
-      // std::cout<<shower_points_vv[5][2]<<","<<shower_points_vv[5][3]<<","<<shower_points_vv[5][4]<<",";
-      // std::cout<<shower_points_vv[5][5]<<"]\n";
-      // std::cout<<"--------------------------------------"<<std::endl;
 
       // store floats
       _shower_energy_vv.push_back( shower_energy_v );
@@ -892,36 +992,141 @@ namespace ssnetshowerreco {
 
       //do 3d shower match
       if (_second_shower){
+        // std::cout<<"HERE"<<std::endl;
         _match_y1_vv = SecondShower.Match_3D(shower_points_vv, masked_adc_vvv,1);
         _match_y2_vv = SecondShower.Match_3D(shower_points_vv, masked_adc_vvv,2);
         _bestmatch_y1_vv = SecondShower.ChooseBestMatch(_match_y1_vv);
         _bestmatch_y2_vv = SecondShower.ChooseBestMatch(_match_y2_vv);
+
+
+        bool RunMassCalc = SecondShower.RunMassCalc(_match_y1_vv,_match_y2_vv,
+              _shower_energy_vv,_secondshower_energy_vv);
+        // if (RunMassCalc) std::cout<<"USE THIS EVENT!!"<<std::endl;
+        if (RunMassCalc) _useformass =1;
+        else _useformass = 0;
+
+        if (RunMassCalc){
+          //get 3D overlap points
+          //which shower do I use? 0 = u1, 1 = u2, 2 = v1, 3 = v2
+          int showertouse1 = -1;
+          if (_bestmatch_y1_vv[0][0] == 2 )showertouse1 = 0;
+          if (_bestmatch_y1_vv[0][1] == 2 )showertouse1 = 1;
+          if (_bestmatch_y1_vv[1][0] == 2 )showertouse1 = 2;
+          if (_bestmatch_y1_vv[1][1] == 2 )showertouse1 = 3;
+          int showertouse2 = -1;
+          if (_bestmatch_y2_vv[0][0] == 2 )showertouse2 = 0;
+          if (_bestmatch_y2_vv[0][1] == 2 )showertouse2 = 1;
+          if (_bestmatch_y2_vv[1][0] == 2 )showertouse2 = 2;
+          if (_bestmatch_y2_vv[1][1] == 2 )showertouse2 = 3;
+          // std::cout<<"Using showers: y1+"<<showertouse1<<" and y2+"<<showertouse2<<std::endl;
+          if (showertouse1 == showertouse2){
+            if (_bestmatch_y2_vv[0][0] == 1 && showertouse1 !=0 )showertouse2 = 0;
+            if (_bestmatch_y2_vv[0][1] == 1 && showertouse1 !=1 )showertouse2 = 1;
+            if (_bestmatch_y2_vv[1][0] == 1 && showertouse1 !=2 )showertouse2 = 2;
+            if (_bestmatch_y2_vv[1][1] == 1 && showertouse1 !=3 )showertouse2 = 3;
+            std::cout<<"SWITCHING TO USE y2: "<<showertouse2<<std::endl;
+          }
+          if (showertouse1 == showertouse2){
+            if (_bestmatch_y1_vv[0][0] == 1 && showertouse2 !=0 )showertouse1 = 0;
+            if (_bestmatch_y1_vv[0][1] == 1 && showertouse2 !=1 )showertouse1 = 1;
+            if (_bestmatch_y1_vv[1][0] == 1 && showertouse2 !=2 )showertouse1 = 2;
+            if (_bestmatch_y1_vv[1][1] == 1 && showertouse2 !=3 )showertouse1 = 3;
+            std::cout<<"SWITCHING TO USE y1: "<<showertouse1<<std::endl;
+          }
+
+          //only continue if matched to differentshowers
+          if (showertouse1!=showertouse2){
+            std::vector<std::vector<float>> FirstShowerPts;
+            std::vector<std::vector<float>> SecondShowerPts;
+            int planetomatch1 = 0;
+            if (showertouse1 > 1)planetomatch1 =1;
+            int planetomatch2 = 0;
+            if (showertouse2 > 1)planetomatch2 =1;
+
+            FirstShowerPts = SecondShower.Get3DPoints(shower_points_vv[showertouse1],
+                              shower_points_vv[4],masked_adc_vvv, planetomatch1,
+                              wire_meta[0]);
+            SecondShowerPts = SecondShower.Get3DPoints(shower_points_vv[showertouse2],
+                              shower_points_vv[5],masked_adc_vvv, planetomatch2,
+                              wire_meta[0]);
+            float alpha = SecondShower.GetOpeningAngle(FirstShowerPts,SecondShowerPts);
+
+            if (alpha >.349&&(alpha<3.14 || alpha >3.15)&&alpha<5.93){
+              _pi0mass = std::sqrt( 4 * _shower_energy_vv[0][2]*_secondshower_energy_vv[0][2] *
+                        (sin(alpha/2.0) *sin(alpha/2.0)));
+
+              std::cout<<"Pi0 Mass!!! "<<_pi0mass<<std::endl;
+            }
+
+
+          }//end of if showers are different
+
+        }//end of running mass calculation
+
+
       }
 
 
-      //{u1,u2,v1,v2,y1,y2}
-      _ShowerTruthMatch_v={-1,-1,-1,-1,-1,-1};
+
       if (_second_shower && _use_ncpi0){
-        _ShowerTruthMatch_v[0] = (SecondShower.TruthMatchNCPi0(shower_points_vv[0], masked_adc_vvv[0],
-              ev_segment, ev_instance,0));
-        _ShowerTruthMatch_v[1] = (SecondShower.TruthMatchNCPi0(shower_points_vv[1], masked_adc_vvv[0],
-              ev_segment, ev_instance,0));
-        _ShowerTruthMatch_v[2] = (SecondShower.TruthMatchNCPi0(shower_points_vv[2], masked_adc_vvv[1],
-              ev_segment, ev_instance,1));
-        _ShowerTruthMatch_v[3] = (SecondShower.TruthMatchNCPi0(shower_points_vv[3], masked_adc_vvv[1],
-              ev_segment, ev_instance,1));
-        _ShowerTruthMatch_v[4] = (SecondShower.TruthMatchNCPi0(shower_points_vv[4], masked_adc_vvv[2],
-              ev_segment, ev_instance,2));
-        _ShowerTruthMatch_v[5] = (SecondShower.TruthMatchNCPi0(shower_points_vv[5], masked_adc_vvv[2],
-              ev_segment, ev_instance,2));
-      }
+        //{u1,u2,v1,v2,y1,y2}
+        _ShowerTruthMatch_pur_v={-1,-1,-1,-1,-1,-1};
+        _ShowerTruthMatch_eff_v={-1,-1,-1,-1,-1,-1};
+        std::vector<std::vector<float>> truthmatches(6,std::vector<float> (2,0));
+        truthmatches[0] = (SecondShower.TruthMatchNCPi0(shower_points_vv[0], masked_adc_vvv[0],
+              ev_segment, ev_instance, 0));
+        truthmatches[1] = (SecondShower.TruthMatchNCPi0(shower_points_vv[1], masked_adc_vvv[0],
+              ev_segment, ev_instance, 0));
+        truthmatches[2] = (SecondShower.TruthMatchNCPi0(shower_points_vv[2], masked_adc_vvv[1],
+              ev_segment, ev_instance, 1));
+        truthmatches[3] = (SecondShower.TruthMatchNCPi0(shower_points_vv[3], masked_adc_vvv[1],
+              ev_segment, ev_instance, 1));
+        truthmatches[4] = (SecondShower.TruthMatchNCPi0(shower_points_vv[4], masked_adc_vvv[2],
+              ev_segment, ev_instance, 2));
+        truthmatches[5] = (SecondShower.TruthMatchNCPi0(shower_points_vv[5], masked_adc_vvv[2],
+              ev_segment, ev_instance, 2));
+        for(int idx = 0;idx <6;idx++){
+          _ShowerTruthMatch_pur_v[idx] = truthmatches[idx][0];
+          _ShowerTruthMatch_eff_v[idx] = truthmatches[idx][1];
+        }
 
-      std::cout<<"U PLANE 1 Truth Match: "<<_ShowerTruthMatch_v[0]<<std::endl;
-      std::cout<<"U PLANE 2 Truth Match: "<<_ShowerTruthMatch_v[1]<<std::endl;
-      std::cout<<"V PLANE 1 Truth Match: "<<_ShowerTruthMatch_v[2]<<std::endl;
-      std::cout<<"V PLANE 2 Truth Match: "<<_ShowerTruthMatch_v[3]<<std::endl;
-      std::cout<<"Y PLANE 1 Truth Match: "<<_ShowerTruthMatch_v[4]<<std::endl;
-      std::cout<<"Y PLANE 2 Truth Match: "<<_ShowerTruthMatch_v[5]<<std::endl;
+        // std::cout<<"U PLANE 1 Purity: "<<_ShowerTruthMatch_pur_v[0]<<std::endl;
+        // std::cout<<"U PLANE 2 Purity: "<<_ShowerTruthMatch_pur_v[1]<<std::endl;
+        // std::cout<<"U Plane efficiency: "<<_ShowerTruthMatch_eff_v[0]+_ShowerTruthMatch_eff_v[1]<<std::endl;
+        // std::cout<<"V PLANE 1 Purity: "<<_ShowerTruthMatch_pur_v[2]<<std::endl;
+        // std::cout<<"V PLANE 2 Purity: "<<_ShowerTruthMatch_pur_v[3]<<std::endl;
+        // std::cout<<"V Plane efficiency: "<<_ShowerTruthMatch_eff_v[2]+_ShowerTruthMatch_eff_v[3]<<std::endl;
+        // std::cout<<"Y PLANE 1 Purity: "<<_ShowerTruthMatch_pur_v[4]<<std::endl;
+        // std::cout<<"Y PLANE 2 Purity: "<<_ShowerTruthMatch_pur_v[5]<<std::endl;
+        // std::cout<<"Y Plane efficiency: "<<_ShowerTruthMatch_eff_v[4]+_ShowerTruthMatch_eff_v[5]<<std::endl;
+      }//end of if sec and ncpi0
+
+      if ( _use_nueint){
+        //{u1,v1,y1}
+        _ShowerTruthMatch_pur_v={-1,-1,-1};
+        _ShowerTruthMatch_eff_v={-1,-1,-1};
+        std::vector<std::vector<float>> truthmatches(3,std::vector<float> (2,0));
+        truthmatches[0] = (SecondShower.TruthMatchNueint(shower_points_vv[0], masked_adc_vvv[0],
+              ev_segment, ev_instance,0));
+        truthmatches[1] = (SecondShower.TruthMatchNueint(shower_points_vv[2], masked_adc_vvv[1],
+              ev_segment, ev_instance,1));
+        truthmatches[2] = (SecondShower.TruthMatchNueint(shower_points_vv[4], masked_adc_vvv[2],
+              ev_segment, ev_instance,2));
+
+        for(int idx = 0;idx <3;idx++){
+          _ShowerTruthMatch_pur_v[idx] = truthmatches[idx][0];
+          _ShowerTruthMatch_eff_v[idx] = truthmatches[idx][1];
+        }
+
+        // std::cout<<"U PLANE Purity: "<<_ShowerTruthMatch_pur_v[0]<<std::endl;
+        // std::cout<<"U Plane efficiency: "<<_ShowerTruthMatch_eff_v[0]<<std::endl;
+        // std::cout<<"V PLANE Purity: "<<_ShowerTruthMatch_pur_v[1]<<std::endl;
+        // std::cout<<"V Plane efficiency: "<<_ShowerTruthMatch_eff_v[1]<<std::endl;
+        // std::cout<<"Y PLANE Purity: "<<_ShowerTruthMatch_pur_v[2]<<std::endl;
+        // std::cout<<"Y Plane efficiency: "<<_ShowerTruthMatch_eff_v[2]<<std::endl;
+      }//end of if nueint
+
+
 
 
     }//end of loop through vertices
