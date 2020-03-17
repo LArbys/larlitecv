@@ -85,13 +85,14 @@ namespace ssnetshowerreco {
           larcv::EventImage2D* ev_segment, larcv::EventImage2D* ev_instance, int plane);
     bool RunMassCalc(std::vector<std::vector<float>> _match_y1_vv,
           std::vector<std::vector<float>>_match_y2_vv,
-          std::vector< std::vector<float> > _shower_energy_vv,
-          std::vector< std::vector<float> >_secondshower_energy_vv);
+          std::vector<float> shower_energy_v,
+          std::vector<float> secondshower_energy_v);
     std::vector<std::vector<float>> Get3DPoints(std::vector<float> shower_points1,
             std::vector<float> shower_points2, std::vector<std::vector<std::vector<float>>> masked_adc_vvv,
             int planeofmatch, larcv::ImageMeta wire_meta);
-    float GetOpeningAngle(std::vector<std::vector<float>> firstshower, std::vector<std::vector<float>> secondshower);
-    std::vector<float> GetDirection(std::vector<std::vector<float>> shower);
+    std::vector<float> GetOpeningAngle(std::vector<std::vector<float>> firstshower, std::vector<std::vector<float>> secondshower,
+            std::vector<double> vertex);
+    std::vector<std::vector<float>> GetPCA(std::vector<std::vector<float>> shower);
 
 
   protected:

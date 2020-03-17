@@ -28,6 +28,7 @@ namespace ssnetshowerreco {
     _segment_tree_name = "segment";
     _instance_tree_name = "instance";
     _mctruth_name = "generator";
+    _thrumu_tree_name = "thrumu";
 
     _Qcut = 10;
     _SSNET_SHOWER_THRESHOLD = 0.5;
@@ -55,6 +56,18 @@ namespace ssnetshowerreco {
     _shower_ll_v.clear();
     _shower_pixcluster_v.clear();
     _true_energy_vv.clear();
+    _match_y1_vv.clear();
+    _match_y2_vv.clear();
+    _bestmatch_y1_vv.clear();
+    _bestmatch_y2_vv.clear();
+    _pi0mass.clear();
+    _useformass.clear();
+    _disttoint.clear();
+    _impact1.clear();
+    _impact2.clear();
+    _firstdirection.clear();
+    _seconddirection.clear();
+    _alpha.clear();
   }
 
   /**
@@ -414,12 +427,15 @@ namespace ssnetshowerreco {
     bool useTrueVtx = false;
 
     std::vector<int> vtx2d_true;
-    _pi0mass = 0;
 
     //load in inputs
     larcv::EventImage2D* ev_adc
       = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _adc_tree_name );
     const std::vector<larcv::Image2D>& adc_v = ev_adc->Image2DArray();
+    larcv::EventImage2D* ev_thrumu
+      = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _thrumu_tree_name );
+    const std::vector<larcv::Image2D>& thrumu_v = ev_thrumu->Image2DArray();
+
 
     std::vector<std::vector<float>> adc_u_sparse = MakeImage2dSparse(adc_v[0],10.0);
     std::vector<std::vector<float>> adc_v_sparse = MakeImage2dSparse(adc_v[1],10.0);
@@ -499,7 +515,8 @@ namespace ssnetshowerreco {
       std::vector<std::vector<float>> masked_plane_v;
       for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
         for ( int ssnet_i =0;ssnet_i<npixels_ssnet;ssnet_i++){
-          if (ssnet_sparse_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
+          float thrumupix = thrumu_v[p].pixel(adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1]);
+          if (thrumupix == 0 && ssnet_sparse_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
               masked_plane_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
           }//end of if statements
         }//end of loop through ssnet
@@ -592,6 +609,13 @@ namespace ssnetshowerreco {
 
     for ( size_t ivtx=0; ivtx<_vtx_pos_vv.size(); ivtx++ ) {
 
+      float pi0mass = 0;
+      float disttoint = 0;
+      float impact1 = 0;
+      float impact2 = 0;
+      std::vector<float> firstdirection (3,-1);
+      std::vector<float> seconddirection (3,-1);
+      float alpha;
 
       std::cout << "[SSNetShowerReco] Reconstruct vertex[" << ivtx << "] "
                 << "pos=(" << _vtx_pos_vv[ivtx][0] << "," << _vtx_pos_vv[ivtx][1] << "," << _vtx_pos_vv[ivtx][2] << ")"
@@ -772,36 +796,46 @@ namespace ssnetshowerreco {
         // make larlite
         // -------------
         larlite::shower shr;  // stores shower parameters
+        larlite::shower shr2;  // stores second shower parameters
         larlite::larflowcluster pixcluster; // stores pixels
 
         // store vertex index
         shr.set_id( ivtx );
+        shr2.set_id( ivtx );
 
         // store vertex
         TVector3 vtx3 = { _vtx_pos_vv[ivtx][0], _vtx_pos_vv[ivtx][1], _vtx_pos_vv[ivtx][2] };
         shr.set_start_point( vtx3 );
+        shr2.set_start_point( vtx3 );
 
         // store plane
         shr.set_total_best_plane( p );
+        shr2.set_total_best_plane( p );
 
         // set energy
         shr.set_total_energy( reco_energy );
-
+        shr2.set_total_energy( reco_energy2 );
         // set sumq
         shr.set_total_energy_err( sumQ );
+        shr2.set_total_energy_err( sumQ2 );
 
         // set length
         shr.set_length( shlength );
+        shr2.set_length( shlength2 );
 
         // opening angle
         shr.set_opening_angle( shopen );
+        shr2.set_opening_angle( shopen2 );
 
         // for direction store 3 vector
         // (x,y) are the wire and tick angle. (z) is the angle itself
         TVector3 pseudo_dir = { cos( shangle ), sin( shangle ), shangle };
+        TVector3 pseudo_dir2 = { cos( shangle2 ), sin( shangle2 ), shangle2 };
         shr.set_direction( pseudo_dir );
+        shr2.set_direction( pseudo_dir2 );
 
         _shower_ll_v.emplace_back( std::move(shr) );
+        _secondshower_ll_v.emplace_back( std::move(shr2) );
 
         pixcluster.reserve( pixlist_v.size() );
         for ( auto& pix : pixlist_v ) {
@@ -833,27 +867,7 @@ namespace ssnetshowerreco {
           for (int ii =0;ii<(int)masked_adc_vvv[p].size();ii++){
             YPlaneMasked_h->Fill(masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0],masked_adc_vvv[p][ii][2]);
           }
-          // for (int r = 0; r<ev_adc->Image2DArray()[2].meta().rows();r++){
-          //   for (int c = 0; c<ev_adc->Image2DArray()[2].meta().cols();c++){
-          //
-          //       bool insideshower = false;
-          //       insideshower =  _isInside2(vtx_pix[0],vtx_pix[1],vtx_pix[0] + shlength*cos(shangle+shopen),
-          //                                 vtx_pix[1] + shlength*sin(shangle+shopen),
-          //                                 vtx_pix[0] + shlength*cos(shangle-shopen),
-          //                                 vtx_pix[1] + shlength*sin(shangle-shopen),
-          //                                 c,r);
-          //       bool insideshower2 = false;
-          //       insideshower2 =  _isInside2(vtx_pix2[0],vtx_pix2[1],vtx_pix2[0] + shlength2*cos(shangle2+shopen2),
-          //                                 vtx_pix2[1] + shlength2*sin(shangle2+shopen2),
-          //                                 vtx_pix2[0] + shlength2*cos(shangle2-shopen2),
-          //                                 vtx_pix2[1] + shlength2*sin(shangle2-shopen2),
-          //                                 c,r);
-          //
-          //
-          //       if (insideshower || insideshower2) YPlaneMasked_h->Fill(c,r,1);
-          //
-          //   }
-          // }
+
           for (int ii =0;ii<(int)ssnet_sparse_vvv[p].size();ii++){
             YPlaneSSNet_h->Fill(ssnet_sparse_vvv[p][ii][1],ssnet_sparse_vvv[p][ii][0],ssnet_sparse_vvv[p][ii][2]);
           }
@@ -993,45 +1007,55 @@ namespace ssnetshowerreco {
       //do 3d shower match
       if (_second_shower){
         // std::cout<<"HERE"<<std::endl;
-        _match_y1_vv = SecondShower.Match_3D(shower_points_vv, masked_adc_vvv,1);
-        _match_y2_vv = SecondShower.Match_3D(shower_points_vv, masked_adc_vvv,2);
-        _bestmatch_y1_vv = SecondShower.ChooseBestMatch(_match_y1_vv);
-        _bestmatch_y2_vv = SecondShower.ChooseBestMatch(_match_y2_vv);
+        std::vector<std::vector<float>> matchy1;
+        std::vector<std::vector<float>> matchy2;
+        std::vector<std::vector<int>> bestmatchy1;
+        std::vector<std::vector<int>> bestmatchy2;
+        matchy1 = SecondShower.Match_3D(shower_points_vv, masked_adc_vvv,1);
+        matchy2 = SecondShower.Match_3D(shower_points_vv, masked_adc_vvv,2);
+        bestmatchy1 = SecondShower.ChooseBestMatch(matchy1);
+        bestmatchy2 = SecondShower.ChooseBestMatch(matchy2);
+        _match_y1_vv.push_back(matchy1);
+        _match_y2_vv.push_back(matchy2);
+        _bestmatch_y1_vv.push_back(bestmatchy1);
+        _bestmatch_y2_vv.push_back(bestmatchy2);
 
 
-        bool RunMassCalc = SecondShower.RunMassCalc(_match_y1_vv,_match_y2_vv,
-              _shower_energy_vv,_secondshower_energy_vv);
-        // if (RunMassCalc) std::cout<<"USE THIS EVENT!!"<<std::endl;
-        if (RunMassCalc) _useformass =1;
-        else _useformass = 0;
+        bool RunMassCalc = SecondShower.RunMassCalc(matchy1,matchy2,
+              _shower_energy_vv[ivtx],_secondshower_energy_vv[ivtx]);
+        if (RunMassCalc) std::cout<<"USE THIS EVENT!! "<<RunMassCalc<<std::endl;
+        int useformass;
+        if (RunMassCalc) useformass =1;
+        else useformass = 0;
+        _useformass.push_back(useformass);
 
         if (RunMassCalc){
           //get 3D overlap points
           //which shower do I use? 0 = u1, 1 = u2, 2 = v1, 3 = v2
           int showertouse1 = -1;
-          if (_bestmatch_y1_vv[0][0] == 2 )showertouse1 = 0;
-          if (_bestmatch_y1_vv[0][1] == 2 )showertouse1 = 1;
-          if (_bestmatch_y1_vv[1][0] == 2 )showertouse1 = 2;
-          if (_bestmatch_y1_vv[1][1] == 2 )showertouse1 = 3;
+          if (bestmatchy1[0][0] == 2 )showertouse1 = 0;
+          if (bestmatchy1[0][1] == 2 )showertouse1 = 1;
+          if (bestmatchy1[1][0] == 2 )showertouse1 = 2;
+          if (bestmatchy1[1][1] == 2 )showertouse1 = 3;
           int showertouse2 = -1;
-          if (_bestmatch_y2_vv[0][0] == 2 )showertouse2 = 0;
-          if (_bestmatch_y2_vv[0][1] == 2 )showertouse2 = 1;
-          if (_bestmatch_y2_vv[1][0] == 2 )showertouse2 = 2;
-          if (_bestmatch_y2_vv[1][1] == 2 )showertouse2 = 3;
+          if (bestmatchy2[0][0] == 2 )showertouse2 = 0;
+          if (bestmatchy2[0][1] == 2 )showertouse2 = 1;
+          if (bestmatchy2[1][0] == 2 )showertouse2 = 2;
+          if (bestmatchy2[1][1] == 2 )showertouse2 = 3;
           // std::cout<<"Using showers: y1+"<<showertouse1<<" and y2+"<<showertouse2<<std::endl;
           if (showertouse1 == showertouse2){
-            if (_bestmatch_y2_vv[0][0] == 1 && showertouse1 !=0 )showertouse2 = 0;
-            if (_bestmatch_y2_vv[0][1] == 1 && showertouse1 !=1 )showertouse2 = 1;
-            if (_bestmatch_y2_vv[1][0] == 1 && showertouse1 !=2 )showertouse2 = 2;
-            if (_bestmatch_y2_vv[1][1] == 1 && showertouse1 !=3 )showertouse2 = 3;
+            if (bestmatchy2[0][0] == 1 && showertouse1 !=0 )showertouse2 = 0;
+            if (bestmatchy2[0][1] == 1 && showertouse1 !=1 )showertouse2 = 1;
+            if (bestmatchy2[1][0] == 1 && showertouse1 !=2 )showertouse2 = 2;
+            if (bestmatchy2[1][1] == 1 && showertouse1 !=3 )showertouse2 = 3;
             std::cout<<"SWITCHING TO USE y2: "<<showertouse2<<std::endl;
           }
           if (showertouse1 == showertouse2){
-            if (_bestmatch_y1_vv[0][0] == 1 && showertouse2 !=0 )showertouse1 = 0;
-            if (_bestmatch_y1_vv[0][1] == 1 && showertouse2 !=1 )showertouse1 = 1;
-            if (_bestmatch_y1_vv[1][0] == 1 && showertouse2 !=2 )showertouse1 = 2;
-            if (_bestmatch_y1_vv[1][1] == 1 && showertouse2 !=3 )showertouse1 = 3;
-            std::cout<<"SWITCHING TO USE y1: "<<showertouse1<<std::endl;
+            if (bestmatchy1[0][0] == 1 && showertouse2 !=0 )showertouse1 = 0;
+            if (bestmatchy1[0][1] == 1 && showertouse2 !=1 )showertouse1 = 1;
+            if (bestmatchy1[1][0] == 1 && showertouse2 !=2 )showertouse1 = 2;
+            if (bestmatchy1[1][1] == 1 && showertouse2 !=3 )showertouse1 = 3;
+            // std::cout<<"SWITCHING TO USE y1: "<<showertouse1<<std::endl;
           }
 
           //only continue if matched to differentshowers
@@ -1049,29 +1073,49 @@ namespace ssnetshowerreco {
             SecondShowerPts = SecondShower.Get3DPoints(shower_points_vv[showertouse2],
                               shower_points_vv[5],masked_adc_vvv, planetomatch2,
                               wire_meta[0]);
-            float alpha = SecondShower.GetOpeningAngle(FirstShowerPts,SecondShowerPts);
+
+            std::vector<float> parameters = SecondShower.GetOpeningAngle(FirstShowerPts,SecondShowerPts,_vtx_pos_vv[ivtx]);
+            alpha = parameters[0];
+            disttoint = (parameters[1]);
+            impact1 = (parameters[2]);
+            impact2 = (parameters[3]);
+
+            std::vector<std::vector<float>> first = SecondShower.GetPCA(FirstShowerPts);
+            std::vector<std::vector<float>> second = SecondShower.GetPCA(SecondShowerPts);
+            std::vector<float> firstcenter = first[1];
+            std::vector<float> secondcenter = second[1];
+
+            //change direction to diff between pca center and vertex
+            firstdirection[0] = firstcenter[0]-_vtx_pos_vv[ivtx][0];
+            firstdirection[1] = firstcenter[1]-_vtx_pos_vv[ivtx][1];
+            firstdirection[2] = firstcenter[2]-_vtx_pos_vv[ivtx][2];
+            seconddirection[0] = secondcenter[0]-_vtx_pos_vv[ivtx][0];
+            seconddirection[1] = secondcenter[1]-_vtx_pos_vv[ivtx][1];
+            seconddirection[2] = secondcenter[2]-_vtx_pos_vv[ivtx][2];
+
 
             if (alpha >.349&&(alpha<3.14 || alpha >3.15)&&alpha<5.93){
-              _pi0mass = std::sqrt( 4 * _shower_energy_vv[0][2]*_secondshower_energy_vv[0][2] *
+               pi0mass = std::sqrt( 4 * _shower_energy_vv[ivtx][2]*_secondshower_energy_vv[ivtx][2] *
                         (sin(alpha/2.0) *sin(alpha/2.0)));
-
-              std::cout<<"Pi0 Mass!!! "<<_pi0mass<<std::endl;
+              std::cout<<"Pi0 Mass!!! "<<pi0mass<<std::endl;
             }
 
-
           }//end of if showers are different
-
         }//end of running mass calculation
-
-
       }
-
-
+      _firstdirection.push_back(firstdirection);
+      _seconddirection.push_back(seconddirection);
+      _pi0mass.push_back(pi0mass);
+      _disttoint.push_back(disttoint);
+      _impact1.push_back(impact1);
+      _impact2.push_back(impact2);
+      _alpha.push_back(alpha);
 
       if (_second_shower && _use_ncpi0){
         //{u1,u2,v1,v2,y1,y2}
-        _ShowerTruthMatch_pur_v={-1,-1,-1,-1,-1,-1};
-        _ShowerTruthMatch_eff_v={-1,-1,-1,-1,-1,-1};
+        std::vector<float> ShowerTruthMatch_pur_v={-1,-1,-1,-1,-1,-1};
+        std::vector<float> ShowerTruthMatch_eff_v={-1,-1,-1,-1,-1,-1};
+
         std::vector<std::vector<float>> truthmatches(6,std::vector<float> (2,0));
         truthmatches[0] = (SecondShower.TruthMatchNCPi0(shower_points_vv[0], masked_adc_vvv[0],
               ev_segment, ev_instance, 0));
@@ -1086,25 +1130,28 @@ namespace ssnetshowerreco {
         truthmatches[5] = (SecondShower.TruthMatchNCPi0(shower_points_vv[5], masked_adc_vvv[2],
               ev_segment, ev_instance, 2));
         for(int idx = 0;idx <6;idx++){
-          _ShowerTruthMatch_pur_v[idx] = truthmatches[idx][0];
-          _ShowerTruthMatch_eff_v[idx] = truthmatches[idx][1];
-        }
+          ShowerTruthMatch_pur_v[idx] = truthmatches[idx][0];
+          ShowerTruthMatch_eff_v[idx] = truthmatches[idx][1];
 
-        // std::cout<<"U PLANE 1 Purity: "<<_ShowerTruthMatch_pur_v[0]<<std::endl;
-        // std::cout<<"U PLANE 2 Purity: "<<_ShowerTruthMatch_pur_v[1]<<std::endl;
-        // std::cout<<"U Plane efficiency: "<<_ShowerTruthMatch_eff_v[0]+_ShowerTruthMatch_eff_v[1]<<std::endl;
-        // std::cout<<"V PLANE 1 Purity: "<<_ShowerTruthMatch_pur_v[2]<<std::endl;
-        // std::cout<<"V PLANE 2 Purity: "<<_ShowerTruthMatch_pur_v[3]<<std::endl;
-        // std::cout<<"V Plane efficiency: "<<_ShowerTruthMatch_eff_v[2]+_ShowerTruthMatch_eff_v[3]<<std::endl;
-        // std::cout<<"Y PLANE 1 Purity: "<<_ShowerTruthMatch_pur_v[4]<<std::endl;
-        // std::cout<<"Y PLANE 2 Purity: "<<_ShowerTruthMatch_pur_v[5]<<std::endl;
-        // std::cout<<"Y Plane efficiency: "<<_ShowerTruthMatch_eff_v[4]+_ShowerTruthMatch_eff_v[5]<<std::endl;
+        }
+        _ShowerTruthMatch_eff_vv.push_back(ShowerTruthMatch_eff_v);
+        _ShowerTruthMatch_pur_vv.push_back(ShowerTruthMatch_pur_v);
+        //
+        // std::cout<<"U PLANE 1 Purity: "<<ShowerTruthMatch_pur_v[0]<<std::endl;
+        // std::cout<<"U PLANE 2 Purity: "<<ShowerTruthMatch_pur_v[1]<<std::endl;
+        // std::cout<<"U Plane efficiency: "<<ShowerTruthMatch_eff_v[0]+ShowerTruthMatch_eff_v[1]<<std::endl;
+        // std::cout<<"V PLANE 1 Purity: "<<ShowerTruthMatch_pur_v[2]<<std::endl;
+        // std::cout<<"V PLANE 2 Purity: "<<ShowerTruthMatch_pur_v[3]<<std::endl;
+        // std::cout<<"V Plane efficiency: "<<ShowerTruthMatch_eff_v[2]+ShowerTruthMatch_eff_v[3]<<std::endl;
+        // std::cout<<"Y PLANE 1 Purity: "<<ShowerTruthMatch_pur_v[4]<<std::endl;
+        // std::cout<<"Y PLANE 2 Purity: "<<ShowerTruthMatch_pur_v[5]<<std::endl;
+        // std::cout<<"Y Plane efficiency: "<<ShowerTruthMatch_eff_v[4]+ShowerTruthMatch_eff_v[5]<<std::endl;
       }//end of if sec and ncpi0
 
       if ( _use_nueint){
         //{u1,v1,y1}
-        _ShowerTruthMatch_pur_v={-1,-1,-1};
-        _ShowerTruthMatch_eff_v={-1,-1,-1};
+        std::vector<float> ShowerTruthMatch_pur_v={-1,-1,-1};
+        std::vector<float> ShowerTruthMatch_eff_v={-1,-1,-1};
         std::vector<std::vector<float>> truthmatches(3,std::vector<float> (2,0));
         truthmatches[0] = (SecondShower.TruthMatchNueint(shower_points_vv[0], masked_adc_vvv[0],
               ev_segment, ev_instance,0));
@@ -1114,10 +1161,12 @@ namespace ssnetshowerreco {
               ev_segment, ev_instance,2));
 
         for(int idx = 0;idx <3;idx++){
-          _ShowerTruthMatch_pur_v[idx] = truthmatches[idx][0];
-          _ShowerTruthMatch_eff_v[idx] = truthmatches[idx][1];
+          ShowerTruthMatch_pur_v[idx] = truthmatches[idx][0];
+          ShowerTruthMatch_eff_v[idx] = truthmatches[idx][1];
         }
 
+        _ShowerTruthMatch_eff_vv.push_back(ShowerTruthMatch_eff_v);
+        _ShowerTruthMatch_pur_vv.push_back(ShowerTruthMatch_pur_v);
         // std::cout<<"U PLANE Purity: "<<_ShowerTruthMatch_pur_v[0]<<std::endl;
         // std::cout<<"U Plane efficiency: "<<_ShowerTruthMatch_eff_v[0]<<std::endl;
         // std::cout<<"V PLANE Purity: "<<_ShowerTruthMatch_pur_v[1]<<std::endl;
@@ -1127,9 +1176,9 @@ namespace ssnetshowerreco {
       }//end of if nueint
 
 
-
-
     }//end of loop through vertices
+    std::cout<<"size of dist to int "<<_disttoint.size()<<std::endl;
+    std::cout<<"num of vertices: "<< _vtx_pos_vv.size()<<std::endl;
 
     return true;
   }//end of process function
@@ -1146,6 +1195,8 @@ namespace ssnetshowerreco {
 
     larlite::event_shower* evout_shower
       = (larlite::event_shower*)ioll.get_data( larlite::data::kShower, "ssnetshowerreco" );
+    larlite::event_shower* evout_shower2
+      = (larlite::event_shower*)ioll.get_data( larlite::data::kShower, "ssnetshowerreco_sec" );
     larlite::event_larflowcluster* evout_lfcluster
       = (larlite::event_larflowcluster*)ioll.get_data( larlite::data::kLArFlowCluster, "ssnetshowerreco" );
 
@@ -1154,8 +1205,9 @@ namespace ssnetshowerreco {
     }
 
     for ( size_t i=0; i<_shower_ll_v.size(); i++ ) {
-      evout_shower->push_back(    _shower_ll_v[i] );
-      evout_lfcluster->push_back( _shower_pixcluster_v[i] );
+      evout_shower->push_back(     _shower_ll_v[i] );
+      evout_shower2->push_back(    _secondshower_ll_v[i] );
+      evout_lfcluster->push_back(  _shower_pixcluster_v[i] );
     }
 
   }

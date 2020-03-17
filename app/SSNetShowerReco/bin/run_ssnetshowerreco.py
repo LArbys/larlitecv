@@ -175,6 +175,37 @@ for ientry in xrange(nentries):
             entrydata["secondshower_sumQs"].append( [ showerreco.getVertexSecondShowerSumQ(ivtx,p) for p in xrange(3) ] )
             entrydata["secondshower_shlengths"].append( [ showerreco.getVertexSecondShowerShlength(ivtx,p) for p in xrange(3) ] )
 
+    if args.use_bnb:
+        entrydata["pi0mass"] = []
+        entrydata["haspi0"] = showerreco.getHasPi0()
+        entrydata["ccnc"] = showerreco.getCCNC()
+        entrydata["disttoint"] = []
+        entrydata["impact1"] = []
+        entrydata["impact2"] = []
+        entrydata["alpha"] = []
+        entrydata["firstdirection"] = []
+        entrydata["seconddirection"] = []
+
+        mcpg.buildgraph( iolcv, ioll )
+        vtx_v = mcpg.findTrackID(-1).start
+        entrydata["true_vertex"] = [ vtx_v[i] for i in xrange(3) ] # get the ROOT node
+        offset_v = sce.GetPosOffsets( vtx_v[0], vtx_v[1], vtx_v[2] )
+        vtx_sce_v = [ vtx_v[0]-offset_v[0]+0.7,
+                      vtx_v[1]+offset_v[1],
+                      vtx_v[2]+offset_v[2] ]
+        entrydata["true_vertex_sce"] = vtx_sce_v
+
+        for ivtx in xrange(showerreco.numVertices()):
+                entrydata["pi0mass"].append( showerreco.getPi0Mass(ivtx))
+                entrydata["disttoint"].append( showerreco.getDistToInt(ivtx))
+                entrydata["impact1"].append( showerreco.getImpact1(ivtx))
+                entrydata["impact2"].append( showerreco.getImpact2(ivtx))
+                entrydata["alpha"].append( showerreco.getAlpha(ivtx))
+                for dir in xrange(3):
+                    entrydata["firstdirection"].append( showerreco.getFirstDirection(ivtx,dir))
+                    entrydata["seconddirection"].append( showerreco.getSecondDirection(ivtx,dir))
+
+
     if args.use_ncpi0:
         entrydata["true_shower_energies"] = []
         entrydata["true_shower_starts"] = []
@@ -183,22 +214,30 @@ for ientry in xrange(nentries):
         entrydata["overlap_fraction2"] = []
         entrydata["purity"] = []
         entrydata["efficiency"] = []
-        entrydata["useformass"] = showerreco.getUseForMass()
-        entrydata["pi0mass"] = showerreco.getPi0Mass()
+        entrydata["pi0mass"] = []
+        entrydata["useformass"] = []
+        entrydata["disttoint"] = []
+        entrydata["impact1"] = []
+        entrydata["impact2"] = []
 
-
+        for ivtx in xrange(showerreco.numVertices()):
+                entrydata["useformass"].append( showerreco.getUseForMass(ivtx))
+                entrydata["pi0mass"].append( showerreco.getPi0Mass(ivtx))
+                entrydata["disttoint"].append( showerreco.getDistToInt(ivtx))
+                entrydata["impact1"].append( showerreco.getImpact1(ivtx))
+                entrydata["impact2"].append( showerreco.getImpact2(ivtx))
+                entrydata["overlap_fraction1"].append( [showerreco.getOverlapFraction1(ivtx,plane,0) for plane in xrange(2) ] )
+                entrydata["overlap_fraction1"].append( [showerreco.getOverlapFraction1(ivtx,plane,1) for plane in xrange(2) ] )
+                entrydata["overlap_fraction2"].append( [showerreco.getOverlapFraction2(ivtx,plane,0) for plane in xrange(2) ] )
+                entrydata["overlap_fraction2"].append( [showerreco.getOverlapFraction2(ivtx,plane,1) for plane in xrange(2) ] )
+                entrydata["purity"].append( [showerreco.getShowerTruthMatchPur(ivtx,shower) for shower in xrange(6)])
+                entrydata["efficiency"].append( [showerreco.getShowerTruthMatchEff(ivtx,shower) for shower in xrange(6)])
 
 
         for ivtx in xrange(showerreco.numShowers()):
-            entrydata["purity"].append( [showerreco.getShowerTruthMatchPur(shower) for shower in xrange(6)])
-            entrydata["efficiency"].append( [showerreco.getShowerTruthMatchEff(shower) for shower in xrange(6)])
             entrydata["true_shower_energies"].append( [ showerreco.getTrueShowerEnergy(ivtx) for shower in xrange(2) ] )
             entrydata["true_shower_starts"].append( [ showerreco.getTrueShowerStarts(ivtx).at(p) for p in xrange(3) ] )
             entrydata["remaining_adc"].append( [showerreco.getRemainingADC()])
-            entrydata["overlap_fraction1"].append( [showerreco.getOverlapFraction1(plane,0) for plane in xrange(2) ] )
-            entrydata["overlap_fraction1"].append( [showerreco.getOverlapFraction1(plane,1) for plane in xrange(2) ] )
-            entrydata["overlap_fraction2"].append( [showerreco.getOverlapFraction2(plane,0) for plane in xrange(2) ] )
-            entrydata["overlap_fraction2"].append( [showerreco.getOverlapFraction2(plane,1) for plane in xrange(2) ] )
 
     if args.use_nueint:
         entrydata["uplane_profile"] = []
@@ -207,8 +246,10 @@ for ientry in xrange(nentries):
         entrydata["purity"] = []
         entrydata["efficiency"] = []
 
-        entrydata["purity"].append( [showerreco.getShowerTruthMatchPur(shower) for shower in xrange(3)])
-        entrydata["efficiency"].append( [showerreco.getShowerTruthMatchEff(shower) for shower in xrange(3)])
+
+        for ivtx in xrange(showerreco.numVertices()):
+            entrydata["purity"].append( [showerreco.getShowerTruthMatchPur(ivtx,shower) for shower in xrange(3)])
+            entrydata["efficiency"].append( [showerreco.getShowerTruthMatchEff(ivtx,shower) for shower in xrange(3)])
 
         for ii in xrange(showerreco.numpointsU()):
             entrydata["uplane_profile"].append( [ showerreco.getUPlaneShowerProfile(ii,index) for index in xrange(2) ] )

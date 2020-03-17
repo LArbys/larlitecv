@@ -452,21 +452,19 @@ std::vector<float> SecondShower::TruthMatchNueint(std::vector<float> triangle_v,
 
 bool SecondShower::RunMassCalc(std::vector<std::vector<float>> _match_y1_vv,
       std::vector<std::vector<float>>_match_y2_vv,
-      std::vector< std::vector<float> > _shower_energy_vv,
-      std::vector< std::vector<float> >_secondshower_energy_vv){
+      std::vector<float> shower_energy_v,
+      std::vector<float> secondshower_energy_v){
   //function that runs checks to determined if this event should be used for
   // determining a pi0 mass peak. 1) are both reco showers >35MeV? 2) for each shower
   // is there an overlap >.2 3) do they match to different showers
   bool useevent = false;
   //check shower energies
   bool goodenergy = false;
-  for( int vtx = 0;vtx<_shower_energy_vv.size(); vtx++){
-    // std::cout<<"energies: "<< _shower_energy_vv.at(vtx)[2]<<" "<<_secondshower_energy_vv.at(vtx)[2]<<std::endl;
-    if (_shower_energy_vv.at(vtx)[2] > 35 &&_secondshower_energy_vv.at(vtx)[2] > 35){
-      goodenergy = true;
-    }
+
+  if (shower_energy_v[2] > 35 && secondshower_energy_v[2] > 35){
+    goodenergy = true;
   }
-  // if (goodenergy) std::cout<<"Passes energy cut"<<std::endl;
+
   //check overlap
   bool hasoverlap1= false;
   bool hasoverlap2= false;
@@ -541,28 +539,99 @@ std::vector<std::vector<float>> SecondShower::Get3DPoints(std::vector<float> sho
 }//end of function
 
 //------------------------------------------------------------------------------
-float SecondShower::GetOpeningAngle(std::vector<std::vector<float>> firstshower,
-        std::vector<std::vector<float>> secondshower){
+std::vector<float> SecondShower::GetOpeningAngle(std::vector<std::vector<float>> firstshower,
+        std::vector<std::vector<float>> secondshower,std::vector<double> vertex){
   //function to get the opening angle of 2 clusters of 3d points
   float alpha = -1;
   //first calculate direction of showers
-  std::vector<float> firstdirection = GetDirection(firstshower);
-  std::vector<float> seconddirection = GetDirection(secondshower);
 
+  std::vector<std::vector<float>> first = GetPCA(firstshower);
+  std::vector<std::vector<float>> second = GetPCA(secondshower);
+
+  std::vector<float> firstdirection = first[0];
+  std::vector<float> firstcenter = first[1];
+  std::vector<float> seconddirection = second[0];
+  std::vector<float> secondcenter = second[1];
+
+  std::vector<float> intersection (3,0);
+  float disttoint = -1;
+
+  //find math in notes from 3/6/2020
+  float xd = firstdirection[0];
+  float yd = firstdirection[1];
+  float zd = firstdirection[2];
+  float xc = firstcenter[0];
+  float yc = firstcenter[1];
+  float zc = firstcenter[2];
+  float id = seconddirection[0];
+  float jd = seconddirection[1];
+  float kd = seconddirection[2];
+  float ic = secondcenter[0];
+  float jc = secondcenter[1];
+  float kc = secondcenter[2];
+
+  //finding dist from int to vertex
+  if(jd-id*yd != 0){
+    float t2 = (xd*(yc-jc)+yd*(ic-xc))/(jd-id*yd);
+    intersection[0] = xc+t2*xd;
+    intersection[1] = yc+t2*yd;
+    intersection[2] = zc+t2*zd;
+
+  }
+  disttoint = std::sqrt(std::pow(intersection[0]-vertex[0],2)+std::pow(intersection[1]-vertex[1],2)+std::pow(intersection[2]-vertex[2],2));
+
+  //finding distance from vtx to closest point on the line
+  float magdir1 = std::sqrt(xd*xd+yd*yd+zd*zd);
+  float magdir2 = std::sqrt(id*id+jd*jd+kd*kd);
+  float xdiff = xc-vertex[0];
+  float ydiff = yc-vertex[1];
+  float zdiff = zc-vertex[2];
+  float idiff = ic-vertex[0];
+  float jdiff = jc-vertex[1];
+  float kdiff = kc-vertex[2];
+  float xcross = ydiff*zd-zdiff*yd;
+  float ycross = -xdiff*zd+zdiff*xd;
+  float zcross = xdiff*yd-ydiff*xd;
+  float icross = jdiff*kd-kdiff*jd;
+  float jcross = -idiff*kd+kdiff*id;
+  float kcross = idiff*jd-jdiff*id;
+  float impact1 = (std::sqrt(xcross*xcross+ycross*ycross+zcross*zcross))/magdir1;
+  float impact2 = (std::sqrt(icross*icross+jcross*jcross+kcross*kcross))/magdir2;
+  std::cout<<"impact distance 1: "<<impact1<<std::endl;
+  std::cout<<"impact distance 2: "<<impact2<<std::endl;
+  std::cout<<"distance to intersection: "<<disttoint<<std::endl;
+  //change direction to diff between pca center and vertex
+  firstdirection[0] = firstcenter[0]-vertex[0];
+  firstdirection[1] = firstcenter[1]-vertex[1];
+  firstdirection[2] = firstcenter[2]-vertex[2];
+  seconddirection[0] = secondcenter[0]-vertex[0];
+  seconddirection[1] = secondcenter[1]-vertex[1];
+  seconddirection[2] = secondcenter[2]-vertex[2];
   //cos(alpha) = (u dot v)/(mag(u)*mag(v))
   float dotprod = (firstdirection[0]*seconddirection[0])+(firstdirection[1]*
                     seconddirection[1])+(firstdirection[2]*seconddirection[2]);
+  float mag1 = std::sqrt((firstdirection[0]*firstdirection[0])+(firstdirection[1]*
+                    firstdirection[1])+(firstdirection[2]*firstdirection[2]));
+  float mag2 = std::sqrt((seconddirection[0]*seconddirection[0])+(seconddirection[1]*
+                    seconddirection[1])+(seconddirection[2]*seconddirection[2]));
 
   //mag should be 1 because eigen vectors
 
-  alpha = acos(dotprod);
+  alpha = acos(dotprod/(mag1*mag2));
 
-  return alpha;
+  std::vector<float> parameters (4,0);
+  parameters[0] = alpha;
+  parameters[1] = disttoint;
+  parameters[2] = impact1;
+  parameters[3] = impact2;
+
+  return parameters;
 }//end of function
 //------------------------------------------------------------------------------
-std::vector<float> SecondShower::GetDirection(std::vector<std::vector<float>> shower){
+std::vector<std::vector<float>> SecondShower::GetPCA(std::vector<std::vector<float>> shower){
   //function to calculate direction of 3d points using PCA
   std::vector<float> direction_v (3,0); //x,y,z
+  std::vector<float> centroid_v (3,0); //x,y,z
   TPrincipal* principal = new TPrincipal(3,"ND");
   //add data points to root object
   for (int ii = 0; ii<shower.size(); ii++){
@@ -574,14 +643,22 @@ std::vector<float> SecondShower::GetDirection(std::vector<std::vector<float>> sh
   }
   //run PCA
   principal->MakePrincipals();
-  // principal->Print("MSEV");
+  // principal->Print("MSE");
   const TMatrixD* eigenvectors = principal->GetEigenVectors();
+  const TVectorD* meanvalues = principal->GetMeanValues();
 
   direction_v[0] = (float) (*eigenvectors)(0,0);
   direction_v[1] = (float) (*eigenvectors)(1,0);
   direction_v[2] = (float) (*eigenvectors)(2,0);
+  centroid_v[0] = (float) (*meanvalues)(0);
+  centroid_v[1] = (float) (*meanvalues)(1);
+  centroid_v[2] = (float) (*meanvalues)(2);
 
-  return direction_v;
+  // std::cout<<"mean values: "<<centroid_v[0]<<" "<<centroid_v[1]<<" "<<centroid_v[2]<<std::endl;
+  std::vector<std::vector<float>> pca_vv;
+  pca_vv.push_back(direction_v);
+  pca_vv.push_back(centroid_v);
+  return pca_vv;
 }//end of function
 //------------------------------------------------------------------------------
 
