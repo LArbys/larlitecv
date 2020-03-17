@@ -25,15 +25,16 @@ CORE_SUBDIRS := Hashlib2plus Base
 #  CORE_SUBDIRS += CVUtil
 #endif
 
-APP_SUBDIRS := TaggerTypes Combinator FlashMatchInterface GapChs UnipolarHack ChargeSegmentAlgos T3DMerge SCE 
+APP_SUBDIRS := TaggerTypes Combinator FlashMatchInterface GapChs UnipolarHack ChargeSegmentAlgos T3DMerge SCE
 APP_SUBDIRS += MCTruthTools
 APP_SUBDIRS += TrackHitSorter LLCVProcessor
 ifeq ($(LARLITECV_OPENCV),1)
   APP_SUBDIRS += TaggerContourTools
 endif
 # TAGGER CHAIN
-APP_SUBDIRS += ThruMu StopMu UntaggedClustering ContainedROI TaggerCROI
-
+APP_SUBDIRS += ThruMu StopMu UntaggedClustering ContainedROI TaggerCROI DQDXCalculator
+# This is only building this app now.
+# APP_SUBDIRS = DQDXCalculator
 
 .phony: all clean
 
@@ -62,7 +63,7 @@ lib: obj
 	  else \
 	   echo Nothing to be done for lib...; \
 	fi
-	@echo 
+	@echo
 
 bin: obj lib
 	@echo
@@ -73,4 +74,3 @@ bin: obj lib
 	@echo Building analysis routines
 	@make --directory=$(LARLITECV_BASEDIR)/app/AnalyzeTagger
 	@ln -fs $(LARLITECV_BASEDIR)/app/AnalyzeTagger/run_pixel_analysis $(LARLITECV_BASEDIR)/bin/run_pixel_analysis
-
