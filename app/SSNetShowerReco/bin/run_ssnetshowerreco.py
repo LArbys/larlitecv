@@ -68,7 +68,11 @@ if args.output_format=='both':
 
 nentries = iolcv.get_n_entries()
 
-showerreco = larlitecv.ssnetshowerreco.SSNetShowerReco()
+uselarlite =False
+if args.output_format in ['larlite','both']:
+    uselarlite =True
+
+showerreco = larlitecv.ssnetshowerreco.SSNetShowerReco(uselarlite,llout_name)
 mcpg = larlitecv.mctruthtools.MCPixelPGraph()
 sce  = larutil.SpaceChargeMicroBooNE() # larutil.SpaceChargeMicroBooNE.kMCC9_Forward
 
@@ -264,6 +268,7 @@ for ientry in xrange(nentries):
 
     data["entries"].append( entrydata )
 
+showerreco.finalize()
 print "output json"
 if args.output_format in ['json','both']:
     fout = open(jout_name, 'w' )

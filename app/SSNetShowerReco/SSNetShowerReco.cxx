@@ -16,7 +16,7 @@ namespace ssnetshowerreco {
    *
    * sets some defaults for parameters
    */
-  SSNetShowerReco::SSNetShowerReco() {
+  SSNetShowerReco::SSNetShowerReco(bool make_larlite, std::string outputname ) {
 
     _adc_tree_name = "wire";
     _calib_adc_tree_name = "calibrated";
@@ -39,7 +39,40 @@ namespace ssnetshowerreco {
     _second_shower = false;
     _second_shower_adc_threshold = 5000;
     clear();
+    if (make_larlite){
+      // OutFile = TFile(outputname.c_str(),"WRITE");
+      // OutFile = TFile::Open(outputname.c_str(),"WRITE");
+      setupAnaTree();
+    }
   }
+
+  //set up output ana tree
+  void SSNetShowerReco::setupAnaTree(){
+    // OutFile->cd();
+    _ana_tree = new TTree("anatree", "anatree");
+
+    _ana_tree->Branch("3dOpeningAngle",&_alpha);
+    _ana_tree->Branch("Pi0Mass",&_pi0mass);
+    _ana_tree->Branch("ImpactParameter1",&_impact1);
+    _ana_tree->Branch("ImpactParameter2",&_impact2);
+    _ana_tree->Branch("3dDirectionShower1",&_firstdirection);
+    _ana_tree->Branch("3dDirectionShower1",&_seconddirection);
+    _ana_tree->Branch("OverlapFractionY1",&_match_y1_vv);
+    _ana_tree->Branch("OverlapFractionY2",&_match_y2_vv);
+    _ana_tree->Branch("GapDistance1",&_shower_gap_vv);
+    _ana_tree->Branch("GapDistance2",&_secondshower_gap_vv);
+    _ana_tree->Branch("2DShowerStart1",&_shower_start_2d_vvv);
+    _ana_tree->Branch("2DShowerStart2",&_secondshower_start_2d_vvv);
+
+  }//end of setup ana tree funtion
+
+  //write to outputfile
+  void SSNetShowerReco::finalize(){
+    // OutFile = TFile::Open("output_larlite.root","WRITE");
+    // setupAnaTree();
+    // OutFile->cd();
+    _ana_tree->Write();
+  }//end of finalize function
 
   /**
    * clear result containers
@@ -49,11 +82,16 @@ namespace ssnetshowerreco {
     _shower_energy_vv.clear();
     _shower_sumQ_vv.clear();
     _shower_shlength_vv.clear();
+    _shower_gap_vv.clear();
+    _shower_start_2d_vvv.clear();
     _secondshower_energy_vv.clear();
     _secondshower_sumQ_vv.clear();
     _secondshower_shlength_vv.clear();
+    _secondshower_gap_vv.clear();
+    _secondshower_start_2d_vvv.clear();
     _vtx_pos_vv.clear();
     _shower_ll_v.clear();
+    _secondshower_ll_v.clear();
     _shower_pixcluster_v.clear();
     _true_energy_vv.clear();
     _match_y1_vv.clear();
@@ -419,6 +457,7 @@ namespace ssnetshowerreco {
 
     // clear result container
     clear();
+    // OutFile->cd();
     //get second shower functions
     SecondShower SecondShower;
     Utils Utils;
@@ -627,28 +666,36 @@ namespace ssnetshowerreco {
       for ( size_t p=0; p<3; p++ ) {
         imgcoord_v[p] = larutil::Geometry::GetME()->NearestWire( _vtx_pos_vv[ivtx], (int)p );
       }
-
+      std::vector<int>   shower_gap_v(3,0);
       std::vector<float> shower_energy_v(3,0);
       std::vector<float> shower_sumQ_v(3,0);
       std::vector<float> shower_shlength_v(3,0);
+      std::vector<std::vector<int>> secondshower_start_2d_vv;
+      std::vector<std::vector<int>> shower_start_2d_vv;
+      std::vector<int>   secondshower_gap_v(3,0);
       std::vector<float> secondshower_energy_v(3,0);
       std::vector<float> secondshower_sumQ_v(3,0);
       std::vector<float> secondshower_shlength_v(3,0);
 
       for ( size_t p=0; p<3; p++ ) {
-        int vtx_pix2[2] = { (int)wire_meta[p].col(imgcoord_v[p]) , (int)wire_meta[p].row(imgcoord_v[3])};
+        std::vector<int> vtx_pix2 = { (int)wire_meta[p].col(imgcoord_v[p]) , (int)wire_meta[p].row(imgcoord_v[3])};
         //std::cout << "[SSNetShowerReco]   Plane [" << p << "]" << std::endl;
-        int vtx_pix[2] = { (int)wire_meta[p].col(imgcoord_v[p]) , (int)wire_meta[p].row(imgcoord_v[3])};
+        std::vector<int> vtx_pix = { (int)wire_meta[p].col(imgcoord_v[p]) , (int)wire_meta[p].row(imgcoord_v[3])};
         int vtx_pix_original[2] = { (int)wire_meta[p].col(imgcoord_v[p]) , (int)wire_meta[p].row(imgcoord_v[3])};
         //std::cout << "[SSNetShowerReco]     vertex pixel: (" << vtx_pix[0] << "," << vtx_pix[1] << ")" << std::endl;
         float shangle  = _findDir( masked_adc_vvv[p], vtx_pix[0], vtx_pix[1] );
         float shangle2 = -1;
+        int step = -1;
+        int step2 =-1;
+        std::vector<int> shower_start_2d_v(2,-1);
+        std::vector<int> secondshower_start_2d_v(2,-1);
         if (allowGap){
           int step = SecondShower.ChooseGapSize(vtx_pix[0],vtx_pix[1],shangle,
             masked_adc_vvv[p], 1);
           vtx_pix[0] = vtx_pix[0] + (step * cos(shangle));
           vtx_pix[1] = vtx_pix[1] + (step * sin(shangle));
         }
+
         // std::cout << "[SSNetShowerReco]     shower angle: " << shangle << std::endl;
         float shlength = _findLen( masked_adc_vvv[p],  shangle, vtx_pix[0], vtx_pix[1] );
         float shlength2 = -1;
@@ -783,12 +830,15 @@ namespace ssnetshowerreco {
 
           }//end of remaining adc check
 
+          secondshower_gap_v[p] = step2;
+          secondshower_start_2d_vv.push_back(vtx_pix2);
           secondshower_energy_v[p] = reco_energy2;
           secondshower_sumQ_v[p] = sumQ2;
           secondshower_shlength_v[p] = shlength2;
 
         }//end of second shower search
-
+        shower_gap_v[p] = step;
+        shower_start_2d_vv.push_back(vtx_pix);
         shower_energy_v[p] = reco_energy;
         shower_sumQ_v[p] = sumQ;
         shower_shlength_v[p] = shlength;
@@ -997,9 +1047,13 @@ namespace ssnetshowerreco {
       }//end of plane loop
 
       // store floats
+      _shower_start_2d_vvv.push_back( shower_start_2d_vv );
+      _shower_gap_vv.push_back( shower_gap_v );
       _shower_energy_vv.push_back( shower_energy_v );
       _shower_sumQ_vv.push_back( shower_sumQ_v );
       _shower_shlength_vv.push_back( shower_shlength_v );
+      _secondshower_start_2d_vvv.push_back( secondshower_start_2d_vv );
+      _secondshower_gap_vv.push_back( shower_gap_v );
       _secondshower_energy_vv.push_back( secondshower_energy_v );
       _secondshower_sumQ_vv.push_back( secondshower_sumQ_v );
       _secondshower_shlength_vv.push_back( secondshower_shlength_v );
@@ -1179,7 +1233,9 @@ namespace ssnetshowerreco {
     }//end of loop through vertices
     std::cout<<"size of dist to int "<<_disttoint.size()<<std::endl;
     std::cout<<"num of vertices: "<< _vtx_pos_vv.size()<<std::endl;
-
+    // OutFile->cd();
+    _ana_tree->Fill();
+    // OutFile->Write();
     return true;
   }//end of process function
 
@@ -1193,6 +1249,13 @@ namespace ssnetshowerreco {
    */
   void SSNetShowerReco::store_in_larlite( larlite::storage_manager& ioll ) {
 
+    // entrydata["disttoint"] = []
+    //     entrydata["impact1"] = []
+    //     entrydata["impact2"] = []
+    //     entrydata["alpha"] = []
+    //     entrydata["firstdirection"] = []
+    //     entrydata["seconddirection"] = []
+
     larlite::event_shower* evout_shower
       = (larlite::event_shower*)ioll.get_data( larlite::data::kShower, "ssnetshowerreco" );
     larlite::event_shower* evout_shower2
@@ -1205,10 +1268,11 @@ namespace ssnetshowerreco {
     }
 
     for ( size_t i=0; i<_shower_ll_v.size(); i++ ) {
-      evout_shower->push_back(     _shower_ll_v[i] );
+      evout_shower->push_back(    _shower_ll_v[i] );
       evout_shower2->push_back(    _secondshower_ll_v[i] );
-      evout_lfcluster->push_back(  _shower_pixcluster_v[i] );
+      evout_lfcluster->push_back( _shower_pixcluster_v[i] );
     }
+
 
   }
 

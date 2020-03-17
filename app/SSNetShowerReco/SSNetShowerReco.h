@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <cstring>
 
 // larcv
 #include "DataFormat/Image2D.h"
@@ -39,11 +40,12 @@ namespace ssnetshowerreco {
 
     typedef std::vector< std::vector<float> > triangle_t;
 
-    SSNetShowerReco();
+    SSNetShowerReco(bool make_larlite,std::string outputname);
     virtual ~SSNetShowerReco() {};
 
     bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll, int entry);//, larcv::IOManager& ioimgs );
-
+    void setupAnaTree();
+    void finalize();
     // get functions
     // -------------
 
@@ -180,9 +182,13 @@ namespace ssnetshowerreco {
     // variables filled
     // -----------------
     std::vector< std::vector<float> >  _shower_energy_vv;
+    std::vector< std::vector<int> >  _shower_gap_vv;
+    std::vector< std::vector< std::vector<int> > > _shower_start_2d_vvv;
     std::vector< std::vector<float> >  _shower_sumQ_vv;
     std::vector< std::vector<float> >  _shower_shlength_vv;
     std::vector< std::vector<float> >  _secondshower_energy_vv;
+    std::vector< std::vector<int> >  _secondshower_gap_vv;
+    std::vector< std::vector< std::vector<int> > > _secondshower_start_2d_vvv;
     std::vector< std::vector<float> >  _secondshower_sumQ_vv;
     std::vector< std::vector<float> >  _secondshower_shlength_vv;
     std::vector< std::vector<double> > _vtx_pos_vv;
@@ -211,6 +217,8 @@ namespace ssnetshowerreco {
     std::vector<std::vector<float>> _firstdirection;
     int _haspi0;
     int _ccnc;
+    TTree* _ana_tree;
+    TFile* OutFile;
   public:
     void clear();
 
