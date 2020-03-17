@@ -41,13 +41,13 @@ include $(LARLITECV_BASEDIR)/Makefile/Makefile.${OSNAME}
 
 # Add your program below with a space after the previous one.
 # This makefile compiles all binaries specified below.
-PROGRAMS = run_tagger run_cosmictagger
+PROGRAMS = run_filter
 
 all: $(PROGRAMS)
 
 %: %.cxx
 	@echo '<<compiling' $@'>>'
-	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS) -std=c++17
+	@$(CXX) $@.cxx -o $@ $(CXXFLAGS) $(LDFLAGS) -std=c++11
 	@rm -rf *.dSYM
 clean:	
 	rm -f $(PROGRAMS)
