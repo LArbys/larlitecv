@@ -56,7 +56,7 @@ namespace ssnetshowerreco {
     _ana_tree->Branch("ImpactParameter1",&_impact1);
     _ana_tree->Branch("ImpactParameter2",&_impact2);
     _ana_tree->Branch("3dDirectionShower1",&_firstdirection);
-    _ana_tree->Branch("3dDirectionShower1",&_seconddirection);
+    _ana_tree->Branch("3dDirectionShower2",&_seconddirection);
     _ana_tree->Branch("OverlapFractionY1",&_match_y1_vv);
     _ana_tree->Branch("OverlapFractionY2",&_match_y2_vv);
     _ana_tree->Branch("GapDistance1",&_shower_gap_vv);
