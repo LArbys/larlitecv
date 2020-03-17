@@ -181,16 +181,24 @@ namespace ssnetshowerreco {
   protected:
     // variables filled
     // -----------------
+    int _run;
+    int _subrun;
+    int _event;
+    std::vector<int> _vtxid;
     std::vector< std::vector<float> >  _shower_energy_vv;
     std::vector< std::vector<int> >  _shower_gap_vv;
     std::vector< std::vector< std::vector<int> > > _shower_start_2d_vvv;
     std::vector< std::vector<float> >  _shower_sumQ_vv;
     std::vector< std::vector<float> >  _shower_shlength_vv;
+    std::vector< std::vector<float> >  _shower_shangle_vv;
+    std::vector< std::vector<float> >  _shower_shopen_vv;
     std::vector< std::vector<float> >  _secondshower_energy_vv;
     std::vector< std::vector<int> >  _secondshower_gap_vv;
     std::vector< std::vector< std::vector<int> > > _secondshower_start_2d_vvv;
     std::vector< std::vector<float> >  _secondshower_sumQ_vv;
     std::vector< std::vector<float> >  _secondshower_shlength_vv;
+    std::vector< std::vector<float> >  _secondshower_shangle_vv;
+    std::vector< std::vector<float> >  _secondshower_shopen_vv;
     std::vector< std::vector<double> > _vtx_pos_vv;
     std::vector< larlite::shower >         _shower_ll_v;
     std::vector< larlite::shower >         _secondshower_ll_v;

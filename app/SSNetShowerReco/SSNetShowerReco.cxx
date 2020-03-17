@@ -50,7 +50,10 @@ namespace ssnetshowerreco {
   void SSNetShowerReco::setupAnaTree(){
     // OutFile->cd();
     _ana_tree = new TTree("anatree", "anatree");
-
+    _ana_tree->Branch("Run",&_run);
+    _ana_tree->Branch("Subrun",&_subrun);
+    _ana_tree->Branch("Event",&_event);
+    _ana_tree->Branch("Vtxid",&_vtxid);
     _ana_tree->Branch("3dOpeningAngle",&_alpha);
     _ana_tree->Branch("Pi0Mass",&_pi0mass);
     _ana_tree->Branch("ImpactParameter1",&_impact1);
@@ -63,6 +66,17 @@ namespace ssnetshowerreco {
     _ana_tree->Branch("GapDistance2",&_secondshower_gap_vv);
     _ana_tree->Branch("2DShowerStart1",&_shower_start_2d_vvv);
     _ana_tree->Branch("2DShowerStart2",&_secondshower_start_2d_vvv);
+    _ana_tree->Branch("ShowerSumADC",&_shower_sumQ_vv);
+    _ana_tree->Branch("ShowerLength",&_shower_shlength_vv);
+    _ana_tree->Branch("ShowerEnergy",&_shower_energy_vv);
+    _ana_tree->Branch("2dShowerDirection",&_shower_shangle_vv);
+    _ana_tree->Branch("2dShowerOpeningAngle",&_shower_shopen_vv);
+    _ana_tree->Branch("SecondShowerSumADC",&_secondshower_sumQ_vv);
+    _ana_tree->Branch("SecondShowerLength",&_secondshower_shlength_vv);
+    _ana_tree->Branch("SecondShowerEnergy",&_secondshower_energy_vv);
+    _ana_tree->Branch("2dSecondShowerDirection",&_secondshower_shangle_vv);
+    _ana_tree->Branch("2dSecondShowerOpeningAngle",&_secondshower_shopen_vv);
+
 
   }//end of setup ana tree funtion
 
@@ -82,11 +96,15 @@ namespace ssnetshowerreco {
     _shower_energy_vv.clear();
     _shower_sumQ_vv.clear();
     _shower_shlength_vv.clear();
+    _shower_shangle_vv.clear();
+    _shower_shopen_vv.clear();
     _shower_gap_vv.clear();
     _shower_start_2d_vvv.clear();
     _secondshower_energy_vv.clear();
     _secondshower_sumQ_vv.clear();
     _secondshower_shlength_vv.clear();
+    _secondshower_shangle_vv.clear();
+    _secondshower_shopen_vv.clear();
     _secondshower_gap_vv.clear();
     _secondshower_start_2d_vvv.clear();
     _vtx_pos_vv.clear();
@@ -106,6 +124,7 @@ namespace ssnetshowerreco {
     _firstdirection.clear();
     _seconddirection.clear();
     _alpha.clear();
+    _vtxid.clear();
   }
 
   /**
@@ -446,14 +465,6 @@ namespace ssnetshowerreco {
     // get tracks
     // store in root ana tree, store in json file
 
-    // parameters for later
-    // std::string adc_tree_name = "wire";
-    // std::string ssnet_shower_image_stem = "uburn"; // sometimes ubspurn (when files made at FNAL)
-    // std::string vertex_tree_name = "test";
-    // std::string track_tree_name  = "trackReco";
-    // float Qcut = 10;
-    // float Scut = 0.05;
-    // float SSNET_SHOWER_THRESHOLD = 0.5;
 
     // clear result container
     clear();
@@ -467,6 +478,10 @@ namespace ssnetshowerreco {
 
     std::vector<int> vtx2d_true;
 
+    _run    = ioll.run_id();
+    _subrun = ioll.subrun_id();
+    _event  = ioll.event_id();
+    std::cout<<"(r,s,e)="<<_run<<","<<_subrun<<","<<_event<<std::endl;
     //load in inputs
     larcv::EventImage2D* ev_adc
       = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _adc_tree_name );
@@ -591,6 +606,7 @@ namespace ssnetshowerreco {
     _vtx_pos_vv.clear();
 
     if (!useTrueVtx){
+      int vtxid =0;
       for ( auto const& pgraph : ev_vtx->PGraphArray() ) {
         if ( pgraph.ParticleArray().size()==0 ) continue; // dont expect this
         auto const& roi = pgraph.ParticleArray().front();
@@ -600,9 +616,12 @@ namespace ssnetshowerreco {
             && (vtx3d[2]>    0.001) && (vtx3d[2] < 1036.999)){
 
           _vtx_pos_vv.push_back( vtx3d );
+          _vtxid.push_back(vtxid);
+          std::cout<<"vertex id: "<<vtxid<<std::endl;
 
         }//end of if statement
         else std::cout<<"Outside fiducial volume!"<<std::endl;
+        vtxid++;
       }//end of loop over vertices/pgraph
     }
     else{
@@ -666,16 +685,20 @@ namespace ssnetshowerreco {
       for ( size_t p=0; p<3; p++ ) {
         imgcoord_v[p] = larutil::Geometry::GetME()->NearestWire( _vtx_pos_vv[ivtx], (int)p );
       }
+      std::vector<std::vector<int>> shower_start_2d_vv;
       std::vector<int>   shower_gap_v(3,0);
       std::vector<float> shower_energy_v(3,0);
       std::vector<float> shower_sumQ_v(3,0);
       std::vector<float> shower_shlength_v(3,0);
+      std::vector<float> shower_shangle_v(3,0);
+      std::vector<float> shower_shopen_v(3,0);
       std::vector<std::vector<int>> secondshower_start_2d_vv;
-      std::vector<std::vector<int>> shower_start_2d_vv;
       std::vector<int>   secondshower_gap_v(3,0);
       std::vector<float> secondshower_energy_v(3,0);
       std::vector<float> secondshower_sumQ_v(3,0);
       std::vector<float> secondshower_shlength_v(3,0);
+      std::vector<float> secondshower_shangle_v(3,0);
+      std::vector<float> secondshower_shopen_v(3,0);
 
       for ( size_t p=0; p<3; p++ ) {
         std::vector<int> vtx_pix2 = { (int)wire_meta[p].col(imgcoord_v[p]) , (int)wire_meta[p].row(imgcoord_v[3])};
@@ -835,6 +858,8 @@ namespace ssnetshowerreco {
           secondshower_energy_v[p] = reco_energy2;
           secondshower_sumQ_v[p] = sumQ2;
           secondshower_shlength_v[p] = shlength2;
+          secondshower_shangle_v[p]=shangle2;
+          secondshower_shopen_v[p]=shopen2;
 
         }//end of second shower search
         shower_gap_v[p] = step;
@@ -842,6 +867,8 @@ namespace ssnetshowerreco {
         shower_energy_v[p] = reco_energy;
         shower_sumQ_v[p] = sumQ;
         shower_shlength_v[p] = shlength;
+        shower_shangle_v[p]=shangle;
+        shower_shopen_v[p]=shopen;
 
         // make larlite
         // -------------
@@ -1052,11 +1079,15 @@ namespace ssnetshowerreco {
       _shower_energy_vv.push_back( shower_energy_v );
       _shower_sumQ_vv.push_back( shower_sumQ_v );
       _shower_shlength_vv.push_back( shower_shlength_v );
+      _shower_shangle_vv.push_back( shower_shangle_v );
+      _shower_shopen_vv.push_back( shower_shopen_v );
       _secondshower_start_2d_vvv.push_back( secondshower_start_2d_vv );
       _secondshower_gap_vv.push_back( shower_gap_v );
       _secondshower_energy_vv.push_back( secondshower_energy_v );
       _secondshower_sumQ_vv.push_back( secondshower_sumQ_v );
       _secondshower_shlength_vv.push_back( secondshower_shlength_v );
+      _secondshower_shangle_vv.push_back( secondshower_shangle_v );
+      _secondshower_shopen_vv.push_back( secondshower_shopen_v );
 
       //do 3d shower match
       if (_second_shower){
