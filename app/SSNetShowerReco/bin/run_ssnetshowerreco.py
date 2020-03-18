@@ -1,9 +1,10 @@
+#!/usr/bin/env python
 import os,sys,json,argparse
 from math import sqrt
 
 parser = argparse.ArgumentParser( description="Run shower reco and save to json file" )
-parser.add_argument( "-ilcv",  "--input-larcv",   type=str,  required=True,  help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images")
-parser.add_argument( "-ilcvtruth",  "--input-larcvtruth",   type=str,  required=False,  help="Input larcv file. Should have segment images")
+parser.add_argument( "-ilcv",  "--input-larcv",   type=str,  required=True,  help="Input larcv file. Should have ADC image, vertexer PGraph, SSNet images [REQUIRED]")
+parser.add_argument( "-ilcvtruth",  "--input-larcvtruth",   type=str,  required=False,  help="Input larcv file. Should have segment images [OPTIONAL]")
 parser.add_argument( "-iimgs", "--input-images",  type=str,  default=None,   help="Input image file. Should be a dlmerged file for uncalibrated images or a calibrated* file in stage1")
 parser.add_argument( "-ill",   "--input-larlite", type=str,  default=None,   help="Input larlite file. Should have tracker trees and MC.")
 parser.add_argument( "-f",     "--output-format", type=str,  default="json", help="Set output format. Options={'json','larlite','both'}")
@@ -35,7 +36,7 @@ iolcv.add_in_file( args.input_larcv )
 if args.input_larcvtruth is not None:
     iolcv.add_in_file( args.input_larcvtruth)
 if args.input_images is not None:
-    ilcv.add_in_file( args.input_images )
+    iolcv.add_in_file( args.input_images )
 iolcv.initialize()
 
 # deprecated
