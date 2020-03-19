@@ -43,6 +43,7 @@ namespace ssnetshowerreco {
     SSNetShowerReco(bool make_larlite,std::string outputname);
     virtual ~SSNetShowerReco() {};
 
+    void initialize();
     bool process( larcv::IOManager& iocv, larlite::storage_manager& ioll, int entry);//, larcv::IOManager& ioimgs );
     void setupAnaTree();
     void finalize();
@@ -149,6 +150,7 @@ namespace ssnetshowerreco {
     std::string _adc_tree_name;
     std::string _calib_adc_tree_name;
     std::string _ssnet_shower_image_stem; // sometimes ubspurn (when files made at FNAL)
+    std::string _ssnet_shower_tree_name;  // default: ssnetshowerreco
     std::string _vertex_tree_name;
     std::string _partroi_tree_name;
     std::string _track_tree_name;
@@ -158,6 +160,7 @@ namespace ssnetshowerreco {
     std::string _mctruth_name;
     std::string _thrumu_tree_name;
 
+    bool  _make_larlite;
     float _Qcut;
     float _SSNET_SHOWER_THRESHOLD;
     bool  _use_calibrated_pixelsum2mev;
@@ -176,6 +179,7 @@ namespace ssnetshowerreco {
     void set_track_treename( std::string name )        { _track_tree_name = name; };
     void set_Qcut( float cut )                         { _Qcut = cut; };
     void set_SSNet_threshold( float threshold )        { _SSNET_SHOWER_THRESHOLD = threshold; };
+    void set_output_treename( std::string name )       { _ssnet_shower_tree_name = name; };
 
 
   protected:

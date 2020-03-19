@@ -16,6 +16,7 @@ parser.add_argument( "-sec",   "--second-shower", default=False, action='store_t
 parser.add_argument( "-ncpi0",   "--use-ncpi0", default=False, action='store_true', help="Using NCPi0 true info")
 parser.add_argument( "-nueint",   "--use-nueint", default=False, action='store_true', help="Using Nueint true info")
 parser.add_argument( "-bnb",   "--use-bnb", default=False, action='store_true', help="Using Bnb Overlay info")
+parser.add_argument( "-tn",    "--tree-name", default="ssnetshowerreco", type=str, help="Name of the output trees [ Default: 'ssnetshowerreco' ]")
 args = parser.parse_args()
 
 output_formats = ['json','larlite','both']
@@ -67,16 +68,11 @@ jout_name = args.output
 if args.output_format=='both':
     jout_name += ".json"
 
-nentries = iolcv.get_n_entries()
-
 uselarlite =False
 if args.output_format in ['larlite','both']:
     uselarlite =True
 
 showerreco = larlitecv.ssnetshowerreco.SSNetShowerReco(uselarlite,llout_name)
-mcpg = larlitecv.mctruthtools.MCPixelPGraph()
-sce  = larutil.SpaceChargeMicroBooNE() # larutil.SpaceChargeMicroBooNE.kMCC9_Forward
-
 showerreco.set_adc_treename( args.adc_tree )
 if args.use_calib:
     showerreco.use_calibrated_pixsum2mev( True )
@@ -88,9 +84,15 @@ if args.use_nueint:
     showerreco.use_nueint( True )
 if args.use_bnb:
     showerreco.use_bnb( True )
+showerreco.set_output_treename( args.tree_name )
+showerreco.initialize()
+
+mcpg = larlitecv.mctruthtools.MCPixelPGraph()
+sce  = larutil.SpaceChargeMicroBooNE() # larutil.SpaceChargeMicroBooNE.kMCC9_Forward
 
 data = {"entries":[]}
 
+nentries = iolcv.get_n_entries()
 for ientry in xrange(nentries):
     print "[ENTRY ",ientry,"]"
 

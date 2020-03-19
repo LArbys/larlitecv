@@ -29,7 +29,9 @@ namespace ssnetshowerreco {
     _instance_tree_name = "instance";
     _mctruth_name = "generator";
     _thrumu_tree_name = "thrumu";
+    _ssnet_shower_tree_name = "ssnetshowerreco";
 
+    _make_larlite = make_larlite;
     _Qcut = 10;
     _SSNET_SHOWER_THRESHOLD = 0.5;
     _use_calibrated_pixelsum2mev = false;
@@ -39,17 +41,22 @@ namespace ssnetshowerreco {
     _second_shower = false;
     _second_shower_adc_threshold = 5000;
     clear();
-    if (make_larlite){
+  }
+
+  void SSNetShowerReco::initialize() {
+    clear();
+    if (_make_larlite){
       // OutFile = TFile(outputname.c_str(),"WRITE");
       // OutFile = TFile::Open(outputname.c_str(),"WRITE");
       setupAnaTree();
-    }
+    }    
   }
 
   //set up output ana tree
   void SSNetShowerReco::setupAnaTree(){
     // OutFile->cd();
-    _ana_tree = new TTree("anatree", "anatree");
+    std::string anatreename = _ssnet_shower_tree_name + "_anatree";
+    _ana_tree = new TTree(anatreename.c_str(), "SSNet-based shower reco, analysis variables");
     _ana_tree->Branch("Run",&_run);
     _ana_tree->Branch("Subrun",&_subrun);
     _ana_tree->Branch("Event",&_event);
@@ -1288,11 +1295,11 @@ namespace ssnetshowerreco {
     //     entrydata["seconddirection"] = []
 
     larlite::event_shower* evout_shower
-      = (larlite::event_shower*)ioll.get_data( larlite::data::kShower, "ssnetshowerreco" );
+      = (larlite::event_shower*)ioll.get_data( larlite::data::kShower, _ssnet_shower_tree_name );
     larlite::event_shower* evout_shower2
-      = (larlite::event_shower*)ioll.get_data( larlite::data::kShower, "ssnetshowerreco_sec" );
+      = (larlite::event_shower*)ioll.get_data( larlite::data::kShower, _ssnet_shower_tree_name+"_sec" );
     larlite::event_larflowcluster* evout_lfcluster
-      = (larlite::event_larflowcluster*)ioll.get_data( larlite::data::kLArFlowCluster, "ssnetshowerreco" );
+      = (larlite::event_larflowcluster*)ioll.get_data( larlite::data::kLArFlowCluster, _ssnet_shower_tree_name );
 
     if ( _shower_ll_v.size()!=_shower_pixcluster_v.size() ) {
       throw std::runtime_error("[SSNetShwerReco::store_in_larlite] number of larlite shower objects and pixcluster not the same");
