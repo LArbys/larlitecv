@@ -84,8 +84,8 @@ namespace ssnetshowerreco {
     float getFirstDirection(int vtx, int dir) const {return _firstdirection[vtx][dir];};
     float getSecondDirection(int vtx, int dir) const {return _seconddirection[vtx][dir];};
 
-    float getVertexShowerGap( int vtxid, int plane ) const { return _shower_gap_vv[vtxid][plane]; };
-    float getVertexSecondShowerGap( int vtxid, int plane ) const { return _secondshower_gap_vv[vtxid][plane]; };
+    int getVertexShowerGap( int vtxid, int plane ) const { return _shower_gap_vv[vtxid][plane]; };
+    int getVertexSecondShowerGap( int vtxid, int plane ) const { return _secondshower_gap_vv[vtxid][plane]; };
     int getShowerStart2D(int vtxid, int plane, int dir) const{ return   _shower_start_2d_vvv[vtxid][plane][dir]; };
     int getSecondShowerStart2D(int vtxid, int plane, int dir) const{ return   _secondshower_start_2d_vvv[vtxid][plane][dir]; };
     float getVertexShowerDirection2D( int vtxid, int plane ) const { return _shower_shangle_vv[vtxid][plane]; };
