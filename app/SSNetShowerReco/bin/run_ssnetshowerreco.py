@@ -107,19 +107,33 @@ for ientry in xrange(nentries):
         outll.next_event()
 
     # print (iolcv.event_id().event())
-    entrydata = { "run":iolcv.event_id().run(),
-                  "subrun":iolcv.event_id().subrun(),
-                  "event":iolcv.event_id().event(),
+    entrydata = { "run":self.in_lcv.event_id().run(),
+                  "subrun":self.in_lcv.event_id().subrun(),
+                  "event":self.in_lcv.event_id().event(),
                   "shower_energies":[],
                   "shower_sumQs":[],
                   "shower_shlengths":[],
-                  "vertex_pos":[]}
+                  "vertex_pos":[],
+                  "shower_gap":[],
+                  "shower_direction_3d":[],
+                  "shower_direction_2d":[],
+                  "shower_opening_2d":[],
+                  "shower_start_2d":[],
+                  }
 
+    # Save first shower output
     for ivtx in xrange(showerreco.numVertices()):
         entrydata["shower_energies"].append( [ showerreco.getVertexShowerEnergy(ivtx,p) for p in xrange(3) ] )
         entrydata["shower_sumQs"].append( [ showerreco.getVertexShowerSumQ(ivtx,p) for p in xrange(3) ] )
         entrydata["shower_shlengths"].append( [ showerreco.getVertexShowerShlength(ivtx,p) for p in xrange(3) ] )
         entrydata["vertex_pos"].append( [ showerreco.getVertexPos(ivtx).at(p) for p in xrange(3) ] )
+        entrydata["shower_gap"].append( [ showerreco.getVertexShowerGap(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_direction_3d"].append( [ showerreco.getFirstDirection(ivtx,dir) for dir in xrange(3) ])
+        entrydata["shower_direction_2d"].append( [ showerreco.getVertexShowerDirection2D(ivtx,dir) for dir in xrange(3) ])
+        entrydata["shower_opening_2d"].append( [ showerreco.getVertexShowerOpening2D(ivtx,dir) for dir in xrange(3) ])
+        # showerstart also needs a loop over x,y,z
+        for p in xrange(3):
+            entrydata["shower_start_2d"].append( [ showerreco.getShowerStart2D(ivtx,p,dir) for dir in xrange(3) ])
 
     # save vertex truth information
     if args.has_mc:
@@ -172,15 +186,36 @@ for ientry in xrange(nentries):
             d = sqrt(d)
             entrydata["vertex_dist_from_truth"].append(d)
 
-    if args.second_shower:
+    if self.second_shr:
+        # Save second shower output
         entrydata["secondshower_energies"] = []
         entrydata["secondshower_sumQs"] = []
         entrydata["secondshower_shlengths"] = []
+        entrydata["secondshower_gap"] = []
+        entrydata["pi0mass"] = []
+        entrydata["opening_angle_3d"] = []
+        entrydata["shower_impact"] = []
+        entrydata["secondshower_impact"] =[]
+        entrydata["secondshower_direction_3d"]=[]
+        entrydata["secondshower_direction_2d"]=[]
+        entrydata["secondshower_opening_2d"]=[]
+        entrydata["secondshower_start_2d"] =[]
 
         for ivtx in xrange(showerreco.numVertices()):
             entrydata["secondshower_energies"].append( [ showerreco.getVertexSecondShowerEnergy(ivtx,p) for p in xrange(3) ] )
             entrydata["secondshower_sumQs"].append( [ showerreco.getVertexSecondShowerSumQ(ivtx,p) for p in xrange(3) ] )
             entrydata["secondshower_shlengths"].append( [ showerreco.getVertexSecondShowerShlength(ivtx,p) for p in xrange(3) ] )
+            entrydata["secondshower_gap"].append( [ showerreco.getVertexSecondShowerGap(ivtx,p) for p in xrange(3) ] )
+            entrydata["pi0mass"].append([showerreco.getPi0Mass(ivtx)])
+            entrydata["opening_angle_3d"].append([showerreco.getAlpha(ivtx)])
+            entrydata["shower_impact"].append([showerreco.getImpact1(ivtx)])
+            entrydata["secondshower_impact"].append([showerreco.getImpact2(ivtx)])
+            entrydata["secondshower_direction_2d"].append( [ showerreco.getVertexSecondShowerDirection2D(ivtx,dir) for dir in xrange(3) ])
+            entrydata["secondshower_opening_2d"].append( [ showerreco.getVertexSecondShowerOpening2D(ivtx,dir) for dir in xrange(3) ])
+            entrydata["secondshower_direction_3d"].append( [ showerreco.getSecondDirection(ivtx,dir) for dir in xrange(3) ])
+            # showerstart also needs a loop over x,y,z
+            for p in xrange(3):
+                entrydata["secondshower_start_2d"].append( [ showerreco.getSecondShowerStart2D(ivtx,p,dir) for dir in xrange(3) ])
 
     if args.use_bnb:
         entrydata["pi0mass"] = []
