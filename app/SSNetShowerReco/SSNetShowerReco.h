@@ -233,7 +233,7 @@ namespace ssnetshowerreco {
     TFile* OutFile;
   public:
     void clear();
-
+    TTree* getAnaTree() { return _ana_tree; };
 
   };
 
