@@ -107,9 +107,9 @@ for ientry in xrange(nentries):
         outll.next_event()
 
     # print (iolcv.event_id().event())
-    entrydata = { "run":self.in_lcv.event_id().run(),
-                  "subrun":self.in_lcv.event_id().subrun(),
-                  "event":self.in_lcv.event_id().event(),
+    entrydata = { "run":iolcv.event_id().run(),
+                  "subrun":iolcv.event_id().subrun(),
+                  "event":iolcv.event_id().event(),
                   "shower_energies":[],
                   "shower_sumQs":[],
                   "shower_shlengths":[],
@@ -186,7 +186,7 @@ for ientry in xrange(nentries):
             d = sqrt(d)
             entrydata["vertex_dist_from_truth"].append(d)
 
-    if self.second_shr:
+    if args.second_shower:
         # Save second shower output
         entrydata["secondshower_energies"] = []
         entrydata["secondshower_sumQs"] = []
