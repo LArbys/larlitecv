@@ -202,6 +202,71 @@ namespace ssnetshowerreco {
     return !(has_neg && has_pos);
 
   }
+  
+	/**
+   * get the enclosed charge in the whole image.
+   *
+   * @param[in]  chargeMap Image with charge info
+   * @param[in]  theta     Angle in radians in (col,row) coordinates that defines shower 2D direction
+   * @param[out] sumIn     total pixel sum of pixels inside triangle
+   * @param[out] triangle  set of 3 points that defines triangle used
+   * @param[in]  vtx_col   start point of triangle
+   * @param[in]  vtx_row   start point of triangle
+   * @param[in]  shLen     length of triangle to use, radial line from vertex
+   * @param[in]  shOpen    shower opening angle
+   *
+   */
+  void  SSNetShowerReco::_imageCharge( std::vector<std::vector<float>> img,
+																				larcv::ImageMeta meta,
+																				float& cropCharge, int p,
+																				int vtx_col,
+																				int vtx_row) {
+	
+		int tbounds[2] = { (int)(vtx_row-256*meta.pixel_height()),
+								 			 (int)(vtx_row+256*meta.pixel_height()) };
+		int wbounds[2] = { (int)(vtx_col-256*meta.pixel_width()),
+											 (int)(vtx_col+256*meta.pixel_width()) };
+
+		// correct bounds
+		int wireMax = 2400;
+		if(p == 2) wireMax = meta.max_x();
+
+		if ( tbounds[0]<=meta.min_y() ) {
+			tbounds[0] = meta.min_y()+meta.pixel_height();
+			tbounds[1] = tbounds[0] + 512*meta.pixel_height();
+		}
+		if ( tbounds[1]>=meta.max_y() ) {
+			tbounds[1] = meta.max_y() - meta.pixel_height();
+			tbounds[0] = tbounds[1] - 512*meta.pixel_height();
+		}
+		if ( wbounds[0]<=meta.min_x() ) {
+			wbounds[0] = meta.min_x()+meta.pixel_width();
+			wbounds[1] = wbounds[0] + 512*meta.pixel_width();
+		}
+		if ( wbounds[1]>=wireMax ) {
+			wbounds[1] = wireMax-meta.pixel_width();
+			wbounds[0] = wbounds[1] - 512*meta.pixel_width();
+		}
+		
+		std::cout << "tbounds: " << meta.row(tbounds[0]) << ", " << meta.row(tbounds[1]) << std::endl;
+		std::cout << "wbounds: " << meta.col(wbounds[0]) << ", " << meta.col(wbounds[1]) << std::endl;
+		std::cout << "First Row: " << img[0][0] << std::endl;
+		std::cout << "First Col: " << img[0][1] << std::endl;
+		std::cout << "Last Row: " << img[img.size()-1][0] << std::endl;
+		std::cout << "Last Col: " << img[img.size()-1][1] << std::endl;
+		float cropSum = 0;
+		for (int ii =0;ii<img.size();ii++){
+			if(img[ii][0]>=meta.row(tbounds[1])&&img[ii][0]<meta.row(tbounds[0])&&img[ii][1]>=meta.col(wbounds[0])&&img[ii][1]<meta.col(wbounds[1])){
+			  cropSum+=img[ii][2];
+			}
+		}
+		std::cout << "Crop sum: " << cropSum << std::endl;
+		cropCharge = cropSum;
+
+		
+
+ } // end of imageCharge
+
 
   /**
    * get the enclosed charge inside a triangle.
@@ -611,6 +676,7 @@ namespace ssnetshowerreco {
 
     // get candidate vertices, if in fiducial volume, keep
     _vtx_pos_vv.clear();
+			
 
     if (!useTrueVtx){
       int vtxid =0;
@@ -641,6 +707,7 @@ namespace ssnetshowerreco {
       std::vector<double> _scex(3,0);
       std::vector<double> _tx(3,0);
       std::vector<double> vtx3d_true;
+			
 
       // get true vertex
       for(auto const& roi : ev_partroi->ROIArray()){
@@ -706,6 +773,7 @@ namespace ssnetshowerreco {
       std::vector<float> secondshower_shlength_v(3,0);
       std::vector<float> secondshower_shangle_v(3,0);
       std::vector<float> secondshower_shopen_v(3,0);
+				
 
       for ( size_t p=0; p<3; p++ ) {
         std::vector<int> vtx_pix2 = { (int)wire_meta[p].col(imgcoord_v[p]) , (int)wire_meta[p].row(imgcoord_v[3])};
@@ -733,11 +801,14 @@ namespace ssnetshowerreco {
         float shopen   = _findOpen( masked_adc_vvv[p], shangle, shlength, vtx_pix[0], vtx_pix[1] );
         float shopen2 =-1;
         // std::cout << "[SSNetShowerReco]     open angle: " << shopen << std::endl;
-        float sumQ ;
+        float sumQ;
         float sumQ2 = -1 ;
+        float smallQ;
+        float smallQ2 = -1;
         triangle_t tri;
         std::vector< std::vector<int> > pixlist_v =
           _enclosedCharge( masked_adc_vvv[p], shangle, sumQ, tri, true, vtx_pix[0], vtx_pix[1], shlength, shopen );
+				_imageCharge( masked_adc_vvv[p], wire_meta[p], smallQ, p, imgcoord_v[p], imgcoord_v[3]);
 
         float reco_energy = 0;
         float reco_energy2 = -1;
@@ -802,6 +873,7 @@ namespace ssnetshowerreco {
             triangle_t tri2;
             std::vector< std::vector<int> > pixlist2_v =
               _enclosedCharge( secondshower_adc_vv, shangle2, sumQ2, tri2, true, vtx_pix2[0], vtx_pix2[1], shlength2, shopen2 );
+            _imageCharge( secondshower_adc_vv, wire_meta[p], smallQ2, p, vtx_pix[0], vtx_pix[1]);
 
             if ( _use_calibrated_pixelsum2mev )
               reco_energy2 = sumQ2*0.01324 + 37.83337; // calibrated images
@@ -902,6 +974,10 @@ namespace ssnetshowerreco {
         // set sumq
         shr.set_total_energy_err( sumQ );
         shr2.set_total_energy_err( sumQ2 );
+        
+				// set cropSumq
+        shr.set_dqdx( smallQ );
+        shr2.set_dqdx( smallQ2 );
 
         // set length
         shr.set_length( shlength );

@@ -135,6 +135,11 @@ namespace ssnetshowerreco {
                                                      int vtx_row=255,
                                                      float shLen = 100.0,
                                                      float shOpen = 0.3);
+		void  _imageCharge( std::vector<std::vector<float>> img,
+												larcv::ImageMeta meta,
+												float& cropCharge, int p,
+												int vtx_col,
+												int vtx_row);
 
     float _findDir( std::vector<std::vector<float>> chargeMap,
                     int vtx_col=255,
