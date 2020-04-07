@@ -84,6 +84,9 @@ if args.use_nueint:
     showerreco.use_nueint( True )
 if args.use_bnb:
     showerreco.use_bnb( True )
+if args.has_mc:
+    showerreco.use_mc( True )
+
 showerreco.set_output_treename( args.tree_name )
 showerreco.initialize()
 
@@ -137,6 +140,36 @@ for ientry in xrange(nentries):
 
     # save vertex truth information
     if args.has_mc:
+        # pi0 variables...
+        entrydata["ccnc"] = showerreco.getCCNC()
+        entrydata["haspi0"] = showerreco.getHasPi0()
+        entrydata["truefid"] = showerreco.getTrueFid()
+        entrydata["numtrueshowers"] = showerreco.getNumTrueShowers()
+
+        if (showerreco.getNumTrueShowers()> 0):
+            entrydata["shower_energy_true"]=[]
+            entrydata["shower_recotrue_dist"]=[]
+            entrydata["first_direction_true"]=[]
+            entrydata["shower_start_2d_true"]=[]
+
+            for ivtx in xrange(showerreco.numVertices()):
+                entrydata["shower_energy_true"].append( [ showerreco.getTrueShowerEnergy(ivtx)])
+                entrydata["shower_recotrue_dist"].append( [ showerreco.getShowerRecoTrueDist(ivtx)])
+                entrydata["first_direction_true"].append( [ showerreco.getTrueShowerDirection(ivtx,dir) for dir in xrange(3)])
+                entrydata["shower_start_2d_true"].append( [ showerreco.getTrueShower2DStart(ivtx,idx) for idx in xrange(4)])
+
+        if (showerreco.getNumTrueShowers()> 1):
+            entrydata["secondshower_energy_true"]=[]
+            entrydata["secondshower_recotrue_dist"]=[]
+            entrydata["second_direction_true"]=[]
+            entrydata["secondshower_start_2d_true"]=[]
+
+            for ivtx in xrange(showerreco.numVertices()):
+                entrydata["secondshower_energy_true"].append( [ showerreco.getTrueSecondShowerEnergy(ivtx)])
+                entrydata["secondshower_recotrue_dist"].append( [ showerreco.getSecondShowerRecoTrueDist(ivtx)])
+                entrydata["second_direction_true"].append( [ showerreco.getTrueSecondShowerDirection(ivtx,dir) for dir in xrange(3)])
+                entrydata["secondshower_start_2d_true"].append( [ showerreco.getTrueSecondShower2DStart(ivtx,idx) for idx in xrange(4)])
+
         # build graph and get primary particles
         mcpg.buildgraph( iolcv, ioll )
         mcpg.printGraph()
@@ -306,8 +339,10 @@ for ientry in xrange(nentries):
 
     data["entries"].append( entrydata )
 
-showerreco.finalize()
 print "output json"
+
+showerreco.finalize()
+
 if args.output_format in ['json','both']:
     fout = open(jout_name, 'w' )
     json.dump( data, fout )
@@ -315,6 +350,8 @@ if args.output_format in ['json','both']:
 
 print "close out"
 outll.close()
+
+
 iolcv.finalize()
 if args.input_larlite is not None:
     ioll.close()

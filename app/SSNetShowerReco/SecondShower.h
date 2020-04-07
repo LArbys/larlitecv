@@ -69,9 +69,13 @@ namespace ssnetshowerreco {
     float _sign( float x1, float y1,float x2, float y2,float x3, float y3 );
     int ChooseGapSize(int vtx_col,int vtx_row,float shangle,
       std::vector<std::vector<float>> crop_v, int showernum);
-    std::vector<double> SaveTrueEnergies(larlite::event_mcshower* ev_mcshower,
-                std::vector<double> _scex);
+
+    //truth functions
+    std::vector<double> SaveTrueEnergies(larlite::event_mcshower* ev_mcshower);
     std::vector<std::vector<double>> SaveTrueStarts(larlite::event_mcshower* ev_mcshower);
+    std::vector<std::vector<double>> SaveTrueDirections(larlite::event_mcshower* ev_mcshower);
+    std::vector<float> RecoTrueDistances(std::vector<int> true_shower1_tmp_2dstart,
+          std::vector<int> true_shower2_tmp_2dstart, std::vector<int>shower_start_2d_v);
 
     std::vector<std::vector<float>> Match_3D(std::vector<std::vector<float>> triangle_vv,
         std::vector<std::vector<std::vector<float>>> img_vvv, int shower_num);

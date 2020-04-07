@@ -28,7 +28,7 @@ namespace ssnetshowerreco {
     _segment_tree_name = "segment";
     _instance_tree_name = "instance";
     _mctruth_name = "generator";
-    _thrumu_tree_name = "thrumu";
+    _thrumu_tree_name = "wire";
     _ssnet_shower_tree_name = "ssnetshowerreco";
 
     _make_larlite = make_larlite;
@@ -45,11 +45,7 @@ namespace ssnetshowerreco {
 
   void SSNetShowerReco::initialize() {
     clear();
-    if (_make_larlite){
-      // OutFile = TFile(outputname.c_str(),"WRITE");
-      // OutFile = TFile::Open(outputname.c_str(),"WRITE");
-      setupAnaTree();
-    }    
+    setupAnaTree();
   }
 
   //set up output ana tree
@@ -83,7 +79,20 @@ namespace ssnetshowerreco {
     _ana_tree->Branch("SecondShowerEnergy",&_secondshower_energy_vv);
     _ana_tree->Branch("2dSecondShowerDirection",&_secondshower_shangle_vv);
     _ana_tree->Branch("2dSecondShowerOpeningAngle",&_secondshower_shopen_vv);
-
+    _ana_tree->Branch("RecoVtxPos",&_vtx_pos_vv);
+    //trur variables for testing
+    _ana_tree->Branch("truefid",&_truefid);
+    _ana_tree->Branch("TrueVtxPos",&_true_vtx_3d_v);
+    _ana_tree->Branch("TrueHasPi0",&_haspi0);
+    _ana_tree->Branch("TrueCCNC",&_ccnc);
+    _ana_tree->Branch("True3dDirectionShower2",&_seconddirection_true);
+    _ana_tree->Branch("True3dDirectionShower1",&_firstdirection_true);
+    _ana_tree->Branch("True2DShowerStart1",&_shower_start_2d_true_vvv);
+    _ana_tree->Branch("True2DShowerStart2",&_secondshower_start_2d_true_vvv);
+    _ana_tree->Branch("TrueShowerEnergy",&_shower_energy_true_vv);
+    _ana_tree->Branch("TrueSecondShowerEnergy",&_secondshower_energy_true_vv);
+    _ana_tree->Branch("TrueShowerRecoTrueDist",&_shower_recotrue_dist_v);
+    _ana_tree->Branch("TrueSecondShowerRecoTrueDist",&_secondshower_recotrue_dist_v);
 
   }//end of setup ana tree funtion
 
@@ -91,7 +100,6 @@ namespace ssnetshowerreco {
   void SSNetShowerReco::finalize(){
     // OutFile = TFile::Open("output_larlite.root","WRITE");
     // setupAnaTree();
-    // OutFile->cd();
     _ana_tree->Write();
   }//end of finalize function
 
@@ -119,6 +127,8 @@ namespace ssnetshowerreco {
     _secondshower_ll_v.clear();
     _shower_pixcluster_v.clear();
     _true_energy_vv.clear();
+    _true_shower_start_vv.clear();
+    _true_shower_dir_vv.clear();
     _match_y1_vv.clear();
     _match_y2_vv.clear();
     _bestmatch_y1_vv.clear();
@@ -132,6 +142,16 @@ namespace ssnetshowerreco {
     _seconddirection.clear();
     _alpha.clear();
     _vtxid.clear();
+    _true_vtx_3d_v.clear();
+    _seconddirection_true.clear();
+    _firstdirection_true.clear();
+    _shower_start_2d_true_vvv.clear();
+    _secondshower_start_2d_true_vvv.clear();
+    _shower_energy_true_vv.clear();
+    _secondshower_energy_true_vv.clear();
+    _shower_recotrue_dist_v.clear();
+    _secondshower_recotrue_dist_v.clear();
+
   }
 
   /**
@@ -555,6 +575,7 @@ namespace ssnetshowerreco {
     _event  = ioll.event_id();
     std::cout<<"(r,s,e)="<<_run<<","<<_subrun<<","<<_event<<std::endl;
     //load in inputs
+
     larcv::EventImage2D* ev_adc
       = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _adc_tree_name );
     const std::vector<larcv::Image2D>& adc_v = ev_adc->Image2DArray();
@@ -594,22 +615,55 @@ namespace ssnetshowerreco {
     larcv::EventImage2D* ev_instance;
     larlite::event_mctruth* ev_mctruth;
 
-    if (useTrueVtx){
+    if (_use_mc){
       ev_partroi = (larcv::EventROI*)(iolcv.get_data( larcv::kProductROI, _partroi_tree_name));
       ev_mcshower = ((larlite::event_mcshower*)ioll.get_data(larlite::data::kMCShower,  _mcshower_tree_name));
     }
 
-    if (_use_nueint || _use_ncpi0){
+    if (_use_mc){
+    // if (_use_nueint || _use_ncpi0){
       ev_segment = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _segment_tree_name );
       ev_instance = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, _instance_tree_name );
     }
-    if (_use_bnb){
+    if (_use_mc){
+    // if (_use_bnb){
       ev_mctruth        = (larlite::event_mctruth*)ioll.get_data(larlite::data::kMCTruth,  _mctruth_name );
     }
 
-    _haspi0 = 0;
-    _ccnc = 0;
-    if (_use_bnb){
+    //-------------remove later----------------------------------
+    if (_use_mc){
+      // ev_partroi = (larcv::EventROI*)(iolcv.get_data( larcv::kProductROI, _partroi_tree_name));
+      // TFile* newSCEFile = new TFile("/cluster/tufts/wongjiradlab/rshara01/bkp/SCEoffsets_dataDriven_combined_fwd_Jan18.root","read");
+      // TH3F* sceDx = (TH3F*) newSCEFile->Get("hDx");
+      // TH3F* sceDy = (TH3F*) newSCEFile->Get("hDy");
+      // TH3F* sceDz = (TH3F*) newSCEFile->Get("hDz");
+      std::vector<double> _scex(3,0);
+      std::vector<double> _tx(3,0);
+      for(auto const& roi : ev_partroi->ROIArray()){
+        if(std::abs(roi.PdgCode()) == 12 || std::abs(roi.PdgCode()) == 14) {
+          _tx.resize(3,0);
+          _tx[0] = roi.X();
+          _tx[1] = roi.Y();
+          _tx[2] = roi.Z();
+          // auto const offset = Utils.GetPosOffsets(_tx,sceDx,sceDy,sceDz);
+          // _scex = Utils.MakeSCECorrection(_scex,_tx,offset);
+        }
+      }
+      std::cout<<"TRUE VTX: "<<_tx[0]<<" "<<_tx[1]<<" "<<_tx[2]<<std::endl;
+      bool vtxinfid = Utils.InsideFiducial(_tx[0],_tx[1],_tx[2]);
+      if (vtxinfid) _truefid =1;
+      else _truefid =0;
+      _true_vtx_3d_v = _tx;
+      // newSCEFile->Close();
+
+      if (vtxinfid ){
+        _true_energy_vv = SecondShower.SaveTrueEnergies(ev_mcshower);
+        _true_shower_start_vv = SecondShower.SaveTrueStarts(ev_mcshower);
+        _true_shower_dir_vv = SecondShower.SaveTrueDirections(ev_mcshower);
+      }
+
+      _haspi0 = 0;
+      _ccnc = 0;
       for(int part =0;part<ev_mctruth->at(0).GetParticles().size();part++){
 
         if (ev_mctruth->at(0).GetParticles().at(part).PdgCode() == 111) _haspi0 = 1;
@@ -617,8 +671,12 @@ namespace ssnetshowerreco {
 
       }
       if (_haspi0 ==1) std::cout<<"HAS PI0!"<<std::endl;
+      std::cout<<"here"<<std::endl;
+
     }
 
+    //if in fid, save to branch
+    //------------------------------------------------------------------------
 
     //mask out non shower pixels from adc
     std::vector<std::vector<std::vector<float>>> masked_adc_vvv;
@@ -642,7 +700,7 @@ namespace ssnetshowerreco {
       for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
         for ( int ssnet_i =0;ssnet_i<npixels_ssnet;ssnet_i++){
           float thrumupix = thrumu_v[p].pixel(adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1]);
-          if (thrumupix == 0 && ssnet_sparse_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
+          if (ssnet_sparse_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
               masked_plane_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
           }//end of if statements
         }//end of loop through ssnet
@@ -684,13 +742,13 @@ namespace ssnetshowerreco {
         if ( pgraph.ParticleArray().size()==0 ) continue; // dont expect this
         auto const& roi = pgraph.ParticleArray().front();
         std::vector<double> vtx3d = { roi.X(), roi.Y(), roi.Z() };
-        std::cout << "Vertex Pos (" << vtx3d[0] << "," << vtx3d[1] << "," << vtx3d[2] << ")" << std::endl;
+        // std::cout << "Vertex Pos (" << vtx3d[0] << "," << vtx3d[1] << "," << vtx3d[2] << ")" << std::endl;
         if ((vtx3d[0]>    0.001) && (vtx3d[0] <  255.999) && (vtx3d[1]> -116.499) && (vtx3d[1] < 116.499)
             && (vtx3d[2]>    0.001) && (vtx3d[2] < 1036.999)){
 
           _vtx_pos_vv.push_back( vtx3d );
           _vtxid.push_back(vtxid);
-          std::cout<<"vertex id: "<<vtxid<<std::endl;
+          // std::cout<<"vertex id: "<<vtxid<<std::endl;
 
         }//end of if statement
         else std::cout<<"Outside fiducial volume!"<<std::endl;
@@ -709,7 +767,7 @@ namespace ssnetshowerreco {
       std::vector<double> vtx3d_true;
 			
 
-      // get true vertex
+      // get true variables---------------------------------------------------
       for(auto const& roi : ev_partroi->ROIArray()){
         if(std::abs(roi.PdgCode()) == 12 || std::abs(roi.PdgCode()) == 14) {
           _tx.resize(3,0);
@@ -721,20 +779,13 @@ namespace ssnetshowerreco {
 
         }
       }
-
+      newSCEFile->Close();
       vtx3d_true = _scex;
       vtx2d_true = Utils.getProjectedPixel(_scex, ev_adc->Image2DArray()[2].meta(), 3);
 
-      if ((vtx3d_true[0]>    0.001) && (vtx3d_true[0] <  255.999) && (vtx3d_true[1]> -116.499) && (vtx3d_true[1] < 116.499)
-          && (vtx3d_true[2]>    0.001) && (vtx3d_true[2] < 1036.999)){
-
-        _vtx_pos_vv.push_back( vtx3d_true );
-        if (_use_ncpi0){
-          _true_energy_vv = SecondShower.SaveTrueEnergies(ev_mcshower, _scex);
-          _true_shower_start_vv = SecondShower.SaveTrueStarts(ev_mcshower);
-        }
-      }
     }
+
+
 
 
     // now get shower energy per vertex, per plane
@@ -1007,35 +1058,51 @@ namespace ssnetshowerreco {
         }
         _shower_pixcluster_v.emplace_back( std::move(pixcluster) );
 
-        if (makeDisp&&p==2){
+        if (makeDisp&&p==2&& _truefid==1){
 
           TH2F* YPlaneADC_h = new TH2F("yplaneadc","yplaneadc",3456,0,3456.,1008,0,1008.);
-          TH2F* YPlaneSSNet_h = new TH2F("yplanessnet","yplanessnet",3456,0,3456.,1008,0,1008.);
-          TH2F* YPlaneSeg_h = new TH2F("yplaneseg","yplaneseg",3456,0,3456.,1008,0,1008.);
-          TH2F* YPlaneMasked_h = new TH2F("yplanemask","yplanemask",3456,0,3456.,1008,0,1008.);
+          // TH2F* YPlaneSSNet_h = new TH2F("yplanessnet","yplanessnet",3456,0,3456.,1008,0,1008.);
+          // TH2F* YPlaneSeg_h = new TH2F("yplaneseg","yplaneseg",3456,0,3456.,1008,0,1008.);
+          // TH2F* YPlaneMasked_h = new TH2F("yplanemask","yplanemask",3456,0,3456.,1008,0,1008.);
           TH2F* vtx_h = new TH2F("vtx_h","vtx_h",3456,0,3456.,1008,0,1008.);
           TH2F* triangle1_h = new TH2F("triangle1","triangle1",3456,0,3456.,1008,0,1008.);
           TH2F* triangle2_h = new TH2F("triangle2","triangle2",3456,0,3456.,1008,0,1008.);
-
-          for (int ii =0;ii<(int)masked_adc_vvv[p].size();ii++){
-            YPlaneSeg_h->Fill(masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0],ev_segment->Image2DArray()[2].pixel(masked_adc_vvv[p][ii][0],masked_adc_vvv[p][ii][1]));
-          }
-
+          TH2F* shr_h = new TH2F("shr_h","shr_h",3456,0,3456.,1008,0,1008.);
+          //
+          // for (int ii =0;ii<(int)masked_adc_vvv[p].size();ii++){
+          //   YPlaneSeg_h->Fill(masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0],ev_segment->Image2DArray()[2].pixel(masked_adc_vvv[p][ii][0],masked_adc_vvv[p][ii][1]));
+          // }
+          std::cout<<"made hists"<<std::endl;
           for (int ii =0;ii<(int)adc_sparse_vvv[p].size();ii++){
             YPlaneADC_h->Fill(adc_sparse_vvv[p][ii][1],adc_sparse_vvv[p][ii][0],adc_sparse_vvv[p][ii][2]);
           }
-          for (int ii =0;ii<(int)masked_adc_vvv[p].size();ii++){
-            YPlaneMasked_h->Fill(masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0],masked_adc_vvv[p][ii][2]);
-          }
-
-          for (int ii =0;ii<(int)ssnet_sparse_vvv[p].size();ii++){
-            YPlaneSSNet_h->Fill(ssnet_sparse_vvv[p][ii][1],ssnet_sparse_vvv[p][ii][0],ssnet_sparse_vvv[p][ii][2]);
-          }
+          std::cout<<"FILLED ADC"<<std::endl;
+          // for (int ii =0;ii<(int)masked_adc_vvv[p].size();ii++){
+          //   YPlaneMasked_h->Fill(masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0],masked_adc_vvv[p][ii][2]);
+          // }
+          //
+          // for (int ii =0;ii<(int)ssnet_sparse_vvv[p].size();ii++){
+          //   YPlaneSSNet_h->Fill(ssnet_sparse_vvv[p][ii][1],ssnet_sparse_vvv[p][ii][0],ssnet_sparse_vvv[p][ii][2]);
+          // }
 
 
           gStyle->SetOptStat(0);
 
-          vtx_h->Fill(vtx2d_true[3],vtx2d_true[0]);
+          // vtx_h->Fill(vtx2d_true[3],vtx2d_true[0]);
+          std::cout<<"BEFORE FILL"<<std::endl;
+          std::vector<double> tmptruestart1 (3,0);
+          tmptruestart1[0]= (double)_true_shower_start_vv[0][0];
+          tmptruestart1[1]= (double)_true_shower_start_vv[0][1];
+          tmptruestart1[2]= (double)_true_shower_start_vv[0][2];
+          std::vector<double> tmptruestart2 (3,0);
+          tmptruestart2[0]= (double)_true_shower_start_vv[1][0];
+          tmptruestart2[1]= (double)_true_shower_start_vv[1][1];
+          tmptruestart2[2]= (double)_true_shower_start_vv[1][2];
+          std::vector<int> true_shower1_2d = Utils.getProjectedPixel(tmptruestart1, ev_adc->Image2DArray()[2].meta(), 3);
+          std::vector<int> true_shower2_2d = Utils.getProjectedPixel(tmptruestart2, ev_adc->Image2DArray()[2].meta(), 3);
+          shr_h->Fill(true_shower1_2d[3],true_shower1_2d[0]);
+          shr_h->Fill(true_shower2_2d[3],true_shower2_2d[0]);
+          std::cout<<"FILLED"<<std::endl;
           triangle1_h->Fill(vtx_pix[0],vtx_pix[1]);
           triangle1_h->Fill(vtx_pix[0] + shlength*cos(shangle+shopen),vtx_pix[1] + shlength*sin(shangle+shopen));
           triangle1_h->Fill(vtx_pix[0] + shlength*cos(shangle-shopen),vtx_pix[1] + shlength*sin(shangle-shopen));
@@ -1049,6 +1116,8 @@ namespace ssnetshowerreco {
           triangle2_h->SetMarkerColor(kRed);
           vtx_h->SetMarkerStyle(kStar);
           vtx_h->SetMarkerColor(kGreen);
+          shr_h->SetMarkerStyle(kStar);
+          shr_h->SetMarkerColor(kMagenta);
           TLine* line1_1 = new TLine(vtx_pix[0],vtx_pix[1],vtx_pix[0] + shlength*cos(shangle+shopen),vtx_pix[1] + shlength*sin(shangle+shopen));
           TLine* line1_2 = new TLine(vtx_pix[0],vtx_pix[1],vtx_pix[0] + shlength*cos(shangle-shopen),vtx_pix[1] + shlength*sin(shangle-shopen));
           TLine* line1_3 = new TLine(vtx_pix[0] + shlength*cos(shangle+shopen),vtx_pix[1] + shlength*sin(shangle+shopen),vtx_pix[0] + shlength*cos(shangle-shopen),vtx_pix[1] + shlength*sin(shangle-shopen));
@@ -1065,6 +1134,7 @@ namespace ssnetshowerreco {
           TCanvas can1("can", "histograms ", 3456, 1008);
           YPlaneADC_h->Draw("colz");
           vtx_h->Draw("SAME");
+          shr_h->Draw("SAME");
           triangle1_h->Draw("SAME");
           line1_1->Draw("SAME");
           line1_2->Draw("SAME");
@@ -1073,54 +1143,55 @@ namespace ssnetshowerreco {
           line2_1->Draw("SAME");
           line2_2->Draw("SAME");
           line2_3->Draw("SAME");
-          can1.SaveAs(Form("ncpi0_adc_%d.png",(int)entry));
+          can1.SaveAs(Form("ncpi0_adc_%d_%d.png",(int)entry,(int)ivtx));
 
-          TCanvas can2("can", "histograms ", 3456, 1008);
-          YPlaneMasked_h->Draw("colz");
-          vtx_h->Draw("SAME");
-          triangle1_h->Draw("SAME");
-          line1_1->Draw("SAME");
-          line1_2->Draw("SAME");
-          line1_3->Draw("SAME");
-          triangle2_h->Draw("SAME");
-          line2_1->Draw("SAME");
-          line2_2->Draw("SAME");
-          line2_3->Draw("SAME");
-          can2.SaveAs(Form("ncpi0_masked_%d.png",(int)entry));
+          // TCanvas can2("can", "histograms ", 3456, 1008);
+          // YPlaneMasked_h->Draw("colz");
+          // vtx_h->Draw("SAME");
+          // triangle1_h->Draw("SAME");
+          // line1_1->Draw("SAME");
+          // line1_2->Draw("SAME");
+          // line1_3->Draw("SAME");
+          // triangle2_h->Draw("SAME");
+          // line2_1->Draw("SAME");
+          // line2_2->Draw("SAME");
+          // line2_3->Draw("SAME");
+          // can2.SaveAs(Form("ncpi0_masked_%d.png",(int)entry));
 
-          TCanvas can3("can", "histograms ", 3456, 1008);
-          YPlaneSSNet_h->Draw("colz");
-          vtx_h->Draw("SAME");
-          triangle1_h->Draw("SAME");
-          line1_1->Draw("SAME");
-          line1_2->Draw("SAME");
-          line1_3->Draw("SAME");
-          triangle2_h->Draw("SAME");
-          line2_1->Draw("SAME");
-          line2_2->Draw("SAME");
-          line2_3->Draw("SAME");
-          can3.SaveAs(Form("ncpi0_ssnet_%d.png",(int)entry));
-
-          TCanvas can4("can", "histograms ", 3456, 1008);
-          YPlaneSeg_h->Draw("colz");
-          vtx_h->Draw("SAME");
-          triangle1_h->Draw("SAME");
-          line1_1->Draw("SAME");
-          line1_2->Draw("SAME");
-          line1_3->Draw("SAME");
-          triangle2_h->Draw("SAME");
-          line2_1->Draw("SAME");
-          line2_2->Draw("SAME");
-          line2_3->Draw("SAME");
-          can4.SaveAs(Form("ncpi0_seg_%d.png",(int)entry));
+          // TCanvas can3("can", "histograms ", 3456, 1008);
+          // YPlaneSSNet_h->Draw("colz");
+          // vtx_h->Draw("SAME");
+          // triangle1_h->Draw("SAME");
+          // line1_1->Draw("SAME");
+          // line1_2->Draw("SAME");
+          // line1_3->Draw("SAME");
+          // triangle2_h->Draw("SAME");
+          // line2_1->Draw("SAME");
+          // line2_2->Draw("SAME");
+          // line2_3->Draw("SAME");
+          // can3.SaveAs(Form("ncpi0_ssnet_%d.png",(int)entry));
+          //
+          // TCanvas can4("can", "histograms ", 3456, 1008);
+          // YPlaneSeg_h->Draw("colz");
+          // vtx_h->Draw("SAME");
+          // triangle1_h->Draw("SAME");
+          // line1_1->Draw("SAME");
+          // line1_2->Draw("SAME");
+          // line1_3->Draw("SAME");
+          // triangle2_h->Draw("SAME");
+          // line2_1->Draw("SAME");
+          // line2_2->Draw("SAME");
+          // line2_3->Draw("SAME");
+          // can4.SaveAs(Form("ncpi0_seg_%d.png",(int)entry));
 
           delete vtx_h;
+          delete shr_h;
           delete triangle1_h;
           delete triangle2_h;
           delete YPlaneADC_h;
-          delete YPlaneSeg_h;
-          delete YPlaneSSNet_h;
-          delete YPlaneMasked_h;
+          // delete YPlaneSeg_h;
+          // delete YPlaneSSNet_h;
+          // delete YPlaneMasked_h;
           delete line1_1;
           delete line1_2;
           delete line1_3;
@@ -1345,11 +1416,96 @@ namespace ssnetshowerreco {
 
 
     }//end of loop through vertices
-    std::cout<<"size of dist to int "<<_disttoint.size()<<std::endl;
-    std::cout<<"num of vertices: "<< _vtx_pos_vv.size()<<std::endl;
-    // OutFile->cd();
+
+    //truth matching stuff-----------------------------------------------------
+    //only do this if true is in InsideFiducial
+    if (_truefid == 1 && ev_mcshower->size() == 2&&_use_mc){
+      //loop through vertices again
+      std::vector<double> tmptruestart1 (3,0);
+      tmptruestart1[0]= (double)_true_shower_start_vv[0][0];
+      tmptruestart1[1]= (double)_true_shower_start_vv[0][1];
+      tmptruestart1[2]= (double)_true_shower_start_vv[0][2];
+      std::vector<double> tmptruestart2 (3,0);
+      tmptruestart2[0]= (double)_true_shower_start_vv[1][0];
+      tmptruestart2[1]= (double)_true_shower_start_vv[1][1];
+      tmptruestart2[2]= (double)_true_shower_start_vv[1][2];
+      std::vector<int> true_shower1_tmp_2dstart = Utils.getProjectedPixel(tmptruestart1, ev_adc->Image2DArray()[2].meta(), 3);
+      std::vector<int> true_shower2_tmp_2dstart = Utils.getProjectedPixel(tmptruestart2, ev_adc->Image2DArray()[2].meta(), 3);
+
+      for (int vtx =0;vtx<_vtx_pos_vv.size();vtx++){
+        std::vector<float> tmp_distances_first = SecondShower.RecoTrueDistances(
+              true_shower1_tmp_2dstart, true_shower2_tmp_2dstart, _shower_start_2d_vvv[vtx][2]);
+        std::vector<float> tmp_distances_sec = SecondShower.RecoTrueDistances(
+              true_shower1_tmp_2dstart, true_shower2_tmp_2dstart, _secondshower_start_2d_vvv[vtx][2]);
+
+        //figure out smallest out of 4 options.
+        float tmp_small = 100000;
+        int tmp_idx = -1;
+        if (tmp_distances_first[0]< tmp_small){
+          tmp_small = tmp_distances_first[0];
+          tmp_idx = 0;
+        }
+        if (tmp_distances_first[1]< tmp_small){
+          tmp_small = tmp_distances_first[1];
+          tmp_idx = 1;
+        }
+        if (tmp_distances_sec[0]< tmp_small){
+          tmp_small = tmp_distances_sec[0];
+          tmp_idx = 2;
+        }
+        if (tmp_distances_sec[1]< tmp_small){
+          tmp_small = tmp_distances_sec[1];
+          tmp_idx = 3;
+        }
+
+        //first do condition of first reco = first true
+        if (tmp_idx==0||tmp_idx==1){
+          _firstdirection_true.push_back(_true_shower_dir_vv[0]);
+          _seconddirection_true.push_back(_true_shower_dir_vv[1]);
+          _shower_start_2d_true_vvv.push_back(true_shower1_tmp_2dstart);
+          _secondshower_start_2d_true_vvv.push_back(true_shower2_tmp_2dstart);
+          _shower_energy_true_vv.push_back(_true_energy_vv[0]);
+          _secondshower_energy_true_vv.push_back(_true_energy_vv[1]);
+          _shower_recotrue_dist_v.push_back(tmp_distances_first[0]);
+          _secondshower_recotrue_dist_v.push_back(tmp_distances_sec[1]);
+        }
+        //now the case where first reco = second true
+        else {
+          _firstdirection_true.push_back(_true_shower_dir_vv[1]);
+          _seconddirection_true.push_back(_true_shower_dir_vv[0]);
+          _shower_start_2d_true_vvv.push_back(true_shower2_tmp_2dstart);
+          _secondshower_start_2d_true_vvv.push_back(true_shower1_tmp_2dstart);
+          _shower_energy_true_vv.push_back(_true_energy_vv[1]);
+          _secondshower_energy_true_vv.push_back(_true_energy_vv[0]);
+          _shower_recotrue_dist_v.push_back(tmp_distances_first[1]);
+          _secondshower_recotrue_dist_v.push_back(tmp_distances_sec[0]);
+        }
+
+      }//end of loop through vtx
+    }
+
+    else if (_truefid == 1 && ev_mcshower->size() == 1 && _use_mc){
+      //loop through vertices again
+      std::vector<double> tmptruestart1 (3,0);
+      tmptruestart1[0]= (double)_true_shower_start_vv[0][0];
+      tmptruestart1[1]= (double)_true_shower_start_vv[0][1];
+      tmptruestart1[2]= (double)_true_shower_start_vv[0][2];
+      std::vector<int> true_shower1_tmp_2dstart = Utils.getProjectedPixel(tmptruestart1, ev_adc->Image2DArray()[2].meta(), 3);
+
+      for (int vtx =0;vtx<_vtx_pos_vv.size();vtx++){
+        std::vector<float> tmp_distances_first = SecondShower.RecoTrueDistances(
+              true_shower1_tmp_2dstart,{-9999,-9999,-9999}, _shower_start_2d_vvv[vtx][2]);
+        _firstdirection_true.push_back(_true_shower_dir_vv[0]);
+        _shower_start_2d_true_vvv.push_back(true_shower1_tmp_2dstart);
+        _shower_energy_true_vv.push_back(_true_energy_vv[0]);
+        _shower_recotrue_dist_v.push_back(tmp_distances_first[0]);
+      }//end of loop through vtx
+    }
+    //-------------------------------------------------------------------------
+    //OutFile->cd();
+    _numshowers = ev_mcshower->size();
     _ana_tree->Fill();
-    // OutFile->Write();
+    // _ana_tree->Write();
     return true;
   }//end of process function
 
