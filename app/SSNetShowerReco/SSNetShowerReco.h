@@ -93,6 +93,8 @@ namespace ssnetshowerreco {
     float getVertexSecondShowerDirection2D( int vtxid, int plane ) const { return _secondshower_shangle_vv[vtxid][plane]; };
     float getVertexShowerOpening2D( int vtxid, int plane ) const { return _shower_shopen_vv[vtxid][plane]; };
     float getVertexSecondShowerOpening2D( int vtxid, int plane ) const { return _secondshower_shopen_vv[vtxid][plane]; };
+    float getVertexCropSumQ( int vtxid, int plane ) const { return _smallQ[vtxid][plane]; };
+    float getVertexSecondShowerCropSumQ( int vtxid, int plane ) const { return _smallQ2[vtxid][plane]; };
 
     //adding gets for final true variables
     double getTrueShowerEnergy( int vtxid ) const {return _shower_energy_true_vv[vtxid]; };
@@ -147,11 +149,11 @@ namespace ssnetshowerreco {
                                                      int vtx_row=255,
                                                      float shLen = 100.0,
                                                      float shOpen = 0.3);
-		void  _imageCharge( std::vector<std::vector<float>> img,
-												larcv::ImageMeta meta,
-												float& cropCharge, int p,
-												int vtx_col,
-												int vtx_row);
+    void  _imageCharge( std::vector<std::vector<float>> img,
+			larcv::ImageMeta meta,
+			float& cropCharge, int p,
+			int vtx_col,
+			int vtx_row);
 
     float _findDir( std::vector<std::vector<float>> chargeMap,
                     int vtx_col=255,
@@ -169,8 +171,9 @@ namespace ssnetshowerreco {
                      float length,
                      int vtx_col=255, int vtx_row=255 );
 
-     std::vector<std::vector<float>> MakeImage2dSparse(const larcv::Image2D& input_img,
-              float threshold = 0 );
+     std::vector<std::vector<float>> 
+       MakeImage2dSparse(const larcv::Image2D& input_img,
+			 float threshold = 0 );
 
 
     // parameters
@@ -245,19 +248,21 @@ namespace ssnetshowerreco {
     std::vector<std::vector<std::vector<float>>>   _match_y2_vv;
     std::vector<std::vector<std::vector<int>>>     _bestmatch_y1_vv;
     std::vector<std::vector<std::vector<int>>>     _bestmatch_y2_vv;
-    std::vector<std::vector<float>>                _uplane_profile_vv;
-    std::vector<std::vector<float>>                _vplane_profile_vv;
-    std::vector<std::vector<float>>                _yplane_profile_vv;
-    std::vector<std::vector<float>>                _ShowerTruthMatch_pur_vv;
-    std::vector<std::vector<float>>                _ShowerTruthMatch_eff_vv;
+    std::vector<std::vector<float> >               _uplane_profile_vv;
+    std::vector<std::vector<float> >               _vplane_profile_vv;
+    std::vector<std::vector<float> >               _yplane_profile_vv;
+    std::vector<std::vector<float> >               _ShowerTruthMatch_pur_vv;
+    std::vector<std::vector<float> >               _ShowerTruthMatch_eff_vv;
     std::vector<int>                               _useformass;
     std::vector<float>                             _pi0mass;
     std::vector<float>                             _disttoint;
     std::vector<float>                             _impact1;
     std::vector<float>                             _impact2;
     std::vector<float>                             _alpha;
-    std::vector<std::vector<float>>                _seconddirection;
-    std::vector<std::vector<float>>                _firstdirection;
+    std::vector<std::vector<float> >               _seconddirection;
+    std::vector<std::vector<float> >               _firstdirection;
+    std::vector<std::vector<float> >               _smallQ;  // each vertex, each plane
+    std::vector<std::vector<float> >               _smallQ2; // each vertex, each plane
     //true variables
     int                                            _haspi0;
     int                                            _ccnc;

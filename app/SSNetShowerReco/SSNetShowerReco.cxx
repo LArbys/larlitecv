@@ -80,6 +80,8 @@ namespace ssnetshowerreco {
     _ana_tree->Branch("2dSecondShowerDirection",&_secondshower_shangle_vv);
     _ana_tree->Branch("2dSecondShowerOpeningAngle",&_secondshower_shopen_vv);
     _ana_tree->Branch("RecoVtxPos",&_vtx_pos_vv);
+    _ana_tree->Branch("SmallQ",  &_smallQ);
+    _ana_tree->Branch("SmallQ2", &_smallQ2);
     //trur variables for testing
     _ana_tree->Branch("truefid",&_truefid);
     _ana_tree->Branch("TrueVtxPos",&_true_vtx_3d_v);
@@ -151,7 +153,8 @@ namespace ssnetshowerreco {
     _secondshower_energy_true_vv.clear();
     _shower_recotrue_dist_v.clear();
     _secondshower_recotrue_dist_v.clear();
-
+    _smallQ.clear();
+    _smallQ2.clear();
   }
 
   /**
@@ -223,67 +226,63 @@ namespace ssnetshowerreco {
 
   }
   
-	/**
+  /**
    * get the enclosed charge in the whole image.
    *
-   * @param[in]  chargeMap Image with charge info
-   * @param[in]  theta     Angle in radians in (col,row) coordinates that defines shower 2D direction
-   * @param[out] sumIn     total pixel sum of pixels inside triangle
-   * @param[out] triangle  set of 3 points that defines triangle used
-   * @param[in]  vtx_col   start point of triangle
-   * @param[in]  vtx_row   start point of triangle
-   * @param[in]  shLen     length of triangle to use, radial line from vertex
-   * @param[in]  shOpen    shower opening angle
+   * @param[in]  chargeMap  Image with charge info
+   * @param[in]  meta       Whole image meta
+   * @param[out] cropCharge returned summed charge in crop
+   * @param[in]  p          index of plane  
+   * @param[in]  vtx_col    center column pixel (whole image coordinates)
+   * @param[in]  vtx_row    center row pixel (whole image coordinates)
    *
    */
   void  SSNetShowerReco::_imageCharge( std::vector<std::vector<float>> img,
-																				larcv::ImageMeta meta,
-																				float& cropCharge, int p,
-																				int vtx_col,
-																				int vtx_row) {
+				       larcv::ImageMeta meta,
+				       float& cropCharge, int p,
+				       int vtx_col,
+				       int vtx_row) {
 	
-		int tbounds[2] = { (int)(vtx_row-256*meta.pixel_height()),
-								 			 (int)(vtx_row+256*meta.pixel_height()) };
-		int wbounds[2] = { (int)(vtx_col-256*meta.pixel_width()),
-											 (int)(vtx_col+256*meta.pixel_width()) };
+    int tbounds[2] = { (int)(vtx_row-256*meta.pixel_height()),
+		       (int)(vtx_row+256*meta.pixel_height()) };
+    int wbounds[2] = { (int)(vtx_col-256*meta.pixel_width()),
+		       (int)(vtx_col+256*meta.pixel_width()) };
 
-		// correct bounds
-		int wireMax = 2400;
-		if(p == 2) wireMax = meta.max_x();
-
-		if ( tbounds[0]<=meta.min_y() ) {
-			tbounds[0] = meta.min_y()+meta.pixel_height();
-			tbounds[1] = tbounds[0] + 512*meta.pixel_height();
-		}
-		if ( tbounds[1]>=meta.max_y() ) {
-			tbounds[1] = meta.max_y() - meta.pixel_height();
-			tbounds[0] = tbounds[1] - 512*meta.pixel_height();
-		}
-		if ( wbounds[0]<=meta.min_x() ) {
-			wbounds[0] = meta.min_x()+meta.pixel_width();
-			wbounds[1] = wbounds[0] + 512*meta.pixel_width();
-		}
-		if ( wbounds[1]>=wireMax ) {
-			wbounds[1] = wireMax-meta.pixel_width();
-			wbounds[0] = wbounds[1] - 512*meta.pixel_width();
-		}
-		
-		std::cout << "tbounds: " << meta.row(tbounds[0]) << ", " << meta.row(tbounds[1]) << std::endl;
-		std::cout << "wbounds: " << meta.col(wbounds[0]) << ", " << meta.col(wbounds[1]) << std::endl;
-		std::cout << "First Row: " << img[0][0] << std::endl;
-		std::cout << "First Col: " << img[0][1] << std::endl;
-		std::cout << "Last Row: " << img[img.size()-1][0] << std::endl;
-		std::cout << "Last Col: " << img[img.size()-1][1] << std::endl;
-		float cropSum = 0;
-		for (int ii =0;ii<img.size();ii++){
-			if(img[ii][0]>=meta.row(tbounds[1])&&img[ii][0]<meta.row(tbounds[0])&&img[ii][1]>=meta.col(wbounds[0])&&img[ii][1]<meta.col(wbounds[1])){
-			  cropSum+=img[ii][2];
-			}
-		}
-		std::cout << "Crop sum: " << cropSum << std::endl;
-		cropCharge = cropSum;
-
-		
+    // correct bounds
+    int wireMax = 2400;
+    if(p == 2) wireMax = meta.max_x();
+    
+    if ( tbounds[0]<=meta.min_y() ) {
+      tbounds[0] = meta.min_y()+meta.pixel_height();
+      tbounds[1] = tbounds[0] + 512*meta.pixel_height();
+    }
+    if ( tbounds[1]>=meta.max_y() ) {
+      tbounds[1] = meta.max_y() - meta.pixel_height();
+      tbounds[0] = tbounds[1] - 512*meta.pixel_height();
+    }
+    if ( wbounds[0]<=meta.min_x() ) {
+      wbounds[0] = meta.min_x()+meta.pixel_width();
+      wbounds[1] = wbounds[0] + 512*meta.pixel_width();
+    }
+    if ( wbounds[1]>=wireMax ) {
+      wbounds[1] = wireMax-meta.pixel_width();
+      wbounds[0] = wbounds[1] - 512*meta.pixel_width();
+    }
+    
+    std::cout << "tbounds: " << meta.row(tbounds[0]) << ", " << meta.row(tbounds[1]) << std::endl;
+    std::cout << "wbounds: " << meta.col(wbounds[0]) << ", " << meta.col(wbounds[1]) << std::endl;
+    std::cout << "First Row: " << img[0][0] << std::endl;
+    std::cout << "First Col: " << img[0][1] << std::endl;
+    std::cout << "Last Row: " << img[img.size()-1][0] << std::endl;
+    std::cout << "Last Col: " << img[img.size()-1][1] << std::endl;
+    float cropSum = 0;
+    for (int ii =0;ii<(int)img.size();ii++){
+      if(img[ii][0]>=meta.row(tbounds[1])&&img[ii][0]<meta.row(tbounds[0])&&img[ii][1]>=meta.col(wbounds[0])&&img[ii][1]<meta.col(wbounds[1])){
+	cropSum+=img[ii][2];
+      }
+    }
+    std::cout << "Crop sum: " << cropSum << std::endl;
+    cropCharge = cropSum;
 
  } // end of imageCharge
 
@@ -337,7 +336,7 @@ namespace ssnetshowerreco {
       // weird things when we have zero area triangle
       bool hasCharge = false;
       // std::cout<<"------"<<vtx_row<<","<<vtx_col<<"------------"<<std::endl;
-      for (int ii =0;ii<chargeMap.size();ii++){
+      for (int ii =0;ii<(int)chargeMap.size();ii++){
         // std::cout<<chargeMap[ii][0]<<","<<chargeMap[ii][1]<<std::endl;
         if(chargeMap[ii][0]==vtx_row&&chargeMap[ii][1]==vtx_col){
           sumIn = chargeMap[ii][2];
@@ -350,7 +349,7 @@ namespace ssnetshowerreco {
     }
 
     sumIn = 0;
-    for (int ii =0;ii<chargeMap.size();ii++){
+    for (int ii =0;ii<(int)chargeMap.size();ii++){
       if ( _isInside2(t1X,t1Y,t2X,t2Y,t3X,t3Y,chargeMap[ii][1],chargeMap[ii][0])){
         if (calcE) sumIn+=chargeMap[ii][2];
         else sumIn+=1;
@@ -534,8 +533,8 @@ namespace ssnetshowerreco {
      //function to make sparse objects from the larcv Image2d
      //output: vector of (row,col, value)
      std::vector<std::vector<float>> output_vv;
-     for (int r = 0; r<input_img.meta().rows();r++){
-       for (int c= 0; c<input_img.meta().cols();c++){
+     for (int r = 0; r<(int)input_img.meta().rows();r++){
+       for (int c= 0; c<(int)input_img.meta().cols();c++){
          float pix_value = input_img.pixel(r,c);
          if (pix_value > threshold){
            std::vector<float> tmp_v = {(float) r, (float) c, pix_value};
@@ -609,11 +608,11 @@ namespace ssnetshowerreco {
 
     larcv::EventPGraph* ev_vtx
       = (larcv::EventPGraph*)iolcv.get_data( larcv::kProductPGraph, _vertex_tree_name );
-    larcv::EventROI* ev_partroi;
-    larlite::event_mcshower* ev_mcshower;
-    larcv::EventImage2D* ev_segment;
-    larcv::EventImage2D* ev_instance;
-    larlite::event_mctruth* ev_mctruth;
+    larcv::EventROI* ev_partroi = nullptr;
+    larlite::event_mcshower* ev_mcshower = nullptr;
+    larcv::EventImage2D* ev_segment = nullptr;
+    larcv::EventImage2D* ev_instance = nullptr;
+    larlite::event_mctruth* ev_mctruth = nullptr;
 
     if (_use_mc){
       ev_partroi = (larcv::EventROI*)(iolcv.get_data( larcv::kProductROI, _partroi_tree_name));
@@ -664,7 +663,7 @@ namespace ssnetshowerreco {
 
       _haspi0 = 0;
       _ccnc = 0;
-      for(int part =0;part<ev_mctruth->at(0).GetParticles().size();part++){
+      for(int part =0;part<(int)ev_mctruth->at(0).GetParticles().size();part++){
 
         if (ev_mctruth->at(0).GetParticles().at(part).PdgCode() == 111) _haspi0 = 1;
         if (ev_mctruth->at(0).GetNeutrino().CCNC() == 1) _ccnc = 1;
@@ -824,6 +823,8 @@ namespace ssnetshowerreco {
       std::vector<float> secondshower_shlength_v(3,0);
       std::vector<float> secondshower_shangle_v(3,0);
       std::vector<float> secondshower_shopen_v(3,0);
+      std::vector<float> smallq_v(3,0);
+      std::vector<float> smallq2_v(3,0);
 				
 
       for ( size_t p=0; p<3; p++ ) {
@@ -859,7 +860,8 @@ namespace ssnetshowerreco {
         triangle_t tri;
         std::vector< std::vector<int> > pixlist_v =
           _enclosedCharge( masked_adc_vvv[p], shangle, sumQ, tri, true, vtx_pix[0], vtx_pix[1], shlength, shopen );
-				_imageCharge( masked_adc_vvv[p], wire_meta[p], smallQ, p, imgcoord_v[p], imgcoord_v[3]);
+	_imageCharge( masked_adc_vvv[p], wire_meta[p], smallQ, p, imgcoord_v[p], imgcoord_v[3]);
+	smallq_v[p] = smallQ;
 
         float reco_energy = 0;
         float reco_energy2 = -1;
@@ -925,6 +927,7 @@ namespace ssnetshowerreco {
             std::vector< std::vector<int> > pixlist2_v =
               _enclosedCharge( secondshower_adc_vv, shangle2, sumQ2, tri2, true, vtx_pix2[0], vtx_pix2[1], shlength2, shopen2 );
             _imageCharge( secondshower_adc_vv, wire_meta[p], smallQ2, p, vtx_pix[0], vtx_pix[1]);
+	    smallq2_v[p] = smallQ2;
 
             if ( _use_calibrated_pixelsum2mev )
               reco_energy2 = sumQ2*0.01324 + 37.83337; // calibrated images
@@ -1026,7 +1029,7 @@ namespace ssnetshowerreco {
         shr.set_total_energy_err( sumQ );
         shr2.set_total_energy_err( sumQ2 );
         
-				// set cropSumq
+	// set cropSumq
         shr.set_dqdx( smallQ );
         shr2.set_dqdx( smallQ2 );
 
@@ -1242,6 +1245,8 @@ namespace ssnetshowerreco {
       _secondshower_shlength_vv.push_back( secondshower_shlength_v );
       _secondshower_shangle_vv.push_back( secondshower_shangle_v );
       _secondshower_shopen_vv.push_back( secondshower_shopen_v );
+      _smallQ.push_back( smallq_v );
+      _smallQ2.push_back( smallq2_v );
 
       //do 3d shower match
       if (_second_shower){
@@ -1432,7 +1437,7 @@ namespace ssnetshowerreco {
       std::vector<int> true_shower1_tmp_2dstart = Utils.getProjectedPixel(tmptruestart1, ev_adc->Image2DArray()[2].meta(), 3);
       std::vector<int> true_shower2_tmp_2dstart = Utils.getProjectedPixel(tmptruestart2, ev_adc->Image2DArray()[2].meta(), 3);
 
-      for (int vtx =0;vtx<_vtx_pos_vv.size();vtx++){
+      for (int vtx =0;vtx<(int)_vtx_pos_vv.size();vtx++){
         std::vector<float> tmp_distances_first = SecondShower.RecoTrueDistances(
               true_shower1_tmp_2dstart, true_shower2_tmp_2dstart, _shower_start_2d_vvv[vtx][2]);
         std::vector<float> tmp_distances_sec = SecondShower.RecoTrueDistances(
@@ -1492,7 +1497,7 @@ namespace ssnetshowerreco {
       tmptruestart1[2]= (double)_true_shower_start_vv[0][2];
       std::vector<int> true_shower1_tmp_2dstart = Utils.getProjectedPixel(tmptruestart1, ev_adc->Image2DArray()[2].meta(), 3);
 
-      for (int vtx =0;vtx<_vtx_pos_vv.size();vtx++){
+      for (int vtx =0;vtx<(int)_vtx_pos_vv.size();vtx++){
         std::vector<float> tmp_distances_first = SecondShower.RecoTrueDistances(
               true_shower1_tmp_2dstart,{-9999,-9999,-9999}, _shower_start_2d_vvv[vtx][2]);
         _firstdirection_true.push_back(_true_shower_dir_vv[0]);
