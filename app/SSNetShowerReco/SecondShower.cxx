@@ -146,60 +146,13 @@ int SecondShower::ChooseGapSize(int vtx_col,int vtx_row,float shangle,
 
 //------------------------------------------------------------------------------
 
-std::vector<double> SecondShower::SaveTrueEnergies(larlite::event_mcshower* ev_mcshower,
-            std::vector<double> _scex){
+std::vector<double> SecondShower::SaveTrueEnergies(larlite::event_mcshower* ev_mcshower){
 
   //retrieve and save true shower energies in order of closeness to vertex
-  std::vector<double> energy_v(2,0);
-
-  std::vector< std::vector<double>> showerstart_v;
-  for (int shower = 0; shower<ev_mcshower->size();shower++){
-    larlite::mcstep start = ev_mcshower->at(shower).DetProfile();
-    std::vector<double> showerstart ={start.X(),start.Y(),start.Z()};
-    showerstart_v.push_back(showerstart);
-  }
-
-  std::vector<double> vtx3d_true = { _scex[0], _scex[1], _scex[2]};
-  // std::cout << " True Vertex Pos (" << vtx3d_true[0] << "," << vtx3d_true[1] << "," << vtx3d_true[2] << ")" << std::endl;
-  std::vector<double> showerdist_v(2,0);
-  if (showerstart_v[0][0]<10000&&showerstart_v[0][1]<10000&&showerstart_v[0][2]<10000){
-    showerdist_v[0] = std::sqrt(std::pow(showerstart_v[0][0]-vtx3d_true[0],2)+std::pow(showerstart_v[0][1]-vtx3d_true[1],2)+std::pow(showerstart_v[0][2]-vtx3d_true[2],2));
-  }
-  else showerdist_v[0]= -1.0;
-  if (showerstart_v[1][0]<10000&&showerstart_v[1][1]<10000&&showerstart_v[1][2]<10000){
-    showerdist_v[1] = std::sqrt(std::pow(showerstart_v[1][0]-vtx3d_true[0],2)+std::pow(showerstart_v[1][1]-vtx3d_true[1],2)+std::pow(showerstart_v[1][2]-vtx3d_true[2],2));
-  }
-  else showerdist_v[1]= -1.0;
-  // std::cout<<"Shower distances: "<<showerdist_v[0]<< " , "<<showerdist_v[1]<<std::endl;
-  //shower energy in order of closeness
-  double energy0 = ev_mcshower->at(0).DetProfile().E();
-  double energy1 = ev_mcshower->at(1).DetProfile().E();
-
-  int close_shower_id;
-  if (showerdist_v[1]>=showerdist_v[0]&&showerdist_v[0]>=0){
-    energy_v[0] = energy0;
-    energy_v[1] = energy1;
-    close_shower_id = 0;
-  }
-  else if (showerdist_v[0]>=showerdist_v[1]&&showerdist_v[1]>=0){
-    energy_v[0] = energy1;
-    energy_v[1] = energy0;
-    close_shower_id = 1;
-  }
-  else if(showerdist_v[0]==-1&&showerdist_v[1]==-1){
-    energy_v[0] = energy0;
-    energy_v[1] = energy1;
-    close_shower_id = 0;
-  }
-  else if (showerdist_v[0]==-1){
-    energy_v[0] = energy1;
-    energy_v[1] = energy0;
-    close_shower_id = 1;
-  }
-  else if (showerdist_v[1]==-1){
-    energy_v[1] = energy1;
-    energy_v[0] = energy0;
-    close_shower_id = 1;
+  std::vector<double> energy_v(ev_mcshower->size(),0);
+  for  (int shower =0;shower<ev_mcshower->size();shower++){
+    double energy = ev_mcshower->at(0).DetProfile().E();
+    energy_v[shower] = energy;
   }
 
   return energy_v;
@@ -209,11 +162,10 @@ std::vector<double> SecondShower::SaveTrueEnergies(larlite::event_mcshower* ev_m
 
 std::vector<std::vector<double>> SecondShower::SaveTrueStarts(larlite::event_mcshower* ev_mcshower){
 
-  //retrieve and save true shower start points in order of closeness to vertex
   std::vector<std::vector<double>> starts_v(ev_mcshower->size(),std::vector<double> (3,-1));
 
   for (int shower = 0; shower<ev_mcshower->size();shower++){
-    larlite::mcstep start = ev_mcshower->at(shower).Start();
+    larlite::mcstep start = ev_mcshower->at(shower).DetProfile();
     std::vector<double> showerstart ={start.X(),start.Y(),start.Z()};
     starts_v[shower] = showerstart;
   }
@@ -221,6 +173,33 @@ std::vector<std::vector<double>> SecondShower::SaveTrueStarts(larlite::event_mcs
   return starts_v;
 }//end of function
 
+//------------------------------------------------------------------------------
+
+std::vector<std::vector<double>> SecondShower::SaveTrueDirections(larlite::event_mcshower* ev_mcshower){
+
+  std::vector<std::vector<double>> dir_v(ev_mcshower->size(),std::vector<double> (3,-1));
+
+  for (int shower = 0; shower<ev_mcshower->size();shower++){
+    TVector3 dir = ev_mcshower->at(shower).StartDir();
+    std::vector<double> dir3d ={dir.X(),dir.Y(),dir.Z()};
+    dir_v[shower] = dir3d;
+  }
+
+  return dir_v;
+}//end of function
+
+//------------------------------------------------------------------------------
+std::vector<float> SecondShower::RecoTrueDistances(std::vector<int> true_shower1_tmp_2dstart,
+      std::vector<int> true_shower2_tmp_2dstart, std::vector<int>shower_start_2d_v){
+
+    //determines distance between reco and true shower start
+    std::vector<float> dist_v (2,0);
+    float dist1 = std::sqrt(std::pow((float)true_shower1_tmp_2dstart[3]-(float)shower_start_2d_v[0],2)+std::pow((float)true_shower1_tmp_2dstart[0]-(float)shower_start_2d_v[1],2));
+    float dist2 = std::sqrt(std::pow((float)true_shower2_tmp_2dstart[3]-(float)shower_start_2d_v[0],2)+std::pow((float)true_shower2_tmp_2dstart[0]-(float)shower_start_2d_v[1],2));
+    dist_v[0] = dist1;
+    dist_v[1] = dist2;
+    return dist_v;
+  }//end of function
 //------------------------------------------------------------------------------
 
 std::vector<std::vector<float>> SecondShower::Match_3D(std::vector<std::vector<float>> triangle_vv,
@@ -597,9 +576,9 @@ std::vector<float> SecondShower::GetOpeningAngle(std::vector<std::vector<float>>
   float kcross = idiff*jd-jdiff*id;
   float impact1 = (std::sqrt(xcross*xcross+ycross*ycross+zcross*zcross))/magdir1;
   float impact2 = (std::sqrt(icross*icross+jcross*jcross+kcross*kcross))/magdir2;
-  std::cout<<"impact distance 1: "<<impact1<<std::endl;
-  std::cout<<"impact distance 2: "<<impact2<<std::endl;
-  std::cout<<"distance to intersection: "<<disttoint<<std::endl;
+  // std::cout<<"impact distance 1: "<<impact1<<std::endl;
+  // std::cout<<"impact distance 2: "<<impact2<<std::endl;
+  // std::cout<<"distance to intersection: "<<disttoint<<std::endl;
   //change direction to diff between pca center and vertex
   firstdirection[0] = firstcenter[0]-vertex[0];
   firstdirection[1] = firstcenter[1]-vertex[1];

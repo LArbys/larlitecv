@@ -60,8 +60,6 @@ namespace ssnetshowerreco {
     float getVertexSecondShowerSumQ( int vtxid, int plane ) const { return _secondshower_sumQ_vv[vtxid][plane]; };
     float getVertexSecondShowerShlength( int vtxid, int plane ) const { return _secondshower_shlength_vv[vtxid][plane]; };
     ::std::vector<double> getVertexPos( int vtxid ) const { return _vtx_pos_vv[vtxid]; };
-    double getTrueShowerEnergy(int shower) const { return _true_energy_vv[shower]; };
-    ::std::vector<double> getTrueShowerStarts(int shower) const { return _true_shower_start_vv[shower]; };
     double getRemainingADC() const { return _remaining_adc; };
     float getOverlapFraction1(int vtx, int plane, int shower ) const { return _match_y1_vv[vtx][plane][shower]; };
     float getOverlapFraction2(int vtx, int plane, int shower ) const { return _match_y2_vv[vtx][plane][shower]; };
@@ -80,10 +78,13 @@ namespace ssnetshowerreco {
     float getImpact2(int vtx) const {return _impact2[vtx];};
     int getHasPi0() const {return _haspi0;};
     int getCCNC() const {return _ccnc;};
+    int getNumTrueShowers() const {return _numshowers;};
+    int getTrueFid() const {return _truefid;};
     float getAlpha(int vtx) const {return _alpha[vtx];};
     float getFirstDirection(int vtx, int dir) const {return _firstdirection[vtx][dir];};
     float getSecondDirection(int vtx, int dir) const {return _seconddirection[vtx][dir];};
 
+    //adding gets for final reco variables
     int getVertexShowerGap( int vtxid, int plane ) const { return _shower_gap_vv[vtxid][plane]; };
     int getVertexSecondShowerGap( int vtxid, int plane ) const { return _secondshower_gap_vv[vtxid][plane]; };
     int getShowerStart2D(int vtxid, int plane, int dir) const{ return   _shower_start_2d_vvv[vtxid][plane][dir]; };
@@ -92,6 +93,16 @@ namespace ssnetshowerreco {
     float getVertexSecondShowerDirection2D( int vtxid, int plane ) const { return _secondshower_shangle_vv[vtxid][plane]; };
     float getVertexShowerOpening2D( int vtxid, int plane ) const { return _shower_shopen_vv[vtxid][plane]; };
     float getVertexSecondShowerOpening2D( int vtxid, int plane ) const { return _secondshower_shopen_vv[vtxid][plane]; };
+
+    //adding gets for final true variables
+    double getTrueShowerEnergy( int vtxid ) const {return _shower_energy_true_vv[vtxid]; };
+    float getShowerRecoTrueDist( int vtxid ) const {return _shower_recotrue_dist_v[vtxid]; };
+    double getTrueShowerDirection( int vtxid, int dir ) const {return _firstdirection_true[vtxid][dir]; };
+    int getTrueShower2DStart( int vtxid, int idx ) const {return _shower_start_2d_true_vvv[vtxid][idx]; };
+    double getTrueSecondShowerEnergy( int vtxid ) const {return _secondshower_energy_true_vv[vtxid]; };
+    float getSecondShowerRecoTrueDist( int vtxid ) const {return _secondshower_recotrue_dist_v[vtxid]; };
+    double getTrueSecondShowerDirection( int vtxid, int dir ) const {return _seconddirection_true[vtxid][dir]; };
+    int getTrueSecondShower2DStart( int vtxid, int idx ) const {return _secondshower_start_2d_true_vvv[vtxid][idx]; };
 
 
     larlite::shower& getShowerObject( int vtxid, int plane ) { return _shower_ll_v.at( 3*vtxid+plane ); };
@@ -103,6 +114,7 @@ namespace ssnetshowerreco {
     void use_ncpi0( bool use=true ) { _use_ncpi0 = use; };
     void use_nueint( bool use=true ) { _use_nueint = use; };
     void use_bnb( bool use=true ) { _use_bnb = use; };
+    void use_mc( bool use=true ) { _use_mc = use; };
 
 
 
@@ -179,6 +191,7 @@ namespace ssnetshowerreco {
     bool _use_nueint;
     bool _use_bnb;
     bool _second_shower;
+    bool _use_mc;
     float _second_shower_adc_threshold;
 
   public:
@@ -196,52 +209,66 @@ namespace ssnetshowerreco {
   protected:
     // variables filled
     // -----------------
-    int _run;
-    int _subrun;
-    int _event;
-    std::vector<int> _vtxid;
-    std::vector< std::vector<float> >  _shower_energy_vv;
-    std::vector< std::vector<int> >  _shower_gap_vv;
+    int                                            _run;
+    int                                            _subrun;
+    int                                            _event;
+    std::vector<int>                               _vtxid;
+    std::vector< double >                          _true_vtx_3d_v;
+    std::vector< std::vector<float> >              _shower_energy_vv;
+    std::vector< std::vector<int> >                _shower_gap_vv;
     std::vector< std::vector< std::vector<int> > > _shower_start_2d_vvv;
-    std::vector< std::vector<float> >  _shower_sumQ_vv;
-    std::vector< std::vector<float> >  _shower_shlength_vv;
-    std::vector< std::vector<float> >  _shower_shangle_vv;
-    std::vector< std::vector<float> >  _shower_shopen_vv;
-    std::vector< std::vector<float> >  _secondshower_energy_vv;
-    std::vector< std::vector<int> >  _secondshower_gap_vv;
+    std::vector< std::vector<float> >              _shower_sumQ_vv;
+    std::vector< std::vector<float> >              _shower_shlength_vv;
+    std::vector< std::vector<float> >              _shower_shangle_vv;
+    std::vector< std::vector<float> >              _shower_shopen_vv;
+    std::vector< std::vector<float> >              _secondshower_energy_vv;
+    std::vector< std::vector<int> >                _secondshower_gap_vv;
     std::vector< std::vector< std::vector<int> > > _secondshower_start_2d_vvv;
-    std::vector< std::vector<float> >  _secondshower_sumQ_vv;
-    std::vector< std::vector<float> >  _secondshower_shlength_vv;
-    std::vector< std::vector<float> >  _secondshower_shangle_vv;
-    std::vector< std::vector<float> >  _secondshower_shopen_vv;
-    std::vector< std::vector<double> > _vtx_pos_vv;
-    std::vector< larlite::shower >         _shower_ll_v;
-    std::vector< larlite::shower >         _secondshower_ll_v;
-    std::vector< larlite::larflowcluster > _shower_pixcluster_v;
-    std::vector<double>  _true_energy_vv;
-    std::vector<std::vector<double>> _true_shower_start_vv;
-    double _remaining_adc;
-    std::vector<std::vector<std::vector<float>>> _match_y1_vv;
-    std::vector<std::vector<std::vector<float>>> _match_y2_vv;
-    std::vector<std::vector<std::vector<int>>> _bestmatch_y1_vv;
-    std::vector<std::vector<std::vector<int>>> _bestmatch_y2_vv;
-    std::vector<std::vector<float>> _uplane_profile_vv;
-    std::vector<std::vector<float>> _vplane_profile_vv;
-    std::vector<std::vector<float>> _yplane_profile_vv;
-    std::vector<std::vector<float>> _ShowerTruthMatch_pur_vv;
-    std::vector<std::vector<float>> _ShowerTruthMatch_eff_vv;
-    std::vector<int> _useformass;
-    std::vector<float> _pi0mass;
-    std::vector<float> _disttoint;
-    std::vector<float> _impact1;
-    std::vector<float> _impact2;
-    std::vector<float> _alpha;
-    std::vector<std::vector<float>> _seconddirection;
-    std::vector<std::vector<float>> _firstdirection;
-    int _haspi0;
-    int _ccnc;
-    TTree* _ana_tree;
-    TFile* OutFile;
+    std::vector< std::vector<float> >              _secondshower_sumQ_vv;
+    std::vector< std::vector<float> >              _secondshower_shlength_vv;
+    std::vector< std::vector<float> >              _secondshower_shangle_vv;
+    std::vector< std::vector<float> >              _secondshower_shopen_vv;
+    std::vector< std::vector<double> >             _vtx_pos_vv;
+    std::vector< larlite::shower >                 _shower_ll_v;
+    std::vector< larlite::shower >                 _secondshower_ll_v;
+    std::vector< larlite::larflowcluster >         _shower_pixcluster_v;
+    std::vector<double>                            _true_energy_vv;
+    std::vector<std::vector<double>>               _true_shower_start_vv;
+    std::vector<std::vector<double>>               _true_shower_dir_vv;
+    double                                         _remaining_adc;
+    std::vector<std::vector<std::vector<float>>>   _match_y1_vv;
+    std::vector<std::vector<std::vector<float>>>   _match_y2_vv;
+    std::vector<std::vector<std::vector<int>>>     _bestmatch_y1_vv;
+    std::vector<std::vector<std::vector<int>>>     _bestmatch_y2_vv;
+    std::vector<std::vector<float>>                _uplane_profile_vv;
+    std::vector<std::vector<float>>                _vplane_profile_vv;
+    std::vector<std::vector<float>>                _yplane_profile_vv;
+    std::vector<std::vector<float>>                _ShowerTruthMatch_pur_vv;
+    std::vector<std::vector<float>>                _ShowerTruthMatch_eff_vv;
+    std::vector<int>                               _useformass;
+    std::vector<float>                             _pi0mass;
+    std::vector<float>                             _disttoint;
+    std::vector<float>                             _impact1;
+    std::vector<float>                             _impact2;
+    std::vector<float>                             _alpha;
+    std::vector<std::vector<float>>                _seconddirection;
+    std::vector<std::vector<float>>                _firstdirection;
+    //true variables
+    int                                            _haspi0;
+    int                                            _ccnc;
+    int                                            _truefid;
+    int                                            _numshowers;
+    std::vector<std::vector<double>>               _seconddirection_true;
+    std::vector<std::vector<double>>               _firstdirection_true;
+    std::vector< std::vector<int> >                _shower_start_2d_true_vvv;
+    std::vector< std::vector<int> >                _secondshower_start_2d_true_vvv;
+    std::vector<double>                            _shower_energy_true_vv;
+    std::vector<double>                            _secondshower_energy_true_vv;
+    std::vector< float>                            _shower_recotrue_dist_v;
+    std::vector< float>                            _secondshower_recotrue_dist_v;
+    //root objects
+    TTree*                                         _ana_tree;
+    TFile*                                         OutFile;
   public:
     void clear();
     TTree* getAnaTree() { return _ana_tree; };
