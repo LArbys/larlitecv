@@ -605,6 +605,10 @@ namespace ssnetshowerreco {
     std::vector<std::vector<float>> ssnet_v_shower_sparse_high = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],.5);
     std::vector<std::vector<float>> ssnet_y_shower_sparse_high = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],.5);
     std::vector<std::vector<std::vector<float>>> ssnet_sparse_high_vvv = {ssnet_u_shower_sparse,ssnet_v_shower_sparse,ssnet_y_shower_sparse};
+    std::vector<std::vector<float>> ssnet_u_shower_sparse_low = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],.05);
+    std::vector<std::vector<float>> ssnet_v_shower_sparse_low = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],.05);
+    std::vector<std::vector<float>> ssnet_y_shower_sparse_low = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],.05);
+    std::vector<std::vector<std::vector<float>>> ssnet_sparse_low_vvv = {ssnet_u_shower_sparse_low,ssnet_v_shower_sparse_low,ssnet_y_shower_sparse_low};
 
     larcv::EventPGraph* ev_vtx
       = (larcv::EventPGraph*)iolcv.get_data( larcv::kProductPGraph, _vertex_tree_name );
@@ -680,6 +684,7 @@ namespace ssnetshowerreco {
     //mask out non shower pixels from adc
     std::vector<std::vector<std::vector<float>>> masked_adc_vvv;
     std::vector<std::vector<std::vector<float>>> masked_adc_high_vvv;
+    std::vector<std::vector<std::vector<float>>> masked_adc_low_vvv;
 
 
     //make object to save triangles of showers to fill later.
@@ -718,7 +723,21 @@ namespace ssnetshowerreco {
         }//end of loop through ssnet
       }//end of loop throug adc
       masked_adc_high_vvv.push_back(masked_plane_high_v);
-    }//end of plane loop
+      
+			
+			// mask the ADC image using ssnet - high threshold
+      int npixels_ssnet_low = ssnet_sparse_low_vvv[p].size();
+      std::vector<std::vector<float>> masked_plane_low_v;
+      for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
+        for ( int ssnet_i =0;ssnet_i<npixels_ssnet_low;ssnet_i++){
+          if (ssnet_sparse_low_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_low_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
+              masked_plane_low_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
+          }//end of if statements
+        }//end of loop through ssnet
+      }//end of loop throug adc
+      masked_adc_low_vvv.push_back(masked_plane_low_v);
+    
+		}//end of plane loop
 
     if (_use_nueint){
       _uplane_profile_vv = SecondShower.SaveTrueProfile(0, ev_segment, ev_instance,
@@ -860,7 +879,7 @@ namespace ssnetshowerreco {
         triangle_t tri;
         std::vector< std::vector<int> > pixlist_v =
           _enclosedCharge( masked_adc_vvv[p], shangle, sumQ, tri, true, vtx_pix[0], vtx_pix[1], shlength, shopen );
-	_imageCharge( masked_adc_vvv[p], wire_meta[p], smallQ, p, imgcoord_v[p], imgcoord_v[3]);
+	_imageCharge( masked_adc_low_vvv[p], wire_meta[p], smallQ, p, imgcoord_v[p], imgcoord_v[3]);
 	smallq_v[p] = smallQ;
 
         float reco_energy = 0;
@@ -926,7 +945,7 @@ namespace ssnetshowerreco {
             triangle_t tri2;
             std::vector< std::vector<int> > pixlist2_v =
               _enclosedCharge( secondshower_adc_vv, shangle2, sumQ2, tri2, true, vtx_pix2[0], vtx_pix2[1], shlength2, shopen2 );
-            _imageCharge( secondshower_adc_vv, wire_meta[p], smallQ2, p, vtx_pix[0], vtx_pix[1]);
+            _imageCharge( masked_adc_low_vvv[p], wire_meta[p], smallQ2, p, vtx_pix[0], vtx_pix[1]);
 	    smallq2_v[p] = smallQ2;
 
             if ( _use_calibrated_pixelsum2mev )
