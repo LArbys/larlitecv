@@ -51,13 +51,19 @@ namespace larlitecv {
      std::vector<double> dx_y;
      std::vector<double> s_distance_y;
      std::vector<larcv::Image2D> get_img_v() {return _img_v;} //Returns copy of _img_v
+     void Initialize_DQDXBuilder();
      void set_img_v(std::vector<larcv::Image2D> img_v) {_img_v = img_v;} // Sets _img_v
-     double sum_charge_dq(const int low_row, const int high_row, const int col, const int plane=2, const int buffer=2);
+     double sum_charge_dq(const int low_row, const int high_row, const int col, const int plane=2, const int buffer=4);
      void Initialize_Wirept_Vector();
      int calc_row_from_x(double x1, const larcv::ImageMeta& meta);
      // larlite::track calc_dqdx_track(const larlite::track& reco3d_track);
-     larlite::track calc_dqdx_track_revamp(const larlite::track& reco3d_track);
+     void Add_Track_To_ResidualDQDX(const larlite::track& reco3d_track, const int plane);
+     void Plot_Orig_New_Raw_Track_Crop(const larlite::track& orig_track, const larlite::track& new_track);
+
+     larlite::track calc_dqdx_track_revamp(const larlite::track& reco3d_track, const int plane);
      TVector3 get_halfway_plane_pt( int w1,  int w2, const TVector3 pt1, const TVector3 pt2, const int plane);
+     void test_wirecoord_driftplanes(larlite::track reco3d_track);
+
    private:
      std::vector<larcv::Image2D> _img_v; // The three plane views in adc
 

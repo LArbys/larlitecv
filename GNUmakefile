@@ -33,8 +33,10 @@ ifeq ($(LARLITECV_OPENCV),1)
 endif
 # TAGGER CHAIN
 APP_SUBDIRS += ThruMu StopMu UntaggedClustering ContainedROI TaggerCROI DQDXCalculator
-APP_SUBDIRS += DQDXCalculator
 APP_SUBDIRS += SSNetShowerReco dllee
+APP_SUBDIRS += DQDXCalculator
+# This makes us only build this:
+# APP_SUBDIRS = DQDXCalculator
 
 .phony: all clean
 

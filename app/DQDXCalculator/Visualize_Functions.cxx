@@ -59,6 +59,9 @@ void make_dqdx_curve(const std::vector<double>& dqdx_v, const std::vector<double
     std::cout << "Input Vectors not the same size!\n";
     return;
   }
+  // for (int i=0; i<dqdx_v.size();i++){
+  //   std::cout <<"   " << i << "   " <<  dqdx_v[i] <<"   " << distance_v[i] << "\n";
+  // }
   TGraph dqdx_curve_g = TGraph(dqdx_v.size(), distance_v.data(), dqdx_v.data());
   TCanvas can("can", "histograms ", 2000, 1000);
   can.cd();

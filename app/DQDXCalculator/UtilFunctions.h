@@ -17,10 +17,16 @@
 // larcv
 #include "DataFormat/EventImage2D.h"
 
+// larlite
+#include "DataFormat/mctrajectory.h"
+
 // larutil
 #include "LArUtil/LArProperties.h"
 #include "LArUtil/DetectorProperties.h"
 #include "LArUtil/Geometry.h"
+#include "LArUtil/ClockConstants.h"
+#include "LArUtil/SpaceChargeMicroBooNE.h"
+#include "LArUtil/TimeService.h"
 
 namespace larlitecv {
 
@@ -41,5 +47,8 @@ namespace larlitecv {
   				   const larcv::ImageMeta& meta,
   				   const int nplanes,
   				   const float fracpixborder=1.5 );
+ TVector3 perform_sce_fwd(larlite::mcstep const& mcstep);
+ bool error_check(double x, double y, double z);
+ double mcstep_time_adjust(larlite::mcstep const& mcstep);
 }
 #endif

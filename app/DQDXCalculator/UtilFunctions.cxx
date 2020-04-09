@@ -208,5 +208,59 @@ namespace larlitecv {
 		distance = std::sqrt(std::pow(xd1-xd2,2)+std::pow(yd1-yd2,2));
 		return distance ;
 	}
+
+	TVector3 perform_sce_fwd(larlite::mcstep const& mcstep){
+		/*
+		This function takes an roi, and applies an sce_fwd correction to it,
+		in order to match Reconstruction. It requires global variables g_driftv
+		g_samplingrate, and g_sce_class
+		-Josh
+		*/
+		larutil::SpaceChargeMicroBooNE g_sce_class; // default is fwd mcc9
+		double g_driftv = larutil::LArProperties::GetME()->DriftVelocity();
+		double g_samplingrate = larutil::DetectorProperties::GetME()->SamplingRate();
+
+	  TVector3 xyz;
+	  double tick = mcstep.X() / g_driftv * g_samplingrate / 1000 + 3200;
+	  double delta_x_tickhack =  ( g_driftv ) * 1000 / g_samplingrate * ((6+tick-3200)*0.014);
+		std::vector<double> xyzchange(3,0);
+		if ( error_check(mcstep.X(),mcstep.Y(),mcstep.Z()) ){
+			xyzchange = g_sce_class.GetPosOffsets(mcstep.X(),mcstep.Y(),mcstep.Z());
+		}
+	  double new_x = mcstep_time_adjust(mcstep);
+	  xyz.SetX( new_x - xyzchange[0] + delta_x_tickhack + 0.6);
+	  xyz.SetY( mcstep.Y() + xyzchange[1] ) ;
+	  xyz.SetZ( mcstep.Z() + xyzchange[2] ) ;
+	  return xyz;
+	}
+	double mcstep_time_adjust(const larlite::mcstep& mcstep){
+		/*
+		This function takes an mcstep and returns the new adjusted x position
+		in accordance with Taritree's Hack
+		-Josh
+		*/
+	  double cm_per_tick = larutil::LArProperties::GetME()->DriftVelocity()*0.5;
+	  double time = mcstep.T();
+	  double tick = larutil::TimeService::GetME()->TPCG4Time2Tick(time) + mcstep.X()/(cm_per_tick);
+	  double new_x = (tick - 3200)*cm_per_tick;
+	  return new_x;
+	}
+	bool error_check(double x, double y, double z){
+		/*
+		This file checks if x,y,z are outside the detector's dimensions as needed
+		for the GetPosOffsets function, to avoid throughing warnings endlessly
+		-Josh
+		*/
+		if ((x == 0.) || (x > 256.)){
+			return false;
+		}
+		else if ((y <= -116.5) || (y > 116.5)){
+			return false;
+		}
+		else if ((z == 0.) || (z > 1037.)){
+			return false;
+		}
+		return true;
+	}
 }
 #endif

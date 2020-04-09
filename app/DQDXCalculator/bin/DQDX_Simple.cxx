@@ -53,57 +53,50 @@ std::vector<std::string> get_filenames();
 std::vector<int> get_entries();
 
 int main(int nargs, char** argv){
-	if(nargs !=3) {
-		std::cout << "Not enough nargs\n";
+	if(nargs !=2) {
+		std::cout << "Not right number of args nargs\n";
+		std::cout << "Should just give a filelist\n";
 		std::cout << nargs << "\n";
 		return 1;
 	}
-	int start_file_num = std::atoi(argv[1]);
-	int end_file_num   = std::atoi(argv[2]);
+	clock_t start_time,end_time;
+	start_time=clock();
+	std::string input_filelist = argv[1];
+	std::cout << "Input Filelist: " << input_filelist << "\n";
 
-	std::cout << "Hello world " << "\n";
-
-	std::vector<std::string> files = get_filenames();
-	std::vector<int> specific_entry_number = get_entries();
 	std::string producer_name_img = "wire";
 	std::string producer_name_vtx = "test";
 	std::string producer_name_in_track = "trackReco";
 	std::string producer_name_in_vtx = "trackReco";
-	std::string producer_name_in_mctrack = "mcreco";
+	std::string producer_name_out_track_u = "dqdxTrack_u";
+	std::string producer_name_out_track_v = "dqdxTrack_v";
+	std::string producer_name_out_track_y = "dqdxTrack_y";
 
-	std::string producer_name_out_track = "dqdxTrack";
+	larlitecv::DQDXBuilder dqdxbuilder;
+	std::string input_file;
+  std::ifstream infile;
+  infile.open (input_filelist);
+  int file_index = -1;
 
-	std::string output_dir = "p_dqdx_images/";
-
-	larlitecv::DQDXBuilder dqdxbuilder_longtrack;
-	larlitecv::DQDXBuilder dqdxbuilder_shorttrack;
-
-
-	for (unsigned int file_index = 0;file_index<files.size(); file_index++){
-
-	  std::string input_file = files[file_index];
-		if (((int)file_index < start_file_num) || ((int)file_index >= end_file_num)){
-			continue;
-		}
+  while(std::getline(infile,input_file)){ // To get you all the lines.
+    file_index++;
 		std::cout << "File Number: " << file_index << "\n";
-
-		int specific_entry = specific_entry_number[file_index];
-		// int specific_entry = -1;
+		int specific_entry = -1;
 
 
 		gStyle->SetOptStat(0);
+		// LArCV Input
 		larcv::IOManager* io_larcv  = new larcv::IOManager(larcv::IOManager::kREAD,"IOManager_Tagger", larcv::IOManager::kTickBackward);
 		io_larcv->add_in_file(input_file);
 		io_larcv->initialize();
-
+		// LArLite Input
 		larlite::storage_manager* io_larlite  = new larlite::storage_manager(larlite::storage_manager::kREAD);
 		io_larlite->add_in_filename(input_file);
 		io_larlite->open();
-
-
-		// larlite::storage_manager* io_out_ll  = new larlite::storage_manager(larlite::storage_manager::kWRITE);
-		// io_out_ll->set_out_filename("testout_ll.root");
-		// io_out_ll->open();
+		// LArLite Output
+		larlite::storage_manager* io_out_ll  = new larlite::storage_manager(larlite::storage_manager::kWRITE);
+		io_out_ll->set_out_filename("outfile_dqdxtracks.root");
+		io_out_ll->open();
 
 
 		int start_entry = 0;
@@ -118,152 +111,53 @@ int main(int nargs, char** argv){
 			io_larcv->read_entry(entry);
 			io_larlite->go_to(entry);
 			// LArCV Imports
-			std::cout << "\n";
 		  larcv::EventImage2D* ev_in_adc_dlreco   = (larcv::EventImage2D*)(io_larcv->get_data(larcv::kProductImage2D, producer_name_img.c_str()));
 			larlite::event_track& ev_dl_track       = *((larlite::event_track*)io_larlite->get_data(larlite::data::kTrack,  producer_name_in_track.c_str() ));
-			larlite::event_vertex& ev_dl_vtx        = *((larlite::event_vertex*)io_larlite->get_data(larlite::data::kVertex,  producer_name_in_vtx.c_str() ));
-			TVector3 vtx_start(ev_dl_vtx.at(0).X(),ev_dl_vtx.at(0).Y(),ev_dl_vtx.at(0).Z());
-			std::vector<TVector3> mc_ends;
-			std::vector<int> mc_pdgs;
+			// larlite::event_vertex& ev_dl_vtx        = *((larlite::event_vertex*)io_larlite->get_data(larlite::data::kVertex,  producer_name_in_vtx.c_str() ));
+			// TVector3 vtx_start(ev_dl_vtx.at(0).X(),ev_dl_vtx.at(0).Y(),ev_dl_vtx.at(0).Z());
 
-			if (producer_name_in_mctrack != ""){
-				larlite::event_mctrack& ev_dl_mctrack = *((larlite::event_mctrack*)io_larlite->get_data(larlite::data::kMCTrack,  producer_name_in_mctrack.c_str() ));
-				for (larlite::mctrack mctrack: ev_dl_mctrack){
-					TVector3 this_step_old(mctrack.End().X(),mctrack.End().Y(),mctrack.End().Z());
-					TVector3 this_step = larlitecv::perform_sce_fwd(mctrack.End());
-					std::cout << "Old "; larlitecv::print_tvec(this_step_old);
-					std::cout << "SCE "; larlitecv::print_tvec(this_step);
+			larlite::event_track& ev_output_track_u       = *((larlite::event_track*)io_out_ll->get_data(larlite::data::kTrack,  producer_name_out_track_u.c_str() ));
+			larlite::event_track& ev_output_track_v       = *((larlite::event_track*)io_out_ll->get_data(larlite::data::kTrack,  producer_name_out_track_v.c_str() ));
+			larlite::event_track& ev_output_track_y       = *((larlite::event_track*)io_out_ll->get_data(larlite::data::kTrack,  producer_name_out_track_y.c_str() ));
 
-					mc_ends.push_back(this_step);
-					mc_pdgs.push_back(mctrack.PdgCode());
-				}
-			}
 
-			// larlite::event_track& ev_output_track       = *((larlite::event_track*)io_out_ll->get_data(larlite::data::kTrack,  producer_name_out_track.c_str() ));
 			int run = ev_in_adc_dlreco->run();
 			int subrun = ev_in_adc_dlreco->subrun();
 			int event = ev_in_adc_dlreco->event();
-			// io_out_ll->set_id(run,subrun,event);
-			std::cout << run << " " << subrun << " " << event << "\n";
+			io_out_ll->set_id(run,subrun,event);
+			std::cout << "RSE	" << run << " " << subrun << " " << event << "\n";
 		  std::vector< larcv::Image2D > img_v = ev_in_adc_dlreco->Image2DArray();
-			larlitecv::make_evdisp_single(img_v[2], "ev_disp_raw_y");
-			dqdxbuilder_longtrack.set_img_v(img_v);
-			dqdxbuilder_shorttrack.set_img_v(img_v);
-			double long_length = -1;
-			int long_idx = -1;
-			bool long_good = false;
-			int long_pdg = -99999;
-			double short_length = -1;
-			int short_idx = -1;
-			bool short_good = false;
-			int short_pdg = -99999;
+			// larlitecv::make_evdisp_single(img_v[2], "ev_disp_raw_y");
+			dqdxbuilder.set_img_v(img_v);
 
-			for ( int iii=0; iii < (int)ev_dl_track.size(); iii++){
-				larlite::track reco3d_track = ev_dl_track.at(iii);
-				if (larlitecv::distance_between_pt(reco3d_track.Vertex() ,  vtx_start) > 1){
-					// Track not attached to right vertex
-					continue;
-				}
-				std::cout << "Reco Track Near Vtx Start\n";
-				double this_length = reco3d_track.Length();
-				TVector3 this_end = reco3d_track.End();
-				bool this_good = false;
-				int this_pdg = -999999;
-				double shortest_dist_from_mcend = 99999999;
-				for (int jjj=0;jjj<(int)mc_ends.size();jjj++){
-					TVector3 this_mcend = mc_ends.at(jjj);
-					double dist_this_end = larlitecv::distance_between_pt(this_end, this_mcend);
-					if (dist_this_end < shortest_dist_from_mcend){
-						shortest_dist_from_mcend = dist_this_end;
-						this_pdg = mc_pdgs.at(jjj);
-					}
-					if (dist_this_end <= 5){
-						this_good = true;
-					}
-				}
-				if (this_length > long_length){
-					short_length = long_length;
-					short_idx = long_idx;
-					short_good = long_good;
-					short_pdg = long_pdg;
-					long_length = this_length;
-					long_idx = iii;
-					long_good = this_good;
-					long_pdg = this_pdg;
-				}
-				else if (this_length > short_length){
-					short_length = this_length;
-					short_idx = iii;
-					short_good = this_good;
-					short_good = this_pdg;
-				}
-			}
 			// Try to instantiate DQDXBuilder class
 			int idx1 = 0;
 			for (larlite::track reco3d_track : ev_dl_track){
-				if (idx1 !=0){continue;}
-				std::vector<double> reco_vertex = {(float)reco3d_track.Vertex().X(), (float)reco3d_track.Vertex().Y(), (float)reco3d_track.Vertex().Z()};
-				std::vector<int> trk_vtx_rc = larlitecv::getProjectedPixel(reco_vertex, img_v[0].meta(), 3);
-				// larlitecv::make_dqdx_curve(reco3d_track, 2, Form("dqdx_adrien_%d_%d", event,2));
-				if ((idx1 == long_idx)&& (long_good == true)){
-					if ((long_pdg == 13) ||( long_pdg == -13)){
-						larlite::track dqdx_track = dqdxbuilder_longtrack.calc_dqdx_track_revamp(reco3d_track,2);
-						std::cout << "Added_LongTrack\n";
-						std::cout << "Long PDG " << long_pdg << "\n";
-					}
-					else if ((long_pdg == 2212) ||( long_pdg == -2212)){
-						larlite::track dqdx_track = dqdxbuilder_shorttrack.calc_dqdx_track_revamp(reco3d_track,2);
-						std::cout << "Added_LongTrack\n";
-						std::cout << "Long PDG " << long_pdg << "\n";
-					}
-				}
-				else if ((idx1 == short_idx) && (short_good == true)){
-					if ((short_pdg == 13) ||( short_pdg == -13)){
-						larlite::track dqdx_track = dqdxbuilder_longtrack.calc_dqdx_track_revamp(reco3d_track,2);
-						std::cout << "Added_ShortTrack\n";
-						std::cout << "Short PDG " << short_pdg << "\n";
-					}
-					else if ((short_pdg == 2212) ||( short_pdg == -2212)){
-						larlite::track dqdx_track = dqdxbuilder_shorttrack.calc_dqdx_track_revamp(reco3d_track,2);
-						std::cout << "Added_ShortTrack\n";
-						std::cout << "Short PDG " << short_pdg << "\n";
-					}
-				}
-
-				// if (dqdx_track.NumberTrajectoryPoints() > 0){
-				// 	std::cout << "Minetrack\n";
-				// 	larlitecv::make_dqdx_curve(dqdx_track, 2, Form("dqdx_minetrack_%d_%d", event,2));
-				// }
-				// ev_output_track.push_back(dqdx_track);
-
-
+				larlite::track dqdx_track_u = dqdxbuilder.calc_dqdx_track_revamp(reco3d_track, 0);
+				larlite::track dqdx_track_v = dqdxbuilder.calc_dqdx_track_revamp(reco3d_track, 1);
+				larlite::track dqdx_track_y = dqdxbuilder.calc_dqdx_track_revamp(reco3d_track, 2);
 				idx1++;
+				ev_output_track_u.push_back(dqdx_track_u);
+				ev_output_track_v.push_back(dqdx_track_v);
+				ev_output_track_y.push_back(dqdx_track_y);
 			}//end loop through tracks
-
-			// io_out_ll->next_event();
+			io_out_ll->next_event();
 		} //End of entry loop
 		io_larcv->finalize();
 		io_larlite->close();
-		// io_out_ll->close();
+		io_out_ll->close();
 
 		delete io_larcv;
 		delete io_larlite;
-		// delete io_out_ll;
-		// larlitecv::make_evdisp(dqdxbuilder_longtrack.residual_dqdx, "Residual_dqdx_Longtrack", "Distance From End (cm)", "dQdX");
-		// larlitecv::make_evdisp(dqdxbuilder_shorttrack.residual_dqdx, "Residual_dqdx_Shorttrack", "Distance From End (cm)", "dQdX");
+		delete io_out_ll;
 
 	}
-	larlitecv::make_evdisp(dqdxbuilder_longtrack.residual_dqdx, "Residual_dqdx_Longtrack", "Distance From End (cm)", "dQdX");
-	larlitecv::make_evdisp(dqdxbuilder_shorttrack.residual_dqdx, "Residual_dqdx_Shorttrack", "Distance From End (cm)", "dQdX");
-	TFile fout(Form("outhistfiles_sce/output_file_%d_%d.root",start_file_num,end_file_num),"NEW");
-	dqdxbuilder_longtrack.residual_dqdx.SetTitle("LongTrack dQdX");
-	dqdxbuilder_shorttrack.residual_dqdx.SetTitle("ShortTrack dQdX");
-	dqdxbuilder_longtrack.residual_dqdx.Write("residual_longtrack");
-	dqdxbuilder_shorttrack.residual_dqdx.Write("residual_shorttrack");
-	fout.Write();
-	fout.Close();
 	larlitecv::print_signal();
-
+	end_time=clock();
+	double time_taken = double(end_time - start_time) / double(CLOCKS_PER_SEC);
+    std::cout << "Time taken by program is : " << std::fixed
+         << time_taken << std::setprecision(5);
+    std::cout << " sec " << std::endl;
 
 	return 0;
 	}//End of main
