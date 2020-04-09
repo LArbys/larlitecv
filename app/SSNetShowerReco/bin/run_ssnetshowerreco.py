@@ -10,6 +10,7 @@ parser.add_argument( "-ill",   "--input-larlite", type=str,  default=None,   hel
 parser.add_argument( "-f",     "--output-format", type=str,  default="json", help="Set output format. Options={'json','larlite','both'}")
 parser.add_argument( "-o",     "--output",        type=str,  required=True,  help="Output file name. if both, the stem for both." )
 parser.add_argument( "-adc",   "--adc-tree",      type=str,  default="wire", help="Name of tree containing ADC images. [ Default: 'wire' ]")
+parser.add_argument( "-ssnet",   "--ssnet-tree",      type=str,  default="uburn", help="Name of tree containing SSNet images. [ Default: 'uburn' ]")
 parser.add_argument( "-cal",   "--use-calib", default=False, action='store_true', help="Use calibrated conversions")
 parser.add_argument( "-mc",    "--has-mc", default=False, action='store_true', help="Indicate input files have MC truth information" )
 parser.add_argument( "-sec",   "--second-shower", default=False, action='store_true', help="Run second shower search")
@@ -74,7 +75,9 @@ if args.output_format in ['larlite','both']:
 
 showerreco = larlitecv.ssnetshowerreco.SSNetShowerReco(uselarlite,llout_name)
 showerreco.set_adc_treename( args.adc_tree )
+showerreco.set_ssnet_shower_stemname( args.ssnet_tree )
 if args.use_calib:
+    print('USING CALIB')
     showerreco.use_calibrated_pixsum2mev( True )
 if args.second_shower:
     showerreco.use_second_shower( True )
@@ -115,6 +118,9 @@ for ientry in xrange(nentries):
                   "event":iolcv.event_id().event(),
                   "shower_energies":[],
                   "shower_sumQs":[],
+                  "shower_fullSumQs":[],
+                  "shower_smallSumQs":[],
+                  "shower_triAreas":[],
                   "shower_shlengths":[],
                   "vertex_pos":[],
                   "shower_gap":[],
@@ -128,6 +134,11 @@ for ientry in xrange(nentries):
     for ivtx in xrange(showerreco.numVertices()):
         entrydata["shower_energies"].append( [ showerreco.getVertexShowerEnergy(ivtx,p) for p in xrange(3) ] )
         entrydata["shower_sumQs"].append( [ showerreco.getVertexShowerSumQ(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_fullSumQs"].append( [ showerreco.getVertexShowerFullSumQ(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_smallSumQs"].append( [ showerreco.getVertexShowerSmallSumQ(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_triAreas"].append( [ showerreco.getVertexShowerTriArea(ivtx,p) for p in xrange(3) ] )
+        for p in xrange(3):
+          print 'Python full sum:',showerreco.getVertexShowerFullSumQ(ivtx,p)
         entrydata["shower_shlengths"].append( [ showerreco.getVertexShowerShlength(ivtx,p) for p in xrange(3) ] )
         entrydata["vertex_pos"].append( [ showerreco.getVertexPos(ivtx).at(p) for p in xrange(3) ] )
         entrydata["shower_gap"].append( [ showerreco.getVertexShowerGap(ivtx,p) for p in xrange(3) ] )
@@ -358,9 +369,8 @@ if args.output_format in ['json','both']:
     fout.close()
 
 print "close out"
+
 outll.close()
-
-
 iolcv.finalize()
 if args.input_larlite is not None:
     ioll.close()

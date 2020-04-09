@@ -25,16 +25,18 @@ CORE_SUBDIRS := Hashlib2plus Base
 #  CORE_SUBDIRS += CVUtil
 #endif
 
-APP_SUBDIRS := TaggerTypes Combinator FlashMatchInterface GapChs UnipolarHack ChargeSegmentAlgos T3DMerge SCE 
+APP_SUBDIRS := TaggerTypes Combinator FlashMatchInterface GapChs UnipolarHack ChargeSegmentAlgos T3DMerge SCE
 APP_SUBDIRS += MCTruthTools
 APP_SUBDIRS += TrackHitSorter LLCVProcessor
 ifeq ($(LARLITECV_OPENCV),1)
   APP_SUBDIRS += TaggerContourTools
 endif
 # TAGGER CHAIN
-APP_SUBDIRS += ThruMu StopMu UntaggedClustering ContainedROI TaggerCROI
-APP_SUBDIRS += SSNetShowerReco
-
+APP_SUBDIRS += ThruMu StopMu UntaggedClustering ContainedROI TaggerCROI DQDXCalculator
+APP_SUBDIRS += SSNetShowerReco dllee
+APP_SUBDIRS += DQDXCalculator
+# This makes us only build this:
+# APP_SUBDIRS = DQDXCalculator
 
 .phony: all clean
 
@@ -63,15 +65,15 @@ lib: obj
 	  else \
 	   echo Nothing to be done for lib...; \
 	fi
-	@echo 
+	@echo
 
 bin: obj lib
 	@echo
 	@echo Building run_tagger bin
 	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin clean
 	@make --directory=$(LARLITECV_BASEDIR)/app/TaggerCROI/bin
+	@make --directory=$(LARLITECV_BASEDIR)/app/dllee/bin
 	@ln -fs $(LARLITECV_BASEDIR)/app/TaggerCROI/bin/run_tagger $(LARLITECV_BASEDIR)/bin/run_tagger
 	@echo Building analysis routines
 	@make --directory=$(LARLITECV_BASEDIR)/app/AnalyzeTagger
 	@ln -fs $(LARLITECV_BASEDIR)/app/AnalyzeTagger/run_pixel_analysis $(LARLITECV_BASEDIR)/bin/run_pixel_analysis
-
