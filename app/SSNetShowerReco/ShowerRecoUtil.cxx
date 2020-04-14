@@ -1,5 +1,8 @@
 #include "ShowerRecoUtil.h"
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+#include <numpy/ndarrayobject.h>
+
 #include "TMath.h"
 
 #include "DataFormat/EventImage2D.h"
@@ -13,7 +16,82 @@
 namespace larlitecv {
 namespace ssnetshowerreco {
 
-	
+  bool ShowerRecoUtil::_setup_numpy = false;
+
+  PyObject* ShowerRecoUtil::process_event_get_ndarray( larcv::IOManager& iolcv )
+  {
+    
+    if ( !ShowerRecoUtil::_setup_numpy ) {
+      ShowerRecoUtil::_setup_numpy = true;            
+      import_array1(0);
+    }
+
+
+    // get image2d
+    std::vector< std::vector<larcv::Image2D> > adccrop_vv;
+    std::vector< std::vector<larcv::Image2D> > statuscrop_vv;
+
+    process_event( iolcv, adccrop_vv, statuscrop_vv );
+    
+
+    PyObject* vtx_list = PyList_New(0);
+
+    for ( int ivtx=0; ivtx<(int)adccrop_vv.size(); ivtx++ ) {
+      auto& adc_v    = adccrop_vv[ivtx];
+      auto& status_v = statuscrop_vv[ivtx];
+
+      // make dict
+      PyObject *d = PyDict_New();
+      PyObject *str_adc_key    = Py_BuildValue("s", "adc" );
+      PyObject *str_status_key = Py_BuildValue("s", "status" );
+
+      PyObject *adc_list = PyList_New(0);
+      PyObject *status_list = PyList_New(0);
+
+      if ( adc_v.size()>0 ) {
+
+        for (int p=0; p<3; p++ ) {
+
+          // make numpy array
+          npy_intp dims1[] = { (long)adc_v[0].meta().rows(), (long)adc_v[0].meta().cols() };
+          npy_intp dims2[] = { (long)status_v[0].meta().rows(), (long)status_v[0].meta().cols() };
+          
+          PyArrayObject* adcimg    = (PyArrayObject*)PyArray_SimpleNew( 2, dims1, NPY_FLOAT );
+          PyArrayObject* statusimg = (PyArrayObject*)PyArray_SimpleNew( 2, dims2, NPY_FLOAT );
+          
+          for (size_t r=0; r<adc_v[p].meta().rows(); r++ ) {
+            for (size_t c=0; c<adc_v[p].meta().cols(); c++ ) {
+              *((float*)PyArray_GETPTR2( adcimg, r, c ))    = adc_v[p].pixel(r,c);
+              *((float*)PyArray_GETPTR2( statusimg, r, c )) = status_v[p].pixel(r,c);
+            }
+          }
+
+          PyList_Append( adc_list,    (PyObject*)adcimg );
+          PyList_Append( status_list, (PyObject*)statusimg );
+
+          Py_DECREF( adcimg );
+          Py_DECREF( statusimg );
+          
+        }//end of loop over planes
+      }
+      
+      PyDict_SetItem(d, str_adc_key,    (PyObject*)adc_list);        
+      PyDict_SetItem(d, str_status_key, (PyObject*)status_list );
+    
+      Py_DECREF( str_adc_key );
+      Py_DECREF( str_status_key );
+      Py_DECREF( adc_list );
+      Py_DECREF( status_list );
+
+      PyList_Append( vtx_list, d );
+      Py_DECREF( d );
+      
+    }//end of vertex loop
+
+
+    return vtx_list;
+  }
+  
   bool ShowerRecoUtil::process_event( larcv::IOManager& iolcv,
                                       std::vector< std::vector<larcv::Image2D> >& adccrop_vv,
                                       std::vector< std::vector<larcv::Image2D> >& statuscrop_vv )
@@ -162,10 +240,10 @@ namespace ssnetshowerreco {
       std::cout << "Plane " << p << " crop VTX R/C: " << vtx_row << ", " << vtx_col << std::endl;
       
       //Channel status saving
-      //larcv::Image2D chstatusimg = GetChStatusImage(512,ev_wirestatus->Status(p),meta.col(wbounds[0]));
+      larcv::Image2D chstatusimg = GetChStatusImage(512,ev_wirestatus.Status(p),meta.col(wbounds[0]));
 
       // make image marking where vertex is
-      larcv::Image2D chstatusimg = GetChStatusVtxImage(512,ev_wirestatus.Status(p),meta.col(wbounds[0]),vtx_row,vtx_col);
+      //larcv::Image2D chstatusimg = GetChStatusVtxImage(512,ev_wirestatus.Status(p),meta.col(wbounds[0]),vtx_row,vtx_col);
       
       // define meta for crop
       larcv::ImageMeta cropmeta( 512*meta.pixel_width(), 512*meta.pixel_height(),

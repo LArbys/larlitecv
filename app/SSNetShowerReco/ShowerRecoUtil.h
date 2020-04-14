@@ -1,6 +1,9 @@
 #ifndef __SHOWER_RECO_UTIL_H__
 #define __SHOWER_RECO_UTIL_H__
 
+#include <Python.h>
+#include "bytesobject.h"
+
 #include <vector>
 
 // larcv
@@ -24,6 +27,8 @@ namespace ssnetshowerreco {
                         std::vector< std::vector<larcv::Image2D> >& adccrop_vv,
                         std::vector< std::vector<larcv::Image2D> >& statuscrop_vv );
 
+    PyObject* process_event_get_ndarray( larcv::IOManager& iolcv );    
+
     void makeVertexImageCrop( const std::vector<larcv::Image2D>& adc_v,
                               const std::vector<larcv::Image2D>& shower_img_v,
                               const larcv::EventChStatus& ev_wirestatus,
@@ -35,6 +40,8 @@ namespace ssnetshowerreco {
 
     larcv::Image2D GetChStatusImage(int L, const larcv::ChStatus& ch, int leftCol);
     larcv::Image2D GetChStatusVtxImage(int L, const larcv::ChStatus& ch, int leftCol, int vtxRow, int vtxCol);    
+
+    static bool _setup_numpy;
     
   };
 
