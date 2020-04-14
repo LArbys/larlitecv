@@ -89,6 +89,8 @@ if args.use_bnb:
     showerreco.use_bnb( True )
 if args.has_mc:
     showerreco.use_mc( True )
+else:
+    showerreco.use_mc( False )
 
 showerreco.set_output_treename( args.tree_name )
 showerreco.initialize()
@@ -120,7 +122,7 @@ for ientry in xrange(nentries):
                   "shower_sumQs":[],
                   "shower_fullSumQs":[],
                   "shower_smallSumQs":[],
-                  "shower_triAreas":[],
+                  #"shower_triAreas":[],
                   "shower_shlengths":[],
                   "vertex_pos":[],
                   "shower_gap":[],
@@ -134,11 +136,11 @@ for ientry in xrange(nentries):
     for ivtx in xrange(showerreco.numVertices()):
         entrydata["shower_energies"].append( [ showerreco.getVertexShowerEnergy(ivtx,p) for p in xrange(3) ] )
         entrydata["shower_sumQs"].append( [ showerreco.getVertexShowerSumQ(ivtx,p) for p in xrange(3) ] )
-        entrydata["shower_fullSumQs"].append( [ showerreco.getVertexShowerFullSumQ(ivtx,p) for p in xrange(3) ] )
-        entrydata["shower_smallSumQs"].append( [ showerreco.getVertexShowerSmallSumQ(ivtx,p) for p in xrange(3) ] )
-        entrydata["shower_triAreas"].append( [ showerreco.getVertexShowerTriArea(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_fullSumQs"].append( [ showerreco.getVertexCropSumQ(ivtx,p) for p in xrange(3) ] )
+        entrydata["shower_smallSumQs"].append( [ showerreco.getVertexCropSumQ(ivtx,p) for p in xrange(3) ] )
+        #entrydata["shower_triAreas"].append( [ showerreco.getVertexShowerTriArea(ivtx,p) for p in xrange(3) ] )
         for p in xrange(3):
-          print 'Python full sum:',showerreco.getVertexShowerFullSumQ(ivtx,p)
+          print 'Python full sum:',showerreco.getVertexCropSumQ(ivtx,p)
         entrydata["shower_shlengths"].append( [ showerreco.getVertexShowerShlength(ivtx,p) for p in xrange(3) ] )
         entrydata["vertex_pos"].append( [ showerreco.getVertexPos(ivtx).at(p) for p in xrange(3) ] )
         entrydata["shower_gap"].append( [ showerreco.getVertexShowerGap(ivtx,p) for p in xrange(3) ] )

@@ -618,6 +618,8 @@ namespace ssnetshowerreco {
     larcv::EventImage2D* ev_instance = nullptr;
     larlite::event_mctruth* ev_mctruth = nullptr;
 
+    // Vertices
+
     if (_use_mc){
       ev_partroi = (larcv::EventROI*)(iolcv.get_data( larcv::kProductROI, _partroi_tree_name));
       ev_mcshower = ((larlite::event_mcshower*)ioll.get_data(larlite::data::kMCShower,  _mcshower_tree_name));
@@ -676,7 +678,7 @@ namespace ssnetshowerreco {
       if (_haspi0 ==1) std::cout<<"HAS PI0!"<<std::endl;
       std::cout<<"here"<<std::endl;
 
-    }
+    }// end of if MC
 
     //if in fid, save to branch
     //------------------------------------------------------------------------
@@ -737,7 +739,7 @@ namespace ssnetshowerreco {
       }//end of loop throug adc
       masked_adc_low_vvv.push_back(masked_plane_low_v);
     
-		}//end of plane loop
+    }//end of plane loop
 
     if (_use_nueint){
       _uplane_profile_vv = SecondShower.SaveTrueProfile(0, ev_segment, ev_instance,
@@ -760,7 +762,7 @@ namespace ssnetshowerreco {
         if ( pgraph.ParticleArray().size()==0 ) continue; // dont expect this
         auto const& roi = pgraph.ParticleArray().front();
         std::vector<double> vtx3d = { roi.X(), roi.Y(), roi.Z() };
-        // std::cout << "Vertex Pos (" << vtx3d[0] << "," << vtx3d[1] << "," << vtx3d[2] << ")" << std::endl;
+        std::cout << "Load Vertex[" << vtxid << "] Pos (" << vtx3d[0] << "," << vtx3d[1] << "," << vtx3d[2] << ")" << std::endl;
         if ((vtx3d[0]>    0.001) && (vtx3d[0] <  255.999) && (vtx3d[1]> -116.499) && (vtx3d[1] < 116.499)
             && (vtx3d[2]>    0.001) && (vtx3d[2] < 1036.999)){
 
@@ -1527,7 +1529,8 @@ namespace ssnetshowerreco {
     }
     //-------------------------------------------------------------------------
     //OutFile->cd();
-    _numshowers = ev_mcshower->size();
+    if (_use_mc)
+      _numshowers = ev_mcshower->size();
     _ana_tree->Fill();
     // _ana_tree->Write();
     return true;
