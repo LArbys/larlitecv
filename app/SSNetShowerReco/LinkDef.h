@@ -17,6 +17,7 @@
 #pragma link C++ class larlitecv::ssnetshowerreco::Utils+;
 #pragma link C++ class larlitecv::ssnetshowerreco::SecondShower+;
 #pragma link C++ class larlitecv::ssnetshowerreco::SSNetShowerReco+;
+#pragma link C++ class larlitecv::ssnetshowerreco::ShowerRecoUtil+;
 
 //ADD_NEW_CLASS ... do not change this line
 #endif
