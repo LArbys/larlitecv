@@ -17,330 +17,323 @@ int main( int nargs, char** argv ) {
 
   std::cout << "Run filter" << std::endl;
 
-  std::string dlmerged_input   = argv[1];
-  std::string filterana_output = argv[2];
-  std::string larcv_output     = argv[3];
-  std::string larlite_output   = argv[4];
+  /*
+   * what we are trying to do
+   * --------------------------------------------------------------------------------
+   * separate trees into event-based and vertex-based
+   * we copy the larlite id tree and mc pot tree in full to help with book-keeping
+   * read the dlana file and get the finalvertexfile trees
+   * make a list of (r,s,e) that passes
+   * we pass all events that pass
+   * we pass all vertices that pass the event list
+   * 
+   * we save one file:
+   *  one looks like a filtered DLANA file (has both reco and ntuples)
+   * --------------------------------------------------------------------------------
+   */
 
-  // BNB:190; overlay:215; EXTBNB:210; MC-only: 190  
-  int beamwin_tick_start = std::atoi(argv[5]);
+  std::string dlmerged_input  = argv[1];
+  std::string filtered_output = argv[2];
+
+  /*
+  // ALL TREES
+  KEY: TTree	image2d_wire_tree;1	wire tree
+  KEY: TTree	chstatus_wire_tree;1	wire tree
+  KEY: TTree	image2d_ubspurn_plane0_tree;1	ubspurn_plane0 tree
+  KEY: TTree	image2d_ubspurn_plane1_tree;1	ubspurn_plane1 tree
+  KEY: TTree	image2d_ubspurn_plane2_tree;1	ubspurn_plane2 tree
+  KEY: TTree	image2d_thrumu_tree;1	thrumu tree
+  KEY: TTree	pgraph_test_tree;1	test tree
+  KEY: TTree	pixel2d_test_ctor_tree;1	test_ctor tree
+  KEY: TTree	pixel2d_test_img_tree;1	test_img tree
+  KEY: TTree	pixel2d_test_super_ctor_tree;1	test_super_ctor tree
+  KEY: TTree	pixel2d_test_super_img_tree;1	test_super_img tree
+  KEY: TTree	image2d_test_inputimg_tree;1	test_inputimg tree
+  KEY: TTree	partroi_croimerge_clip_union_tree;1	croimerge_clip_union tree
+  KEY: TTree	image2d_wcshower_tpc_tree;1	wcshower_tpc tree
+  KEY: TTree	image2d_wctrack_tpc_tree;1	wctrack_tpc tree
+  KEY: TTree	NuFilterTree;1	
+  KEY: TTree	MCTree;1	MC infomation
+  KEY: TTree	ShapeAnalysis;1	
+  KEY: TTree	MatchAnalysis;1	
+  KEY: TTree	SecondShowerAnalysis;1	
+  KEY: TTree	VertexTree;1	
+  KEY: TTree	EventVertexTree;1	
+  KEY: TTree	PGraphTruthMatch;1	
+  KEY: TTree	_recoTree;1	_recoTree
+  KEY: TTree	_recoTree_SCEadded;1	_recoTree_SCEadded
+  KEY: TTree	pgraph_inter_par_tree;1	inter_par tree
+  KEY: TTree	pixel2d_inter_par_pixel_tree;1	inter_par_pixel tree
+  KEY: TTree	pixel2d_inter_img_pixel_tree;1	inter_img_pixel tree
+  KEY: TTree	pixel2d_inter_int_pixel_tree;1	inter_int_pixel tree
+  KEY: TTree	SelNueID;1	
+  KEY: TTree	larlite_id_tree;1	LArLite Event ID Tree
+  KEY: TTree	daqheadertimeuboone_daq_tree;1	daqheadertimeuboone Tree by daq
+  KEY: TTree	hit_gaushit_tree;1	hit Tree by gaushit
+  KEY: TTree	hit_portedThresholdhit_tree;1	hit Tree by portedThresholdhit
+  KEY: TTree	crthit_crthitcorr_tree;1	crthit Tree by crthitcorr
+  KEY: TTree	crttrack_crttrack_tree;1	crttrack Tree by crttrack
+  KEY: TTree	ophit_ophitBeam_tree;1	ophit Tree by ophitBeam
+  KEY: TTree	ophit_ophitBeamCalib_tree;1	ophit Tree by ophitBeamCalib
+  KEY: TTree	ophit_ophitCosmic_tree;1	ophit Tree by ophitCosmic
+  KEY: TTree	ophit_ophitCosmicCalib_tree;1	ophit Tree by ophitCosmicCalib
+  KEY: TTree	opflash_opflashBeam_tree;1	opflash Tree by opflashBeam
+  KEY: TTree	opflash_opflashCosmic_tree;1	opflash Tree by opflashCosmic
+  KEY: TTree	opflash_portedFlash_tree;1	opflash Tree by portedFlash
+  KEY: TTree	opflash_simpleFlashBeam_tree;1	opflash Tree by simpleFlashBeam
+  KEY: TTree	opflash_simpleFlashBeam::DLWCDeploy_tree;1	opflash Tree by simpleFlashBeam::DLWCDeploy
+  KEY: TTree	opflash_simpleFlashCosmic_tree;1	opflash Tree by simpleFlashCosmic
+  KEY: TTree	opflash_simpleFlashCosmic::DLWCDeploy_tree;1	opflash Tree by simpleFlashCosmic::DLWCDeploy
+  KEY: TTree	sps_portedSpacePointsThreshold_tree;1	sps Tree by portedSpacePointsThreshold
+  KEY: TTree	track_inter_track_tree;1	track Tree by inter_track
+  KEY: TTree	track_trackReco_tree;1	track Tree by trackReco
+  KEY: TTree	track_trackReco_sceadded_tree;1	track Tree by trackReco_sceadded
+  KEY: TTree	shower_ssnetshowerreco_tree;1	shower Tree by ssnetshowerreco
+  KEY: TTree	vertex_inter_vertex_tree;1	vertex Tree by inter_vertex
+  KEY: TTree	vertex_trackReco_tree;1	vertex Tree by trackReco
+  KEY: TTree	trigger_daq_tree;1	trigger Tree by daq
+  KEY: TTree	ass_inter_ass_tree;1	ass Tree by inter_ass
+  KEY: TTree	ass_opflashBeam_tree;1	ass Tree by opflashBeam
+  KEY: TTree	ass_opflashCosmic_tree;1	ass Tree by opflashCosmic
+  KEY: TTree	ass_portedFlash_tree;1	ass Tree by portedFlash
+  KEY: TTree	ass_portedSpacePointsThreshold_tree;1	ass Tree by portedSpacePointsThreshold
+  KEY: TTree	ass_simpleFlashBeam_tree;1	ass Tree by simpleFlashBeam
+  KEY: TTree	ass_simpleFlashBeam::DLWCDeploy_tree;1	ass Tree by simpleFlashBeam::DLWCDeploy
+  KEY: TTree	ass_simpleFlashCosmic_tree;1	ass Tree by simpleFlashCosmic
+  KEY: TTree	ass_simpleFlashCosmic::DLWCDeploy_tree;1	ass Tree by simpleFlashCosmic::DLWCDeploy
+  KEY: TTree	ass_trackReco_tree;1	ass Tree by trackReco
+  KEY: TTree	ass_trackReco_sceadded_tree;1	ass Tree by trackReco_sceadded
+  KEY: TTree	swtrigger_swtrigger_tree;1	swtrigger Tree by swtrigger
+  KEY: TTree	larflowcluster_ssnetshowerreco_tree;1	larflowcluster Tree by ssnetshowerreco
+  KEY: TTree	clustermask_mrcnn_masks_tree;1	mrcnn_masks tree
+  KEY: TTree	sparseimg_larflow_tree;1	larflow tree
+  KEY: TTree	sparseimg_sparseuresnetout_tree;1	sparseuresnetout tree
+  KEY: TTree	shower_ssnetshowerrecov2ana_tree;1	shower Tree by ssnetshowerrecov2ana
+  KEY: TTree	shower_ssnetshowerrecov2ana_sec_tree;1	shower Tree by ssnetshowerrecov2ana_sec
+  KEY: TTree	larflowcluster_ssnetshowerrecov2ana_tree;1	larflowcluster Tree by ssnetshowerrecov2ana
+  KEY: TTree	track_dqdx_U_tree;1	track Tree by dqdx_U
+  KEY: TTree	track_dqdx_V_tree;1	track Tree by dqdx_V
+  KEY: TTree	track_dqdx_Y_tree;1	track Tree by dqdx_Y
+  KEY: TDirectoryFile	dlana;1	dlana
+  KEY: TDirectoryFile	mpid;1	mpid
+  KEY: TDirectoryFile	ssnetshowerreco;1	ssnetshowerreco
+  KEY: TH2D	residual_dqdx;1	residual_dqdx 
+  */
+
   
+  // list of event-based trees
+  std::vector<std::string> event_indexed_trees = 
+    {
+      "larlite_id_tree",
+      "image2d_wire_tree",
+      "chstatus_wire_tree",
+      "image2d_ubspurn_plane0_tree",
+      "image2d_ubspurn_plane1_tree",
+      "image2d_ubspurn_plane2_tree",
+      "image2d_thrumu_tree",
+      "pgraph_test_tree",
+      "pixel2d_test_ctor_tree",
+      "pixel2d_test_img_tree",
+      "pixel2d_test_super_ctor_tree",
+      "pixel2d_test_super_img_tree",
+      "image2d_test_inputimg_tree",
+      "partroi_croimerge_clip_union_tree",
+      //"image2d_wcshower_tpc_tree",
+      //"image2d_wctrack_tpc_tree",
+      "NuFilterTree",
+      "MCTree",
+      "EventVertexTree",
+      "PGraphTruthMatch",      
+      "pgraph_inter_par_tree",
+      "pixel2d_inter_par_pixel_tree",
+      "pixel2d_inter_img_pixel_tree",
+      "pixel2d_inter_int_pixel_tree",
+      "daqheadertimeuboone_daq_tree",
+      "hit_gaushit_tree",
+      "hit_portedThresholdhit_tree",
+      "crthit_crthitcorr_tree",
+      "crttrack_crttrack_tree",
+      "ophit_ophitBeam_tree",
+      "ophit_ophitBeamCalib_tree",
+      "ophit_ophitCosmic_tree",
+      "ophit_ophitCosmicCalib_tree",
+      "opflash_opflashBeam_tree",
+      "opflash_opflashCosmic_tree",
+      "opflash_portedFlash_tree",
+      "opflash_simpleFlashBeam_tree",
+      "opflash_simpleFlashBeam::DLWCDeploy_tree",
+      "opflash_simpleFlashCosmic_tree",
+      "opflash_simpleFlashCosmic::DLWCDeploy_tree",
+      "sps_portedSpacePointsThreshold_tree",
+      "track_inter_track_tree",
+      "track_trackReco_tree",
+      "track_trackReco_sceadded_tree",
+      "shower_ssnetshowerreco_tree",
+      "vertex_inter_vertex_tree",
+      "vertex_trackReco_tree",
+      "trigger_daq_tree",
+      "ass_inter_ass_tree",
+      "ass_opflashBeam_tree",
+      "ass_opflashCosmic_tree",
+      "ass_portedFlash_tree",
+      "ass_portedSpacePointsThreshold_tree",
+      "ass_simpleFlashBeam_tree",
+      "ass_simpleFlashBeam::DLWCDeploy_tree",
+      "ass_simpleFlashCosmic_tree",
+      "ass_simpleFlashCosmic::DLWCDeploy_tree",
+      "ass_trackReco_tree",
+      "ass_trackReco_sceadded_tree",
+      "swtrigger_swtrigger_tree",
+      "larflowcluster_ssnetshowerreco_tree",
+      "clustermask_mrcnn_masks_tree",
+      "sparseimg_larflow_tree",
+      "sparseimg_sparseuresnetout_tree",
+      "shower_ssnetshowerrecov2ana_tree",
+      "shower_ssnetshowerrecov2ana_sec_tree",
+      "larflowcluster_ssnetshowerrecov2ana_tree",
+      "track_dqdx_U_tree",
+      "track_dqdx_V_tree",
+      "track_dqdx_Y_tree",
+      "ssnetshowerreco/ssnetshowerrecov2ana_anatree"
+    };
+  
+
+  // list of vertex-based trees
+  std::vector<std::string> vertex_indexed_trees =
+    {
+      "VertexTree",
+      "ShapeAnalysis",
+      "MatchAnalysis",
+      "SecondShowerAnalysis",
+      "_recoTree",
+      "_recoTree_SCEadded",
+      "SelNueID",
+      "mpid/multipid_tree",
+      "dlana/FinalVertexVariables"
+    };
+  // list of copy-in-full trees
+
+  TFile* inputfile  = new TFile( dlmerged_input.c_str(), "open" );
+
+  int num_event_entries = 0;
+  std::vector< TTree* > event_indexed_trees_v;
+  for ( auto const& name : event_indexed_trees ) {
+    event_indexed_trees_v.push_back( (TTree*)inputfile->Get(name.c_str()) );
+
+    if ( event_indexed_trees_v.back()==NULL  ) {
+      std::cout << "Error loading event-indexed tree: " << name << std::endl;
+    }
+    
+    if ( event_indexed_trees_v.size()==1 ) {
+      num_event_entries = event_indexed_trees_v.back()->GetEntries();
+      std::cout << "Event-indexed trees, num entries=" << num_event_entries << std::endl;
+    }
+    else {
+      if ( num_event_entries!=event_indexed_trees_v.back()->GetEntries() ) {
+        std::cout << "Tree [" << name << "] does not match the entry-indexed tree entries"  << std::endl;
+      }
+    }
+  }
+  std::cout << "Number of event-indexed trees: " << event_indexed_trees_v.size() << std::endl;
+
+  int num_vertex_entries = 0;
+  std::vector< TTree* > vertex_indexed_trees_v;
+  for ( auto const& name : vertex_indexed_trees ) {
+    vertex_indexed_trees_v.push_back( (TTree*)inputfile->Get(name.c_str()) );
+
+    if ( vertex_indexed_trees_v.back()==NULL  ) {
+      std::cout << "Error loading vertex-indexed tree: " << name << std::endl;
+    }
+    
+    if ( vertex_indexed_trees_v.size()==1 ) {
+      num_vertex_entries = vertex_indexed_trees_v.back()->GetEntries();
+      std::cout << "Vertex-indexed trees, num entries=" << num_vertex_entries << std::endl;
+    }
+    else {
+      if ( num_vertex_entries!=vertex_indexed_trees_v.back()->GetEntries() ) {
+        std::cout << "Tree [" << name << "] does not match the entry-indexed tree entries"  << std::endl;
+      }
+    }
+  }
+  std::cout << "Number of vertex-indexed trees: " << vertex_indexed_trees_v.size() << std::endl;  
+
   // get filter results
   std::map<std::tuple<int,int,int>,bool>     rse_filter;
   std::map<std::tuple<int,int,int,int>,bool> rsev_filter;
-  std::vector< std::vector<float> >          cutvars;
-  larlitecv::dllee::NumuFilter::ReturnFilteredDictionary( dlmerged_input, rse_filter, rsev_filter, cutvars, 1 );
-  
-  TFile* inputfile  = new TFile( dlmerged_input.c_str(), "open" );
-  TTree* input_tracker_tree  = (TTree*)inputfile->Get("_recoTree_SCEadded");
-  TTree* input_vertex_tree   = (TTree*)inputfile->Get("VertexTree");
-  TTree* input_eventvtx_tree = (TTree*)inputfile->Get("EventVertexTree");  
-  TTree* input_shape_tree    = (TTree*)inputfile->Get("ShapeAnalysis");
-  TTree* input_mc_tree       = (TTree*)inputfile->Get("MCTree");
-  TTree* input_nufilter_tree = (TTree*)inputfile->Get("NuFilterTree");
-  TTree* input_pgraph_tree   = (TTree*)inputfile->Get("PGraphTruthMatch");
-  TTree* input_pot_tree      = (TTree*)inputfile->Get("potsummary_generator_tree");
-  
-  int nentries = input_tracker_tree->GetEntries();
-  std::cout << "number of entries: " << nentries << std::endl;
+  larlitecv::dllee::NumuFilter::ReturnFilteredDictionary( dlmerged_input, rse_filter, rsev_filter, true );
 
-  larcv::IOManager iolcv( larcv::IOManager::kBOTH, "larcv" );
-  iolcv.add_in_file( dlmerged_input );
-  iolcv.set_out_file( larcv_output );
-  iolcv.set_verbosity((larcv::msg::Level_t)2);
-  iolcv.initialize();
-  
-  larlite::storage_manager ioll( larlite::storage_manager::kBOTH );
-  ioll.add_in_filename( dlmerged_input );
-  ioll.set_out_filename( larlite_output );
-  ioll.set_verbosity((larlite::msg::Level)2);
+  // save tree entries
+  TFile* outputfile = new TFile( filtered_output.c_str(), "new");
 
-  ioll.set_data_to_read( larlite::data::kDAQHeaderTimeUBooNE, "daq" );
-  ioll.set_data_to_read( larlite::data::kDAQHeaderTimeUBooNE, "triggersim" );  
-  ioll.set_data_to_read( larlite::data::kHit, "dl" );
-  ioll.set_data_to_read( larlite::data::kHit, "dlrea" );
-  ioll.set_data_to_read( larlite::data::kHit, "gaushit" );  
-  ioll.set_data_to_read( larlite::data::kCRTHit, "crthitcorr" );
-  ioll.set_data_to_read( larlite::data::kCRTTrack, "crttrack" );
-  ioll.set_data_to_read( larlite::data::kOpHit, "ophitBeam" );
-  ioll.set_data_to_read( larlite::data::kOpHit, "ophitCosmic" );
-  ioll.set_data_to_read( larlite::data::kOpFlash, "opflash" );
-  ioll.set_data_to_read( larlite::data::kOpFlash, "opflashBeam" );
-  ioll.set_data_to_read( larlite::data::kOpFlash, "opflashCosmic" );      
-  ioll.set_data_to_read( larlite::data::kOpFlash, "ophypo" );
-  ioll.set_data_to_read( larlite::data::kOpFlash, "simpleFlashBeam" );
-  ioll.set_data_to_read( larlite::data::kOpFlash, "simpleFlashCosmic" );
-  ioll.set_data_to_read( larlite::data::kCluster, "dl" );
-  ioll.set_data_to_read( larlite::data::kCluster, "dlraw" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "all3d" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "croi3d" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "dl" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "inter_track" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "mergedstopmu3d" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "mergedthrumu3d" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "mergeduntagged3d" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "stopmu3d" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "streclustered3d" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "thrumu3d" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "trackReco" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "trackReco_sceadded" );
-  ioll.set_data_to_read( larlite::data::kTrack,   "untagged3d" );
-  ioll.set_data_to_read( larlite::data::kShower,  "dl" );    
-  ioll.set_data_to_read( larlite::data::kShower,  "showerreco" );
-  ioll.set_data_to_read( larlite::data::kShower,  "ssnetshowerreco" );              
-  ioll.set_data_to_read( larlite::data::kVertex,  "dl" );
-  ioll.set_data_to_read( larlite::data::kVertex,  "dlraw" );
-  ioll.set_data_to_read( larlite::data::kVertex,  "inter_vertex" );
-  ioll.set_data_to_read( larlite::data::kVertex,  "trackReco" );
-  ioll.set_data_to_read( larlite::data::kPFParticle,  "dl" );
-  ioll.set_data_to_read( larlite::data::kPFParticle,  "dlraw" );
-  ioll.set_data_to_read( larlite::data::kUserInfo,    "croicutresults" );
-  ioll.set_data_to_read( larlite::data::kUserInfo,    "endpointresults" );
-  ioll.set_data_to_read( larlite::data::kUserInfo,    "precutresults" );
-  ioll.set_data_to_read( larlite::data::kTrigger,     "daq" );
-  ioll.set_data_to_read( larlite::data::kTrigger,     "triggersim" );        
-  ioll.set_data_to_read( larlite::data::kAssociation, "dl" );
-  ioll.set_data_to_read( larlite::data::kAssociation, "dlraw" );
-  ioll.set_data_to_read( larlite::data::kAssociation, "inter_ass" );
-  ioll.set_data_to_read( larlite::data::kAssociation, "opflashBeam" );
-  ioll.set_data_to_read( larlite::data::kAssociation, "opflashCosmic" );
-  ioll.set_data_to_read( larlite::data::kAssociation, "showerreco" );
-  ioll.set_data_to_read( larlite::data::kAssociation, "simpleFlashBeam" );
-  ioll.set_data_to_read( larlite::data::kAssociation, "simpleFlashCosmic" );
-  ioll.set_data_to_read( larlite::data::kAssociation, "trackReco" );
-  ioll.set_data_to_read( larlite::data::kAssociation, "trackReco_sceaddded" );
-  ioll.set_data_to_read( larlite::data::kSWTrigger,   "swtrigger" );      
-  ioll.open();
-
-  TFile* outputfile = new TFile( filterana_output.c_str(), "new");  
-
-  TTree* output_tracker_tree  = (TTree*)input_tracker_tree->CloneTree(0);
-  TTree* output_vertex_tree   = (TTree*)input_vertex_tree->CloneTree(0);
-  TTree* output_eventvtx_tree = (TTree*)input_eventvtx_tree->CloneTree(0);
-  TTree* output_shape_tree    = (TTree*)input_shape_tree->CloneTree(0);
-  TTree* output_mc_tree       = (TTree*)input_mc_tree->CloneTree(0);
-  TTree* output_nufilter_tree = (TTree*)input_nufilter_tree->CloneTree(0);
-  TTree* output_pgraph_tree   = (TTree*)input_pgraph_tree->CloneTree(0);
-  TTree* output_pot_tree      = (TTree*)input_pot_tree->CloneTree(0);
-
-  // CUT VARIABLE TREE
-  TTree* output_filter_vars = new TTree("filtervars","Filter Variables");
-  int run, subrun, event, vtxid;
-  float pos[3];
-  float shrmaxfrac;
-  float minwalld;
-  int ntrks;
-  int n5trks;
-  output_filter_vars->Branch("run",&run,"run/I");
-  output_filter_vars->Branch("subrun",&subrun,"subrun/I");
-  output_filter_vars->Branch("event",&event,"event/I");
-  output_filter_vars->Branch("vtxid",&vtxid,"vtxid/I");
-  output_filter_vars->Branch("ntrks",&ntrks,"ntrks/I");
-  output_filter_vars->Branch("n5trks",&n5trks,"n5trks/I");
-  output_filter_vars->Branch("pos", pos, "pos[3]/F");
-  output_filter_vars->Branch("shrmaxfrac",&shrmaxfrac,"shrmaxfrac/F");
-  output_filter_vars->Branch("minwalld",&minwalld,"minwalld/F");
-  for ( auto const& vars : cutvars ) {
-    run = (int)vars[0];
-    subrun = (int)vars[1];
-    event = (int)vars[2];
-    vtxid = (int)vars[3];
-    for ( size_t v=0; v<3; v++ ) pos[v] = vars[4+v];
-    shrmaxfrac = vars[7];
-    ntrks = (int)vars[8];
-    n5trks = (int)vars[9];
-    minwalld = vars[10];
-    output_filter_vars->Fill();
+  // save entry-indexed trees
+  std::vector<TTree*> out_event_indexed_v;
+  for ( auto& ptree : event_indexed_trees_v ) {
+    TTree* outtree = ptree->CloneTree(0);
+    out_event_indexed_v.push_back(outtree);
   }
   
+  unsigned int run;
+  unsigned int subrun;
+  unsigned int event;
+  event_indexed_trees_v[0]->SetBranchAddress( "_run_id",    &run );
+  event_indexed_trees_v[0]->SetBranchAddress( "_subrun_id", &subrun );
+  event_indexed_trees_v[0]->SetBranchAddress( "_event_id",  &event );  
 
-  // LARCV/LARLITE TREES + OPFLASH TREE
-  float opflash_usec;
-  float opflash_pe;
-  std::vector<float> opflash_usec_v;
-  std::vector<float>* p_opflash_usec_v = &opflash_usec_v;
-  float precut_vetope;
-  float precut_maxfrac;
-  float precut_beampe;
-  int   precut_pass;
-  int   filter_pass;
-  TTree* output_op_tree = new TTree("optree","Optical cut tree");
-  output_op_tree->Branch("run",&run,"run/I");
-  output_op_tree->Branch("subrun",&subrun,"subrun/I");
-  output_op_tree->Branch("event",&event,"event/I");
-  output_op_tree->Branch("precut_vetope",  &precut_vetope,  "precut_vetope/F");
-  output_op_tree->Branch("precut_beampe",  &precut_beampe,  "precut_beampe/F");  
-  output_op_tree->Branch("precut_maxfrac", &precut_maxfrac, "precut_maxfrac/F");
-  output_op_tree->Branch("precut_pass",    &precut_pass,    "precut_pass/I" );
-  output_op_tree->Branch("opflash_usec",   &opflash_usec,   "opflash_usec/F");
-  output_op_tree->Branch("opflash_pe",     &opflash_pe,     "opflash_pe/F" );
-  output_op_tree->Branch("opflash_usec_v", "std::vector<float>", &p_opflash_usec_v );
-  output_op_tree->Branch("filter_pass",    &filter_pass,    "filter_pass/I" );
-  
-  int npass = 0;
-  ioll.next_event();  
-  for ( int ientry=0; ientry<(int)iolcv.get_n_entries(); ientry++ ) {
-    std::cout << "[ENTRY " << ientry << "]" << std::endl;
-    iolcv.read_entry(ientry);    
-    larcv::EventImage2D* ev_wire = (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, "wire" );
+  for (int ientry=0; ientry<num_event_entries; ientry++ ) {
 
-    run    = ev_wire->run();
-    subrun = ev_wire->subrun();
-    event  = ev_wire->event();
-
-    larlite::event_user* ev_precut = (larlite::event_user*)ioll.get_data(larlite::data::kUserInfo,"precutresults");
-    precut_beampe  = ev_precut->front().get_double("beamPE");
-    precut_vetope  = ev_precut->front().get_double("vetoPE");
-    precut_maxfrac = ev_precut->front().get_double("maxFrac");
-    precut_pass    = ev_precut->front().get_int("pass");
-
-    opflash_usec = -1000;
-    opflash_pe   = -1000;
-    opflash_usec_v.clear();
-    larlite::event_opflash* ev_opflash = (larlite::event_opflash*)ioll.get_data(larlite::data::kOpFlash,"simpleFlashBeam");
-    for ( auto const& flash : *ev_opflash ) {
-      opflash_usec_v.push_back( flash.Time() );
-      float usec = flash.Time();
-      if ( usec>=beamwin_tick_start*0.015625 && usec<=(beamwin_tick_start+130)*0.015625 && opflash_usec<=-1000) {
-        opflash_usec = usec;
-        opflash_pe   = flash.TotalPE();
+    event_indexed_trees_v[0]->GetEntry(ientry);
+    
+    std::tuple<int,int,int> rse = std::make_tuple(run,subrun,event);
+    auto it = rse_filter.find(rse);
+    if ( it!=rse_filter.end() && it->second ) {
+      // passed. save event entry.    
+      for ( int itree = 0; itree<(int)event_indexed_trees_v.size(); itree++ ) {
+        event_indexed_trees_v[itree]->GetEntry(ientry);
+        out_event_indexed_v[itree]->Fill();
       }
     }
+  }
+
+  // save vertex-indexed trees
+  int vtx_run;
+  int vtx_subrun;
+  int vtx_event;
+  int vtx_vtxid;
+  vertex_indexed_trees_v[0]->SetBranchAddress("run",    &vtx_run);
+  vertex_indexed_trees_v[0]->SetBranchAddress("subrun", &vtx_subrun);
+  vertex_indexed_trees_v[0]->SetBranchAddress("event",  &vtx_event);
+  vertex_indexed_trees_v[0]->SetBranchAddress("vtxid",  &vtx_vtxid);
+  
+  std::vector<TTree*> out_vertex_indexed_v;
+  for ( auto& ptree : vertex_indexed_trees_v ) {
+    TTree* outtree = ptree->CloneTree(0);
+    out_vertex_indexed_v.push_back(outtree);
+  }
+  
+  for (int ientry=0; ientry<num_vertex_entries; ientry++ ) {
+
+    vertex_indexed_trees_v[0]->GetEntry(ientry);
     
-    std::tuple<int,int,int> rse = std::make_tuple( (int)ev_wire->run(), (int)ev_wire->subrun(), (int)ev_wire->event() );
-    
-    auto it = rse_filter.find( rse );
-
-    if ( it==rse_filter.end() || !it->second )  {
-      // skip this entry
-      filter_pass = 0;
-      ioll.next_event(false);
-      output_op_tree->Fill();      
-      continue;
-    }
-    else {
-      filter_pass = 1;
-    }
-
-    output_op_tree->Fill();    
-    iolcv.set_id( ev_wire->run(), ev_wire->subrun(), ev_wire->event() );
-    iolcv.save_entry();
-    ioll.next_event();
-    npass++;
-  }
-  std::cout << "larcv/larlite entries saved: " << npass << std::endl;
-
-  // VERTEX TREE
-  input_vertex_tree->SetBranchAddress("run",    &run);
-  input_vertex_tree->SetBranchAddress("subrun", &subrun);
-  input_vertex_tree->SetBranchAddress("event",  &event);
-  input_vertex_tree->SetBranchAddress("vtxid",  &vtxid);    
-  for ( int ientry=0; ientry<input_vertex_tree->GetEntries(); ientry++ ) {
-    input_vertex_tree->GetEntry(ientry);
-    auto it = rsev_filter.find( std::make_tuple( run, subrun, event, vtxid ) );
-    if ( it!=rsev_filter.end() && it->second==true ) {
-      output_vertex_tree->Fill();
+    std::tuple<int,int,int,int> rse = std::make_tuple(vtx_run,vtx_subrun,vtx_event,vtx_vtxid);
+    auto it = rsev_filter.find(rse);
+    if ( it!=rsev_filter.end() && it->second ) {
+      // passed. save event entry.    
+      for ( int itree = 0; itree<(int)vertex_indexed_trees_v.size(); itree++ ) {
+        vertex_indexed_trees_v[itree]->GetEntry(ientry);
+        out_vertex_indexed_v[itree]->Fill();
+      }
     }
   }
   
-  // TRACKER TREE  
-  input_tracker_tree->SetBranchAddress("run",    &run);
-  input_tracker_tree->SetBranchAddress("subrun", &subrun);
-  input_tracker_tree->SetBranchAddress("event",  &event);
-  input_tracker_tree->SetBranchAddress("vtx_id",  &vtxid);    
-  for ( int ientry=0; ientry<input_tracker_tree->GetEntries(); ientry++ ) {
-    input_tracker_tree->GetEntry(ientry);
-    auto it = rsev_filter.find( std::make_tuple( run, subrun, event, vtxid ) );
-    if ( it!=rsev_filter.end() && it->second==true ) {
-      output_tracker_tree->Fill();
-    }
-  }
-
-  // SHAPE TREE
-  input_shape_tree->SetBranchAddress("run",    &run);
-  input_shape_tree->SetBranchAddress("subrun", &subrun);
-  input_shape_tree->SetBranchAddress("event",  &event);
-  input_shape_tree->SetBranchAddress("vtxid",  &vtxid);    
-  for ( int ientry=0; ientry<input_shape_tree->GetEntries(); ientry++ ) {
-    input_shape_tree->GetEntry(ientry);
-    auto it = rsev_filter.find( std::make_tuple( run, subrun, event, vtxid ) );
-    if ( it!=rsev_filter.end() && it->second==true ) {
-      output_shape_tree->Fill();
-    }
-  }
-
-  // PGRAPH TREE  
-  input_pgraph_tree->SetBranchAddress("run",    &run);
-  input_pgraph_tree->SetBranchAddress("subrun", &subrun);
-  input_pgraph_tree->SetBranchAddress("event",  &event);
-  input_pgraph_tree->SetBranchAddress("vtxid",  &vtxid);    
-  for ( int ientry=0; ientry<input_pgraph_tree->GetEntries(); ientry++ ) {
-    input_pgraph_tree->GetEntry(ientry);
-    auto it = rsev_filter.find( std::make_tuple( run, subrun, event, vtxid ) );
-    if ( it!=rsev_filter.end() && it->second==true ) {
-      output_pgraph_tree->Fill();
-    }
-  }
-  
-  // EVENT VTX TREE
-  input_eventvtx_tree->SetBranchAddress("run",    &run);
-  input_eventvtx_tree->SetBranchAddress("subrun", &subrun);
-  input_eventvtx_tree->SetBranchAddress("event",  &event);
-  for ( int ientry=0; ientry<input_eventvtx_tree->GetEntries(); ientry++ ) {
-    input_eventvtx_tree->GetEntry(ientry);
-    auto it = rse_filter.find( std::make_tuple( run, subrun, event ) );
-    if ( it!=rse_filter.end() && it->second==true ) {
-      output_eventvtx_tree->Fill();
-    }
-  }
-
-  // MC TREE
-  input_mc_tree->SetBranchAddress("run",    &run);
-  input_mc_tree->SetBranchAddress("subrun", &subrun);
-  input_mc_tree->SetBranchAddress("event",  &event);
-  for ( int ientry=0; ientry<input_mc_tree->GetEntries(); ientry++ ) {
-    input_mc_tree->GetEntry(ientry);
-    auto it = rse_filter.find( std::make_tuple( run, subrun, event ) );
-    if ( it!=rse_filter.end() && it->second==true ) {
-      output_mc_tree->Fill();
-    }
-  }
-
-  // NUFILTER TREE
-  input_nufilter_tree->SetBranchAddress("run",    &run);
-  input_nufilter_tree->SetBranchAddress("subrun", &subrun);
-  input_nufilter_tree->SetBranchAddress("event",  &event);
-  for ( int ientry=0; ientry<input_nufilter_tree->GetEntries(); ientry++ ) {
-    input_nufilter_tree->GetEntry(ientry);
-    auto it = rse_filter.find( std::make_tuple( run, subrun, event ) );
-    if ( it!=rse_filter.end() && it->second==true ) {
-      output_nufilter_tree->Fill();
-    }
-  }
-
-  // POT TREE
-  for (int ientry=0; ientry<input_pot_tree->GetEntries(); ientry++ ) {
-    input_pot_tree->GetEntry(ientry);
-    output_pot_tree->Fill();
-  }
-  
-  std::cout << "write and close" << std::endl;
-  output_op_tree->Write();
-  output_filter_vars->Write();
-  output_eventvtx_tree->Write();
-  output_mc_tree->Write();
-  output_nufilter_tree->Write();    
-  output_tracker_tree->Write();
-  output_vertex_tree->Write();
-  output_shape_tree->Write();
-  output_pgraph_tree->Write();
-  output_pot_tree->Write();
+  for ( auto& ptree : out_event_indexed_v )
+    ptree->Write();
+  for ( auto& ptree : out_vertex_indexed_v )
+    ptree->Write();
 
   outputfile->Close();
-  
   inputfile->Close();
-  ioll.close();
-  iolcv.finalize();
+  //ioll.close();
+  //iolcv.finalize();
 
   return 0;
 }
