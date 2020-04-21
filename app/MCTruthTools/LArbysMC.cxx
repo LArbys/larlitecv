@@ -59,10 +59,10 @@ namespace larlitecv {
   {
 
     // event indexing
-    mc_tree->Branch("run",     &_run,     "run/I");
-    mc_tree->Branch("subrun",  &_subrun,  "subrun/I");
-    mc_tree->Branch("event",   &_event,   "event/I");
-    mc_tree->Branch("entry"  , &_entry,   "entry/I");
+    mc_tree->Branch("run_larbysmc",     &_run,     "run_larbysmc/I");
+    mc_tree->Branch("subrun_larbysmc",  &_subrun,  "subrun_larbysmc/I");
+    mc_tree->Branch("event_larbysmc",   &_event,   "event_larbysmc/I");
+    mc_tree->Branch("entry_larbysmc"  , &_entry,   "entry_larbysmc/I");
 
     mc_tree->Branch("nuPresent",       &_neutrino_present, "nuPresent/O" );
     mc_tree->Branch("currentType",     &_current_type,     "currentType/I");
@@ -288,15 +288,15 @@ namespace larlitecv {
         // neutrino interaction primary
         int pid  = mct.PdgCode();
 
-        std::cout << "track[" << vidx << "] origin=" << mct.Origin()
-                  << " tid=" << mct.TrackID()
-                  << " [ mid=" << mct.MotherTrackID()
-                  << " mpdg=" << mct.MotherPdgCode() << " ]"
-                  << " [ aid=" << mct.AncestorTrackID()
-                  << " apdg=" << mct.AncestorPdgCode() << "]"
-                  << " pid=" << mct.PdgCode()
-                  << " E=" << mct.Start().E()          
-                  << std::endl;
+        // std::cout << "track[" << vidx << "] origin=" << mct.Origin()
+        //           << " tid=" << mct.TrackID()
+        //           << " [ mid=" << mct.MotherTrackID()
+        //           << " mpdg=" << mct.MotherPdgCode() << " ]"
+        //           << " [ aid=" << mct.AncestorTrackID()
+        //           << " apdg=" << mct.AncestorPdgCode() << "]"
+        //           << " pid=" << mct.PdgCode()
+        //           << " E=" << mct.Start().E()          
+        //           << std::endl;
         
         
         if ( abs(pid)==12 || abs(pid)==14 || abs(pid)==16 )
@@ -372,15 +372,15 @@ namespace larlitecv {
         // neutrino interaction primary
         int pid  = mcs.PdgCode();
 
-        std::cout << "shower[" << vidx << "] origin=" << mcs.Origin()
-                  << " tid=" << mcs.TrackID()
-                  << " [ mid=" << mcs.MotherTrackID()
-                  << " mpd=" << mcs.MotherPdgCode() << " ]"
-                  << " [ aid=" << mcs.AncestorTrackID()
-                  << " apdg=" << mcs.AncestorPdgCode() << " ]"
-                  << " pid=" << mcs.PdgCode()
-                  << " E=" << mcs.Start().E()
-                  << std::endl;
+        // std::cout << "shower[" << vidx << "] origin=" << mcs.Origin()
+        //           << " tid=" << mcs.TrackID()
+        //           << " [ mid=" << mcs.MotherTrackID()
+        //           << " mpd=" << mcs.MotherPdgCode() << " ]"
+        //           << " [ aid=" << mcs.AncestorTrackID()
+        //           << " apdg=" << mcs.AncestorPdgCode() << " ]"
+        //           << " pid=" << mcs.PdgCode()
+        //           << " E=" << mcs.Start().E()
+        //           << std::endl;
         
         if ( abs(pid)==12 || abs(pid)==14 || abs(pid)==16 )
           continue; // neutrino: skip
