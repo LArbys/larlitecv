@@ -23,5 +23,7 @@
 #pragma link C++ struct larlitecv::mctruthtools::MCPixelPGraph::Node_t+;
 #pragma link C++ class std::vector< larlitecv::mctruthtools::MCPixelPGraph::Node_t >+;
 
+#pragma link C++ class larlitecv::LArbysMC+;
+
 //ADD_NEW_CLASS ... do not change this line
 #endif
