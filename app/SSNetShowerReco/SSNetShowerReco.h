@@ -175,6 +175,13 @@ namespace ssnetshowerreco {
        MakeImage2dSparse(const larcv::Image2D& input_img,
 			 float threshold = 0 );
 
+     std::vector<std::vector<float>>
+       MakeImage2dSparseWithVertexThreshold(const larcv::Image2D& input_img,
+					    const std::vector< std::vector<int> >& imgcoord_vv,
+					    int plane,
+					    float radius,
+					    float threshold_inside,
+					    float threshold_outside );
 
     // parameters
     // -----------

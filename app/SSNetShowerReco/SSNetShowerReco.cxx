@@ -529,7 +529,7 @@ namespace ssnetshowerreco {
    * @return            true if processing ok, false if not
    */
    std::vector<std::vector<float>> SSNetShowerReco::MakeImage2dSparse(const larcv::Image2D& input_img,
-            float threshold ){
+								      float threshold ) {
      //function to make sparse objects from the larcv Image2d
      //output: vector of (row,col, value)
      std::vector<std::vector<float>> output_vv;
@@ -545,8 +545,64 @@ namespace ssnetshowerreco {
      return output_vv;
    }// end of function
 
-//------------------------------------------------------------------------------
-//------------------------------------------------------------------------------
+  //------------------------------------------------------------------------------  
+  /*
+   * sparsify given image using one threshold 
+   *   inside some distance from radius and another threshold outside
+   *
+   * @param[in]  input_img   larcv input image
+   * @param[in]  vtx_pix_row Image row where vertex is
+   * @param[in]  vtx_pix_col Image col where vertex is
+   * @param[in]  radius      Radius within which we use the special threshold
+   * @param[in]  threshold_inside  Threshold to use inside the vertex
+   * @param[in]  threshold_outside Threshold to use outside the vertex
+   * @return     Sparse image, a vector of (row,column,pixel value)
+   */
+   std::vector<std::vector<float>>
+   SSNetShowerReco::MakeImage2dSparseWithVertexThreshold(const larcv::Image2D& input_img,
+							 const std::vector< std::vector<int> >& imgcoord_vv,
+							 int plane,
+							 float radius,
+							 float threshold_inside,
+							 float threshold_outside )
+   {
+     //function to make sparse objects from the larcv Image2d
+     //output: vector of (row,col, value)
+     std::vector<std::vector<float>> output_vv;     
+     int ninside=0;
+     for (int r = 0; r<(int)input_img.meta().rows();r++){
+       for (int c= 0; c<(int)input_img.meta().cols();c++){
+         float pix_value = input_img.pixel(r,c);
+	 bool near_vtx = false;
+	 for ( auto const& imgcoord_v : imgcoord_vv ) {
+	   int vtx_pix_row = imgcoord_v[3];
+	   int vtx_pix_col = imgcoord_v[plane];
+	   float pix_rad = sqrt( (vtx_pix_row-r)*(vtx_pix_row-r) + (vtx_pix_col-c)*(vtx_pix_col-c) );
+	   if ( pix_rad<=radius ) near_vtx = true;
+	   if ( near_vtx ) break;
+	 }
+
+	 if ( near_vtx ) ninside++;
+	 
+	 if ( (!near_vtx && pix_value > threshold_outside )
+	      || (near_vtx && pix_value > threshold_inside) ) {
+	   std::vector<float> tmp_v = {(float) r, (float) c, pix_value};
+	   output_vv.push_back(tmp_v);
+	 }
+       }//end of col loop
+     }//end of row loop
+
+     std::cout << "[ SSNetShowerReco::MakeImage2dSparseWithVertexThreshold ] "
+	       << " nvertices=" << imgcoord_vv.size()
+	       << " threshold inside=" << threshold_inside << " outside=" << threshold_outside
+	       << " npix-inside=" << ninside++
+	       << std::endl;
+     
+     return output_vv;
+   }// end of function
+  
+  //------------------------------------------------------------------------------
+  //------------------------------------------------------------------------------
 
   bool SSNetShowerReco::process( larcv::IOManager& iolcv, larlite::storage_manager& ioll, int entry ) {//, larcv::IOManager& ioimgs ) {
 
@@ -597,18 +653,9 @@ namespace ssnetshowerreco {
         (larcv::EventImage2D*)iolcv.get_data( larcv::kProductImage2D, treename );
     }
 
-    std::vector<std::vector<float>> ssnet_u_shower_sparse = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
-    std::vector<std::vector<float>> ssnet_v_shower_sparse = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
-    std::vector<std::vector<float>> ssnet_y_shower_sparse = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
-    std::vector<std::vector<std::vector<float>>> ssnet_sparse_vvv = {ssnet_u_shower_sparse,ssnet_v_shower_sparse,ssnet_y_shower_sparse};
-    std::vector<std::vector<float>> ssnet_u_shower_sparse_high = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],.5);
-    std::vector<std::vector<float>> ssnet_v_shower_sparse_high = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],.5);
-    std::vector<std::vector<float>> ssnet_y_shower_sparse_high = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],.5);
-    std::vector<std::vector<std::vector<float>>> ssnet_sparse_high_vvv = {ssnet_u_shower_sparse,ssnet_v_shower_sparse,ssnet_y_shower_sparse};
-    std::vector<std::vector<float>> ssnet_u_shower_sparse_low = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],.05);
-    std::vector<std::vector<float>> ssnet_v_shower_sparse_low = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],.05);
-    std::vector<std::vector<float>> ssnet_y_shower_sparse_low = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],.05);
-    std::vector<std::vector<std::vector<float>>> ssnet_sparse_low_vvv = {ssnet_u_shower_sparse_low,ssnet_v_shower_sparse_low,ssnet_y_shower_sparse_low};
+    // ===================================================================
+    // GET VERTICES AND MC INFO
+    // -------------------------
 
     larcv::EventPGraph* ev_vtx
       = (larcv::EventPGraph*)iolcv.get_data( larcv::kProductPGraph, _vertex_tree_name );
@@ -635,127 +682,9 @@ namespace ssnetshowerreco {
       ev_mctruth        = (larlite::event_mctruth*)ioll.get_data(larlite::data::kMCTruth,  _mctruth_name );
     }
 
-    //-------------remove later----------------------------------
-    if (_use_mc){
-      // ev_partroi = (larcv::EventROI*)(iolcv.get_data( larcv::kProductROI, _partroi_tree_name));
-      // TFile* newSCEFile = new TFile("/cluster/tufts/wongjiradlab/rshara01/bkp/SCEoffsets_dataDriven_combined_fwd_Jan18.root","read");
-      // TH3F* sceDx = (TH3F*) newSCEFile->Get("hDx");
-      // TH3F* sceDy = (TH3F*) newSCEFile->Get("hDy");
-      // TH3F* sceDz = (TH3F*) newSCEFile->Get("hDz");
-      std::vector<double> _scex(3,0);
-      std::vector<double> _tx(3,0);
-      for(auto const& roi : ev_partroi->ROIArray()){
-        if(std::abs(roi.PdgCode()) == 12 || std::abs(roi.PdgCode()) == 14) {
-          _tx.resize(3,0);
-          _tx[0] = roi.X();
-          _tx[1] = roi.Y();
-          _tx[2] = roi.Z();
-          // auto const offset = Utils.GetPosOffsets(_tx,sceDx,sceDy,sceDz);
-          // _scex = Utils.MakeSCECorrection(_scex,_tx,offset);
-        }
-      }
-      std::cout<<"TRUE VTX: "<<_tx[0]<<" "<<_tx[1]<<" "<<_tx[2]<<std::endl;
-      bool vtxinfid = Utils.InsideFiducial(_tx[0],_tx[1],_tx[2]);
-      if (vtxinfid) _truefid =1;
-      else _truefid =0;
-      _true_vtx_3d_v = _tx;
-      // newSCEFile->Close();
-
-      if (vtxinfid ){
-        _true_energy_vv = SecondShower.SaveTrueEnergies(ev_mcshower);
-        _true_shower_start_vv = SecondShower.SaveTrueStarts(ev_mcshower);
-        _true_shower_dir_vv = SecondShower.SaveTrueDirections(ev_mcshower);
-      }
-
-      _haspi0 = 0;
-      _ccnc = 0;
-      for(int part =0;part<(int)ev_mctruth->at(0).GetParticles().size();part++){
-
-        if (ev_mctruth->at(0).GetParticles().at(part).PdgCode() == 111) _haspi0 = 1;
-        if (ev_mctruth->at(0).GetNeutrino().CCNC() == 1) _ccnc = 1;
-
-      }
-      if (_haspi0 ==1) std::cout<<"HAS PI0!"<<std::endl;
-      std::cout<<"here"<<std::endl;
-
-    }// end of if MC
-
-    //if in fid, save to branch
-    //------------------------------------------------------------------------
-
-    //mask out non shower pixels from adc
-    std::vector<std::vector<std::vector<float>>> masked_adc_vvv;
-    std::vector<std::vector<std::vector<float>>> masked_adc_high_vvv;
-    std::vector<std::vector<std::vector<float>>> masked_adc_low_vvv;
-
-
-    //make object to save triangles of showers to fill later.
-    //for each u1,u2,v1,v2,y1,y2: save (x1,y1,x2,y2,x3,y3)
-    std::vector<std::vector<float>> shower_points_vv(6,std::vector<float> (6,-1));
-
-
-    for ( size_t p=0; p<3; p++ ) {
-
-      std::vector<int> vtx2d_true;
-
-
-      // mask the ADC image using ssnet - low threshold
-      int npixels_adc = adc_sparse_vvv[p].size();
-      int npixels_ssnet = ssnet_sparse_vvv[p].size();
-      std::vector<std::vector<float>> masked_plane_v;
-      for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
-        for ( int ssnet_i =0;ssnet_i<npixels_ssnet;ssnet_i++){
-          float thrumupix = thrumu_v[p].pixel(adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1]);
-          if (ssnet_sparse_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
-              masked_plane_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
-          }//end of if statements
-        }//end of loop through ssnet
-      }//end of loop throug adc
-      masked_adc_vvv.push_back(masked_plane_v);
-
-
-      // mask the ADC image using ssnet - high threshold
-      int npixels_ssnet_high = ssnet_sparse_high_vvv[p].size();
-      std::vector<std::vector<float>> masked_plane_high_v;
-      for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
-        for ( int ssnet_i =0;ssnet_i<npixels_ssnet_high;ssnet_i++){
-          if (ssnet_sparse_high_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_high_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
-              masked_plane_high_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
-          }//end of if statements
-        }//end of loop through ssnet
-      }//end of loop throug adc
-      masked_adc_high_vvv.push_back(masked_plane_high_v);
-      
-			
-			// mask the ADC image using ssnet - high threshold
-      int npixels_ssnet_low = ssnet_sparse_low_vvv[p].size();
-      std::vector<std::vector<float>> masked_plane_low_v;
-      for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
-        for ( int ssnet_i =0;ssnet_i<npixels_ssnet_low;ssnet_i++){
-          if (ssnet_sparse_low_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_low_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
-              masked_plane_low_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
-          }//end of if statements
-        }//end of loop through ssnet
-      }//end of loop throug adc
-      masked_adc_low_vvv.push_back(masked_plane_low_v);
-    
-    }//end of plane loop
-
-    if (_use_nueint){
-      _uplane_profile_vv = SecondShower.SaveTrueProfile(0, ev_segment, ev_instance,
-            ev_mcshower,masked_adc_vvv);
-      _vplane_profile_vv = SecondShower.SaveTrueProfile(1, ev_segment, ev_instance,
-            ev_mcshower,masked_adc_vvv);
-      _yplane_profile_vv = SecondShower.SaveTrueProfile(2, ev_segment, ev_instance,
-            ev_mcshower,masked_adc_vvv);
-    }
-    // std::cout<<"Size of masked adc sparse vectors: \n";
-    // std::cout<<"Masked ADC: "<<masked_adc_vvv[0].size()<<","<<masked_adc_vvv[1].size()<<","<<masked_adc_vvv[2].size()<<"\n";
-
     // get candidate vertices, if in fiducial volume, keep
     _vtx_pos_vv.clear();
-			
-
+    
     if (!useTrueVtx){
       int vtxid =0;
       for ( auto const& pgraph : ev_vtx->PGraphArray() ) {
@@ -804,6 +733,192 @@ namespace ssnetshowerreco {
       vtx2d_true = Utils.getProjectedPixel(_scex, ev_adc->Image2DArray()[2].meta(), 3);
 
     }
+
+    // ---------------------------------------------------------
+    // GET MC INFO
+    //-------------remove later----------------------------------
+    if (_use_mc){
+      // ev_partroi = (larcv::EventROI*)(iolcv.get_data( larcv::kProductROI, _partroi_tree_name));
+      // TFile* newSCEFile = new TFile("/cluster/tufts/wongjiradlab/rshara01/bkp/SCEoffsets_dataDriven_combined_fwd_Jan18.root","read");
+      // TH3F* sceDx = (TH3F*) newSCEFile->Get("hDx");
+      // TH3F* sceDy = (TH3F*) newSCEFile->Get("hDy");
+      // TH3F* sceDz = (TH3F*) newSCEFile->Get("hDz");
+      std::vector<double> _scex(3,0);
+      std::vector<double> _tx(3,0);
+      for(auto const& roi : ev_partroi->ROIArray()){
+        if(std::abs(roi.PdgCode()) == 12 || std::abs(roi.PdgCode()) == 14) {
+          _tx.resize(3,0);
+          _tx[0] = roi.X();
+          _tx[1] = roi.Y();
+          _tx[2] = roi.Z();
+          // auto const offset = Utils.GetPosOffsets(_tx,sceDx,sceDy,sceDz);
+          // _scex = Utils.MakeSCECorrection(_scex,_tx,offset);
+        }
+      }
+      std::cout<<"TRUE VTX: "<<_tx[0]<<" "<<_tx[1]<<" "<<_tx[2]<<std::endl;
+      bool vtxinfid = Utils.InsideFiducial(_tx[0],_tx[1],_tx[2]);
+      if (vtxinfid) _truefid =1;
+      else _truefid =0;
+      _true_vtx_3d_v = _tx;
+      // newSCEFile->Close();
+
+      if (vtxinfid ){
+        _true_energy_vv = SecondShower.SaveTrueEnergies(ev_mcshower);
+        _true_shower_start_vv = SecondShower.SaveTrueStarts(ev_mcshower);
+        _true_shower_dir_vv = SecondShower.SaveTrueDirections(ev_mcshower);
+      }
+
+      _haspi0 = 0;
+      _ccnc = 0;
+      for(int part =0;part<(int)ev_mctruth->at(0).GetParticles().size();part++){
+
+        if (ev_mctruth->at(0).GetParticles().at(part).PdgCode() == 111) _haspi0 = 1;
+        if (ev_mctruth->at(0).GetNeutrino().CCNC() == 1) _ccnc = 1;
+
+      }
+      if (_haspi0 ==1) std::cout<<"HAS PI0!"<<std::endl;
+      std::cout<<"here"<<std::endl;
+
+    }// end of if MC
+
+    // ===================================================================================
+    // GET PROJECTED IMAGE COORD OF VERTICES
+    // --------------------------------------
+    
+    std::vector< std::vector<int>  > imgcoord_vv;
+
+    for ( size_t ivtx=0; ivtx<_vtx_pos_vv.size(); ivtx++ ) {
+      
+      std::cout << "[SSNetShowerReco] Reconstruct vertex[" << ivtx << "] "
+                << "pos=(" << _vtx_pos_vv[ivtx][0] << "," << _vtx_pos_vv[ivtx][1] << "," << _vtx_pos_vv[ivtx][2] << ")"
+                << std::endl;
+
+      //get 2d vertex position
+      std::vector<int> imgcoord_v(4);  // (U,V,Y,tick)
+      float tick = 3200 + _vtx_pos_vv[ivtx][0]/larutil::LArProperties::GetME()->DriftVelocity()/0.5;
+      for ( size_t p=0; p<3; p++ ) {
+        imgcoord_v[p] = adc_v[p].meta().col( larutil::Geometry::GetME()->NearestWire( _vtx_pos_vv[ivtx], (int)p ), __FILE__, __LINE__ );
+      }
+      imgcoord_v[3] = adc_v[0].meta().row( tick, __FILE__, __LINE__ );
+      imgcoord_vv.push_back( imgcoord_v );
+    }
+    
+
+    // ============================================
+    // MAKE SPARSE IMAGES FOR SSNET SCORES
+    // OLD FIXED THRESHOLD
+    // std::vector<std::vector<float>> ssnet_u_shower_sparse = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
+    // std::vector<std::vector<float>> ssnet_v_shower_sparse = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
+    // std::vector<std::vector<float>> ssnet_y_shower_sparse = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],_SSNET_SHOWER_THRESHOLD);
+
+    // TWO THRESHOLD METHOD, for pixels near vertices
+    std::vector<std::vector<float>> ssnet_u_shower_sparse
+      = MakeImage2dSparseWithVertexThreshold(ev_shower_score[0]->Image2DArray()[0],
+					     imgcoord_vv,
+					     0,
+					     10.0,
+					     0.05,
+					     _SSNET_SHOWER_THRESHOLD);
+    std::vector<std::vector<float>> ssnet_v_shower_sparse
+      = MakeImage2dSparseWithVertexThreshold(ev_shower_score[1]->Image2DArray()[0],
+					     imgcoord_vv,
+					     1,
+					     10.0,
+					     0.05,
+					     _SSNET_SHOWER_THRESHOLD);
+    std::vector<std::vector<float>> ssnet_y_shower_sparse
+      = MakeImage2dSparseWithVertexThreshold(ev_shower_score[2]->Image2DArray()[0],
+					     imgcoord_vv,
+					     2,
+					     10.0,
+					     0.05,
+					     _SSNET_SHOWER_THRESHOLD);
+    std::vector<std::vector<std::vector<float>>> ssnet_sparse_vvv = {ssnet_u_shower_sparse,ssnet_v_shower_sparse,ssnet_y_shower_sparse};
+    
+    std::vector<std::vector<float>> ssnet_u_shower_sparse_high = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],.5);
+    std::vector<std::vector<float>> ssnet_v_shower_sparse_high = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],.5);
+    std::vector<std::vector<float>> ssnet_y_shower_sparse_high = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],.5);
+    std::vector<std::vector<std::vector<float>>> ssnet_sparse_high_vvv = {ssnet_u_shower_sparse,ssnet_v_shower_sparse,ssnet_y_shower_sparse};
+    
+    std::vector<std::vector<float>> ssnet_u_shower_sparse_low = MakeImage2dSparse(ev_shower_score[0]->Image2DArray()[0],.05);
+    std::vector<std::vector<float>> ssnet_v_shower_sparse_low = MakeImage2dSparse(ev_shower_score[1]->Image2DArray()[0],.05);
+    std::vector<std::vector<float>> ssnet_y_shower_sparse_low = MakeImage2dSparse(ev_shower_score[2]->Image2DArray()[0],.05);
+    std::vector<std::vector<std::vector<float>>> ssnet_sparse_low_vvv = {ssnet_u_shower_sparse_low,ssnet_v_shower_sparse_low,ssnet_y_shower_sparse_low};
+
+
+    //if in fid, save to branch
+    //------------------------------------------------------------------------
+
+    //mask out non shower pixels from adc
+    std::vector<std::vector<std::vector<float>>> masked_adc_vvv;
+    std::vector<std::vector<std::vector<float>>> masked_adc_high_vvv;
+    std::vector<std::vector<std::vector<float>>> masked_adc_low_vvv;
+
+
+    //make object to save triangles of showers to fill later.
+    //for each u1,u2,v1,v2,y1,y2: save (x1,y1,x2,y2,x3,y3)
+    std::vector<std::vector<float>> shower_points_vv(6,std::vector<float> (6,-1));
+
+
+    for ( size_t p=0; p<3; p++ ) {
+
+      std::vector<int> vtx2d_true;
+
+
+      // mask the ADC image using ssnet - low threshold
+      // Used for shower clustering
+      int npixels_adc = adc_sparse_vvv[p].size();
+      int npixels_ssnet = ssnet_sparse_vvv[p].size();
+      std::vector<std::vector<float>> masked_plane_v;
+      for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
+        for ( int ssnet_i =0;ssnet_i<npixels_ssnet;ssnet_i++){
+          float thrumupix = thrumu_v[p].pixel(adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1]);
+          if (ssnet_sparse_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
+              masked_plane_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
+          }//end of if statements
+        }//end of loop through ssnet
+      }//end of loop throug adc
+      masked_adc_vvv.push_back(masked_plane_v);
+
+
+      // mask the ADC image using ssnet - high threshold
+      int npixels_ssnet_high = ssnet_sparse_high_vvv[p].size();
+      std::vector<std::vector<float>> masked_plane_high_v;
+      for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
+        for ( int ssnet_i =0;ssnet_i<npixels_ssnet_high;ssnet_i++){
+          if (ssnet_sparse_high_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_high_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
+              masked_plane_high_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
+          }//end of if statements
+        }//end of loop through ssnet
+      }//end of loop throug adc
+      masked_adc_high_vvv.push_back(masked_plane_high_v);
+      
+			
+      // mask the ADC image using ssnet - high threshold
+      int npixels_ssnet_low = ssnet_sparse_low_vvv[p].size();
+      std::vector<std::vector<float>> masked_plane_low_v;
+      for ( int adc_i =0;adc_i<npixels_adc;adc_i++ ) {
+        for ( int ssnet_i =0;ssnet_i<npixels_ssnet_low;ssnet_i++){
+          if (ssnet_sparse_low_vvv[p][ssnet_i][0] == adc_sparse_vvv[p][adc_i][0] && ssnet_sparse_low_vvv[p][ssnet_i][1] == adc_sparse_vvv[p][adc_i][1]){
+              masked_plane_low_v.push_back({(float) adc_sparse_vvv[p][adc_i][0],adc_sparse_vvv[p][adc_i][1],adc_sparse_vvv[p][adc_i][2]});
+          }//end of if statements
+        }//end of loop through ssnet
+      }//end of loop throug adc
+      masked_adc_low_vvv.push_back(masked_plane_low_v);
+    
+    }//end of plane loop
+
+    if (_use_nueint){
+      _uplane_profile_vv = SecondShower.SaveTrueProfile(0, ev_segment, ev_instance,
+            ev_mcshower,masked_adc_vvv);
+      _vplane_profile_vv = SecondShower.SaveTrueProfile(1, ev_segment, ev_instance,
+            ev_mcshower,masked_adc_vvv);
+      _yplane_profile_vv = SecondShower.SaveTrueProfile(2, ev_segment, ev_instance,
+            ev_mcshower,masked_adc_vvv);
+    }
+    // std::cout<<"Size of masked adc sparse vectors: \n";
+    // std::cout<<"Masked ADC: "<<masked_adc_vvv[0].size()<<","<<masked_adc_vvv[1].size()<<","<<masked_adc_vvv[2].size()<<"\n";
+
 
 
 
@@ -955,31 +1070,53 @@ namespace ssnetshowerreco {
             else
               reco_energy2 = sumQ2*0.013456 + 2.06955; // uncalibrated images
 
-            if (shangle2 < shangle+(shopen/2.0)&&shangle2 > shangle-(shopen/2.0)){
-              // std::cout<<"MATCHING ANGLE!"<<std::endl;
-              //make 1st one == second
-              shangle = shangle2;
-              shopen = shopen2;
-              shlength = shlength2;
-              sumQ = sumQ2;
-              tri = tri2;
-              pixlist_v = pixlist2_v;
-              reco_energy = reco_energy2;
-              first_triangle.clear();
-              first_triangle.push_back({(double)vtx_pix2[0],(double)vtx_pix2[1]});
-              first_triangle.push_back({vtx_pix2[0] + shlength*cos(shangle+shopen),vtx_pix2[1] + shlength*sin(shangle+shopen)});
-              first_triangle.push_back({vtx_pix2[0] + shlength*cos(shangle-shopen),vtx_pix2[1] + shlength*sin(shangle-shopen)});
-              // remask
+            if (shangle2 < shangle+(shopen/2.0)&&shangle2 > shangle-(shopen/2.0) ){
+	      std::cout<<"MATCHING ANGLE!" << std::endl;
+
+	      std::vector< std::vector<double> > matching_triangle;
+	      matching_triangle.push_back({(double)vtx_pix2[0],(double)vtx_pix2[1]});
+	      matching_triangle.push_back({vtx_pix2[0] + shlength2*cos(shangle2+shopen2),vtx_pix2[1] + shlength2*sin(shangle2+shopen2)});
+	      matching_triangle.push_back({vtx_pix2[0] + shlength2*cos(shangle2-shopen2),vtx_pix2[1] + shlength2*sin(shangle2-shopen2)});
+
+	      
+              // remask with this same direction fragment off
               secondshower_adc_vv.clear();
               //loop through sparse image
               for (int ii = 0; ii<int(masked_adc_vvv[p].size());ii++){
                 float adc_pix = masked_adc_vvv[p][ii][2];
-                if(!_isInside2(first_triangle[0][0],first_triangle[0][1],
-                    first_triangle[1][0],first_triangle[1][1],first_triangle[2][0],
-                    first_triangle[2][1],masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0])){
+                if( !_isInside2(first_triangle[0][0],first_triangle[0][1],
+				first_triangle[1][0],first_triangle[1][1],first_triangle[2][0],
+				first_triangle[2][1],masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0]) &&
+		    !_isInside2(matching_triangle[0][0],matching_triangle[0][1],
+				matching_triangle[1][0],matching_triangle[1][1],matching_triangle[2][0],
+				matching_triangle[2][1],masked_adc_vvv[p][ii][1],masked_adc_vvv[p][ii][0])		    
+		    ){
                   secondshower_adc_vv.push_back({masked_adc_vvv[p][ii][0],masked_adc_vvv[p][ii][1],adc_pix});
                 }
               }//end of loop through sparse
+	      
+	      if ( sumQ2>sumQ ) {
+		std::cout << "SAME DIR SECOND SHOWER BIGGER THAN THE FIRST! REPLACE FIRST SHOWER" << std::endl;
+		// bigger than first shower! modifying first shower"<<std::endl;
+		//make 1st one == second
+		shangle = shangle2;
+		shopen = shopen2;
+		shlength = shlength2;
+		sumQ = sumQ2;
+		tri = tri2;
+		pixlist_v = pixlist2_v;
+		reco_energy = reco_energy2;
+		first_triangle.clear();
+		first_triangle.push_back({(double)vtx_pix2[0],(double)vtx_pix2[1]});
+		first_triangle.push_back({vtx_pix2[0] + shlength*cos(shangle+shopen),vtx_pix2[1] + shlength*sin(shangle+shopen)});
+		first_triangle.push_back({vtx_pix2[0] + shlength*cos(shangle-shopen),vtx_pix2[1] + shlength*sin(shangle-shopen)});
+	      }
+	      else {
+		// tmw: add to energy [maybe not great move]?
+		sumQ += sumQ2;
+		reco_energy += reco_energy2;
+	      }
+
               //run code again with mask allowed
               //reset to vtx coordinates
               shangle2  = _findDir( secondshower_adc_vv, vtx_pix2[0], vtx_pix2[1] );
@@ -1002,11 +1139,11 @@ namespace ssnetshowerreco {
                 reco_energy2 = sumQ2*0.013456 + 2.06955; // uncalibrated images
 
             } //end of overlap check
-
+	    
             std::cout << "[SSNetShowerReco] plane[" << p << "] final sumQ2=" << sumQ2 << " reco2=" << reco_energy2 << std::endl;
-
+	    
           }//end of remaining adc check
-
+	  
           secondshower_gap_v[p] = step2;
           secondshower_start_2d_vv.push_back(vtx_pix2);
           secondshower_energy_v[p] = reco_energy2;
@@ -1014,7 +1151,7 @@ namespace ssnetshowerreco {
           secondshower_shlength_v[p] = shlength2;
           secondshower_shangle_v[p]=shangle2;
           secondshower_shopen_v[p]=shopen2;
-
+	  
         }//end of second shower search
         shower_gap_v[p] = step;
         shower_start_2d_vv.push_back(vtx_pix);
