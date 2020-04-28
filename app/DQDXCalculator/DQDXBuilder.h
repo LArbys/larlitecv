@@ -64,10 +64,12 @@ namespace larlitecv {
      TVector3 get_halfway_plane_pt( int w1,  int w2, const TVector3 pt1, const TVector3 pt2, const int plane);
      void test_wirecoord_driftplanes(larlite::track reco3d_track);
 
+     void set_verbose( bool set ) { _verbose=set; };
+
    private:
      std::vector<larcv::Image2D> _img_v; // The three plane views in adc
 
-
+     bool _verbose;
    };
    //End of Class
 

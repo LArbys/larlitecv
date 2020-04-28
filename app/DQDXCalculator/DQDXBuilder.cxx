@@ -6,14 +6,16 @@
 
 namespace larlitecv {
   DQDXBuilder::DQDXBuilder()
-  : _img_v(3,larcv::Image2D(1008,3456))
+    : _img_v(3,larcv::Image2D(1008,3456)),
+      _verbose(false)
   {
     Initialize_DQDXBuilder();
   }
 
 
   DQDXBuilder::DQDXBuilder(std::vector<larcv::Image2D> img_v)
-  :  _img_v(img_v)
+    :  _img_v(img_v),
+       _verbose(false)
   {
     Initialize_DQDXBuilder();
   }
@@ -223,8 +225,20 @@ namespace larlitecv {
     double cumulative_s_distance = 0;
     TVector3 modified_this_pt;
     int i = 1;
+
+    if ( _verbose ) {
+      std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] "
+		<< " number of track trajectory points=" << reco3d_track.NumberTrajectoryPoints()
+		<< " analyze on plane=" << plane
+		<< std::endl;
+    }
+    
     while (i< (int)reco3d_track.NumberTrajectoryPoints()-1){
-    // for (int i =1; i<=(int)reco3d_track.NumberTrajectoryPoints()-1; i++){
+
+      if ( _verbose )
+	std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] analyze point[" << i << "]" << std::endl;
+      
+      // for (int i =1; i<=(int)reco3d_track.NumberTrajectoryPoints()-1; i++){
       TVector3 this_pt = reco3d_track.LocationAtPoint(i-1);
       // If not the first pair, then set this_pt equal to end of last step's dx
       if (i != 1){
@@ -244,6 +258,25 @@ namespace larlitecv {
       }
       else{
         wire_is_increasing = false;
+      }
+
+      // respect image bounds
+      if ( end_wire_i>=(int)geo->Nwires(plane)-1 ) {
+	// we need to increment down to two wires away, because get_halfway_plane_pt will extend to next wire
+	if (_verbose) std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] move end_wire_i=" << end_wire_i << " back in bounds" <<std::endl;
+	end_wire_i = (int)geo->Nwires(plane)-2;
+      }
+      if (start_wire_i<0)
+	start_wire_i = 0;
+
+      if ( _verbose ) {
+	std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] wire_is_increasing=" << wire_is_increasing << std::endl;
+	std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] "
+		  << " this-pos=(" << this_pt.x() << "," << this_pt.y() << "," << this_pt.z() << ") "
+		  << " next-pos=(" << next_pt.x() << "," << next_pt.y() << "," << next_pt.z() << ") "
+		  << " this-wire=" << start_wire_i
+		  << " next-wire=" << end_wire_i
+		  << std::endl;
       }
 
       // Now we have the wires we are going to take points on for this Reco3D step
@@ -348,15 +381,19 @@ namespace larlitecv {
           if ((this_pt.x() == next_pt.x()) && (this_pt.y() == next_pt.y()) && (this_pt.z() == next_pt.z())){
             col++;
             continue;
-          }
+          }	  
           bool advance_col = true;
           double this_next_distance = distance_between_pt(this_pt,next_pt);
+	  if ( _verbose ) std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] get_halfway_plane_pt";
           dx_pt1 = get_halfway_plane_pt(col-1, col   , this_pt, next_pt, plane);
           dx_pt2 = get_halfway_plane_pt(col  , col+1 , this_pt, next_pt, plane);
           TVector3 unit_vec = get_unit_vector(this_pt,next_pt);
+	  if ( _verbose ) std::cout << " ... done" << std::endl;
 
           dx = larlitecv::distance_between_pt(dx_pt1,dx_pt2);
+	  if ( _verbose ) std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] get_line_plane_intersection_pt";	  
           new_pt_3d = get_line_plane_intersection_pt(dx_pt1, dx_pt2, wire_planar_equations[plane][col]);
+	  if ( _verbose ) std::cout << " ... done" << std::endl;
           if ((dx > 1.0) && (dx  > this_next_distance)){
             if (wire_is_increasing){
               dx_pt2 = next_pt;
@@ -379,7 +416,7 @@ namespace larlitecv {
               new_pt_3d = new_tmp;
             }
           }
-          if (dx < 0.3){
+          else if (dx < 0.3){
             if (wire_is_increasing){
               dx_pt2.SetXYZ(dx_pt1.x()+unit_vec.x()*0.3, dx_pt1.y()+unit_vec.y()*0.3, dx_pt1.z()+unit_vec.z()*0.3);
               dx = larlitecv::distance_between_pt(dx_pt1,dx_pt2);
@@ -394,18 +431,22 @@ namespace larlitecv {
             }
           }
 
+	  if ( _verbose ) std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] calc_row_from_x";	  	  
           // int row_this = calc_row_from_x(new_pt_3d.x(),_img_v[plane].meta());
           // int col_this = geo->NearestWire(new_pt_3d, plane);
           cumulative_s_distance += dx;
           start_row    = calc_row_from_x(dx_pt1.x(),_img_v[plane].meta());
           end_row      = calc_row_from_x(dx_pt2.x(),_img_v[plane].meta());
+	  if ( _verbose ) std::cout << " ... done" << std::endl;
           //Flip if ordered wrong
           if (start_row > end_row){
             int tmp_row = end_row;
             end_row = start_row;
             start_row = tmp_row;
           }
+	  if ( _verbose ) std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] sum_charge_dq";
           dq += sum_charge_dq(start_row, end_row, col, plane);
+	  if ( _verbose ) std::cout << " ... done" << std::endl;
           new_steps_y.push_back(new_pt_3d);
           dq_y.push_back(dq);
           dx_y.push_back(dx);
@@ -499,8 +540,11 @@ namespace larlitecv {
         throw -1;
       }
       i++;
-    }
-
+    }//end of trajectory point loop
+    
+    if ( _verbose )
+      std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] save output" << std::endl;
+    
     std::vector<double> dqdx_final;
     dqdx_final.reserve(new_steps_y.size());
     for (int idx=0;idx < dq_y.size(); idx++){
