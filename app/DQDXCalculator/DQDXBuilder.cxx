@@ -260,15 +260,23 @@ namespace larlitecv {
         wire_is_increasing = false;
       }
 
-      // respect image bounds
+      // respect wire bounds
       if ( end_wire_i>=(int)geo->Nwires(plane)-1 ) {
 	// we need to increment down to two wires away, because get_halfway_plane_pt will extend to next wire
 	if (_verbose) std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] move end_wire_i=" << end_wire_i << " back in bounds" <<std::endl;
 	end_wire_i = (int)geo->Nwires(plane)-2;
       }
+      else if (end_wire_i<0)
+	end_wire_i = 0;
+      
       if (start_wire_i<0)
 	start_wire_i = 0;
-
+      else if ( start_wire_i>=(int)geo->Nwires(plane)-1 ) {
+	// we need to increment down to two wires away, because get_halfway_plane_pt will extend to next wire
+	if (_verbose) std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] move start_wire_i=" << start_wire_i << " back in bounds" <<std::endl;
+	start_wire_i = (int)geo->Nwires(plane)-2;
+      }
+      
       if ( _verbose ) {
 	std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] wire_is_increasing=" << wire_is_increasing << std::endl;
 	std::cout << "[ DQDXBuilder::calc_dqdx_track_revamp ] "
