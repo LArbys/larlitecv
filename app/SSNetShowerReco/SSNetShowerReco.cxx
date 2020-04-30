@@ -40,6 +40,7 @@ namespace ssnetshowerreco {
     _use_bnb = false;
     _second_shower = false;
     _second_shower_adc_threshold = 5000;
+    _truefid = 0;
     clear();
   }
 
@@ -1582,7 +1583,7 @@ namespace ssnetshowerreco {
 
     //truth matching stuff-----------------------------------------------------
     //only do this if true is in InsideFiducial
-    if (_truefid == 1 && ev_mcshower->size() == 2&&_use_mc){
+    if (_use_mc && _truefid == 1 && ev_mcshower->size() == 2 ){
       //loop through vertices again
       std::vector<double> tmptruestart1 (3,0);
       tmptruestart1[0]= (double)_true_shower_start_vv[0][0];
