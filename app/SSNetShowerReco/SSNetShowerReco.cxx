@@ -1002,11 +1002,17 @@ namespace ssnetshowerreco {
 
         float reco_energy = 0;
         float reco_energy2 = -1;
-        if ( _use_calibrated_pixelsum2mev )
-          reco_energy = sumQ*0.01324 + 37.83337; // calibrated images
-        else
-          reco_energy = sumQ*0.013456 + 2.06955; // uncalibrated images
-
+	      
+	#Old linear calibration
+        #if ( _use_calibrated_pixelsum2mev )
+        #  reco_energy = sumQ*0.01324 + 37.83337; // calibrated images
+        #else
+        #  reco_energy = sumQ*0.013456 + 2.06955; // uncalibrated images
+	      
+	# Quadradit pi0/michel calibration
+        reco_energy = (-69.049 + (69.049**2 + 4 * 0.112 * sumQ)**0.5 ) / (2 * 0.112)
+	      
+	      
         std::cout << "[SSNetShowerReco] plane[" << p << "] final sumQ=" << sumQ << " reco=" << reco_energy << std::endl;
 
         //run second shower code if requested
@@ -1134,11 +1140,16 @@ namespace ssnetshowerreco {
               // std::cout << "[SSNetShowerReco]    second open angle: " << shopen2 << std::endl;
               pixlist2_v =  _enclosedCharge( secondshower_adc_vv, shangle2, sumQ2, tri2, true, vtx_pix2[0], vtx_pix2[1], shlength2, shopen2 );
               reco_energy2 = 0;
-              if ( _use_calibrated_pixelsum2mev )
-                reco_energy2 = sumQ2*0.01324 + 37.83337; // calibrated images
-              else
-                reco_energy2 = sumQ2*0.013456 + 2.06955; // uncalibrated images
+		    
+	      # old linear calibration
+              #if ( _use_calibrated_pixelsum2mev )
+              #  reco_energy2 = sumQ2*0.01324 + 37.83337; // calibrated images
+              #else
+              #  reco_energy2 = sumQ2*0.013456 + 2.06955; // uncalibrated images
 
+	      # Use pi0/michel quadratic calibration
+              reco_energy2 = (-69.049 + (69.049**2 + 4 * 0.112 * sumQ2)**0.5 ) / (2 * 0.112)	    
+		    
             } //end of overlap check
 	    
             std::cout << "[SSNetShowerReco] plane[" << p << "] final sumQ2=" << sumQ2 << " reco2=" << reco_energy2 << std::endl;
