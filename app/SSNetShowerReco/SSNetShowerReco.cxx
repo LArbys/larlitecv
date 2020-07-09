@@ -1004,13 +1004,13 @@ namespace ssnetshowerreco {
         float reco_energy2 = -1;
 	      
 	//Old linear calibration
-        //if ( _use_calibrated_pixelsum2mev )
-        //  reco_energy = sumQ*0.01324 + 37.83337; // calibrated images
-        //else
-        //  reco_energy = sumQ*0.013456 + 2.06955; // uncalibrated images
+        if ( _use_calibrated_pixelsum2mev )
+          reco_energy = sumQ*0.01324 + 37.83337; // calibrated images
+        else
+          reco_energy = sumQ*0.013456 + 2.06955; // uncalibrated images
 	      
 	// Quadradit pi0/michel calibration
-        reco_energy = (-69.049 + (69.049**2 + 4 * 0.112 * sumQ)**0.5 ) / (2 * 0.112)
+        //reco_energy = (-69.049 + (69.049**2 + 4 * 0.112 * sumQ)**0.5 ) / (2 * 0.112)
 	      
 	      
         std::cout << "[SSNetShowerReco] plane[" << p << "] final sumQ=" << sumQ << " reco=" << reco_energy << std::endl;
@@ -1142,13 +1142,13 @@ namespace ssnetshowerreco {
               reco_energy2 = 0;
 		    
 	      // old linear calibration
-              //if ( _use_calibrated_pixelsum2mev )
-              //  reco_energy2 = sumQ2*0.01324 + 37.83337; // calibrated images
-              //else
-              //  reco_energy2 = sumQ2*0.013456 + 2.06955; // uncalibrated images
+              if ( _use_calibrated_pixelsum2mev )
+                reco_energy2 = sumQ2*0.01324 + 37.83337; // calibrated images
+              else
+                reco_energy2 = sumQ2*0.013456 + 2.06955; // uncalibrated images
 
 	      // Use pi0/michel quadratic calibration
-              reco_energy2 = (-69.049 + (69.049**2 + 4 * 0.112 * sumQ2)**0.5 ) / (2 * 0.112)	    
+              //reco_energy2 = (-69.049 + (69.049**2 + 4 * 0.112 * sumQ2)**0.5 ) / (2 * 0.112)	    
 		    
             } //end of overlap check
 	    
