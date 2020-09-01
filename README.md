@@ -180,40 +180,40 @@ You will find READMEs for each (describing how to run them) in their respective 
 ### Shower Reco Variables
 A description of the  variables made by the shower reco code
 Reco variables:
-*shower1_E_U, shower1_E_V, shower1_E_Y = Energy of the first shower in each plane (MeV) (y used in analysis)
-*shower2_E_U, shower2_E_V, shower2_E_Y = Energy of the first shower in each plane (MeV) (y used in analysis)
-*shower1_gap_U, shower1_gap_V, shower1_gap_Y = size of gap (cm) between the 1st shower start and vertex (NOT FILLED PROPERLY??)
-*shower2_gap_U, shower2_gap_V, shower2_gap_Y = size of gap (cm) between the 2nd shower start and vertex (NOT FILLED PROPERLY??)
-*shower1_dir_3d_X, shower1_dir_3d_Y, shower1_dir_3d_Z = the components of the 1st 3d shower direction unit vector
-*shower2_dir_3d_X, shower2_dir_3d_Y, shower2_dir_3d_Z = the components of the 2nd 3d shower direction unit vector
-*shower1_dir_2d_U, shower1_dir_2d_V, shower1_dir_2d_Y = Direction w.r.t wire direction (+x) of first reco shower in each plane
-*shower2_dir_2d_U, shower2_dir_2d_V, shower2_dir_2d_Y = Direction w.r.t wire direction (+x) of second reco shower in each plane
-*shower1_op_2d_U, shower1_op_2d_V, shower1_op_2d_Y = Opening angle of 2d shower first reco shower in each plane
-*shower2_op_2d_U, shower2_op_2d_V, shower2_op_2d_Y = Opening angle of 2d shower second reco shower in each plane
-*shower1_start_2d_U_X, shower1_start_2d_U_Y, shower1_start_2d_U_Z = first reco shower, u plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created) 
-*shower1_start_2d_V_X, shower1_start_2d_V_Y, shower1_start_2d_V_Z = first reco shower, v plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created) 
-*shower1_start_2d_Y_X, shower1_start_2d_Y_Y, shower1_start_2d_Y_Z = first reco shower, y plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created)  
-*shower2_start_2d_U_X, shower2_start_2d_U_Y, shower2_start_2d_U_Z = second reco shower, u plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created) 
-*shower2_start_2d_V_X, shower2_start_2d_V_Y, shower2_start_2d_V_Z = second reco shower, y plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created)
-*shower2_start_2d_Y_X, shower2_start_2d_Y_Y, shower2_start_2d_Y_Z =  second reco shower, y plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created)  
-*shower1_impact = from 3d reco, distance of pca line to vertex at closest point, for first reco shower
-*shower2_impact = from 3d reco, distance of pca line to vertex at closest point, for second reco shower
-*shower1_smallQ_U, shower1_smallQ_V, shower1_smallQ_Y = uses old method of crops to find enclosed ADC (only done for 1 shower case) 
-*shower1_sumQ_U, shower1_sumQ_V, shower1_sumQ_Y = Sum of ADC from ssnet shower pixels in first shower in each plane
-*shower2_sumQ_U, shower2_sumQ_V, shower2_sumQ_Y = Sum of ADC from ssnet shower pixels in second shower in each plane
+* shower1_E_U, shower1_E_V, shower1_E_Y = Energy of the first shower in each plane (MeV) (y used in analysis)
+* shower2_E_U, shower2_E_V, shower2_E_Y = Energy of the first shower in each plane (MeV) (y used in analysis)
+* shower1_gap_U, shower1_gap_V, shower1_gap_Y = size of gap (cm) between the 1st shower start and vertex (NOT FILLED PROPERLY??)
+* shower2_gap_U, shower2_gap_V, shower2_gap_Y = size of gap (cm) between the 2nd shower start and vertex (NOT FILLED PROPERLY??)
+* shower1_dir_3d_X, shower1_dir_3d_Y, shower1_dir_3d_Z = the components of the 1st 3d shower direction unit vector
+* shower2_dir_3d_X, shower2_dir_3d_Y, shower2_dir_3d_Z = the components of the 2nd 3d shower direction unit vector
+* shower1_dir_2d_U, shower1_dir_2d_V, shower1_dir_2d_Y = Direction w.r.t wire direction (+x) of first reco shower in each plane
+* shower2_dir_2d_U, shower2_dir_2d_V, shower2_dir_2d_Y = Direction w.r.t wire direction (+x) of second reco shower in each plane
+* shower1_op_2d_U, shower1_op_2d_V, shower1_op_2d_Y = Opening angle of 2d shower first reco shower in each plane
+* shower2_op_2d_U, shower2_op_2d_V, shower2_op_2d_Y = Opening angle of 2d shower second reco shower in each plane
+* shower1_start_2d_U_X, shower1_start_2d_U_Y, shower1_start_2d_U_Z = first reco shower, u plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created) 
+* shower1_start_2d_V_X, shower1_start_2d_V_Y, shower1_start_2d_V_Z = first reco shower, v plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created) 
+* shower1_start_2d_Y_X, shower1_start_2d_Y_Y, shower1_start_2d_Y_Z = first reco shower, y plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created)  
+* shower2_start_2d_U_X, shower2_start_2d_U_Y, shower2_start_2d_U_Z = second reco shower, u plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created) 
+* shower2_start_2d_V_X, shower2_start_2d_V_Y, shower2_start_2d_V_Z = second reco shower, y plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created)
+* shower2_start_2d_Y_X, shower2_start_2d_Y_Y, shower2_start_2d_Y_Z =  second reco shower, y plane, X = column, Y = row, in standard dl pixels. (Z is empty, as it should be. Accidentally created)  
+* shower1_impact = from 3d reco, distance of pca line to vertex at closest point, for first reco shower
+* shower2_impact = from 3d reco, distance of pca line to vertex at closest point, for second reco shower
+* shower1_smallQ_U, shower1_smallQ_V, shower1_smallQ_Y = uses old method of crops to find enclosed ADC (only done for 1 shower case) 
+* shower1_sumQ_U, shower1_sumQ_V, shower1_sumQ_Y = Sum of ADC from ssnet shower pixels in first shower in each plane
+* shower2_sumQ_U, shower2_sumQ_V, shower2_sumQ_Y = Sum of ADC from ssnet shower pixels in second shower in each plane
 
 Truth Variables:
-*haspi0 = 1 if there is a pi0 in the event
-*ccnc = 1 if cc,0 if nc
-*truefid = 1 if the true vtx is in fiducial
-*numshowers = number of true showers
-*firstdirection_true_X,firstdirection_true_Y,firstdirection_true_Z = 3d unit vector of the true shower matched to the first reco shower
-*seconddirection_true_X,seconddirection_true_Y,seconddirection_true_Z = 3d unit vector of the true shower matched to the second reco shower
-*shower_start_2d_true_row = 2d row (time direction) value of the 2d start of the true shower matched to first reco shower
-*shower_start_2d_true_colU, shower_start_2d_true_colV, shower_start_2d_true_colY = 2d col (wire direction) value of the 2d start of the true shower matched to first reco shower in each plane
-*secondshower_start_2d_true_row = 2d row (time direction) value of the 2d start of the true shower matched to second reco shower
-*secondshower_start_2d_true_colU, secondshower_start_2d_true_colV, secondshower_start_2d_true_colY = 2d col (wire direction) value of the 2d start of the true shower matched to second reco shower in each plane
-*shower_energy_true = true energy of shower matched to first reco shower
-*secondshower_energy_true = true energy of shower matched to second reco shower
-*shower_recotrue_dist = 2d dist(yplane) between shower starts of true shower matched to first reco shower and first reco shower
-*secondshower_recotrue_dist = 2d dist(yplane) between shower starts of true shower matched to second reco shower and second reco shower
+* haspi0 = 1 if there is a pi0 in the event
+* ccnc = 1 if cc,0 if nc
+* truefid = 1 if the true vtx is in fiducial
+* numshowers = number of true showers
+* firstdirection_true_X,firstdirection_true_Y,firstdirection_true_Z = 3d unit vector of the true shower matched to the first reco shower
+* seconddirection_true_X,seconddirection_true_Y,seconddirection_true_Z = 3d unit vector of the true shower matched to the second reco shower
+* shower_start_2d_true_row = 2d row (time direction) value of the 2d start of the true shower matched to first reco shower
+* shower_start_2d_true_colU, shower_start_2d_true_colV, shower_start_2d_true_colY = 2d col (wire direction) value of the 2d start of the true shower matched to first reco shower in each plane
+* secondshower_start_2d_true_row = 2d row (time direction) value of the 2d start of the true shower matched to second reco shower
+* secondshower_start_2d_true_colU, secondshower_start_2d_true_colV, secondshower_start_2d_true_colY = 2d col (wire direction) value of the 2d start of the true shower matched to second reco shower in each plane
+* shower_energy_true = true energy of shower matched to first reco shower
+* secondshower_energy_true = true energy of shower matched to second reco shower
+* shower_recotrue_dist = 2d dist(yplane) between shower starts of true shower matched to first reco shower and first reco shower
+* secondshower_recotrue_dist = 2d dist(yplane) between shower starts of true shower matched to second reco shower and second reco shower
