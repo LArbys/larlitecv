@@ -14,6 +14,8 @@
 #pragma link C++ namespace std;
 #pragma link C++ class std::vector<float>+;
 #pragma link C++ class std::vector< std::vector<float> >+;
+#pragma link C++ class larlitecv::ssnetshowerreco::GetTruthVariables+;
+#pragma link C++ class larlitecv::ssnetshowerreco::GetDataVariables+;
 #pragma link C++ class larlitecv::ssnetshowerreco::Utils+;
 #pragma link C++ class larlitecv::ssnetshowerreco::SecondShower+;
 #pragma link C++ class larlitecv::ssnetshowerreco::SSNetShowerReco+;
