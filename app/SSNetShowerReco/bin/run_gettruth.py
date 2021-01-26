@@ -36,7 +36,6 @@ iolcv.initialize()
 GetTruthVariables = larlitecv.ssnetshowerreco.GetTruthVariables()
 GetTruthVariables.initialize()
 
-
 nentries = ioll.get_entries()
 for ientry in xrange(nentries):
     print "[ENTRY ",ientry,"]"
@@ -55,6 +54,7 @@ for ientry in xrange(nentries):
     entrydata = { "run":ioll.run_id(),
                   "subrun":ioll.subrun_id(),
                   "event":ioll.event_id(),
+                  "Enu_true":GetTruthVariables.GetNeutrinoEnergy(),
                   "SSNetShowerAverage":GetTruthVariables.getSSNetShowerAverage(),
                   "particle_pdg":[],
                   "particle_status":[],

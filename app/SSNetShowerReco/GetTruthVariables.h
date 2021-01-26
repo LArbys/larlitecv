@@ -51,6 +51,7 @@ namespace ssnetshowerreco {
     // get functions
     // -------------
     int NumParts() const { return _numparts; };
+    double GetNeutrinoEnergy() const { return _enu_true; };
     float getSSNetShowerAverage() const { return _averageSSNetShowerScore; };
     int getParticlePDG(int i) const { return _particle_PDG_v[i]; };
     int getParticleStatus(int i) const { return _particle_status_v[i]; };
@@ -80,6 +81,7 @@ namespace ssnetshowerreco {
     int  _subrun;
     int  _event;
     int _numparts;
+    double _enu_true;
     float _averageSSNetShowerScore;
     std::vector<int> _particle_PDG_v;
     std::vector<int> _particle_status_v;

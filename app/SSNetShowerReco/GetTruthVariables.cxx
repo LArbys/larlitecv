@@ -80,7 +80,11 @@ namespace ssnetshowerreco {
     // }
     // std::cout<<_gamma_energy_v[0]<<" "<<_gamma_energy_v[0]<<std::endl;
 
-    // loop through all final state paritcles
+    // loop through all final state particles
+    _enu_true=0.0;
+    _enu_true = ev_mctruth->at(0).GetNeutrino().Nu().Momentum().E()*1000.0;
+    std::cout<<"Neutrino Energy: "<<_enu_true<<std::endl;
+
     for(int part =0;part<(int)ev_mctruth->at(0).GetParticles().size();part++){
 
 
